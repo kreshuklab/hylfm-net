@@ -150,3 +150,25 @@ fish02_LF2_TP00_filet = Fish02(
     "FishDynamicLF_561nm_TP00",
     y_roi=(slice(7, 42), slice(None), slice(None)),
 )
+
+class RegionalFish(ConfigEntry):
+    common_path = Path("~/Documents/lnet_datasets")
+    description = "F02"
+
+regional_fish02_LS1 = RegionalFish(
+    "fish02_01",
+    "lfimg",
+    "light_sheet",
+    "FishStaticLS_488nm",
+    x_roi=(slice(None), slice(1, None)),
+    y_roi=(slice(None), slice(None), slice(1, None)),
+)
+
+regional_fish02_RL1 = RegionalFish(
+    "fish02_01",
+    "lfimg",
+    "rl",
+    "FishStaticLS_488nm",
+    x_roi=(slice(None), slice(1, None)),
+    y_roi=(slice(None), slice(None), slice(1, None)),
+)

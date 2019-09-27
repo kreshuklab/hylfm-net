@@ -9,6 +9,7 @@ bead00_LS0 = ConfigEntry(
     "gt/LS_Stack",
     "bead00_0_LS_561nm",
 )
+
 bead00_LF0 = ConfigEntry(
     Path("/g/hufnagel/LF/LenseLeNet_Microscope/20190531_MassiveGT_GenerationBeads_crop"),
     "lfimg",
