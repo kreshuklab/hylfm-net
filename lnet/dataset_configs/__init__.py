@@ -10,7 +10,7 @@ class PathOfInterest:
         self.sigma = sigma
 
 
-class ConfigEntry:
+class DatasetConfigEntry:
     x_path: Path
     y_path: Path
     x_roi: Tuple[slice, slice]
@@ -40,14 +40,3 @@ class ConfigEntry:
         self.y_roi = y_roi
         self.stat = stat
         self.interesting_paths = interesting_paths
-
-
-class DatasetConfig:
-    def __init__(self, *entries: ConfigEntry):
-        self.entries = entries
-
-    def __len__(self):
-        return len(self.entries)
-
-    def __getitem__(self, item: int) -> ConfigEntry:
-        return self.entries[item]

@@ -1,20 +1,24 @@
 import logging
-import shutil
-
 import pbs3
+import shutil
 import yaml
 
 from dataclasses import dataclass, field, InitVar
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from typing import Tuple, Optional, Type, Dict, Any, Union, List, Callable, Generator
 
+from ignite.engine import Engine
 from inferno.io.transform import Transform
 
-import lnet.transforms
-
 from lnet import models
-from lnet.utils.loss import known_losses
+from lnet.dataset_configs import beads, platy, fish, DatasetConfigEntry
+from lnet.losses import known_losses
+from lnet.optimizers import known_optimiers
+from lnet.score_functions import known_score_functions
+from lnet.transforms import known_transforms
+from lnet.utils.datasets import DatasetFactory
 
 logger = logging.getLogger(__name__)
 
@@ -70,13 +74,15 @@ class LogConfig:
 @dataclass
 class ModelConfig:
     Model: Type
+    kwargs: Dict[str, Any]
     nnum: int
+    precision: str
+    checkpoint: Optional[Path]
 
-    kwargs: Dict[str, Any] = field(default_factory=dict)
     name: str = None
-    checkpoint: Optional[Path] = None
 
     def __post_init__(self):
+        assert self.precision == "float" or self.precision == "half"
         if self.name is None:
             self.name = self.Model.__name__
 
@@ -84,38 +90,56 @@ class ModelConfig:
 
     @classmethod
     def load(
-        cls, name: str, nnum: int, kwargs: Dict[str, Any] = None, checkpoint: Optional[str] = None
+        cls,
+        name: str,
+        nnum: int,
+        kwargs: Dict[str, Any] = None,
+        precision: str = "float",
+        checkpoint: Optional[str] = None,
     ) -> "ModelConfig":
         if kwargs is None:
             kwargs = {}
 
-        return cls(Model=getattr(models, name), nnum=nnum, kwargs=kwargs, name=name, checkpoint=Path(checkpoint))
+        return cls(
+            Model=getattr(models, name),
+            nnum=nnum,
+            kwargs=kwargs,
+            name=name,
+            precision=precision,
+            checkpoint=Path(checkpoint),
+        )
 
 
 @dataclass
 class TrainConfig:
-    model_config: InitVar[ModelConfig]
+    optimizer: Callable
+    batch_size: int
+    max_num_epochs: int
+    score_function: Callable[[Engine], float]
+    patience: int
 
     loss_fn: List[Tuple[float, Callable]]
     loss_aux_fn: Optional[List[Tuple[float, Callable]]] = None  # todo: make callable only, allow for kwargs?
-    transforms: Optional[List[Generator[Transform, None, None], Transform]] = None
-    named_transforms: Optional[List[str]] = None
-
-    def __post_init__(self, model_config):
-        if self.transforms is None:
-            if self.named_transforms is None:
-                self.transforms = []
-                self.named_transforms = []
-            else:
-                self.transforms = [getattr(lnet.transforms, nt)(model_config) for nt in self.named_transforms]
 
     @classmethod
-    def load(cls, model_config: ModelConfig, transforms: List[str], loss_fn: str, loss_aux_fn: str) -> "TrainConfig":
+    def load(
+        cls,
+        optimizer_config: Dict[str, Union[str, dict]],
+        batch_size: int,
+        max_num_epochs: int,
+        score_function: str,
+        patience: int,
+        loss_fn: str,
+        loss_aux_fn: str = None,
+    ) -> "TrainConfig":
         return cls(
-            model_config=model_config,
-            named_transforms=transforms,
+            optimizer=partial(known_optimiers[optimizer_config["name"]], **optimizer_config["kwargs"]),
+            batch_size=batch_size,
+            max_num_epochs=max_num_epochs,
+            score_function=known_score_functions[score_function],
+            patience=patience,
             loss_fn=known_losses[loss_fn],
-            loss_aux_fn=known_losses[loss_aux_fn],
+            loss_aux_fn=None if loss_aux_fn is None else known_losses[loss_aux_fn],
         )
 
 
@@ -135,6 +159,23 @@ class Config:
     train: TrainConfig
     data: DataConfig
 
+    train_dataset_names: List[str]
+    train_dataset_indices: List[Optional[List[int]]]
+    train_eval_dataset_indices: List[Optional[List[int]]]
+    train_dataset_factory: DatasetFactory = field(init=False)
+    valid_dataset_names: List[str]
+    valid_dataset_indices: List[Optional[List[int]]]
+    valid_dataset_factory: DatasetFactory = field(init=False)
+    test_dataset_names: List[str]  # todo: get test outta here!
+    test_dataset_indices: List[Optional[List[int]]]
+    test_dataset_factory: DatasetFactory = field(init=False)
+
+    train_transforms: Optional[List[Union[Generator[Transform, None, None], Transform]]] = None
+    train_transform_names: Optional[List[str]] = None
+
+    eval_transforms: Optional[List[Union[Generator[Transform, None, None], Transform]]] = None
+    eval_transform_names: Optional[List[str]] = None
+
     def __post_init__(self):
         if self.model.checkpoint is not None:
             assert self.model.checkpoint.exists(), self.model.checkpoint
@@ -142,6 +183,45 @@ class Config:
             hard_linked_checkpoint = self.log.dir / "checkpoint.pth"
             pbs3.ln(self.model.checkpoint.absolute().as_posix(), hard_linked_checkpoint.absolute().as_posix())
             self.model.checkpoint = hard_linked_checkpoint
+
+        def find_ds_config(ds_name) -> DatasetConfigEntry:
+            ds = getattr(beads, ds_name, None) or getattr(fish, ds_name, None) or getattr(platy, ds_name, None)
+            if ds is None:
+                raise NotImplementedError(f"could not find dataset config `{ds_name}`")
+
+            return ds
+
+        self.train_dataset_factory = DatasetFactory(
+            *map(find_ds_config, self.train_dataset_names), has_aux=self.train.loss_aux_fn is not None
+        )
+        self.valid_dataset_factory = DatasetFactory(
+            *map(find_ds_config, self.valid_dataset_names), has_aux=self.train.loss_aux_fn is not None
+        )
+        self.test_dataset_factory = DatasetFactory(
+            *map(find_ds_config, self.test_dataset_names), has_aux=self.train.loss_aux_fn is not None
+        )
+
+        if self.train_transforms is None:
+            if self.train_transform_names is None:
+                self.train_transforms = []
+                self.train_transform_names = []
+            else:
+                self.train_transforms = [known_transforms[nt](self) for nt in self.train_transform_names]
+        elif self.train_transform_names is None:
+            self.train_transform_names = ["custom:" + t.__name__ for t in self.train_transforms]
+
+        self.train_transforms.append(known_transforms["Cast"](self))
+
+        if self.eval_transforms is None:
+            if self.eval_transform_names is None:
+                self.eval_transforms = []
+                self.eval_transform_names = []
+            else:
+                self.eval_transforms = [known_transforms[nt](self) for nt in self.eval_transform_names]
+        elif self.eval_transform_names is None:
+            self.eval_transform_names = ["custom:" + t.__name__ for t in self.eval_transforms]
+
+        self.eval_transforms.append(known_transforms["Cast"](self))
 
     @classmethod
     def from_yaml(cls, config_path: Union[str, Path]) -> "Config":
@@ -151,11 +231,52 @@ class Config:
         with config_path.open("r") as config_file:
             config = yaml.safe_load(config_file)
 
+        for dataset_indices in ["train_dataset_indices", "valid_dataset_indices", "test_dataset_indices"]:
+            dis: Optional[List[Optional[str]]] = config.pop(dataset_indices, None)
+            if dis is None:
+                ds_names = config.get(dataset_indices.replace("_indice", ""), [])
+                dis = [None] * len(ds_names)
+            else:
+
+                def range_or_single_index_to_list(indice_string_part: str) -> List[Optional[int]]:
+                    """
+                    :param indice_string_part: e.g. 37 or 0-100 or 0-100-10
+                    :return: e.g. [37] or [0, 1, 2, ..., 99] or [0, 10, 20, ..., 90]
+                    """
+                    ints_in_part = [None if p is None else int(p) for p in indice_string_part.split("-")]
+                    assert len(ints_in_part) < 4, ints_in_part
+                    return list(range(*ints_in_part)) if len(ints_in_part) > 1 else ints_in_part
+
+                def indice_string_to_list(indice_string: Optional[Union[str, int]]) -> Optional[List[int]]:
+                    if not indice_string:
+                        return None
+                    elif isinstance(indice_string, int):
+                        return [indice_string]
+                    else:
+                        concatenated_indices: List[int] = []
+                        for part in indice_string.split("|"):
+                            concatenated_indices += range_or_single_index_to_list(part)
+
+                        return concatenated_indices
+
+                dis = [indice_string_to_list(d) for d in dis]
+
+            config[dataset_indices] = dis
+
+        named_keys = {
+            "train_dataset_names": ("train_datasets", None),
+            "valid_dataset_names": ("valid_datasets", None),
+            "test_dataset_names": ("test_datasets", None),
+        }
+        for config_name, (yaml_name, default) in named_keys.items():
+            config[config_name] = config.pop(yaml_name, default)
+
         return cls(
             log=LogConfig.load(config_path=config_path, **config.get("log", {})),
-            model=ModelConfig.load(**config["model"]),
-            train=TrainConfig.load(**config["train"]),
-            data=DataConfig.load(**config["data"]),
+            model=ModelConfig.load(**config.pop("model")),
+            train=TrainConfig.load(**config.pop("train")),
+            data=DataConfig.load(**config.pop("data")),
+            **config,
         )
 
 

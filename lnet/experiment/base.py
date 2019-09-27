@@ -11,46 +11,36 @@ from ignite.handlers import ModelCheckpoint, EarlyStopping, TerminateOnNan
 from ignite.metrics import Loss
 from ignite.utils import convert_tensor
 from inferno.io.transform import Transform
-from inferno.io.transform.generic import Cast
 from matplotlib import patches
 from matplotlib.colors import ListedColormap
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from pathlib import Path
 
-from scipy.special._ufuncs import expit
+from scipy.special import expit
 from tensorboardX import SummaryWriter
-from torch.utils.data import DataLoader, SequentialSampler, SubsetRandomSampler
-from typing import Union, Optional, List, Dict, Callable, Type, Any, Tuple, Sequence, Iterable
+from torch.utils.data import DataLoader, SubsetRandomSampler, ConcatDataset
+from typing import Union, Optional, List, Dict, Callable, Type, Any, Tuple, Sequence, Iterable, Generator
 
 from lnet.experiment.config import Config
-from lnet.utils.data_transform import lightfield_from_channel, EdgeCrop, Lightfield2Channel
 from lnet.utils.datasets import DatasetFactory, SubsetSequentialSampler, Result
+from lnet.utils.metrics import (
+    LOSS_NAME,
+    AUX_LOSS_NAME,
+    NRMSE_NAME,
+    PSNR_NAME,
+    SSIM_NAME,
+    MSSSIM_NAME,
+    BEAD_PRECISION_RECALL,
+    BEAD_PRECISION,
+    BEAD_RECALL,
+)
 from lnet.utils.metrics import NRMSE, PSNR, SSIM, MSSSIM
 from lnet.utils.metrics.beads import BeadPrecisionRecall
 from lnet.utils.plotting import turbo_colormap_data
-from lnet.utils.data_transform import (
-    Clip,
-    Lightfield2Channel,
-    RandomFlipXYnotZ,
-    RandomRotate,
-    EdgeCrop,
-)
-
-eps_for_precision = {"half": 1e-4, "float": 1e-8}
+from lnet.utils.transforms_impl import lightfield_from_channel, EdgeCrop
 
 
-LOSS_NAME = "Loss"
-AUX_LOSS_NAME = "AuxLoss"
-NRMSE_NAME = "NRMSE"
-PSNR_NAME = "PSNR"
-SSIM_NAME = "SSIM"
-MSSSIM_NAME = "MS-SSIM"
-BEAD_PRECISION_RECALL = "Bead-Precision-Recall"
-BEAD_PRECISION = "Bead-Precision"
-BEAD_RECALL = "Bead-Recall"
-
-
-class ExperimentBase:
+class Experiment:
     Model: Union[Type[torch.nn.Module], Callable[..., torch.nn.Module]]
     additional_model_kwargs: Dict[str, Any]
     nnum: int
@@ -59,21 +49,20 @@ class ExperimentBase:
     valid_dataset_factory: Optional[DatasetFactory] = None
     test_dataset_factory: Optional[DatasetFactory] = None
 
-    train_data_range: Optional[Union[range, Iterable[int]]] = None
-    train_eval_data_range: Optional[Union[range, Iterable[int]]] = None
-    valid_data_range: Optional[Union[range, Iterable[int]]] = None
-    test_data_range: Optional[Union[range, Iterable[int]]] = None
+    train_data_indices: List[Optional[List[int]]]
+    train_eval_data_indices: List[Optional[List[int]]]
+    valid_data_indices: List[Optional[List[int]]]
+    test_data_indices: List[Optional[List[int]]]
 
     batch_size: int
     eval_batch_size: int
 
-    train_transforms: List[Union[str, Transform]]
-    valid_transforms: List[Union[str, Transform]]
+    train_transforms: List[Union[Generator[Transform, None, None], Transform]]
+    valid_transforms: List[Union[Generator[Transform, None, None], Transform]]
     test_transforms: List[Union[str, Transform]]
 
     optimizer_cls: Callable
-    precision: torch.dtype
-    optimizer_kwargs: Dict[str, Any]
+    precision: str
     max_num_epochs: int
     score_function: Callable[[Engine], float]
 
@@ -83,46 +72,26 @@ class ExperimentBase:
 
     def __init__(self, config: Union[Path, Config]):
         self.Model = config.model.Model
-        has_aux = True
         self.additional_model_kwargs = {"final_activation": torch.nn.Sigmoid(), "aux_activation": None}
 
-        self.precision = torch.float
-        self.batch_size = 1
+        self.precision = config.model.precision
+        self.batch_size = config.train.batch_size
         self.eval_batch_size = 3
 
-        self.optimizer_cls = torch.optim.Adam
-        self.optimizer_kwargs = {"lr": 1e-4, "eps": eps_for_precision[self.precision]}
-        self.max_num_epochs = 5000
+        self.optimizer_cls = config.train.optimizer
+        self.max_num_epochs = config.train.max_num_epochs
 
+        self.train_transforms = config.train_transforms
+        self.valid_transforms = config.eval_transforms
+        self.test_transforms = config.eval_transforms
 
-
-
-        self.train_transforms = config.train.transforms
-
-                                + [
-            config.data.normalization,
-
-        ]
-        self.valid_transforms = [
-            config.data.normalization,
-            Lightfield2Channel(nnum=self.nnum),
-            Cast(torch_dtype_to_inferno[self.precision]),
-        ]
-        self.test_transforms = [
-            config.data.normalization,
-            Lightfield2Channel(nnum=self.nnum),
-            Cast(torch_dtype_to_inferno[self.precision]),
-        ]
-
-        self.train_dataset_factory = DatasetFactory(
-            DatasetConfig(fish.fish02_LS0_filet, beads.bead00_LS0_35), has_aux=has_aux
-        )
-        self.train_data_range = range(5, 73)
-        self.train_eval_data_range = range(5, 5 + self.eval_batch_size)
-        self.valid_dataset_factory = DatasetFactory(DatasetConfig(fish.fish02_LS0_filet), has_aux=has_aux)
-        self.valid_data_range = range(4, 5)
-        self.test_dataset_factory = DatasetFactory(DatasetConfig(fish.fish02_LS0_filet), has_aux=has_aux)
-        self.test_data_range = range(4)
+        self.train_dataset_factory = config.train_dataset_factory
+        self.train_data_indices = config.train_dataset_indices
+        self.train_eval_data_indices = config.train_eval_dataset_indices
+        self.valid_dataset_factory = config.valid_dataset_factory
+        self.valid_data_indices = config.valid_dataset_indices
+        self.test_dataset_factory = config.test_dataset_factory
+        self.test_data_indices = config.test_dataset_indices
 
         if isinstance(config, Path):
             self.config_path = config
@@ -152,6 +121,7 @@ class ExperimentBase:
         self.checkpoint = config.model.checkpoint
 
         self.logger = logging.getLogger(config.log.time_stamp)
+        self.z_out = self.train_dataset_factory.get_z_out()
 
     def get_yx_yy(self, x_shape=Tuple[int, int]) -> Tuple[int, int]:
         xx, xy = x_shape
@@ -192,8 +162,6 @@ class ExperimentBase:
         self.run()
 
     def run(self):
-        self.z_out = self.train_dataset_factory.get_z_out()
-
         devices = list(range(torch.cuda.device_count()))
         if devices:
             device = torch.device("cuda", devices[0])
@@ -208,7 +176,7 @@ class ExperimentBase:
             state = torch.load(self.checkpoint, map_location=device)
             self.model.load_state_dict(state, strict=False)
 
-        optimizer = self.optimizer_cls(self.model.parameters(), **self.optimizer_kwargs)
+        optimizer = self.optimizer_cls(self.model.parameters())
 
         if hasattr(self.model, "get_target_crop"):
             self.train_transforms.append(EdgeCrop(self.model.get_target_crop(), apply_to=[1]))
@@ -236,34 +204,43 @@ class ExperimentBase:
         )
         assert self.z_out == z_out_test, (self.z_out, z_out_test)
 
-        if self.train_data_range is None:
-            self.train_data_range = range(len(train_dataset))
+        def get_full_data_indices(concat_dataset: ConcatDataset, data_indices: Optional[List[List[int]]]):
+            if data_indices is None:
+                return list(range(len(concat_dataset)))
+            else:
+                full_data_indices = []
+                before = 0
+                for ds, tdi in zip(concat_dataset.datasets, data_indices):
+                    assert max(tdi) < len(ds), (max(tdi), len(ds))
+                    full_data_indices += [before + i for i in tdi]
+                    before += len(ds)
+
+                return full_data_indices
+
+        full_train_data_indices = get_full_data_indices(train_dataset, self.train_data_indices)
+        full_train_eval_data_indices = get_full_data_indices(train_dataset, self.train_eval_data_indices)
+        full_valid_data_indices = get_full_data_indices(valid_dataset, self.valid_data_indices)
+        full_test_data_indices = get_full_data_indices(test_dataset, self.test_data_indices)
 
         train_loader = DataLoader(
             train_dataset,
             batch_size=self.batch_size,
             pin_memory=True,
             num_workers=5,
-            sampler=SubsetRandomSampler(list(self.train_data_range)),
+            sampler=SubsetRandomSampler(full_train_data_indices),
         )
 
-        if self.train_eval_data_range is None:
-            self.train_eval_data_range = range(len(train_eval_dataset))
-
-        train_ipaths = train_ipaths[self.train_eval_data_range.start : self.train_eval_data_range.stop]
+        train_ipaths = train_ipaths[min(full_train_eval_data_indices) : max(full_train_eval_data_indices) + 1]
         train_loader_eval = DataLoader(
             train_eval_dataset,
             batch_size=self.eval_batch_size,
             pin_memory=True,
             num_workers=3,
             # despite 'shuffle=False' the order is not always the same, trying out SequentialSampler...
-            sampler=SubsetSequentialSampler(self.train_eval_data_range),
+            sampler=SubsetSequentialSampler(full_train_eval_data_indices),
         )
 
-        if self.valid_data_range is None and valid_dataset is not None:
-            self.valid_data_range = range(len(valid_dataset))
-
-        valid_ipaths = valid_ipaths[self.valid_data_range.start : self.valid_data_range.stop]
+        valid_ipaths = valid_ipaths[min(self.valid_data_indices) : max(self.valid_data_indices) + 1]
         valid_loader = (
             None
             if valid_dataset is None
@@ -272,14 +249,11 @@ class ExperimentBase:
                 batch_size=self.eval_batch_size,
                 pin_memory=True,
                 num_workers=3,
-                sampler=SubsetSequentialSampler(self.valid_data_range),
+                sampler=SubsetSequentialSampler(full_valid_data_indices),
             )
         )
 
-        if self.test_data_range is None and test_dataset is not None:
-            self.test_data_range = range(len(test_dataset))
-
-        test_ipaths = test_ipaths[self.test_data_range.start : self.test_data_range.stop]
+        test_ipaths = test_ipaths[min(full_test_data_indices) : max(full_test_data_indices) + 1]
         test_loader = (
             None
             if test_dataset is None
@@ -288,7 +262,7 @@ class ExperimentBase:
                 batch_size=self.eval_batch_size,
                 pin_memory=True,
                 num_workers=5,
-                sampler=SubsetSequentialSampler(self.test_data_range),
+                sampler=SubsetSequentialSampler(full_test_data_indices),
             )
         )
 
@@ -484,7 +458,9 @@ class ExperimentBase:
         evaluator.add_event_handler(
             CustomEvents.VALIDATION_DONE, saver, {"model": self.model}
         )  # , "optimizer": optimizer})
-        stopper = EarlyStopping(patience=200, score_function=self.score_function, trainer=trainer)
+        stopper = EarlyStopping(
+            patience=self.config.train.patience, score_function=self.score_function, trainer=trainer
+        )
         evaluator.add_event_handler(CustomEvents.VALIDATION_DONE, stopper)
 
         Loss(loss_fn=lambda loss, _: loss, output_transform=lambda out: (out.loss, out.ipt)).attach(
@@ -784,6 +760,9 @@ class ExperimentBase:
 
         trainer.run(train_loader, max_epochs=self.max_num_epochs)
         writer.close()
+        if self.config_path is not None:
+            with self.config_path.with_suffix(".ran_on.txt").open("a") as f:
+                f.write(self.config.log.commit_hash)
 
     def export_test_predictions(self, output_path: Optional[str] = None):
         raise NotImplementedError

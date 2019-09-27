@@ -1,7 +1,7 @@
-from lnet.dataset_configs import ConfigEntry, PathOfInterest
+from lnet.dataset_configs import DatasetConfigEntry, PathOfInterest
 
 
-class Platyn00(ConfigEntry):
+class Platyn00(DatasetConfigEntry):
     description = "platyn_neuro"
 
 

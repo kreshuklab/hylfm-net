@@ -6,24 +6,39 @@ model:
   checkpoint: "/g/kreshuk/beuttenm/repos/lensletnet/logs/beads/00_LS0/8/19-09-19_14-28_db5e04e_8-0/models/v0_model_887.pth"
 
 log:
-    validate_every_nth_epoch: 1
-    log_scalars_every: [1, Events.ITERATION_COMPLETED]
-    log_images_every: [1, Events.EPOCH_COMPLETED]
-    log_bead_precision_recall: false
+    validate_every_nth_epoch: 10
+    log_scalars_every: [10, Events.ITERATION_COMPLETED]
+    log_images_every: [10, Events.EPOCH_COMPLETED]
+    log_bead_precision_recall: true
 
 train:
   loss_fn: SorensenDiceLoss
   loss_aux_fn: BCEWithLogitsLoss
-  transforms:
-    - noise01
-    -
-            config.data.normalization,
 
-        ]
-        self.valid_transforms = [
-            config.data.normalization,
-            Lightfield2Channel(nnum=self.nnum),
-            Cast(torch_dtype_to_inferno[self.precision]),
+  optimizer:
+    name: Adam
+    kwargs: {lr: 1e-4, eps: 1e-8}
 
-data:
-  normalization: norm01
+  batch_size: 1
+  max_num_epochs: 5000
+  score_function: MS-SSIM
+  patience: 30
+
+train_datasets: [fish02_LS0_filet, bead00_LS0_35]
+train_dataset_indices: [5-73, 0-50]
+train_eval_dataset_indices: [5-8, 0-3]
+valid_datasets: [fish02_LS0_filet]
+valid_dataset_indices: [4]
+test_datasets: [fish02_LS0_filet]
+test_dataset_indices: [0-4]
+
+train_transforms:
+  - noise00
+  - norm00
+  - RandomRotate
+  - RandomFlipXYnotZ
+  - Lightfield2Channel
+
+eval_transforms:
+  - norm00
+  - Lightfield2Channel

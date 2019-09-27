@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from lnet.dataset_configs import ConfigEntry
+from lnet.dataset_configs import DatasetConfigEntry
 
 
-class Fish00(ConfigEntry):
+class Fish00(DatasetConfigEntry):
     common_path = Path(
         "/g/hufnagel/LF/NNG/Experiments/Olympus20x0.5NA/301018_Jakob_sparseLabeling/ISce_p2890/fish1/140Hz6msDelay/wholeheart"
     )
@@ -32,7 +32,7 @@ fish00_9_left = Fish00("2018-10-30_05.48.20_100Laser/stack_1_channel_7", "Rectif
 fish00_9_right = Fish00("2018-10-30_05.48.20_100Laser/stack_1_channel_7", "Rectified_RC", "RCout")
 
 
-class Fish01(ConfigEntry):
+class Fish01(DatasetConfigEntry):
     common_path = Path(
         "/g/hufnagel/LF/NNG/Experiments/Olympus20x0.5NA/060918_Jakob/7943x7943/fish1/140Hz_6msDelay/wholeHeart"
     )
@@ -72,7 +72,7 @@ fish01_9_right = Fish01(
 )  # no folder 'Rectified_RC'
 
 
-class Fish02(ConfigEntry):
+class Fish02(DatasetConfigEntry):
     common_path = Path("/g/hufnagel/LF/LenseLeNet_Microscope")
     description = "F02"
 
@@ -152,7 +152,7 @@ fish02_LF2_TP00_filet = Fish02(
 )
 
 
-class RegionalFish(ConfigEntry):
+class RegionalFish(DatasetConfigEntry):
     common_path = Path("~/Documents/lnet_datasets")
     description = "F02"
 

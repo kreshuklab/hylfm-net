@@ -17,7 +17,7 @@ from scipy.ndimage import zoom
 from tifffile import imread, imsave
 from typing import List, Optional, Tuple, Union, Callable, Sequence, Generator
 
-from lnet.dataset_configs import DatasetConfig, PathOfInterest
+from lnet.dataset_configs import PathOfInterest, DatasetConfigEntry
 from lnet.utils.stat import compute_stat, DatasetStat
 
 logger = logging.getLogger(__name__)
@@ -273,13 +273,13 @@ class N5Dataset(torch.utils.data.Dataset):
 
 
 class DatasetFactory:
-    def __init__(self, config: DatasetConfig, n: Optional[int] = None, has_aux: bool = False):
-        self.config = config
+    def __init__(self, *entries: DatasetConfigEntry, n: Optional[int] = None, has_aux: bool = False):
+        self.entries = entries
         self.n = n
         self.has_aux = has_aux
 
     def get_z_out(self) -> int:
-        entry = self.config[0]
+        entry = self.entries[0]
         try:
             img_name = next(entry.y_path.glob("*.tif")).as_posix()
         except StopIteration:
@@ -314,7 +314,7 @@ class DatasetFactory:
         datasets = []
         z_out = 0
         interesting_path_slices = []
-        for entry in self.config:
+        for entry in self.entries:
             img_name = next(entry.y_path.glob("*.tif")).as_posix()
             y_shape = imread(img_name)[entry.y_roi].shape
             logger.info("determined shape of %s to be %s", img_name, y_shape)
