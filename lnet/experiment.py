@@ -10,18 +10,19 @@ from ignite.engine import Events, Engine
 from ignite.handlers import ModelCheckpoint, EarlyStopping, TerminateOnNan
 from ignite.metrics import Loss
 from ignite.utils import convert_tensor
-from inferno.io.transform import Transform
+from importlib import import_module
 from matplotlib import patches
 from matplotlib.colors import ListedColormap
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from pathlib import Path
-
 from scipy.special import expit
-from tensorboardX import SummaryWriter
-from torch.utils.data import DataLoader, SubsetRandomSampler, ConcatDataset
 from typing import Union, Optional, List, Dict, Callable, Type, Any, Tuple, Sequence, Iterable, Generator
 
-from lnet.experiment.config import Config
+from inferno.io.transform import Transform
+from tensorboardX import SummaryWriter
+from torch.utils.data import DataLoader, SubsetRandomSampler, ConcatDataset
+
+from lnet.config import Config
 from lnet.utils.datasets import DatasetFactory, SubsetSequentialSampler, Result
 from lnet.utils.metrics import (
     LOSS_NAME,
@@ -62,7 +63,7 @@ class Experiment:
     test_transforms: List[Union[str, Transform]]
 
     optimizer_cls: Callable
-    precision: str
+    dtype: torch.dtype
     max_num_epochs: int
     score_function: Callable[[Engine], float]
 
@@ -70,11 +71,28 @@ class Experiment:
     config: Config
     add_in_name: Optional[str] = None
 
-    def __init__(self, config: Union[Path, Config]):
-        self.Model = config.model.Model
-        self.additional_model_kwargs = {"final_activation": torch.nn.Sigmoid(), "aux_activation": None}
+    def __init__(self, config_path: Path):
+        self.config_path = config_path
+        if config_path.suffix == ".py":
+            config_module_name = (
+                config_path.absolute()
+                .relative_to(Path(__file__).parent.parent)
+                .with_suffix("")
+                .as_posix()
+                .replace("/", ".")
+            )
+            config_module = import_module(config_module_name)
+            config = getattr(config_module, "config")
+            assert isinstance(config, Config)
+        else:
+            config = Config.from_yaml(config_path)
 
-        self.precision = config.model.precision
+        self.config = config
+
+        self.Model = config.model.Model
+        self.additional_model_kwargs = config.model.kwargs
+
+        self.dtype = getattr(torch, config.model.precision)
         self.batch_size = config.train.batch_size
         self.eval_batch_size = 3
 
@@ -93,15 +111,6 @@ class Experiment:
         self.test_dataset_factory = config.test_dataset_factory
         self.test_data_indices = config.test_dataset_indices
 
-        if isinstance(config, Path):
-            self.config_path = config
-            config = Config.from_yaml(config)
-        else:
-            self.config_path = None
-
-        assert isinstance(config, Config)
-
-        self.config = config
         # # make sure everything is commited
         # git_status_cmd = pbs3.git.status("--porcelain")
         # git_status = git_status_cmd.stdout
@@ -135,7 +144,7 @@ class Experiment:
             else:
                 device = "cpu"
 
-            dummy_pred = self.model(torch.randn((1, xc, xx, xy), dtype=self.precision, device=device))
+            dummy_pred = self.model(torch.randn((1, xc, xx, xy), dtype=self.dtype, device=device))
             if isinstance(dummy_pred, tuple):
                 if len(dummy_pred) == 2:
                     dummy_pred, dummy_pred_aux = dummy_pred
@@ -169,7 +178,7 @@ class Experiment:
             device = torch.device("cpu")
 
         self.model = self.Model(nnum=self.nnum, z_out=self.z_out, **self.additional_model_kwargs).to(
-            device=device, dtype=self.precision
+            device=device, dtype=self.dtype
         )
         # todo: warmstart from checkpoints / load from checkpoints
         if self.checkpoint is not None:

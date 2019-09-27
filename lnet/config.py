@@ -15,12 +15,20 @@ from inferno.io.transform import Transform
 from lnet import models
 from lnet.dataset_configs import beads, platy, fish, DatasetConfigEntry
 from lnet.losses import known_losses
-from lnet.optimizers import known_optimiers
+from lnet.optimizers import known_optimizers
 from lnet.score_functions import known_score_functions
 from lnet.transforms import known_transforms
 from lnet.utils.datasets import DatasetFactory
 
 logger = logging.getLogger(__name__)
+
+
+def get_known(known: Dict[str, Any], name: str):
+    res = known.get(name, None)
+    if res is None:
+        raise ValueError(f"{name} not known. Valid values are:\n{', '.join(known.keys())}")
+
+    return res
 
 
 @dataclass
@@ -37,16 +45,16 @@ class LogConfig:
     dir: Path = field(init=False)
 
     def __post_init__(self, config_path):
-        self.commit_hash = pbs3.git("rev-parse", "--verify", "HEAD").stdout
+        # self.commit_hash = pbs3.git("rev-parse", "--verify", "HEAD").stdout
+        self.commit_hash = "lala"  # todo: use pbs3
         self.time_stamp = datetime.now().strftime("%y-%m-%d_%H-%M-%S")
 
-        log_sub_dir: str = (config_path.parent / config_path.stem).absolute().as_posix().split("/experiment_configs/")
+        log_sub_dir: List[str] = config_path.with_suffix("").absolute().as_posix().split("/experiment_configs/")
         assert len(log_sub_dir) == 2, log_sub_dir
-        log_sub_dir = log_sub_dir[1]
-        self.dir = Path(__file__).parent.parent.parent / "logs" / log_sub_dir / self.time_stamp
+        log_sub_dir: str = log_sub_dir[1]
+        self.dir = Path(__file__).parent.parent / "logs" / log_sub_dir / self.time_stamp
 
         self.dir.mkdir(parents=True, exist_ok=False)
-
         logger.info("logging to %s", self.dir.as_posix())
         with (self.dir / "full_commit_hash.txt").open("w") as f:
             f.write(self.commit_hash)
@@ -86,7 +94,7 @@ class ModelConfig:
         if self.name is None:
             self.name = self.Model.__name__
 
-        assert self.checkpoint.exists(), self.checkpoint.absolute()
+        assert self.checkpoint is None or self.checkpoint.exists(), self.checkpoint.absolute()
 
     @classmethod
     def load(
@@ -124,7 +132,7 @@ class TrainConfig:
     @classmethod
     def load(
         cls,
-        optimizer_config: Dict[str, Union[str, dict]],
+        optimizer: Dict[str, Union[str, dict]],
         batch_size: int,
         max_num_epochs: int,
         score_function: str,
@@ -133,7 +141,7 @@ class TrainConfig:
         loss_aux_fn: str = None,
     ) -> "TrainConfig":
         return cls(
-            optimizer=partial(known_optimiers[optimizer_config["name"]], **optimizer_config["kwargs"]),
+            optimizer=partial(get_known(known_optimizers, optimizer["name"]), **optimizer["kwargs"]),
             batch_size=batch_size,
             max_num_epochs=max_num_epochs,
             score_function=known_score_functions[score_function],
@@ -144,20 +152,10 @@ class TrainConfig:
 
 
 @dataclass
-class DataConfig:
-    normalization: str
-
-    @classmethod
-    def load(cls, normalization: str) -> "DataConfig":
-        return cls(normalization=normalization)
-
-
-@dataclass
 class Config:
     log: LogConfig
     model: ModelConfig
     train: TrainConfig
-    data: DataConfig
 
     train_dataset_names: List[str]
     train_dataset_indices: List[Optional[List[int]]]
@@ -181,7 +179,8 @@ class Config:
             assert self.model.checkpoint.exists(), self.model.checkpoint
             assert self.model.checkpoint.is_file(), self.model.checkpoint
             hard_linked_checkpoint = self.log.dir / "checkpoint.pth"
-            pbs3.ln(self.model.checkpoint.absolute().as_posix(), hard_linked_checkpoint.absolute().as_posix())
+            # pbs3.ln(self.model.checkpoint.absolute().as_posix(), hard_linked_checkpoint.absolute().as_posix())
+            # todo: use pbs3
             self.model.checkpoint = hard_linked_checkpoint
 
         def find_ds_config(ds_name) -> DatasetConfigEntry:
@@ -201,26 +200,26 @@ class Config:
             *map(find_ds_config, self.test_dataset_names), has_aux=self.train.loss_aux_fn is not None
         )
 
-        if self.train_transforms is None:
-            if self.train_transform_names is None:
-                self.train_transforms = []
-                self.train_transform_names = []
-            else:
-                self.train_transforms = [known_transforms[nt](self) for nt in self.train_transform_names]
-        elif self.train_transform_names is None:
-            self.train_transform_names = ["custom:" + t.__name__ for t in self.train_transforms]
+        def get_trfs_and_their_names(transforms: Optional[List[Any]], names: Optional[List[str]]):
+            if transforms is None:
+                if names is None:
+                    transforms = []
+                    names = []
+                else:
+                    transforms = [known_transforms[nt](self) for nt in names]
+            elif names is None:
+                names = [t.__name__ for t in transforms]
+
+            return transforms, names
+
+        self.train_transforms, self.train_transform_names = get_trfs_and_their_names(
+            self.train_transforms, self.train_transform_names
+        )
+        self.eval_transforms, self.eval_transform_names = get_trfs_and_their_names(
+            self.eval_transforms, self.eval_transform_names
+        )
 
         self.train_transforms.append(known_transforms["Cast"](self))
-
-        if self.eval_transforms is None:
-            if self.eval_transform_names is None:
-                self.eval_transforms = []
-                self.eval_transform_names = []
-            else:
-                self.eval_transforms = [known_transforms[nt](self) for nt in self.eval_transform_names]
-        elif self.eval_transform_names is None:
-            self.eval_transform_names = ["custom:" + t.__name__ for t in self.eval_transforms]
-
         self.eval_transforms.append(known_transforms["Cast"](self))
 
     @classmethod
@@ -267,18 +266,19 @@ class Config:
             "train_dataset_names": ("train_datasets", None),
             "valid_dataset_names": ("valid_datasets", None),
             "test_dataset_names": ("test_datasets", None),
+            "train_transform_names": ("train_transforms", None),
+            "eval_transform_names": ("eval_transforms", None),
         }
         for config_name, (yaml_name, default) in named_keys.items():
             config[config_name] = config.pop(yaml_name, default)
 
         return cls(
-            log=LogConfig.load(config_path=config_path, **config.get("log", {})),
+            log=LogConfig.load(config_path=config_path, **config.pop("log")),
             model=ModelConfig.load(**config.pop("model")),
             train=TrainConfig.load(**config.pop("train")),
-            data=DataConfig.load(**config.pop("data")),
             **config,
         )
 
 
 if __name__ == "__main__":
-    from_file = Config.from_yaml("../../experiment_configs/fish0.yml")
+    from_file = Config.from_yaml("experiment_configs/fish0.yml")

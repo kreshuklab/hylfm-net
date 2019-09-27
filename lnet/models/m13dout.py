@@ -94,14 +94,14 @@ class M13dout(torch.nn.Module):
         if final_activation == "sigmoid":
             final_activation = torch.nn.Sigmoid()
         elif final_activation is not None:
-            raise NotImplementedError
+            raise NotImplementedError(final_activation)
 
         self.final_activation = final_activation
 
         if aux_activation == "sigmoid":
             aux_activation = torch.nn.Sigmoid()
         elif aux_activation is not None:
-            raise NotImplementedError
+            raise NotImplementedError(aux_activation)
 
         self.aux_activation = aux_activation
 

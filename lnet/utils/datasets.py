@@ -225,6 +225,7 @@ class N5Dataset(torch.utils.data.Dataset):
 
         transform_instances = []
         for t in transforms:
+            print('t', type(t), t)
             if isinstance(t, Transform):
                 transform_instances.append(t)
             else:

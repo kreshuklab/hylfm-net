@@ -2,16 +2,18 @@ import argparse
 
 from pathlib import Path
 
-from lnet.experiment import runnable_experiments
+from lnet.experiment import Experiment
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="lnet")
-    parser.add_argument("experiment_configs", type=Path)
+    parser.add_argument("experiment_config", type=Path)
+    parser.add_argument("--test", action="store_true")
 
     args = parser.parse_args()
 
-    for Exp in runnable_experiments():
-        Exp(config=args.config).run()
-
+    exp = Experiment(config_path=args.experiment_config)
+    if args.test:
+        exp.test()
+    else:
+        exp.run()
