@@ -11,6 +11,7 @@ from ignite.handlers import ModelCheckpoint, EarlyStopping, TerminateOnNan
 from ignite.metrics import Loss
 from ignite.utils import convert_tensor
 from inferno.io.transform import Transform
+from inferno.io.transform.generic import Cast
 from matplotlib import patches
 from matplotlib.colors import ListedColormap
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -22,14 +23,20 @@ from torch.utils.data import DataLoader, SequentialSampler, SubsetRandomSampler
 from typing import Union, Optional, List, Dict, Callable, Type, Any, Tuple, Sequence, Iterable
 
 from lnet.experiment.config import Config
-from lnet.utils.data_transform import lightfield_from_channel, EdgeCrop
+from lnet.utils.data_transform import lightfield_from_channel, EdgeCrop, Lightfield2Channel
 from lnet.utils.datasets import DatasetFactory, SubsetSequentialSampler, Result
 from lnet.utils.metrics import NRMSE, PSNR, SSIM, MSSSIM
 from lnet.utils.metrics.beads import BeadPrecisionRecall
 from lnet.utils.plotting import turbo_colormap_data
+from lnet.utils.data_transform import (
+    Clip,
+    Lightfield2Channel,
+    RandomFlipXYnotZ,
+    RandomRotate,
+    EdgeCrop,
+)
 
-eps_for_precision = {torch.half: 1e-4, torch.float: 1e-8}
-torch_dtype_to_inferno = {torch.float: "float", torch.float32: "float", torch.half: "half", torch.float16: "half"}
+eps_for_precision = {"half": 1e-4, "float": 1e-8}
 
 
 LOSS_NAME = "Loss"
@@ -74,38 +81,75 @@ class ExperimentBase:
     config: Config
     add_in_name: Optional[str] = None
 
-    def __init__(
-        self,
-        config: Config,
-        loss_fn: Union[torch.nn.Module, List[Tuple[float, torch.nn.Module]]],
-        aux_loss_fn: Optional[Union[torch.nn.Module, List[Tuple[float, torch.nn.Module]]]] = None,
-        checkpoint: Optional[Path] = None,
-        dist_threshold: float = 5.0,
-        pre_loss_transform: Callable[[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]] = lambda *x: x,
-        pre_aux_loss_transform: Callable[
-            [torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]
-        ] = lambda *x: x,
-    ):
+    def __init__(self, config: Union[Path, Config]):
+        self.Model = config.model.Model
+        has_aux = True
+        self.additional_model_kwargs = {"final_activation": torch.nn.Sigmoid(), "aux_activation": None}
+
+        self.precision = torch.float
+        self.batch_size = 1
+        self.eval_batch_size = 3
+
+        self.optimizer_cls = torch.optim.Adam
+        self.optimizer_kwargs = {"lr": 1e-4, "eps": eps_for_precision[self.precision]}
+        self.max_num_epochs = 5000
+
+
+
+
+        self.train_transforms = config.train.transforms
+
+                                + [
+            config.data.normalization,
+
+        ]
+        self.valid_transforms = [
+            config.data.normalization,
+            Lightfield2Channel(nnum=self.nnum),
+            Cast(torch_dtype_to_inferno[self.precision]),
+        ]
+        self.test_transforms = [
+            config.data.normalization,
+            Lightfield2Channel(nnum=self.nnum),
+            Cast(torch_dtype_to_inferno[self.precision]),
+        ]
+
+        self.train_dataset_factory = DatasetFactory(
+            DatasetConfig(fish.fish02_LS0_filet, beads.bead00_LS0_35), has_aux=has_aux
+        )
+        self.train_data_range = range(5, 73)
+        self.train_eval_data_range = range(5, 5 + self.eval_batch_size)
+        self.valid_dataset_factory = DatasetFactory(DatasetConfig(fish.fish02_LS0_filet), has_aux=has_aux)
+        self.valid_data_range = range(4, 5)
+        self.test_dataset_factory = DatasetFactory(DatasetConfig(fish.fish02_LS0_filet), has_aux=has_aux)
+        self.test_data_range = range(4)
+
+        if isinstance(config, Path):
+            self.config_path = config
+            config = Config.from_yaml(config)
+        else:
+            self.config_path = None
+
+        assert isinstance(config, Config)
+
         self.config = config
         # # make sure everything is commited
         # git_status_cmd = pbs3.git.status("--porcelain")
         # git_status = git_status_cmd.stdout
         # assert not git_status, git_status  # uncommited changes exist
-        self.dist_threshold = dist_threshold
-        self.pre_loss_transform = pre_loss_transform
-        self.pre_aux_loss_transform = pre_aux_loss_transform
+        self.dist_threshold = 5.0
+        self.nnum = config.model.nnum
 
-        if not isinstance(loss_fn, list):
-            loss_fn = [(1.0, loss_fn)]
+        self.loss_fn: List[Tuple[float, torch.nn.Module]] = config.train.loss_fn
+        self.aux_loss_fn: Optional[List[Tuple[float, torch.nn.Module]]] = config.train.loss_aux_fn
+        self.pre_loss_transform: Callable[
+            [torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]
+        ] = lambda *x: x
+        self.pre_aux_loss_transform: Callable[
+            [torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]
+        ] = lambda *x: x
 
-        self.loss_fn: List[torch.nn.Module] = loss_fn
-
-        if aux_loss_fn is not None and not isinstance(aux_loss_fn, list):
-            aux_loss_fn = [(1.0, aux_loss_fn)]
-
-        self.aux_loss_fn: Optional[List[torch.nn.Module]] = aux_loss_fn
-
-        self.checkpoint = checkpoint
+        self.checkpoint = config.model.checkpoint
 
         self.logger = logging.getLogger(config.log.time_stamp)
 

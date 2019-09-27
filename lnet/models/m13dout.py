@@ -14,8 +14,8 @@ class M13dout(torch.nn.Module):
         self,
         z_out: int,
         nnum: int,
-        final_activation: Optional[nn.Module] = None,
-        aux_activation: Optional[nn.Module] = None,
+        final_activation: Optional[str] = None,
+        aux_activation: Optional[str] = None,
     ):
         super().__init__()
         inplanes = nnum ** 2
@@ -91,7 +91,18 @@ class M13dout(torch.nn.Module):
         )
         self.out = ValidConv3D(planes, 1, (3, 3, 3), initialization=init)
 
+        if final_activation == "sigmoid":
+            final_activation = torch.nn.Sigmoid()
+        elif final_activation is not None:
+            raise NotImplementedError
+
         self.final_activation = final_activation
+
+        if aux_activation == "sigmoid":
+            aux_activation = torch.nn.Sigmoid()
+        elif aux_activation is not None:
+            raise NotImplementedError
+
         self.aux_activation = aux_activation
 
     def forward(self, input):

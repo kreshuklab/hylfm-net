@@ -151,9 +151,11 @@ fish02_LF2_TP00_filet = Fish02(
     y_roi=(slice(7, 42), slice(None), slice(None)),
 )
 
+
 class RegionalFish(ConfigEntry):
     common_path = Path("~/Documents/lnet_datasets")
     description = "F02"
+
 
 regional_fish02_LS1 = RegionalFish(
     "fish02_01",

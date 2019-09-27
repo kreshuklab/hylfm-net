@@ -8,7 +8,7 @@ from lnet.experiment import runnable_experiments
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="lnet")
-    parser.add_argument("config", type=Path)
+    parser.add_argument("experiment_configs", type=Path)
 
     args = parser.parse_args()
 
