@@ -45,8 +45,7 @@ class LogConfig:
     dir: Path = field(init=False)
 
     def __post_init__(self, config_path):
-        # self.commit_hash = pbs3.git("rev-parse", "--verify", "HEAD").stdout
-        self.commit_hash = "lala"  # todo: use pbs3
+        self.commit_hash = pbs3.git("rev-parse", "--verify", "HEAD").stdout
         self.time_stamp = datetime.now().strftime("%y-%m-%d_%H-%M-%S")
 
         log_sub_dir: List[str] = config_path.with_suffix("").absolute().as_posix().split("/experiment_configs/")
@@ -59,7 +58,7 @@ class LogConfig:
         with (self.dir / "full_commit_hash.txt").open("w") as f:
             f.write(self.commit_hash)
 
-        shutil.copy(config_path.as_posix(), self.dir.with_name(config_path.name).as_posix())
+        shutil.copy(config_path.as_posix(), (self.dir / config_path.name).as_posix())
 
     @classmethod
     def load(
@@ -114,7 +113,7 @@ class ModelConfig:
             kwargs=kwargs,
             name=name,
             precision=precision,
-            checkpoint=Path(checkpoint),
+            checkpoint=None if checkpoint is None else Path(checkpoint),
         )
 
 
@@ -179,8 +178,7 @@ class Config:
             assert self.model.checkpoint.exists(), self.model.checkpoint
             assert self.model.checkpoint.is_file(), self.model.checkpoint
             hard_linked_checkpoint = self.log.dir / "checkpoint.pth"
-            # pbs3.ln(self.model.checkpoint.absolute().as_posix(), hard_linked_checkpoint.absolute().as_posix())
-            # todo: use pbs3
+            pbs3.ln(self.model.checkpoint.absolute().as_posix(), hard_linked_checkpoint.absolute().as_posix())
             self.model.checkpoint = hard_linked_checkpoint
 
         def find_ds_config(ds_name) -> DatasetConfigEntry:
@@ -218,7 +216,6 @@ class Config:
         self.eval_transforms, self.eval_transform_names = get_trfs_and_their_names(
             self.eval_transforms, self.eval_transform_names
         )
-
         self.train_transforms.append(known_transforms["Cast"](self))
         self.eval_transforms.append(known_transforms["Cast"](self))
 
@@ -230,7 +227,12 @@ class Config:
         with config_path.open("r") as config_file:
             config = yaml.safe_load(config_file)
 
-        for dataset_indices in ["train_dataset_indices", "valid_dataset_indices", "test_dataset_indices"]:
+        for dataset_indices in [
+            "train_dataset_indices",
+            "train_eval_dataset_indices",
+            "valid_dataset_indices",
+            "test_dataset_indices",
+        ]:
             dis: Optional[List[Optional[str]]] = config.pop(dataset_indices, None)
             if dis is None:
                 ds_names = config.get(dataset_indices.replace("_indice", ""), [])

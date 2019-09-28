@@ -60,7 +60,7 @@ class Experiment:
 
     train_transforms: List[Union[Generator[Transform, None, None], Transform]]
     valid_transforms: List[Union[Generator[Transform, None, None], Transform]]
-    test_transforms: List[Union[str, Transform]]
+    test_transforms: List[Union[Generator[Transform, None, None], Transform]]
 
     optimizer_cls: Callable
     dtype: torch.dtype
@@ -94,11 +94,11 @@ class Experiment:
 
         self.dtype = getattr(torch, config.model.precision)
         self.batch_size = config.train.batch_size
-        self.eval_batch_size = 3
+        self.eval_batch_size = 1
 
         self.optimizer_cls = config.train.optimizer
         self.max_num_epochs = config.train.max_num_epochs
-
+        self.score_function = config.train.score_function
         self.train_transforms = config.train_transforms
         self.valid_transforms = config.eval_transforms
         self.test_transforms = config.eval_transforms
@@ -180,6 +180,7 @@ class Experiment:
         self.model = self.Model(nnum=self.nnum, z_out=self.z_out, **self.additional_model_kwargs).to(
             device=device, dtype=self.dtype
         )
+        self.model.cuda()
         # todo: warmstart from checkpoints / load from checkpoints
         if self.checkpoint is not None:
             state = torch.load(self.checkpoint, map_location=device)
@@ -220,8 +221,12 @@ class Experiment:
                 full_data_indices = []
                 before = 0
                 for ds, tdi in zip(concat_dataset.datasets, data_indices):
-                    assert max(tdi) < len(ds), (max(tdi), len(ds))
-                    full_data_indices += [before + i for i in tdi]
+                    if tdi is None:
+                        full_data_indices += [before + i for i in range(len(ds))]
+                    elif tdi:
+                        assert max(tdi) < len(ds), (max(tdi), len(ds))
+                        full_data_indices += [before + i for i in tdi]
+
                     before += len(ds)
 
                 return full_data_indices
@@ -249,7 +254,7 @@ class Experiment:
             sampler=SubsetSequentialSampler(full_train_eval_data_indices),
         )
 
-        valid_ipaths = valid_ipaths[min(self.valid_data_indices) : max(self.valid_data_indices) + 1]
+        valid_ipaths = valid_ipaths[min(full_valid_data_indices) : max(full_valid_data_indices) + 1]
         valid_loader = (
             None
             if valid_dataset is None
@@ -415,7 +420,9 @@ class Experiment:
         )
 
         def inference_step(engine, batch) -> Output:
+            self.logger.warning("inf step")
             self.model.eval()
+            self.logger.warning('model device %s', next(self.model.parameters()).device)
             with torch.no_grad():
                 start = time.time()
                 if len(batch) == 3:
@@ -426,8 +433,11 @@ class Experiment:
                     aux_tgt = None
 
                 ipt = convert_tensor(ipt, device=device, non_blocking=False)
+                print('here ipt %s', ipt.shape)
                 tgt = convert_tensor(tgt, device=device, non_blocking=False)
+                print('here: tgt %s', tgt.shape)
                 pred = self.model(ipt)
+                self.logger.warning('forwarded!!!')
                 engine.state.compute_time += time.time() - start
 
                 if isinstance(pred, tuple):

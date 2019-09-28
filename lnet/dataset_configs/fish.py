@@ -153,7 +153,7 @@ fish02_LF2_TP00_filet = Fish02(
 
 
 class RegionalFish(DatasetConfigEntry):
-    common_path = Path("~/Documents/lnet_datasets")
+    common_path = Path("/g/kreshuk/beuttenm/Documents/lnet_datasets")
     description = "F02"
 
 
@@ -163,7 +163,7 @@ regional_fish02_LS1 = RegionalFish(
     "light_sheet",
     "FishStaticLS_488nm",
     x_roi=(slice(None), slice(1, None)),
-    y_roi=(slice(None), slice(None), slice(1, None)),
+    y_roi=(slice(7, 42), slice(None), slice(1, None)),
 )
 
 regional_fish02_RL1 = RegionalFish(
@@ -172,5 +172,5 @@ regional_fish02_RL1 = RegionalFish(
     "rl",
     "FishStaticLS_488nm",
     x_roi=(slice(None), slice(1, None)),
-    y_roi=(slice(None), slice(None), slice(1, None)),
+    y_roi=(slice(7, 42), slice(None), slice(1, None)),
 )

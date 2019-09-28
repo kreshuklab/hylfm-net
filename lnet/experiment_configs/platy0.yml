@@ -1,9 +1,9 @@
 model:
   name: M12dout
   kwargs: {final_activation: sigmoid, aux_activation: null}
-  nnum: 19
+  nnum: 15
   precision: float
-#  checkpoint: "/g/kreshuk/beuttenm/repos/lensletnet/logs/beads/00_LS0/8/19-09-19_14-28_db5e04e_8-0/models/v0_model_887.pth"
+  checkpoint: "/g/kreshuk/beuttenm/repos/lensletnet/logs/beads/00_LS0/8/19-09-19_14-28_db5e04e_8-0/models/v0_model_887.pth"
 
 log:
     validate_every_nth_epoch: 10
@@ -24,13 +24,13 @@ train:
   score_function: MS-SSIM
   patience: 30
 
-train_datasets: [regional_fish02_LS1, fish02_LS0_filet, bead00_LS0_35]
-train_dataset_indices: [5-73, null, 0-49]
-train_eval_dataset_indices: [5-8, 0-0, 0-3]
-valid_datasets: [regional_fish02_LS1]
-valid_dataset_indices: [4]
-test_datasets: [regional_fish02_LS1]
-test_dataset_indices: [0-4]
+train_datasets: [platyn1]
+train_dataset_indices: [0-1300-13]
+train_eval_dataset_indices: [0-3]
+valid_datasets: [platyn1]
+valid_dataset_indices: [1312]
+test_datasets: [platyn3]
+test_dataset_indices: [null]
 
 train_transforms:
   - noise00
