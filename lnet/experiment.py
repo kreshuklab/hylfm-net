@@ -433,9 +433,9 @@ class Experiment:
                     aux_tgt = None
 
                 ipt = convert_tensor(ipt, device=device, non_blocking=False)
-                print('here ipt %s', ipt.shape)
+                # print('here ipt %s', ipt.shape)
                 tgt = convert_tensor(tgt, device=device, non_blocking=False)
-                print('here: tgt %s', tgt.shape)
+                # print('here: tgt %s', tgt.shape)
                 pred = self.model(ipt)
                 self.logger.warning('forwarded!!!')
                 engine.state.compute_time += time.time() - start
