@@ -3,7 +3,7 @@ from typing import Generator
 from inferno.io.transform import Transform
 from inferno.io.transform.generic import Normalize
 
-from lnet.utils.transforms_impl import (
+from lnet.utils.transforms import (
     Clip,
     Normalize01Sig,
     Normalize01,

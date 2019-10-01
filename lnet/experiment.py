@@ -38,7 +38,7 @@ from lnet.utils.metrics import (
 from lnet.utils.metrics import NRMSE, PSNR, SSIM, MSSSIM
 from lnet.utils.metrics.beads import BeadPrecisionRecall
 from lnet.utils.plotting import turbo_colormap_data
-from lnet.utils.transforms_impl import lightfield_from_channel, EdgeCrop
+from lnet.utils.transforms import lightfield_from_channel, EdgeCrop
 
 
 class Experiment:

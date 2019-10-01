@@ -1,4 +1,4 @@
-from lnet.utils.transforms_impl import (
+from lnet.utils.transforms import (
     Lightfield2Channel,
     RandomFlipXYnotZ,
     RandomRotate,
