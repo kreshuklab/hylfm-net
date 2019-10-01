@@ -73,7 +73,7 @@ fish01_9_right = Fish01(
 
 
 class Fish02(DatasetConfigEntry):
-    common_path = Path("/g/hufnagel/LF/LenseLeNet_Microscope")
+    common_path = Path("/g/hufnagel/LF/LenseLeNet_Microscope/20190605_Fish/8214x7943_H2A-mC_H2B-EGFP/fish2_arrythmic/Fish_120to120_241planes")
     description = "F02"
 
 
@@ -150,6 +150,15 @@ fish02_LF2_TP00_filet = Fish02(
     "FishDynamicLF_561nm_TP00",
     y_roi=(slice(7, 42), slice(None), slice(None)),
 )
+
+fish02_LF2_TPxx_filets = [Fish02(
+    f"20190605_Fish/8214x7943_H2A-mC_H2B-EGFP/fish2_arrythmic/Fish_120to120_241planes/2019-06-05_05.09.18/stack_6_channel_0/TP_{tp:05}",
+    "RC_rectified",
+    "RCout",
+    "FishDynamicLF_561nm_TP00",
+    y_roi=(slice(7, 42), slice(None), slice(None)),
+) for tp in range(85)]
+
 
 
 class RegionalFish(DatasetConfigEntry):

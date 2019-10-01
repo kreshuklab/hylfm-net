@@ -24,12 +24,12 @@ train:
   patience: 30
 
 train_datasets: [platyn1]
-train_dataset_indices: [0-1300-13]
-train_eval_dataset_indices: [0-3]
+train_dataset_indices: [0-1300-130]
+train_eval_dataset_indices: [0]
 valid_datasets: [platyn1]
-valid_dataset_indices: [1312]
+valid_dataset_indices: [1312, 1319]
 test_datasets: [platyn3]
-test_dataset_indices: [null]
+test_dataset_indices: [0-3]
 
 train_transforms:
   - noise00

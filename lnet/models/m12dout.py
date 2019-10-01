@@ -78,29 +78,29 @@ class M12dout(torch.nn.Module):
             self.aux_activation = None
 
     def forward(self, x):
-        logger.warning("m12dout forward")
-        print(x.shape)
+        # logger.warning("m12dout forward")
+        # print(x.shape)
         x = self.res2d_1(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.res2d_2(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.res2d_3(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.conv2(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.c2z(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.red3d_1(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.transposed_conv_1(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.red3d_2(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.transposed_conv_2(x)
-        print(x.shape)
-        logger.warning("intermed done")
+        # print(x.shape)
+        # logger.warning("intermed done")
         out = self.out(x)
-        logger.warning("out done")
+        # logger.warning("out done")
         if self.aux_activation is None:
             aux = out
         else:
@@ -109,7 +109,7 @@ class M12dout(torch.nn.Module):
         if self.final_activation is not None:
             out = self.final_activation(out)
 
-        print('out', out.shape, aux.shape)
+        # print('out', out.shape, aux.shape)
         return out, aux
 
     def get_target_crop(self) -> Tuple[int, int]:
