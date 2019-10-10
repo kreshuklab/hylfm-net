@@ -150,7 +150,8 @@ class N5Dataset(torch.utils.data.Dataset):
 
                     for fut in as_completed(futures):
                         e = fut.exception()
-                        assert e is None, e
+                        if e is not None:
+                            raise e
                 # for debugging: other slices in serial
                 # for i in range(1, len(self)):
                 #     process_x_chunk(i)

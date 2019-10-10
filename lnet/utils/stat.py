@@ -1,3 +1,4 @@
+from concurrent.futures import as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
 from dataclasses import dataclass
 
@@ -96,7 +97,10 @@ def compute_stat(ds: Dataset) -> DatasetStat:
         for i in range(n):
             futs.append(executor.submit(get_stat_idx, i))
 
-    assert all(fut.exception() is None for fut in futs)
+        for fut in as_completed(futs):
+            e = fut.exception()
+            if e is not None:
+                raise e
 
     x_mean = numpy.mean(x_means)
     x_var = numpy.mean((x_vars + (x_means - x_mean) ** 2))
