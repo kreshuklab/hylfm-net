@@ -5,9 +5,8 @@ model:
   precision: float
 
 log:
-    validate_every_nth_epoch: 10
-    log_scalars_every: [10, Events.ITERATION_COMPLETED]
-    log_images_every: [10, Events.EPOCH_COMPLETED]
+    log_scalars_every: [10, iteration_completed]
+    log_images_every: [10, epoch_completed]
     log_bead_precision_recall: true
 
 train:
@@ -22,22 +21,32 @@ train:
   max_num_epochs: 5000
   score_function: MS-SSIM
   patience: 30
+  validate_every_nth_epoch: 10
 
-train_datasets: [platyn1]
-train_dataset_indices: [0-1300-130]
-train_eval_dataset_indices: [0]
-valid_datasets: [platyn1]
-valid_dataset_indices: [1312, 1319]
-test_datasets: [platyn3]
-test_dataset_indices: [0-3]
+eval:
+  batch_size: 3
 
-train_transforms:
-  - noise00
-  - norm00
-  - RandomRotate
-  - RandomFlipXYnotZ
-  - Lightfield2Channel
+train_data:
+  names: [platyn1]
+  indices: [0-1300-130]
+  eval_indices: [0]
+  transforms:
+    - noise00
+    - norm00
+    - RandomRotate
+    - RandomFlipXYnotZ
+    - Lightfield2Channel
 
-eval_transforms:
-  - norm00
-  - Lightfield2Channel
+valid_data:
+  names: [platyn1]
+  indices: [1312, 1319]
+  transforms:
+    - norm00
+    - Lightfield2Channel
+
+test_data:
+  names: [platyn1]
+  indices: [0-3]
+  transforms:
+    - norm00
+    - Lightfield2Channel

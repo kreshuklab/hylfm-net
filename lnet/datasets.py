@@ -18,7 +18,7 @@ from tifffile import imread, imsave
 from typing import List, Optional, Tuple, Union, Callable, Sequence, Generator
 
 from lnet.dataset_configs import PathOfInterest, DatasetConfigEntry
-from lnet.utils.stat import compute_stat, DatasetStat
+from lnet.stat import compute_stat, DatasetStat
 
 logger = logging.getLogger(__name__)
 
@@ -275,6 +275,7 @@ class N5Dataset(torch.utils.data.Dataset):
 
 class DatasetFactory:
     def __init__(self, *entries: DatasetConfigEntry, n: Optional[int] = None, has_aux: bool = False):
+        assert not has_aux, "deprecated"
         self.entries = entries
         self.n = n
         self.has_aux = has_aux

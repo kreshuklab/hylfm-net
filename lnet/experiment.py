@@ -11,7 +11,6 @@ from ignite.handlers import ModelCheckpoint, EarlyStopping, TerminateOnNan
 from ignite.metrics import Loss
 from ignite.utils import convert_tensor
 from importlib import import_module
-from matplotlib import patches
 from matplotlib.colors import ListedColormap
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from pathlib import Path
@@ -23,7 +22,7 @@ from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, SubsetRandomSampler, ConcatDataset
 
 from lnet.config import Config
-from lnet.utils.datasets import DatasetFactory, SubsetSequentialSampler, Result
+from lnet.datasets import DatasetFactory, SubsetSequentialSampler, Result
 from lnet.utils.metrics import (
     LOSS_NAME,
     AUX_LOSS_NAME,
@@ -37,7 +36,7 @@ from lnet.utils.metrics import (
 )
 from lnet.utils.metrics import NRMSE, PSNR, SSIM, MSSSIM
 from lnet.utils.metrics.beads import BeadPrecisionRecall
-from lnet.utils.plotting import turbo_colormap_data
+from lnet.utils.plotting import turbo_colormap_data, Box, ColorSelection
 from lnet.utils.transforms import lightfield_from_channel, EdgeCrop
 
 
@@ -54,9 +53,6 @@ class Experiment:
     train_eval_data_indices: List[Optional[List[int]]]
     valid_data_indices: List[Optional[List[int]]]
     test_data_indices: List[Optional[List[int]]]
-
-    batch_size: int
-    eval_batch_size: int
 
     train_transforms: List[Union[Generator[Transform, None, None], Transform]]
     valid_transforms: List[Union[Generator[Transform, None, None], Transform]]
@@ -93,23 +89,23 @@ class Experiment:
         self.additional_model_kwargs = config.model.kwargs
 
         self.dtype = getattr(torch, config.model.precision)
-        self.batch_size = config.train.batch_size
-        self.eval_batch_size = 1
+        self.eval_batch_size: int = config.eval.batch_size
 
+        self.batch_size: int = config.train.batch_size
         self.optimizer_cls = config.train.optimizer
         self.max_num_epochs = config.train.max_num_epochs
         self.score_function = config.train.score_function
-        self.train_transforms = config.train_transforms
-        self.valid_transforms = config.eval_transforms
-        self.test_transforms = config.eval_transforms
+        self.train_transforms = config.train_data.transforms
+        self.valid_transforms = config.valid_data.transforms
+        self.test_transforms = config.test_data.transforms
 
-        self.train_dataset_factory = config.train_dataset_factory
-        self.train_data_indices = config.train_dataset_indices
-        self.train_eval_data_indices = config.train_eval_dataset_indices
-        self.valid_dataset_factory = config.valid_dataset_factory
-        self.valid_data_indices = config.valid_dataset_indices
-        self.test_dataset_factory = config.test_dataset_factory
-        self.test_data_indices = config.test_dataset_indices
+        self.train_dataset_factory = config.train_data.factory
+        self.train_data_indices = config.train_data.indices
+        self.train_eval_data_indices = config.train_data.eval_indices
+        self.valid_dataset_factory = config.valid_data.factory
+        self.valid_data_indices = config.valid_data.indices
+        self.test_dataset_factory = config.test_data.factory
+        self.test_data_indices = config.test_data.indices
 
         # # make sure everything is commited
         # git_status_cmd = pbs3.git.status("--porcelain")
@@ -422,7 +418,7 @@ class Experiment:
         def inference_step(engine, batch) -> Output:
             self.logger.warning("inf step")
             self.model.eval()
-            self.logger.warning('model device %s', next(self.model.parameters()).device)
+            self.logger.warning("model device %s", next(self.model.parameters()).device)
             with torch.no_grad():
                 start = time.time()
                 if len(batch) == 3:
@@ -437,7 +433,7 @@ class Experiment:
                 tgt = convert_tensor(tgt, device=device, non_blocking=False)
                 # print('here: tgt %s', tgt.shape)
                 pred = self.model(ipt)
-                self.logger.warning('forwarded!!!')
+                self.logger.warning("forwarded!!!")
                 engine.state.compute_time += time.time() - start
 
                 if isinstance(pred, tuple):
@@ -509,23 +505,6 @@ class Experiment:
 
         def log_train_scalars(engine: Engine, step: int):
             writer.add_scalar(f"{engine.state.name}/loss", engine.state.output.loss, step)
-
-        class Box:
-            def __init__(self, slice_x: slice, slice_y: slice, color: str):
-                self.slice_x = slice_x
-                self.slice_y = slice_y
-                self.color = color
-
-            def apply_to_ax(self, ax):
-                box = patches.Rectangle(
-                    (self.slice_x.start, self.slice_y.start),
-                    self.slice_x.stop - self.slice_x.start,
-                    self.slice_y.stop - self.slice_y.start,
-                    linewidth=1,
-                    edgecolor=self.color,
-                    facecolor="none",
-                )
-                ax.add_patch(box)
 
         def log_images(engine: Engine, step: int, boxes: Iterable[Box] = tuple()):
             output: Output = engine.state.output
@@ -637,14 +616,6 @@ class Experiment:
                 n_times = engine.state.ipaths_log.shape[0]
                 # ax.set_xlim([0, n_times - 1])
                 ax.set_ylim([0, 1.0])
-
-                class ColorSelection:
-                    def __init__(self, colors: Sequence[str]):
-                        self.colors = colors
-
-                    def __getitem__(self, item: int):
-                        return self.colors[item % len(self.colors)]
-
                 colors = ColorSelection(["b", "g", "r", "c", "m", "y"])
 
                 # log path data to file as well
@@ -756,7 +727,7 @@ class Experiment:
 
         @trainer.on(Events.EPOCH_COMPLETED)
         def validate(engine):
-            if engine.state.epoch % self.config.log.validate_every_nth_epoch == 0:
+            if engine.state.epoch % self.config.train.validate_every_nth_epoch == 0:
                 # evaluate on training data
                 evaluator.run(train_loader_eval)
 

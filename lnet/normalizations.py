@@ -8,7 +8,7 @@ from lnet.utils.transforms import (
     Normalize01Sig,
     Normalize01,
 )
-from lnet.utils.stat import DatasetStat
+from lnet.stat import DatasetStat
 
 
 def norm00(stat: DatasetStat) -> Generator[Transform, None, None]:

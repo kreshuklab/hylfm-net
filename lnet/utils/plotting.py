@@ -1,4 +1,7 @@
 # turbo colormap (https://ai.googleblog.com/2019/08/turbo-improved-rainbow-colormap-for.html) from https://gist.github.com/mikhailov-work/ee72ba4191942acecc03fe6da94fc73f
+from typing import Sequence
+
+from matplotlib import patches
 from matplotlib.colors import ListedColormap
 
 turbo_colormap_data = [
@@ -261,3 +264,29 @@ turbo_colormap_data = [
 ]
 
 turbo_colormap = ListedColormap(turbo_colormap_data)
+
+
+class Box:
+    def __init__(self, slice_x: slice, slice_y: slice, color: str):
+        self.slice_x = slice_x
+        self.slice_y = slice_y
+        self.color = color
+
+    def apply_to_ax(self, ax):
+        box = patches.Rectangle(
+            (self.slice_x.start, self.slice_y.start),
+            self.slice_x.stop - self.slice_x.start,
+            self.slice_y.stop - self.slice_y.start,
+            linewidth=1,
+            edgecolor=self.color,
+            facecolor="none",
+        )
+        ax.add_patch(box)
+
+
+class ColorSelection:
+    def __init__(self, colors: Sequence[str]):
+        self.colors = colors
+
+    def __getitem__(self, item: int):
+        return self.colors[item % len(self.colors)]

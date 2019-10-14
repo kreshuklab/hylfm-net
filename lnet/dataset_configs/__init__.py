@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Tuple, Optional, List, Union
 
-from lnet.utils.stat import DatasetStat
+from lnet.stat import DatasetStat
 
 
 class PathOfInterest:
