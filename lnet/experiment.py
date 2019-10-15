@@ -41,8 +41,6 @@ from lnet.utils.transforms import lightfield_from_channel, EdgeCrop
 
 
 class Experiment:
-    Model: Union[Type[torch.nn.Module], Callable[..., torch.nn.Module]]
-    additional_model_kwargs: Dict[str, Any]
     nnum: int
 
     train_dataset_factory: DatasetFactory
@@ -58,7 +56,6 @@ class Experiment:
     valid_transforms: List[Union[Generator[Transform, None, None], Transform]]
     test_transforms: List[Union[Generator[Transform, None, None], Transform]]
 
-    optimizer_cls: Callable
     dtype: torch.dtype
     max_num_epochs: int
     score_function: Callable[[Engine], float]
@@ -85,17 +82,11 @@ class Experiment:
 
         self.config = config
 
-        self.Model = config.model.Model
-        self.additional_model_kwargs = config.model.kwargs
-
         self.dtype = getattr(torch, config.model.precision)
-        self.eval_batch_size: int = config.eval.batch_size
 
-        self.batch_size: int = config.train.batch_size
-        self.optimizer_cls = config.train.optimizer
         self.max_num_epochs = config.train.max_num_epochs
         self.score_function = config.train.score_function
-        self.train_transforms = config.train_data.transforms
+        self.train_transforms =
         self.valid_transforms = config.valid_data.transforms
         self.test_transforms = config.test_data.transforms
 
@@ -128,69 +119,34 @@ class Experiment:
         self.logger = logging.getLogger(config.log.time_stamp)
         self.z_out = self.train_dataset_factory.get_z_out()
 
-    def get_yx_yy(self, x_shape=Tuple[int, int]) -> Tuple[int, int]:
-        xx, xy = x_shape
-        xc = self.nnum ** 2
-        xx = xx // self.nnum
-        xy = xy // self.nnum
-        with torch.no_grad():
-            if torch.cuda.is_available():
-                self.model.cuda()
-                device = "cuda"
-            else:
-                device = "cpu"
+        self.is_set_up = False
 
-            dummy_pred = self.model(torch.randn((1, xc, xx, xy), dtype=self.dtype, device=device))
-            if isinstance(dummy_pred, tuple):
-                if len(dummy_pred) == 2:
-                    dummy_pred, dummy_pred_aux = dummy_pred
-                    assert dummy_pred.shape == dummy_pred_aux.shape
-                else:
-                    raise NotImplementedError
+    def setup(self):
+        config = self.config
 
-            n_pred, c_pred, zout_pred, yx, yy = dummy_pred.shape
-            assert n_pred == 1
-            assert c_pred == 1
-            assert zout_pred == self.z_out, (zout_pred, self.z_out)
-
-        if hasattr(self.model, "get_target_crop"):
-            crop = self.model.get_target_crop()
-            if crop is not None:
-                cx, cy = crop
-                yx += 2 * cx
-                yy += 2 * cy
-
-        return yx, yy
-
-    def test(self):
-        self.max_num_epochs = 0
-        self.run()
-
-    def run(self):
         devices = list(range(torch.cuda.device_count()))
         if devices:
             device = torch.device("cuda", devices[0])
         else:
             device = torch.device("cpu")
 
-        self.model = self.Model(nnum=self.nnum, z_out=self.z_out, **self.additional_model_kwargs).to(
+        self.model = config.model.Model(nnum=self.nnum, z_out=self.z_out, **config.model.kwargs).to(
             device=device, dtype=self.dtype
         )
         self.model.cuda()
-        # todo: warmstart from checkpoints / load from checkpoints
         if self.checkpoint is not None:
             state = torch.load(self.checkpoint, map_location=device)
             self.model.load_state_dict(state, strict=False)
 
-        optimizer = self.optimizer_cls(self.model.parameters())
+        self.optimizer = config.train.optimizer(self.model.parameters())
 
         if hasattr(self.model, "get_target_crop"):
-            self.train_transforms.append(EdgeCrop(self.model.get_target_crop(), apply_to=[1]))
+            config.train_data.transforms.append(EdgeCrop(self.model.get_target_crop(), apply_to=[1]))
             self.valid_transforms.append(EdgeCrop(self.model.get_target_crop(), apply_to=[1]))
             self.test_transforms.append(EdgeCrop(self.model.get_target_crop(), apply_to=[1]))
 
         train_dataset, z_out_train, _ = self.train_dataset_factory.create_dataset(
-            get_yx_yy=self.get_yx_yy, transforms=self.train_transforms
+            get_yx_yy=self.get_yx_yy, transforms=config.train_data.transforms
         )
         train_eval_dataset, _, train_ipaths = self.train_dataset_factory.create_dataset(
             get_yx_yy=self.get_yx_yy, transforms=self.valid_transforms
@@ -232,18 +188,18 @@ class Experiment:
         full_valid_data_indices = get_full_data_indices(valid_dataset, self.valid_data_indices)
         full_test_data_indices = get_full_data_indices(test_dataset, self.test_data_indices)
 
-        train_loader = DataLoader(
+        self.train_loader = DataLoader(
             train_dataset,
-            batch_size=self.batch_size,
+            batch_size=config.train.batch_size,
             pin_memory=True,
             num_workers=5,
             sampler=SubsetRandomSampler(full_train_data_indices),
         )
 
-        train_ipaths = train_ipaths[min(full_train_eval_data_indices) : max(full_train_eval_data_indices) + 1]
+        self.train_ipaths = train_ipaths[min(full_train_eval_data_indices) : max(full_train_eval_data_indices) + 1]
         train_loader_eval = DataLoader(
             train_eval_dataset,
-            batch_size=self.eval_batch_size,
+            batch_size=config.eval.batch_size,
             pin_memory=True,
             num_workers=3,
             # despite 'shuffle=False' the order is not always the same, trying out SequentialSampler...
@@ -256,7 +212,7 @@ class Experiment:
             if valid_dataset is None
             else DataLoader(
                 valid_dataset,
-                batch_size=self.eval_batch_size,
+                batch_size=config.eval.batch_size,
                 pin_memory=True,
                 num_workers=3,
                 sampler=SubsetSequentialSampler(full_valid_data_indices),
@@ -269,12 +225,54 @@ class Experiment:
             if test_dataset is None
             else DataLoader(
                 test_dataset,
-                batch_size=self.eval_batch_size,
+                batch_size=config.eval.batch_size,
                 pin_memory=True,
                 num_workers=5,
                 sampler=SubsetSequentialSampler(full_test_data_indices),
             )
         )
+
+    def get_yx_yy(self, x_shape=Tuple[int, int]) -> Tuple[int, int]:
+        xx, xy = x_shape
+        xc = self.nnum ** 2
+        xx = xx // self.nnum
+        xy = xy // self.nnum
+        with torch.no_grad():
+            if torch.cuda.is_available():
+                self.model.cuda()
+                device = "cuda"
+            else:
+                device = "cpu"
+
+            dummy_pred = self.model(torch.randn((1, xc, xx, xy), dtype=self.dtype, device=device))
+            if isinstance(dummy_pred, tuple):
+                if len(dummy_pred) == 2:
+                    dummy_pred, dummy_pred_aux = dummy_pred
+                    assert dummy_pred.shape == dummy_pred_aux.shape
+                else:
+                    raise NotImplementedError
+
+            n_pred, c_pred, zout_pred, yx, yy = dummy_pred.shape
+            assert n_pred == 1
+            assert c_pred == 1
+            assert zout_pred == self.z_out, (zout_pred, self.z_out)
+
+        if hasattr(self.model, "get_target_crop"):
+            crop = self.model.get_target_crop()
+            if crop is not None:
+                cx, cy = crop
+                yx += 2 * cx
+                yy += 2 * cy
+
+        return yx, yy
+
+    def test(self):
+        self.max_num_epochs = 0
+        self.run()
+
+    def run(self):
+        if not self.is_set_up:
+            self.setup()
 
         # tensorboardX
         writer = SummaryWriter(self.config.log.dir.as_posix())
@@ -670,7 +668,7 @@ class Experiment:
         @evaluator.on(Events.ITERATION_COMPLETED)
         def eval_iteration(engine: Engine):
             output: Output = engine.state.output
-            start = ((engine.state.iteration - 1) % len(engine.state.dataloader)) * self.eval_batch_size
+            start = ((engine.state.iteration - 1) % len(engine.state.dataloader)) * self.config.eval.batch_size
             pred_batch = output.pred.detach().cpu().numpy()
             tgt_batch = output.tgt.detach().cpu().numpy()
             for in_batch_idx, ds_idx in enumerate(range(start, start + tgt_batch.shape[0])):
