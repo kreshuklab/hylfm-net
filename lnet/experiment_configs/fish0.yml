@@ -1,6 +1,6 @@
 model:
-  name: M12dout
-  kwargs: {final_activation: sigmoid, aux_activation: null}
+  name: M12
+  kwargs: {final_activation: sigmoid}
   nnum: 19
   precision: float
 #  checkpoint: "/g/kreshuk/beuttenm/repos/lensletnet/logs/beads/00_LS0/8/19-09-19_14-28_db5e04e_8-0/models/v0_model_887.pth"
@@ -11,8 +11,7 @@ log:
     log_bead_precision_recall: true
 
 train:
-  loss_fn: SorensenDiceLoss
-  loss_aux_fn: BCEWithLogitsLoss
+  loss_fn: WeightedL1Loss
 
   optimizer:
     name: Adam
@@ -51,5 +50,3 @@ test_data:
   transforms:
     - norm00
     - Lightfield2Channel
-
-

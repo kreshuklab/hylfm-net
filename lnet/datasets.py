@@ -75,7 +75,13 @@ class N5Dataset(torch.utils.data.Dataset):
         x_shape = (1,) + x_shape
         y_shape = (1,) + y_shape
 
-        data_folder = Path(os.environ.get("DATA_FOLDER", "data")) if data_folder is None else data_folder
+        if data_folder is None:
+            data_folder = os.environ.get("DATA_FOLDER", None)
+            if data_folder is None:
+                data_folder =  Path(__file__).parent.parent / "data"
+            else:
+                data_folder = Path(data_folder)
+
         assert data_folder.exists(), data_folder.absolute()
         assert n is None or n_indices is None, "Cannot select n and n_indices at once"
         if n is not None:
@@ -254,7 +260,7 @@ class N5Dataset(torch.utils.data.Dataset):
             x, y = x[0], y[0]
             # logger.debug("here3 x %s", x.shape)
         else:
-            raise NotImplementedError()
+            raise NotImplementedError
             # todo: set high priority for "item"
             for fut in self.futures[item]:
                 fut.result()

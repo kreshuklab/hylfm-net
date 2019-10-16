@@ -23,6 +23,9 @@ from torch.utils.data import DataLoader, SubsetRandomSampler, ConcatDataset
 
 from lnet.config import Config
 from lnet.datasets import DatasetFactory, SubsetSequentialSampler, Result
+from lnet.engine import TunedEngine, TrainEngine, EvalEngine
+from lnet.output import Output
+from lnet.step_functions import training_step, inference_step
 from lnet.utils.metrics import (
     LOSS_NAME,
     AUX_LOSS_NAME,
@@ -34,15 +37,13 @@ from lnet.utils.metrics import (
     BEAD_PRECISION,
     BEAD_RECALL,
 )
-from lnet.utils.metrics import NRMSE, PSNR, SSIM, MSSSIM
-from lnet.utils.metrics.beads import BeadPrecisionRecall
+
 from lnet.utils.plotting import turbo_colormap_data, Box, ColorSelection
 from lnet.utils.transforms import lightfield_from_channel, EdgeCrop
 
 
-class Experiment:
-    nnum: int
 
+class Experiment:
     train_dataset_factory: DatasetFactory
     valid_dataset_factory: Optional[DatasetFactory] = None
     test_dataset_factory: Optional[DatasetFactory] = None
@@ -56,11 +57,14 @@ class Experiment:
     valid_transforms: List[Union[Generator[Transform, None, None], Transform]]
     test_transforms: List[Union[Generator[Transform, None, None], Transform]]
 
-    dtype: torch.dtype
+    train_loader: DataLoader
+    train_loader_eval: DataLoader
+    valid_loader: DataLoader
+    test_loader: DataLoader
+
     max_num_epochs: int
     score_function: Callable[[Engine], float]
 
-    checkpoint: Optional[Path]
     config: Config
     add_in_name: Optional[str] = None
 
@@ -86,27 +90,13 @@ class Experiment:
 
         self.max_num_epochs = config.train.max_num_epochs
         self.score_function = config.train.score_function
-        self.train_transforms =
-        self.valid_transforms = config.valid_data.transforms
-        self.test_transforms = config.test_data.transforms
 
-        self.train_dataset_factory = config.train_data.factory
-        self.train_data_indices = config.train_data.indices
-        self.train_eval_data_indices = config.train_data.eval_indices
-        self.valid_dataset_factory = config.valid_data.factory
-        self.valid_data_indices = config.valid_data.indices
-        self.test_dataset_factory = config.test_data.factory
-        self.test_data_indices = config.test_data.indices
 
         # # make sure everything is commited
         # git_status_cmd = pbs3.git.status("--porcelain")
         # git_status = git_status_cmd.stdout
         # assert not git_status, git_status  # uncommited changes exist
-        self.dist_threshold = 5.0
-        self.nnum = config.model.nnum
 
-        self.loss_fn: List[Tuple[float, torch.nn.Module]] = config.train.loss_fn
-        self.aux_loss_fn: Optional[List[Tuple[float, torch.nn.Module]]] = config.train.loss_aux_fn
         self.pre_loss_transform: Callable[
             [torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]
         ] = lambda *x: x
@@ -114,166 +104,42 @@ class Experiment:
             [torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]
         ] = lambda *x: x
 
-        self.checkpoint = config.model.checkpoint
 
         self.logger = logging.getLogger(config.log.time_stamp)
-        self.z_out = self.train_dataset_factory.get_z_out()
 
-        self.is_set_up = False
+        z_out = None
+        for data_config in [config.train_data, config.valid_data, config.test_data]:
+            if data_config is None:
+                continue
 
-    def setup(self):
-        config = self.config
+            if z_out is None:
+                z_out = data_config.factory.get_z_out()
+            else:
+                assert z_out == data_config.factory.get_z_out(), (z_out, data_config.factory.get_z_out())
+
+        assert z_out is not None
+        self.z_out = z_out
+
+        self.result_dir = self.config.log.dir / "result"
 
         devices = list(range(torch.cuda.device_count()))
-        if devices:
-            device = torch.device("cuda", devices[0])
-        else:
-            device = torch.device("cpu")
-
-        self.model = config.model.Model(nnum=self.nnum, z_out=self.z_out, **config.model.kwargs).to(
-            device=device, dtype=self.dtype
+        assert len(devices) == 1, "single gpu for now only"
+        self.device = torch.device("cuda", devices[0])
+        self.model = config.model.Model(nnum=config.model.nnum, z_out=self.z_out, **config.model.kwargs).to(
+            device=self.device, dtype=self.dtype
         )
         self.model.cuda()
-        if self.checkpoint is not None:
-            state = torch.load(self.checkpoint, map_location=device)
+        if config.model.checkpoint is not None:
+            state = torch.load(config.model.checkpoint, map_location=self.device)
             self.model.load_state_dict(state, strict=False)
 
-        self.optimizer = config.train.optimizer(self.model.parameters())
-
-        if hasattr(self.model, "get_target_crop"):
-            config.train_data.transforms.append(EdgeCrop(self.model.get_target_crop(), apply_to=[1]))
-            self.valid_transforms.append(EdgeCrop(self.model.get_target_crop(), apply_to=[1]))
-            self.test_transforms.append(EdgeCrop(self.model.get_target_crop(), apply_to=[1]))
-
-        train_dataset, z_out_train, _ = self.train_dataset_factory.create_dataset(
-            get_yx_yy=self.get_yx_yy, transforms=config.train_data.transforms
-        )
-        train_eval_dataset, _, train_ipaths = self.train_dataset_factory.create_dataset(
-            get_yx_yy=self.get_yx_yy, transforms=self.valid_transforms
-        )
-        assert self.z_out == z_out_train, (self.z_out, z_out_train)
-        valid_dataset, z_out_valid, valid_ipaths = (
-            (None, self.z_out, [[]])
-            if self.valid_dataset_factory is None
-            else self.valid_dataset_factory.create_dataset(get_yx_yy=self.get_yx_yy, transforms=self.valid_transforms)
-        )
-        assert self.z_out == z_out_valid, (self.z_out, z_out_valid)
-
-        test_dataset, z_out_test, test_ipaths = (
-            (None, self.z_out, [[]])
-            if self.test_dataset_factory is None
-            else self.test_dataset_factory.create_dataset(get_yx_yy=self.get_yx_yy, transforms=self.test_transforms)
-        )
-        assert self.z_out == z_out_test, (self.z_out, z_out_test)
-
-        def get_full_data_indices(concat_dataset: ConcatDataset, data_indices: Optional[List[List[int]]]):
-            if data_indices is None:
-                return list(range(len(concat_dataset)))
-            else:
-                full_data_indices = []
-                before = 0
-                for ds, tdi in zip(concat_dataset.datasets, data_indices):
-                    if tdi is None:
-                        full_data_indices += [before + i for i in range(len(ds))]
-                    elif tdi:
-                        assert max(tdi) < len(ds), (max(tdi), len(ds))
-                        full_data_indices += [before + i for i in tdi]
-
-                    before += len(ds)
-
-                return full_data_indices
-
-        full_train_data_indices = get_full_data_indices(train_dataset, self.train_data_indices)
-        full_train_eval_data_indices = get_full_data_indices(train_dataset, self.train_eval_data_indices)
-        full_valid_data_indices = get_full_data_indices(valid_dataset, self.valid_data_indices)
-        full_test_data_indices = get_full_data_indices(test_dataset, self.test_data_indices)
-
-        self.train_loader = DataLoader(
-            train_dataset,
-            batch_size=config.train.batch_size,
-            pin_memory=True,
-            num_workers=5,
-            sampler=SubsetRandomSampler(full_train_data_indices),
-        )
-
-        self.train_ipaths = train_ipaths[min(full_train_eval_data_indices) : max(full_train_eval_data_indices) + 1]
-        train_loader_eval = DataLoader(
-            train_eval_dataset,
-            batch_size=config.eval.batch_size,
-            pin_memory=True,
-            num_workers=3,
-            # despite 'shuffle=False' the order is not always the same, trying out SequentialSampler...
-            sampler=SubsetSequentialSampler(full_train_eval_data_indices),
-        )
-
-        valid_ipaths = valid_ipaths[min(full_valid_data_indices) : max(full_valid_data_indices) + 1]
-        valid_loader = (
-            None
-            if valid_dataset is None
-            else DataLoader(
-                valid_dataset,
-                batch_size=config.eval.batch_size,
-                pin_memory=True,
-                num_workers=3,
-                sampler=SubsetSequentialSampler(full_valid_data_indices),
-            )
-        )
-
-        test_ipaths = test_ipaths[min(full_test_data_indices) : max(full_test_data_indices) + 1]
-        test_loader = (
-            None
-            if test_dataset is None
-            else DataLoader(
-                test_dataset,
-                batch_size=config.eval.batch_size,
-                pin_memory=True,
-                num_workers=5,
-                sampler=SubsetSequentialSampler(full_test_data_indices),
-            )
-        )
-
-    def get_yx_yy(self, x_shape=Tuple[int, int]) -> Tuple[int, int]:
-        xx, xy = x_shape
-        xc = self.nnum ** 2
-        xx = xx // self.nnum
-        xy = xy // self.nnum
-        with torch.no_grad():
-            if torch.cuda.is_available():
-                self.model.cuda()
-                device = "cuda"
-            else:
-                device = "cpu"
-
-            dummy_pred = self.model(torch.randn((1, xc, xx, xy), dtype=self.dtype, device=device))
-            if isinstance(dummy_pred, tuple):
-                if len(dummy_pred) == 2:
-                    dummy_pred, dummy_pred_aux = dummy_pred
-                    assert dummy_pred.shape == dummy_pred_aux.shape
-                else:
-                    raise NotImplementedError
-
-            n_pred, c_pred, zout_pred, yx, yy = dummy_pred.shape
-            assert n_pred == 1
-            assert c_pred == 1
-            assert zout_pred == self.z_out, (zout_pred, self.z_out)
-
-        if hasattr(self.model, "get_target_crop"):
-            crop = self.model.get_target_crop()
-            if crop is not None:
-                cx, cy = crop
-                yx += 2 * cx
-                yy += 2 * cy
-
-        return yx, yy
 
     def test(self):
         self.max_num_epochs = 0
         self.run()
 
     def run(self):
-        if not self.is_set_up:
-            self.setup()
-
+        config = self.config
         # tensorboardX
         writer = SummaryWriter(self.config.log.dir.as_posix())
         # data_loader_iter = iter(train_loader)
@@ -284,181 +150,13 @@ class Experiment:
         #     self.logger.warning("Failed to save model graph...")
         #     self.logger.exception(e)
 
-        # ignite
-        class CustomEvents(Enum):
-            VALIDATION_DONE = "validation_done_event"
 
-        @dataclass
-        class Output:
-            ipt: torch.Tensor
-            tgt: torch.Tensor
-            aux_tgt: torch.Tensor
-            pred: torch.Tensor
-            aux_pred: torch.Tensor
-            loss: torch.Tensor
-            aux_loss: torch.Tensor
-            losses: List[torch.Tensor]
-            aux_losses: List[torch.Tensor]
+        trainer = TrainEngine(process_function=training_step, config=config, logger=self.logger, model=self.model)
+        return
 
-        result_dir = self.config.log.dir / "result"
-
-        class TunedEngine(Engine):
-            def __init__(self, process_function):
-                super().__init__(process_function)
-                self.named_run_counts = {}
-                self.add_event_handler(Events.STARTED, self.prepare_engine)
-                self.add_event_handler(Events.COMPLETED, self.log_compute_time)
-
-            @property
-            def run_count(self):
-                return self.named_run_counts.get(self.state.name, 1)
-
-            @staticmethod
-            def prepare_engine(engine: "TunedEngine"):
-                engine.state.compute_time = 0
-                eval = True
-                if engine.state.dataloader == train_loader:
-                    engine.state.name = "in_training"
-                    eval = False
-                elif engine.state.dataloader == train_loader_eval:
-                    engine.state.name = "training"
-                    engine.state.ipaths = train_ipaths
-                elif engine.state.dataloader == valid_loader:
-                    engine.state.name = "validation"
-                    engine.state.ipaths = valid_ipaths
-                elif engine.state.dataloader == test_loader:
-                    engine.state.name = "test"
-                    engine.state.ipaths = test_ipaths
-                else:
-                    raise NotImplementedError
-
-                if eval:
-                    (result_dir / engine.state.name).mkdir(parents=True, exist_ok=True)
-                    if engine.state.ipaths:
-                        engine.state.ipaths_log = numpy.full(
-                            (len(engine.state.ipaths), len(engine.state.ipaths[0])), -1, dtype=numpy.float32
-                        )
-                        engine.state.target_ipaths_log = numpy.full(
-                            (len(engine.state.ipaths), len(engine.state.ipaths[0])), -1, dtype=numpy.float32
-                        )
-                    else:
-                        engine.state.ipaths_log = numpy.empty((0, 0))
-                        engine.state.target_ipaths_log = numpy.empty((0, 0))
-
-                engine.named_run_counts[engine.state.name] = engine.run_count + 1
-
-            @staticmethod
-            def log_compute_time(engine: "TunedEngine"):
-                mins, secs = divmod(engine.state.compute_time / max(1, engine.state.iteration), 60)
-                msecs = (secs % 1) * 1000
-                hours, mins = divmod(mins, 60)
-                self.logger.info(
-                    "%s run on %d mini-batches completed in %.2f with avg compute time %02d:%02d:%02d:%03d",
-                    engine.state.name,
-                    len(engine.state.dataloader),
-                    engine.state.compute_time,
-                    hours,
-                    mins,
-                    secs,
-                    msecs,
-                )
-
-        def training_step(engine, batch) -> Output:
-            self.model.train()
-            start = time.time()
-            optimizer.zero_grad()
-            has_aux = len(batch) == 3
-            if has_aux:
-                ipt, tgt, aux_tgt = batch
-                aux_tgt = convert_tensor(aux_tgt, device=device, non_blocking=False)
-            else:
-                ipt, tgt = batch
-                aux_tgt = None
-
-            ipt = convert_tensor(ipt, device=device, non_blocking=False)
-            tgt = convert_tensor(tgt, device=device, non_blocking=False)
-            pred = self.model(ipt)
-            if has_aux:
-                pred, aux_pred = pred
-                aux_losses = [w * lf(*self.pre_aux_loss_transform(aux_pred, tgt)) for w, lf in self.aux_loss_fn]
-                aux_loss = sum(aux_losses)
-            else:
-                aux_pred = None
-                aux_losses = None
-                aux_loss = None
-
-            losses = [w * lf(*self.pre_loss_transform(pred, tgt)) for w, lf in self.loss_fn]
-            total_loss = sum(losses)
-            loss = total_loss
-            if has_aux:
-                total_loss += aux_loss
-
-            total_loss.backward()
-            optimizer.step()
-            engine.state.compute_time += time.time() - start
-            return Output(
-                ipt=ipt,
-                tgt=tgt,
-                aux_tgt=aux_tgt,
-                pred=pred,
-                aux_pred=aux_pred,
-                loss=loss,
-                aux_loss=aux_loss,
-                losses=losses,
-                aux_losses=aux_losses,
-            )
-
-        trainer = TunedEngine(training_step)
-        trainer.add_event_handler(
-            Events.ITERATION_COMPLETED, TerminateOnNan(output_transform=lambda output: output.__dict__)
-        )
-
-        def inference_step(engine, batch) -> Output:
-            self.logger.warning("inf step")
-            self.model.eval()
-            self.logger.warning("model device %s", next(self.model.parameters()).device)
-            with torch.no_grad():
-                start = time.time()
-                if len(batch) == 3:
-                    ipt, tgt, aux_tgt = batch
-                    aux_tgt = convert_tensor(aux_tgt, device=device, non_blocking=False)
-                else:
-                    ipt, tgt = batch
-                    aux_tgt = None
-
-                ipt = convert_tensor(ipt, device=device, non_blocking=False)
-                # print('here ipt %s', ipt.shape)
-                tgt = convert_tensor(tgt, device=device, non_blocking=False)
-                # print('here: tgt %s', tgt.shape)
-                pred = self.model(ipt)
-                self.logger.warning("forwarded!!!")
-                engine.state.compute_time += time.time() - start
-
-                if isinstance(pred, tuple):
-                    pred, aux_pred = pred
-                    aux_losses = [w * lf(aux_pred, aux_tgt) for w, lf in self.aux_loss_fn]
-                    aux_loss = sum(aux_losses)
-                else:
-                    aux_pred = None
-                    aux_losses = None
-                    aux_loss = None
-
-                losses = [w * lf(pred, tgt) for w, lf in self.loss_fn]
-                loss = sum(losses)
-                return Output(
-                    ipt=ipt,
-                    tgt=tgt,
-                    aux_tgt=aux_tgt,
-                    pred=pred,
-                    aux_pred=aux_pred,
-                    loss=loss,
-                    aux_loss=aux_loss,
-                    losses=losses,
-                    aux_losses=aux_losses,
-                )
-
-        evaluator = TunedEngine(inference_step)
-        evaluator.register_events(*CustomEvents)
+        train_evaluator = EvalEngine(process_function=inference_step, config=config, logger=self.logger, model=self.model, data_config=config.train_eval_data)
+        validator = EvalEngine(process_function=inference_step, config=config, logger=self.logger, model=self.model, data_config=config.valid_data)
+        tester = EvalEngine(process_function=inference_step, config=config, logger=self.logger, model=self.model, data_config=config.test_data)
 
         saver = ModelCheckpoint(
             (self.config.log.dir / "models").as_posix(),
@@ -468,45 +166,39 @@ class Experiment:
             create_dir=True,
             save_as_state_dict=True,
         )
-        evaluator.add_event_handler(
-            CustomEvents.VALIDATION_DONE, saver, {"model": self.model}
+        validator.add_event_handler(
+            Events.COMPLETED, saver, {"model": self.model}
         )  # , "optimizer": optimizer})
+
         stopper = EarlyStopping(
-            patience=self.config.train.patience, score_function=self.score_function, trainer=trainer
+            patience=config.train.patience, score_function=self.score_function, trainer=trainer
         )
-        evaluator.add_event_handler(CustomEvents.VALIDATION_DONE, stopper)
+        validator.add_event_handler(Events.COMPLETED, stopper)
 
         Loss(loss_fn=lambda loss, _: loss, output_transform=lambda out: (out.loss, out.ipt)).attach(
-            evaluator, LOSS_NAME
+            validator, LOSS_NAME
         )
         if len(self.loss_fn) > 1:
             for i in range(len(self.loss_fn)):
                 Loss(loss_fn=lambda loss, _: loss, output_transform=lambda out, j=i: (out.losses[j], out.ipt)).attach(
-                    evaluator, f"{LOSS_NAME}-{i}"
+                    validator, f"{LOSS_NAME}-{i}"
                 )
 
         if self.aux_loss_fn is not None:
             Loss(loss_fn=lambda loss, _: loss, output_transform=lambda out: (out.aux_loss, out.ipt)).attach(
-                evaluator, AUX_LOSS_NAME
+                validator, AUX_LOSS_NAME
             )
             for i in range(len(self.aux_loss_fn)):
                 Loss(
                     loss_fn=lambda loss, _: loss, output_transform=lambda out, j=i: (out.aux_losses[j], out.ipt)
-                ).attach(evaluator, f"{AUX_LOSS_NAME}-{i}")
-
-        MSSSIM().attach(evaluator, MSSSIM_NAME)
-        NRMSE().attach(evaluator, NRMSE_NAME)
-        PSNR(data_range=2.5).attach(evaluator, PSNR_NAME)
-        SSIM().attach(evaluator, SSIM_NAME)
-        if self.config.log.log_bead_precision_recall:
-            BeadPrecisionRecall(dist_threshold=self.dist_threshold).attach(evaluator, BEAD_PRECISION_RECALL)
+                ).attach(validator, f"{AUX_LOSS_NAME}-{i}")
 
         def log_train_scalars(engine: Engine, step: int):
             writer.add_scalar(f"{engine.state.name}/loss", engine.state.output.loss, step)
 
         def log_images(engine: Engine, step: int, boxes: Iterable[Box] = tuple()):
             output: Output = engine.state.output
-            ipt_batch = numpy.stack([lightfield_from_channel(xx, nnum=self.nnum) for xx in output.ipt.cpu().numpy()])
+            ipt_batch = numpy.stack([lightfield_from_channel(xx, nnum=engine.config.model.nnum) for xx in output.ipt.cpu().numpy()])
 
             tgt_batch = numpy.stack([yy.cpu().numpy() for yy in output.tgt])
             pred_batch = numpy.stack([yy.detach().cpu().numpy() for yy in output.pred])
@@ -575,9 +267,9 @@ class Experiment:
             # ipt_batch = numpy.concatenate([ipt_batch] * 3, axis=1)  # make channel dim = 3 (NHW gives error)
             # writer.add_images(f"in_training/input", ipt_batch, step, dataformats="NCHW")
 
-        @evaluator.on(Events.COMPLETED)
+        @validator.on(Events.COMPLETED)
         def log_eval(engine: TunedEngine):
-            met = evaluator.state.metrics
+            met = validator.state.metrics
             self.logger.info("%s - Epoch: %d  Avg loss: %.3f", engine.state.name, engine.state.epoch, met[LOSS_NAME])
 
             available_metrics = [LOSS_NAME, MSSSIM_NAME, SSIM_NAME, PSNR_NAME, NRMSE_NAME]
@@ -602,7 +294,7 @@ class Experiment:
 
             def log_metric(metric: str):
                 writer.add_scalar(f"{engine.state.name}/{metric}", met[metric], trainer.state.epoch)
-                metric_log_file = result_dir / engine.state.name / f"{metric.lower()}.txt"
+                metric_log_file = self.result_dir / engine.state.name / f"{metric.lower()}.txt"
                 with metric_log_file.open(mode="a") as file:
                     file.write(f"{trainer.state.epoch}\t{met[metric]}\n")
 
@@ -617,7 +309,7 @@ class Experiment:
                 colors = ColorSelection(["b", "g", "r", "c", "m", "y"])
 
                 # log path data to file as well
-                this_path_dir = result_dir / engine.state.name / "paths" / f"epoch{trainer.state.epoch}"
+                this_path_dir = self.result_dir / engine.state.name / "paths" / f"epoch{trainer.state.epoch}"
                 this_path_dir.mkdir(parents=True, exist_ok=True)
 
                 for ip in range(engine.state.ipaths_log.shape[1]):
@@ -663,9 +355,9 @@ class Experiment:
         # desc = "EPOCH {} - loss: {:.3f}"
         # pbar = tqdm(initial=0, leave=False, total=len(train_loader), desc=desc.format(1, 0))
 
-        test_result = Result(result_dir / "test" / "prediction", result_dir / "test" / "target")
+        test_result = Result(self.result_dir / "test" / "prediction", self.result_dir / "test" / "target")
 
-        @evaluator.on(Events.ITERATION_COMPLETED)
+        @validator.on(Events.ITERATION_COMPLETED)
         def eval_iteration(engine: Engine):
             output: Output = engine.state.output
             start = ((engine.state.iteration - 1) % len(engine.state.dataloader)) * self.config.eval.batch_size
@@ -695,7 +387,7 @@ class Experiment:
         @trainer.on(Events.ITERATION_COMPLETED)
         def log_training_iteration(engine):
             iteration = engine.state.iteration
-            it_in_epoch = (iteration - 1) % len(train_loader) + 1
+            it_in_epoch = (iteration - 1) % len(self.train_loader) + 1
             if (
                 self.config.log.log_scalars_every[1] == Events.ITERATION_COMPLETED
                 and it_in_epoch % self.config.log.log_scalars_every[0] == 0
@@ -727,26 +419,35 @@ class Experiment:
         def validate(engine):
             if engine.state.epoch % self.config.train.validate_every_nth_epoch == 0:
                 # evaluate on training data
-                evaluator.run(train_loader_eval)
+                validator.run(self.train_loader_eval)
 
                 # evaluate on validation data
-                if valid_loader is not None:
-                    evaluator.run(valid_loader)
+                if self.valid_loader is not None:
+                    validator.run(self.valid_loader)
 
-                evaluator.fire_event(CustomEvents.VALIDATION_DONE)
+                validator.fire_event(CustomEvents.VALIDATION_DONE)
+
+        if self.config.train.focus is not None:
+
+            @trainer.on(Events.EPOCH_COMPLETED)
+            def decay_focus_weight(engine):
+                if engine.state.epoch % self.config.train.focus.decay_every_nth_epoch == 0:
+                    engine.state.focus_weight = (
+                        engine.state.focus_weight - 1.0
+                    ) * self.config.train.focus.decay_factor + 1.0
 
         @trainer.on(Events.COMPLETED)
         def log_test_results(engine: TunedEngine):
-            if test_loader is not None:
+            if self.test_loader is not None:
                 if saver._saved:
                     score, file_list = saver._saved[-1]
                     self.model.load_state_dict(
                         torch.load(file_list[0], map_location=next(self.model.parameters()).device)
                     )
 
-                evaluator.run(test_loader)
+                validator.run(self.test_loader)
 
-        trainer.run(train_loader, max_epochs=self.max_num_epochs)
+        trainer.run(self.train_loader, max_epochs=self.max_num_epochs)
         writer.close()
         if self.config_path is not None:
             with self.config_path.with_suffix(".ran_on.txt").open("a") as f:

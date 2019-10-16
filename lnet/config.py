@@ -12,7 +12,7 @@ from typing import Tuple, Optional, Type, Dict, Any, Union, List, Callable, Gene
 from ignite.engine import Engine
 from inferno.io.transform import Transform
 
-from lnet import models, known_optimizers, known_score_functions, known_losses
+from lnet import models
 from lnet.dataset_configs import beads, platy, fish, DatasetConfigEntry
 from lnet.datasets import DatasetFactory
 from lnet.transforms import known_transforms
@@ -36,6 +36,7 @@ class LogConfig:
     log_scalars_every: Tuple[int, str]
     log_images_every: Tuple[int, str]
     log_bead_precision_recall: bool = False
+    log_bead_precision_recall_threshold: float = 5.0
 
     commit_hash: str = field(init=False)
     time_stamp: str = field(init=False)
@@ -124,8 +125,10 @@ class TrainConfig:
     patience: int
     validate_every_nth_epoch: int
 
-    loss_fn: List[Tuple[float, Callable]]
-    loss_aux_fn: Optional[List[Tuple[float, Callable]]] = None  # todo: make callable only, allow for kwargs?
+    loss_fn: Callable[..., List[Tuple[float, Callable]]]
+    loss_fn_kwargs: Dict[str, Any] = field(default_factory=dict)
+    loss_fn_aux: Optional[Callable[..., List[Tuple[float, Callable]]]] = None
+    loss_fn_aux_kwargs: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def load(
@@ -137,8 +140,14 @@ class TrainConfig:
         patience: int,
         validate_every_nth_epoch: int,
         loss_fn: str,
-        loss_aux_fn: str = None,
+        loss_fn_kwargs: Dict[str, Any] = None,
+        loss_fn_aux: str = None,
+        loss_fn_aux_kwargs: Dict[str, Any] = None,
     ) -> "TrainConfig":
+        from lnet.losses import known_losses
+        from lnet.optimizers import known_optimizers
+        from lnet.score_functions import known_score_functions
+
         return cls(
             optimizer=partial(get_known(known_optimizers, optimizer["name"]), **optimizer["kwargs"]),
             batch_size=batch_size,
@@ -147,7 +156,9 @@ class TrainConfig:
             patience=patience,
             validate_every_nth_epoch=validate_every_nth_epoch,
             loss_fn=known_losses[loss_fn],
-            loss_aux_fn=None if loss_aux_fn is None else known_losses[loss_aux_fn],
+            loss_fn_kwargs={} if loss_fn_kwargs is None else loss_fn_kwargs,
+            loss_fn_aux=None if loss_fn_aux is None else known_losses[loss_fn_aux],
+            loss_fn_aux_kwargs={} if loss_fn_aux_kwargs is None else loss_fn_aux_kwargs,
         )
 
 
@@ -167,7 +178,8 @@ DataConfigType = TypeVar("DataConfigType", bound="DataConfig")
 class DataConfig:
     config: InitVar["Config"]
 
-    names: List[str]
+    name: str  # name of this dataconfig
+    names: List[str]  # names of datasets to be combined
 
     indices: Optional[List[Optional[List[int]]]] = None
     transforms: List[Union[Generator[Transform, None, None], Transform]] = None
@@ -227,19 +239,9 @@ class DataConfig:
         self.transforms.append(known_transforms["Cast"](config))
 
     @classmethod
-    def load(cls: Type[DataConfigType], transforms: List[str], **kwargs) -> DataConfigType:
-        # note: 'transform_names' is calles 'transforms' in yaml!
-        return cls(transform_names=transforms, **kwargs)
-
-
-@dataclass
-class TrainDataConfig(DataConfig):
-    eval_indices: Optional[List[Optional[List[int]]]] = None
-
-    def __post_init__(self, config: "Config"):
-        super().__post_init__(config=config)
-        if self.eval_indices is None:
-            self.eval_indices = self.indices
+    def load(cls: Type[DataConfigType], transforms: List[str], name: str, **kwargs) -> DataConfigType:
+        # note: 'transform_names' is called 'transforms' in yaml!
+        return cls(transform_names=transforms, name=name, **kwargs)
 
 
 @dataclass
@@ -250,7 +252,8 @@ class Config:
 
     train: Optional[TrainConfig] = None
 
-    train_data: Optional[TrainDataConfig] = None
+    train_data: Optional[DataConfig] = None
+    train_eval_data: Optional[DataConfig] = None
     valid_data: Optional[DataConfig] = None
     test_data: Optional[DataConfig] = None
 
@@ -270,7 +273,7 @@ class Config:
         with config_path.open("r") as config_file:
             config = yaml.safe_load(config_file)
 
-        data_configs = {attr: config.pop(attr, None) for attr in ["train_data", "valid_data", "test_data"]}
+        data_configs = {attr: config.pop(attr) for attr in ["train_data", "valid_data", "test_data"] if attr in config}
 
         self = cls(
             log=LogConfig.load(config_path=config_path, **config.pop("log")),
@@ -280,10 +283,18 @@ class Config:
             **config,
         )
 
-        config_classes = {"train_data": TrainDataConfig, "valid_data": DataConfig, "test_data": DataConfig}
+        train_data = data_configs.get("train_data", None)
+        if train_data is not None:
+            eval_indices = train_data.pop("eval_indices", None)
+            if eval_indices is None:
+                eval_indices = train_data.get("indices", None)
+
+            train_eval_data = dict(train_data)
+            train_eval_data["indices"] = eval_indices
+            data_configs["train_eval_data"] = train_eval_data
+
         for attr, values in data_configs.items():
-            if values is not None:
-                setattr(self, attr, config_classes[attr].load(config=self, **values))
+            setattr(self, attr,  DataConfig.load(config=self, name=attr, **values))
 
         return self
 
