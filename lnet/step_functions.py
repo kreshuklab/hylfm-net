@@ -4,17 +4,17 @@ from typing import Union, Callable, Any
 import torch
 from ignite.utils import convert_tensor
 
-from time import perf_counter as time
+from time import perf_counter
 
-from lnet.engine import TunedEngine, TrainEngine, EvalEngine
+from lnet.engine import TrainEngine, EvalEngine
 from lnet.output import Output
 
 
 def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
-    start = time()
+    start = perf_counter()
 
     model = engine.model
-    device = model.device
+    device = next(model.parameters()).device
 
     if train:
         model.train()
@@ -36,14 +36,14 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
     pred = model(ipt)
     if has_aux:
         pred, aux_pred = pred
-        aux_losses = [w * lf(aux_pred, tgt) for w, lf in engine.config.aux_loss_fn]
+        aux_losses = [w * lf(aux_pred, tgt) for w, lf in engine.stae.aux_loss]
         aux_loss = sum(aux_losses)
     else:
         aux_pred = None
         aux_losses = None
         aux_loss = None
 
-    losses = [w * lf(pred, tgt) for w, lf in engine.config.loss_fn]
+    losses = [w * lf(pred, tgt) for w, lf in engine.state.loss]
     total_loss = sum(losses)
     loss = total_loss
     if has_aux:
@@ -53,7 +53,7 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
         total_loss.backward()
         optimizer.step()
 
-    engine.state.compute_time += time() - start
+    engine.state.compute_time += perf_counter() - start
     return Output(
         ipt=ipt,
         tgt=tgt,

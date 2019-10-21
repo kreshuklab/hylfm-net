@@ -10,13 +10,13 @@ log:
     log_bead_precision_recall: true
 
 train:
-  loss_fn: SorensenDiceLoss
-  loss_aux_fn: BCEWithLogitsLoss
-
+  loss:
+    name: SorensenDiceLoss
+  aux_loss:
+    name: BCEWithLogitsLoss
   optimizer:
     name: Adam
     kwargs: {lr: 1.0e-4, eps: 1.0e-8}
-
   batch_size: 1
   max_num_epochs: 5000
   score_function: MS-SSIM

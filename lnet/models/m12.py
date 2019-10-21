@@ -20,10 +20,9 @@ class M12(torch.nn.Module):
         planes = 64
         z_valid_cut = 10
         z_out += z_valid_cut
-        self.seq = torch.nn.Sequential()
-        self.seq.add_module("res2d-1", ResnetBlock(in_n_filters=inplanes, n_filters=planes, valid=False))
-        self.seq.add_module("res2d-2", ResnetBlock(in_n_filters=planes, n_filters=planes, valid=False))
-        self.seq.add_module("res2d-3", ResnetBlock(in_n_filters=planes, n_filters=planes, valid=False))
+        self.res2d_1 = ResnetBlock(in_n_filters=inplanes, n_filters=planes, valid=False)
+        self.res2d_2 = ResnetBlock(in_n_filters=planes, n_filters=planes, valid=False)
+        self.res2d_3 = ResnetBlock(in_n_filters=planes, n_filters=planes, valid=False)
 
         inplanes = planes
         planes = z_out
@@ -32,39 +31,28 @@ class M12(torch.nn.Module):
             weight_initializer=partial(nn.init.xavier_uniform_, gain=nn.init.calculate_gain("relu")),
             bias_initializer=Constant(0.0),
         )
-        self.seq.add_module("conv2", Conv2D(inplanes, planes, (3, 3), activation="ReLU", initialization=init))
+        self.conv2 = Conv2D(inplanes, planes, (3, 3), activation="ReLU", initialization=init)
 
-        c2z = C2Z(z_out)
-        inplanes = c2z.get_c_out(planes)
+        self.c2z = C2Z(z_out)
+        inplanes = self.c2z.get_c_out(planes)
         planes = 64
-        self.seq.add_module("C2Z", c2z)
-        self.seq.add_module(
-            "red3d-1", ResnetBlock(in_n_filters=inplanes, n_filters=planes, kernel_size=(3, 3, 3), valid=True)
+        self.red3d_1 = ResnetBlock(in_n_filters=inplanes, n_filters=planes, kernel_size=(3, 3, 3), valid=True)
+        self.transposed_conv_1 = nn.ConvTranspose3d(
+            in_channels=planes,
+            out_channels=planes,
+            kernel_size=(3, 2, 2),
+            stride=(1, 2, 2),
+            padding=(1, 0, 0),
+            output_padding=0,
         )
-        self.seq.add_module(
-            "transposed-conv-1",
-            nn.ConvTranspose3d(
-                in_channels=planes,
-                out_channels=planes,
-                kernel_size=(3, 2, 2),
-                stride=(1, 2, 2),
-                padding=(1, 0, 0),
-                output_padding=0,
-            ),
-        )
-        self.seq.add_module(
-            "red3d-2", ResnetBlock(in_n_filters=planes, n_filters=planes, kernel_size=(3, 3, 3), valid=True)
-        )
-        self.seq.add_module(
-            "transposed-conv-2",
-            nn.ConvTranspose3d(
-                in_channels=planes,
-                out_channels=planes,
-                kernel_size=(3, 2, 2),
-                stride=(1, 2, 2),
-                padding=(1, 0, 0),
-                output_padding=0,
-            ),
+        self.red3d_2 = ResnetBlock(in_n_filters=planes, n_filters=planes, kernel_size=(3, 3, 3), valid=True)
+        self.transposed_conv_2 = nn.ConvTranspose3d(
+            in_channels=planes,
+            out_channels=planes,
+            kernel_size=(3, 2, 2),
+            stride=(1, 2, 2),
+            padding=(1, 0, 0),
+            output_padding=0,
         )
         init = partial(
             Initialization,
@@ -80,15 +68,35 @@ class M12(torch.nn.Module):
         else:
             self.final_activation = None
 
-    def forward(self, input):
-        logger.warning("m12d forward")
-        intermediate = self.seq.forward(input)
-        logger.warning("intermed done")
-        out = self.out(intermediate)
+    def forward(self, x):
+        # logger.warning("m12 forward")
+        # print(x.shape)
+        x = self.res2d_1(x)
+        # print(x.shape)
+        x = self.res2d_2(x)
+        # print(x.shape)
+        x = self.res2d_3(x)
+        # print(x.shape)
+        x = self.conv2(x)
+        # print(x.shape)
+        x = self.c2z(x)
+        # print(x.shape)
+        x = self.red3d_1(x)
+        # print(x.shape)
+        x = self.transposed_conv_1(x)
+        # print(x.shape)
+        x = self.red3d_2(x)
+        # print(x.shape)
+        x = self.transposed_conv_2(x)
+        # print(x.shape)
+        # logger.warning("intermed done")
+        out = self.out(x)
+        # logger.warning("out done")
 
         if self.final_activation is not None:
             out = self.final_activation(out)
 
+        # print('out', out.shape)
         return out
 
     def get_target_crop(self) -> Tuple[int, int]:

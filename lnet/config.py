@@ -37,6 +37,7 @@ class LogConfig:
     log_images_every: Tuple[int, str]
     log_bead_precision_recall: bool = False
     log_bead_precision_recall_threshold: float = 5.0
+    save_n_checkpoints: int = 1
 
     commit_hash: str = field(init=False)
     time_stamp: str = field(init=False)
@@ -63,17 +64,13 @@ class LogConfig:
 
     @classmethod
     def load(
-        cls,
-        config_path: str,
-        log_scalars_every: Tuple[int, str],
-        log_images_every: Tuple[int, str],
-        log_bead_precision_recall: bool = False,
+        cls, config_path: str, log_scalars_every: Tuple[int, str], log_images_every: Tuple[int, str], **kwargs
     ) -> "LogConfig":
         return cls(
             config_path=Path(config_path),
             log_scalars_every=tuple(log_scalars_every),
             log_images_every=tuple(log_images_every),
-            log_bead_precision_recall=log_bead_precision_recall,
+            **kwargs,
         )
 
 
@@ -125,40 +122,47 @@ class TrainConfig:
     patience: int
     validate_every_nth_epoch: int
 
-    loss_fn: Callable[..., List[Tuple[float, Callable]]]
-    loss_fn_kwargs: Dict[str, Any] = field(default_factory=dict)
-    loss_fn_aux: Optional[Callable[..., List[Tuple[float, Callable]]]] = None
-    loss_fn_aux_kwargs: Dict[str, Any] = field(default_factory=dict)
+    loss: Callable[[Engine, Dict[str, Any]], List[Tuple[float, Callable]]]
+    loss_kwargs: Dict[str, Any] = field(default_factory=dict)
+    aux_loss: Callable[[Engine, Dict[str, Any]], Optional[List[Tuple[float, Callable]]]] = lambda *_, **__: None
+    aux_loss_kwargs: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def load(
         cls,
         optimizer: Dict[str, Union[str, dict]],
-        batch_size: int,
-        max_num_epochs: int,
         score_function: str,
         patience: int,
         validate_every_nth_epoch: int,
-        loss_fn: str,
-        loss_fn_kwargs: Dict[str, Any] = None,
-        loss_fn_aux: str = None,
-        loss_fn_aux_kwargs: Dict[str, Any] = None,
+        loss: Optional[Dict[str, Union[str, Dict[str, Any]]]] = None,
+        aux_loss: Optional[Dict[str, Union[str, Dict[str, Any]]]] = None,
+        **kwargs,
     ) -> "TrainConfig":
         from lnet.losses import known_losses
         from lnet.optimizers import known_optimizers
         from lnet.score_functions import known_score_functions
 
+        loss_dicts = {l: d for l, d in {"loss": loss, "aux_loss": aux_loss}.items() if d is not None}
+        for loss_variant, loss_dict in loss_dicts.items():
+            for key in ["name", "kwargs"]:
+                if f"{loss_variant}_{key}" in kwargs:
+                    raise ValueError(
+                        f"invalid training key: '{loss_variant}_{key}', specify {loss_variant} as dict with {key} as key instead."
+                    )
+
+            loss_variant_name = loss_dict.pop("name")
+            kwargs[loss_variant] = known_losses[loss_variant_name]
+            loss_variant_kwargs = loss_dict.pop("kwargs", {})
+            kwargs[f"{loss_variant}_kwargs"] = loss_variant_kwargs
+            if loss_dict:
+                raise ValueError(f"unknown config keys in {loss_variant}: {loss_dict}")
+
         return cls(
             optimizer=partial(get_known(known_optimizers, optimizer["name"]), **optimizer["kwargs"]),
-            batch_size=batch_size,
-            max_num_epochs=max_num_epochs,
             score_function=known_score_functions[score_function],
             patience=patience,
             validate_every_nth_epoch=validate_every_nth_epoch,
-            loss_fn=known_losses[loss_fn],
-            loss_fn_kwargs={} if loss_fn_kwargs is None else loss_fn_kwargs,
-            loss_fn_aux=None if loss_fn_aux is None else known_losses[loss_fn_aux],
-            loss_fn_aux_kwargs={} if loss_fn_aux_kwargs is None else loss_fn_aux_kwargs,
+            **kwargs,
         )
 
 
@@ -223,25 +227,56 @@ class DataConfig:
 
         self.factory = DatasetFactory(*map(find_ds_config, self.names))
 
-        def get_trfs_and_their_names(transforms: Optional[List[Any]], names: Optional[List[str]]):
+        def get_trfs_and_their_names(
+            transforms: Optional[List[Any]], names: Optional[List[Union[Dict[str, Any], str]]]
+        ) -> Tuple[List[Callable], List[str]]:
             if transforms is None:
                 if names is None:
-                    transforms = []
-                    names = []
+                    new_transforms = []
+                    new_names = []
                 else:
-                    transforms = [known_transforms[nt](config) for nt in names]
-            elif names is None:
-                names = [t.__name__ for t in transforms]
+                    new_transforms = []
+                    new_names = []
+                    for nt in names:
+                        if isinstance(nt, str):
+                            name = nt
+                            kwargs = {}
+                        else:
+                            assert isinstance(nt, dict), type(nt)
+                            name = nt.pop("name")
+                            kwargs = nt.pop("kwargs", {})
+                            if nt:
+                                raise ValueError(
+                                    f"invalid keys in transformation entry with name: {name} and kwargs: {kwargs}: {nt}"
+                                )
 
-            return transforms, names
+                        new_transforms.append(known_transforms[name](config=config, kwargs=kwargs))
+                        new_names.append(name)
+
+            elif names is None:
+                new_transforms = transforms
+                new_names = [t.__name__ for t in transforms]
+            else:
+                new_transforms = transforms
+                new_names = names
+
+            return new_transforms, new_names
 
         self.transforms, self.transform_names = get_trfs_and_their_names(self.transforms, self.transform_names)
-        self.transforms.append(known_transforms["Cast"](config))
+        self.transforms.append(known_transforms["Cast"](config=config, kwargs={}))
 
     @classmethod
-    def load(cls: Type[DataConfigType], transforms: List[str], name: str, **kwargs) -> DataConfigType:
+    def load(
+        cls: Type[DataConfigType],
+        transforms: List[str],
+        indices: Optional[List[Optional[Union[str, int]]]] = None,
+        **kwargs,
+    ) -> DataConfigType:
         # note: 'transform_names' is called 'transforms' in yaml!
-        return cls(transform_names=transforms, name=name, **kwargs)
+        if indices is None:
+            indices = [None] * len(kwargs["names"])
+
+        return cls(transform_names=transforms, indices=list(map(cls.indice_string_to_list, indices)), **kwargs)
 
 
 @dataclass
@@ -294,7 +329,11 @@ class Config:
             data_configs["train_eval_data"] = train_eval_data
 
         for attr, values in data_configs.items():
-            setattr(self, attr,  DataConfig.load(config=self, name=attr, **values))
+            try:
+                setattr(self, attr, DataConfig.load(config=self, name=attr, **values))
+            except TypeError:
+                logger.error(f"could not load {attr}")
+                raise
 
         return self
 

@@ -18,25 +18,35 @@ class WeightedL1Loss(torch.nn.L1Loss):
     ):
         super().__init__(reduction="none")
 
-        if isinstance(engine, TrainEngine):
-            self.threshold = threshold
-            self.weight = initial_weight
+        self.threshold = threshold
 
+        if isinstance(engine, TrainEngine):
+            self.instance_for_training = True
+            self.weight = initial_weight
             @engine.on(Events.EPOCH_COMPLETED)
             def decay_weight(engine):
                 if engine.state.epoch % every_nth_epoch == 0:
                     self.weight = (self.weight - 1.0) * decay_by + 1.0
+        else:
+            self.instance_for_training = False
+            self.weight  = 1.
 
     def forward(self, input, target):
         l1 = super().forward(input, target)
-        if self.taining:
+        if self.training:
             l1[target > self.threshold] *= self.weight
 
         return l1.mean()
 
+    def train(self, mode=True):
+        assert self.instance_for_training == mode
+        super().train(mode=mode)
+
 
 known_losses = {
-    "BCEWithLogitsLoss": lambda engine: [(1.0, torch.nn.BCEWithLogitsLoss())],
-    "SorensenDiceLoss": lambda engine: [(1.0, SorensenDiceLoss(channelwise=False, eps=1.0e-4))],
-    "WeightedL1Loss": lambda **kwargs: [(1.0, WeightedL1Loss(**kwargs))],
+    "BCEWithLogitsLoss": lambda engine, kwargs: [(1.0, torch.nn.BCEWithLogitsLoss())],
+    "SorensenDiceLoss": lambda engine, kwargs: [
+        (1.0, SorensenDiceLoss(channelwise=kwargs.pop("channelwise", False)))
+    ],
+    "WeightedL1Loss": lambda engine, kwargs: [(1.0, WeightedL1Loss(engine=engine, **kwargs))],
 }

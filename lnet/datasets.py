@@ -323,7 +323,12 @@ class DatasetFactory:
         z_out = 0
         interesting_path_slices = []
         for entry in self.entries:
-            img_name = next(entry.y_path.glob("*.tif")).as_posix()
+            try:
+                img_name = next(entry.y_path.glob("*.tif")).as_posix()
+            except StopIteration:
+                logger.error(entry.y_path.absolute())
+                raise
+
             y_shape = imread(img_name)[entry.y_roi].shape
             logger.info("determined shape of %s to be %s", img_name, y_shape)
             if z_out:
