@@ -25,8 +25,10 @@ def additive_gaussian_noise(
         for idx in apply_to:
             if sigma is None:
                 mean, std = stat.get_mean_std(idx=idx, percentile_range=percentile_range)
-                sigma = std * std_factor
+                use_sigma = std * std_factor
+            else:
+                use_sigma = sigma
 
-            yield AdditiveGaussianNoise(sigma=sigma, apply_to=[idx])
+            yield AdditiveGaussianNoise(sigma=use_sigma, apply_to=[idx])
 
     return gaussian_noise_impl

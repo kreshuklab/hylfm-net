@@ -33,8 +33,8 @@ def norm(
     def norm_impl(stat: DatasetStat) -> Generator[DatasetStat, None, None]:
         if mean is None:
             for idx in apply_to:
-                mean, std = stat.get_mean_std(idx=idx, percentile_range=percentile_range)
-                yield Normalize(mean=mean, std=std, apply_to=[idx])
+                comp_mean, comp_std = stat.get_mean_std(idx=idx, percentile_range=percentile_range)
+                yield Normalize(mean=comp_mean, std=comp_std, apply_to=[idx])
         else:
             yield Normalize(mean=mean, std=std, apply_to=apply_to)
 
@@ -62,24 +62,21 @@ def norm01(
         percentile_max = 1000.0
 
     def norm_impl(stat: DatasetStat) -> Generator[DatasetStat, None, None]:
-        req = []
-        if min_ is None:
-            req.append(percentile_min)
-
-        if max_ is None:
-            req.append(percentile_max)
+        percentiles = [p for p, m in [(percentile_min, min_), (percentile_max, max_)] if m is None]
 
         for idx in apply_to:
-            stat.request(percentiles={idx: set(req)})
-
-            min_max = stat.get_percentiles(idx=idx, percentiles=req)
+            min_max = stat.get_percentiles(idx=idx, percentiles=percentiles)
 
             if max_ is None:
-                max_ = min_max.pop()
+                max_arg = min_max.pop()
+            else:
+                max_arg = max_
 
             if min_ is None:
-                min_ = min_max.pop()
+                min_arg = min_max.pop()
+            else:
+                min_arg = min_
 
-            yield Normalize01(min_=min_, max_=max_, clip=False, apply_to=[idx])
+            yield Normalize01(min_=min_arg, max_=max_arg, clip=False, apply_to=[idx])
 
     return norm_impl

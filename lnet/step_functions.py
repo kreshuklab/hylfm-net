@@ -36,7 +36,7 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
     pred = model(ipt)
     if has_aux:
         pred, aux_pred = pred
-        aux_losses = [w * lf(aux_pred, tgt) for w, lf in engine.stae.aux_loss]
+        aux_losses = [w * lf(aux_pred, tgt) for w, lf in engine.state.aux_loss]
         aux_loss = sum(aux_losses)
     else:
         aux_pred = None

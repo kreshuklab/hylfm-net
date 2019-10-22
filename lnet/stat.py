@@ -1,6 +1,6 @@
 from collections import defaultdict
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, fields
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Set, DefaultDict, List, Sequence
 
@@ -27,15 +27,15 @@ class RequestedDatasetStat:
 
 
 class DatasetStat:
-    computed: Optional[ComputedDatasetStat]
+    computed: ComputedDatasetStat
     requested: RequestedDatasetStat
 
     def __init__(
         self,
         path: Path,
         dataset: Dataset,
-        percentiles: Optional[Dict[int, Set[float]]],
-        means: Optional[Dict[int, Set[Tuple[float, float]]]],
+        percentiles: Optional[Dict[int, Set[float]]] = None,
+        means: Optional[Dict[int, Set[Tuple[float, float]]]] = None,
     ):
         assert path.suffix == ".yml", path.suffix == "yaml"
         self.path = path
@@ -43,9 +43,8 @@ class DatasetStat:
         if path.exists():
             with path.open() as f:
                 self.computed = ComputedDatasetStat(**yaml.safe_load(f))
-
         else:
-            self.computed = None
+            self.computed = ComputedDatasetStat()
 
         if percentiles is None:
             percentiles = {}
@@ -91,9 +90,7 @@ class DatasetStat:
             hist = numpy.zeros((len(sample), nbins), numpy.uint64)
 
             def compute_hist(i: int):
-                return numpy.stack(
-                    [numpy.histogram(s, bins=nbins, range=(hist_min, hist_max))[0] for s in self.dataset[i]]
-                )
+                return [numpy.histogram(s, bins=nbins, range=(hist_min, hist_max))[0] for s in self.dataset[i]]
 
             futs = []
             with ThreadPoolExecutor(max_workers=16) as executor:
@@ -105,7 +102,7 @@ class DatasetStat:
                     if e is not None:
                         raise e
 
-                    hist += fut.result()
+                    hist = hist + fut.result()  # somehow `+=` invovles casting to float64 which doesn't fly...
 
             numpy.save(hist_path, hist)
 
@@ -113,17 +110,16 @@ class DatasetStat:
 
         all_new_percentiles: Dict[int, Dict[float, float]] = {}
         for idx, pers in self.requested.all_percentiles.items():
-            pers = numpy.array(pers)
+            pers = numpy.array(list(pers))
             per_values = numpy.searchsorted(cumsum[idx], pers * cumsum[idx, -1] / 100) * bin_width
             all_new_percentiles[idx] = dict(zip(pers.tolist(), per_values.tolist()))
 
-        self.computed = self.computed or ComputedDatasetStat()
         for idx, new_percentiles in all_new_percentiles.items():
             self.computed.all_percentiles[idx].update(new_percentiles)
 
         def compute_clipped_means_vars(
             i: int, ranges: DefaultDict[int, Set[Tuple[float, float]]]
-        ) -> DefaultDict[int, Dict[Tuple[float, float, Tuple[float, float]]]]:
+        ) -> Tuple[int, DefaultDict[int, Dict[Tuple[float, float], Tuple[float, float]]]]:
             ret = defaultdict(dict)
             for idx, data in enumerate(self.dataset[i]):
                 for range_ in ranges[idx]:
@@ -140,7 +136,7 @@ class DatasetStat:
                         numpy.var(data, dtype=numpy.float64).item(),
                     )
 
-            return ret
+            return i, ret
 
         all_new_means_vars: DefaultDict[
             int, DefaultDict[Tuple[float, float]], Tuple[numpy.array, numpy.array]
@@ -172,30 +168,23 @@ class DatasetStat:
                 var = numpy.mean((vars + (means - mean) ** 2))
                 self.computed.all_mean_std_by_percentile_range[idx][range_] = (float(mean), float(numpy.sqrt(var)))
 
-        with self.path.open("w") as f:
-            yaml.safe_dump(asdict(self.computed), f)
+        computed_dict = {f.name: dict(getattr(self.computed, f.name)) for f in fields(self.computed) if f.init}
+        with self.path.open("w") as file:
+            yaml.safe_dump(computed_dict, file)
 
     def get_percentiles(self, idx: int, percentiles: Sequence[float]) -> List[float]:
-        if self.computed is None:
-            ret = [None] * len(percentiles)
-        else:
-            ret = [self.computed.all_percentiles[idx].get(p, None) for p in percentiles]
-
+        ret = [self.computed.all_percentiles[idx].get(p, None) for p in percentiles]
         if None in ret:
-            self.request(percentiles={idx: {p for p, r in zip(percentiles, ret) if r is None}})
+            self.request(all_percentiles={idx: {p for p, r in zip(percentiles, ret) if r is None}})
             self.compute_requested()
             return self.get_percentiles(idx, percentiles)
         else:
             return ret
 
     def get_mean_std(self, idx: int, percentile_range: Tuple[float, float]) -> Tuple[float, float]:
-        mean_std = (
-            None
-            if self.computed is None
-            else self.computed.all_mean_std_by_percentile_range[idx].get(percentile_range, None)
-        )
+        mean_std = self.computed.all_mean_std_by_percentile_range[idx].get(percentile_range, None)
         if mean_std is None:
-            self.request(means={idx: {percentile_range}})
+            self.request(all_mean_std_by_percentile_range={idx: {percentile_range}})
             self.compute_requested()
             return self.get_mean_std(idx, percentile_range)
         else:

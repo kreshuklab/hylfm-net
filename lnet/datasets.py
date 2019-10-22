@@ -92,7 +92,13 @@ class N5Dataset(torch.utils.data.Dataset):
         self.x_shape = x_shape
         self.y_shape = y_shape
         self.interpolation_order = interpolation_order
-        shapestr = f"n: {n}\ninterpolation order: {interpolation_order}\nx roi: {x_roi}\ny roi: {y_roi}\nx shape: {x_shape}\ny shape: {y_shape}"
+        shapestr = (
+            f"n: {n}\n"
+            f"interpolation order: {interpolation_order}\n"
+            f"x roi: {x_roi}\ny roi: {y_roi}\n"
+            f"x shape: {x_shape}\ny shape: {y_shape}\n"
+            f"x_folder: {x_folder}\ny_folder: {y_folder}"
+        )
         data_file_name = (
             data_folder
             / f"{name}_{hash((shapestr + x_folder.as_posix() + y_folder.as_posix()).encode()).hexdigest()}.n5"
@@ -220,7 +226,7 @@ class N5Dataset(torch.utils.data.Dataset):
 
         self.transform = None
         self.has_aux = False
-        self.stat = DatasetStat.load(path=stat_path, dataset=self)
+        self.stat = DatasetStat(path=stat_path, dataset=self)
 
         transform_instances = []
         for t in transforms:
