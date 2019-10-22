@@ -1,3 +1,4 @@
+import warnings
 from logging import Logger
 from typing import List, Callable, Tuple, Optional, Any, TypeVar
 
@@ -132,7 +133,7 @@ class TunedEngine(Engine):
         msecs = (secs % 1) * 1000
         hours, mins = divmod(mins, 60)
         engine.logger.info(
-            "%s run on %d mini-batches completed in %.2f with avg compute time %02d:%02d:%02d:%03d",
+            "%s run on %d mini-batches completed in %.2f s with avg compute time %02d:%02d:%02d:%03d",
             engine.name,
             len(engine.state.dataloader),
             engine.state.compute_time,
@@ -144,8 +145,11 @@ class TunedEngine(Engine):
 
     def run(self, data: Optional[DataLoader] = None, max_epochs: int = 1):
         assert not (data and self.data_loader)
-        super().run(data=data or self.data_loader, max_epochs=max_epochs)
-
+        data = data or self.data_loader
+        if data:
+            super().run(data=data, max_epochs=max_epochs)
+        else:
+            warnings.warn(f"no data provided for {self.name}")
 
 class TrainEngine(TunedEngine):
     def __init__(

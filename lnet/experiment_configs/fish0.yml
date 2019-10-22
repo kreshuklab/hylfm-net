@@ -18,13 +18,13 @@ train:
 
   optimizer:
     name: Adam
-    kwargs: {lr: 1.0e-4, eps: 1.0e-8}
+    kwargs: {lr: 1.0e-2, eps: 1.0e-8}
 
   batch_size: 1
-  max_num_epochs: 1
+  max_num_epochs: 2
   score_function: MS-SSIM
   patience: 30
-  validate_every_nth_epoch: 10
+  validate_every_nth_epoch: 1
 
 eval:
   batch_size: 2

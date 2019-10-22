@@ -304,7 +304,7 @@ class ResnetBlock(nn.Module):
         super().__init__()
         assert conv_per_block >= 2
         self.debug = False #  sys.gettrace() is not None
-        logger.info(
+        logger.debug(
             "%dD Resnet Block with n_filters=%d, kernel_size=%s, valid=%r",
             len(kernel_size),
             n_filters,
@@ -358,7 +358,7 @@ class ResnetBlock(nn.Module):
         # self.block = DebugSequential(*layers)
 
         if n_filters != in_n_filters:
-            logger.info("Resnet Block: Add projection layer to input")
+            logger.debug("Resnet Block: Add projection layer to input")
             self.projection_layer = Conv(in_n_filters, n_filters, kernel_size=1)
         else:
             self.projection_layer = None

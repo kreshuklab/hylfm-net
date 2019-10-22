@@ -18,7 +18,7 @@ from typing import Union, Optional, List, Callable, Tuple, Iterable, Generator
 from lnet.config import Config
 from lnet.datasets import DatasetFactory, Result
 from lnet.engine import TunedEngine, TrainEngine, EvalEngine
-from lnet.output import Output
+from lnet.output import Output, AuxOutput
 from lnet.step_functions import training_step, inference_step
 from lnet.utils.metrics import (
     LOSS_NAME,
@@ -49,11 +49,6 @@ class Experiment:
     train_transforms: List[Union[Generator[Transform, None, None], Transform]]
     valid_transforms: List[Union[Generator[Transform, None, None], Transform]]
     test_transforms: List[Union[Generator[Transform, None, None], Transform]]
-
-    train_loader: DataLoader
-    train_loader_eval: DataLoader
-    valid_loader: DataLoader
-    test_loader: DataLoader
 
     max_num_epochs: int
     score_function: Callable[[Engine], float]
@@ -178,7 +173,7 @@ class Experiment:
             writer.add_scalar(f"{engine.name}/loss", engine.state.output.loss, step)
 
         def log_images(engine: TunedEngine, step: int, boxes: Iterable[Box] = tuple()):
-            output: Output = engine.state.output
+            output: Union[AuxOutput, Output] = engine.state.output
             ipt_batch = numpy.stack(
                 [lightfield_from_channel(xx, nnum=engine.config.model.nnum) for xx in output.ipt.cpu().numpy()]
             )
@@ -189,7 +184,7 @@ class Experiment:
             assert len(tgt_batch.shape) == 5, tgt_batch.shape
             assert tgt_batch.shape[1] == 1, tgt_batch.shape
 
-            has_aux = output.aux_tgt is not None
+            has_aux = hasattr(output, "aux_tgt")
             if has_aux:
                 aux_tgt_batch = numpy.stack([yy.cpu().numpy() for yy in output.aux_tgt])
                 aux_pred_batch = numpy.stack([yy.detach().cpu().numpy() for yy in output.aux_pred])
@@ -239,7 +234,7 @@ class Experiment:
                 make_subplot(ax[i, 0], "", ib[0])
                 make_subplot(ax[i, 1], "target", tb[0].max(axis=0), boxes=boxes, side_view=tb[0].max(axis=2).T)
                 make_subplot(ax[i, 2], "prediction", pb[0].max(axis=0), boxes=boxes, side_view=pb[0].max(axis=2).T)
-                rel_diff = (numpy.abs(pb - tb) / tb)[0]
+                rel_diff = (numpy.abs(pb - tb) / tb + 1e-6)[0]
                 abs_diff = numpy.abs(pb - tb)[0]
                 make_subplot(ax[i, 3], "rel diff", rel_diff.max(axis=0), side_view=rel_diff.max(axis=2).T)
                 make_subplot(ax[i, 4], "abs_diff", abs_diff.max(axis=0), side_view=abs_diff.max(axis=2).T)
@@ -317,47 +312,47 @@ class Experiment:
         add_save_result(tester)
 
         @trainer.on(Events.ITERATION_COMPLETED)
-        def log_training_iteration(engine):
+        def log_training_iteration(engine: TrainEngine):
             iteration = engine.state.iteration
-            it_in_epoch = (iteration - 1) % len(self.train_loader) + 1
+            it_in_epoch = (iteration - 1) % len(engine.data_loader) + 1
             if (
-                self.config.log.log_scalars_every[1] == Events.ITERATION_COMPLETED
-                and it_in_epoch % self.config.log.log_scalars_every[0] == 0
+                engine.config.log.log_scalars_every[1] == Events.ITERATION_COMPLETED
+                and it_in_epoch % engine.config.log.log_scalars_every[0] == 0
             ):
                 log_train_scalars(engine, iteration)
 
             if (
-                self.config.log.log_images_every[1] == Events.ITERATION_COMPLETED
-                and it_in_epoch % self.config.log.log_images_every[0] == 0
+                engine.config.log.log_images_every[1] == Events.ITERATION_COMPLETED
+                and it_in_epoch % engine.config.log.log_images_every[0] == 0
             ):
                 log_images(engine, iteration)
 
         @trainer.on(Events.EPOCH_COMPLETED)
-        def log_training_epoch(engine):
+        def log_training_epoch(engine: TrainEngine):
             epoch = engine.state.epoch
             if (
-                self.config.log.log_scalars_every[1] == Events.EPOCH_COMPLETED
-                and epoch % self.config.log.log_scalars_every[0] == 0
+                engine.config.log.log_scalars_every[1] == Events.EPOCH_COMPLETED
+                and epoch % engine.config.log.log_scalars_every[0] == 0
             ):
                 log_train_scalars(engine, epoch)
 
             if (
-                self.config.log.log_images_every[1] == Events.EPOCH_COMPLETED
-                and epoch % self.config.log.log_images_every[0] == 0
+                engine.config.log.log_images_every[1] == Events.EPOCH_COMPLETED
+                and epoch % engine.config.log.log_images_every[0] == 0
             ):
                 log_images(engine, epoch)
 
         @trainer.on(Events.EPOCH_COMPLETED)
-        def validate(engine):
-            if engine.state.epoch % self.config.train.validate_every_nth_epoch == 0:
+        def validate(engine: TrainEngine):
+            if engine.state.epoch % engine.config.train.validate_every_nth_epoch == 0:
                 train_evaluator.run()
                 validator.run()
 
         @trainer.on(Events.COMPLETED)
-        def log_test_results(engine: TunedEngine):
+        def log_test_results(engine: TrainEngine):
             if saver._saved:
                 score, file_list = saver._saved[-1]
-                self.model.load_state_dict(torch.load(file_list[0], map_location=next(self.model.parameters()).device))
+                engine.model.load_state_dict(torch.load(file_list[0], map_location=next(engine.model.parameters()).device))
 
             tester.run()
 

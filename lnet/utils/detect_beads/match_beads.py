@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 def match_beads_from_pos(
     btgt: List[numpy.ndarray], bpred: List[numpy.ndarray], dist_threshold: float
 ) -> Tuple[List[numpy.ndarray], List[numpy.ndarray], List[Tuple[int, int, int]]]:
-    assert all(len(tgt.shape) == 2 for tgt in btgt)  # bn3
-    assert all(len(pred.shape) == 2 for pred in bpred)  # bn3
+    assert all(len(tgt.shape) == 2 for tgt in btgt), list(len(tgt.shape) for tgt in btgt)  # bn3
+    assert all(len(pred.shape) == 2 for pred in bpred), list(len(pred.shape) for pred in bpred)  # bn3
 
     assert all(tgt.shape[1] == 3 for tgt in btgt)  # zyx spatial dims
     assert all(pred.shape[1] == 3 for pred in bpred)  # zyx spatial dims
@@ -73,9 +73,7 @@ def match_beads(
 
 if __name__ == "__main__":
     tgt = (
-        imread("K:/beuttenm/repos/lnet/logs/beads/19-08-23_18-32_c307a5a_aux1_/result/test/target/0000.tif")[
-            None, ...
-        ]
+        imread("K:/beuttenm/repos/lnet/logs/beads/19-08-23_18-32_c307a5a_aux1_/result/test/target/0000.tif")[None, ...]
         / numpy.iinfo(numpy.uint16).max
     )
     pred = (

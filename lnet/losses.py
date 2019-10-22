@@ -22,12 +22,12 @@ class WeightedL1Loss(torch.nn.L1Loss):
 
         if isinstance(engine, TrainEngine):
             self.instance_for_training = True
-            self.weight = initial_weight
+            self.weight = initial_weight - 1.
 
             @engine.on(Events.EPOCH_COMPLETED)
             def decay_weight(engine):
                 if engine.state.epoch % every_nth_epoch == 0:
-                    self.weight = (self.weight - 1.0) * decay_by + 1.0
+                    self.weight *= decay_by
 
         else:
             self.instance_for_training = False
@@ -36,7 +36,10 @@ class WeightedL1Loss(torch.nn.L1Loss):
     def forward(self, input, target):
         l1 = super().forward(input, target)
         if self.training:
-            l1[target > self.threshold] *= self.weight
+            mask = target > self.threshold
+            l1_additional_weights = torch.zeros_like(l1)
+            l1_additional_weights[mask] = l1[mask] * self.weight
+            l1 = l1 + l1_additional_weights
 
         return l1.mean()
 
