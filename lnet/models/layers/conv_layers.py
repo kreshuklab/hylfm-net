@@ -303,7 +303,7 @@ class ResnetBlock(nn.Module):
     ):
         super().__init__()
         assert conv_per_block >= 2
-        self.debug = sys.gettrace() is not None
+        self.debug = False #  sys.gettrace() is not None
         logger.info(
             "%dD Resnet Block with n_filters=%d, kernel_size=%s, valid=%r",
             len(kernel_size),

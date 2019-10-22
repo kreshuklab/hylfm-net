@@ -3,22 +3,20 @@ import numpy
 import os
 import re
 import torch.utils.data
-import yaml
 import z5py
 
 from concurrent.futures import Future, as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
-from dataclasses import asdict
 from hashlib import sha224 as hash
 from inferno.io.transform import Transform, Compose
 from pathlib import Path
 from scipy.interpolate import griddata
 from scipy.ndimage import zoom
 from tifffile import imread, imsave
-from typing import List, Optional, Tuple, Union, Callable, Sequence, Generator
+from typing import List, Optional, Tuple, Union, Callable, Sequence, Generator, Dict, Any
 
 from lnet.dataset_configs import PathOfInterest, DatasetConfigEntry
-from lnet.utils.stat import compute_stat, DatasetStat
+from lnet.stat import DatasetStat
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +73,13 @@ class N5Dataset(torch.utils.data.Dataset):
         x_shape = (1,) + x_shape
         y_shape = (1,) + y_shape
 
-        data_folder = Path(os.environ.get("DATA_FOLDER", "data")) if data_folder is None else data_folder
+        if data_folder is None:
+            data_folder = os.environ.get("DATA_FOLDER", None)
+            if data_folder is None:
+                data_folder =  Path(__file__).parent.parent / "data"
+            else:
+                data_folder = Path(data_folder)
+
         assert data_folder.exists(), data_folder.absolute()
         assert n is None or n_indices is None, "Cannot select n and n_indices at once"
         if n is not None:
@@ -214,15 +218,9 @@ class N5Dataset(torch.utils.data.Dataset):
                             )
                         )
 
-        if stat_path.exists():
-            with stat_path.open() as f:
-                self.stat = DatasetStat(**yaml.safe_load(f))
-        else:
-            self.transform = None
-            self.has_aux = False
-            self.stat = compute_stat(self)
-            with stat_path.open("w") as f:
-                yaml.safe_dump(asdict(self.stat), f)
+        self.transform = None
+        self.has_aux = False
+        self.stat = DatasetStat.load(path=stat_path, dataset=self)
 
         transform_instances = []
         for t in transforms:
@@ -254,7 +252,7 @@ class N5Dataset(torch.utils.data.Dataset):
             x, y = x[0], y[0]
             # logger.debug("here3 x %s", x.shape)
         else:
-            raise NotImplementedError()
+            raise NotImplementedError
             # todo: set high priority for "item"
             for fut in self.futures[item]:
                 fut.result()
@@ -275,6 +273,7 @@ class N5Dataset(torch.utils.data.Dataset):
 
 class DatasetFactory:
     def __init__(self, *entries: DatasetConfigEntry, n: Optional[int] = None, has_aux: bool = False):
+        assert not has_aux, "deprecated"
         self.entries = entries
         self.n = n
         self.has_aux = has_aux
@@ -316,7 +315,12 @@ class DatasetFactory:
         z_out = 0
         interesting_path_slices = []
         for entry in self.entries:
-            img_name = next(entry.y_path.glob("*.tif")).as_posix()
+            try:
+                img_name = next(entry.y_path.glob("*.tif")).as_posix()
+            except StopIteration:
+                logger.error(entry.y_path.absolute())
+                raise
+
             y_shape = imread(img_name)[entry.y_roi].shape
             logger.info("determined shape of %s to be %s", img_name, y_shape)
             if z_out:

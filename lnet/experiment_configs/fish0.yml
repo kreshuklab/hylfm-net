@@ -1,44 +1,59 @@
 model:
-  name: M12dout
-  kwargs: {final_activation: sigmoid, aux_activation: null}
+  name: M12
+  kwargs: {final_activation: sigmoid}
   nnum: 19
   precision: float
 #  checkpoint: "/g/kreshuk/beuttenm/repos/lensletnet/logs/beads/00_LS0/8/19-09-19_14-28_db5e04e_8-0/models/v0_model_887.pth"
 
 log:
-    validate_every_nth_epoch: 10
-    log_scalars_every: [10, Events.ITERATION_COMPLETED]
-    log_images_every: [10, Events.EPOCH_COMPLETED]
+    log_scalars_every: [10, iteration_completed]
+    log_images_every: [10, epoch_completed]
     log_bead_precision_recall: true
+    save_n_checkpoints: 2
 
 train:
-  loss_fn: SorensenDiceLoss
-  loss_aux_fn: BCEWithLogitsLoss
+  loss:
+    name: WeightedL1Loss
+    kwargs: {threshold: .3, initial_weight: 10., decay_by: .9, every_nth_epoch: 1}
 
   optimizer:
     name: Adam
     kwargs: {lr: 1.0e-4, eps: 1.0e-8}
 
   batch_size: 1
-  max_num_epochs: 5000
+  max_num_epochs: 1
   score_function: MS-SSIM
   patience: 30
+  validate_every_nth_epoch: 10
 
-train_datasets: [regional_fish02_LS1, fish02_LS0_filet, bead00_LS0_35]
-train_dataset_indices: [5-73, null, 0-49]
-train_eval_dataset_indices: [5-8, 0-0, 0-3]
-valid_datasets: [regional_fish02_LS1]
-valid_dataset_indices: [4]
-test_datasets: [regional_fish02_LS1]
-test_dataset_indices: [0-4]
+eval:
+  batch_size: 2
 
-train_transforms:
-  - noise00
-  - norm00
-  - RandomRotate
-  - RandomFlipXYnotZ
-  - Lightfield2Channel
+train_data:
+  names: [regional_fish02_LS1]
+  indices: [5-73]
+  eval_indices: [5-8]
+  transforms:
+    - {name: norm01, kwargs: {apply_to: 0, percentile_min: 2.0, percentile_max: 99.8}}
+    - {name: norm01, kwargs: {apply_to: 1, percentile_min: 2.0, percentile_max: 99.8}}
+    - {name: additive_gaussian_noise, kwargs: {apply_to: 0, sigma: 0.1}}
+    - {name: additive_gaussian_noise, kwargs: {apply_to: 1, sigma: 0.1}}
+    - RandomRotate
+    - RandomFlipXYnotZ
+    - Lightfield2Channel
 
-eval_transforms:
-  - norm00
-  - Lightfield2Channel
+valid_data:
+  names: [regional_fish02_LS1]
+  indices: [4]
+  transforms:
+    - {name: norm01, kwargs: {apply_to: 0, percentile_min: 2.0, percentile_max: 99.8}}
+    - {name: norm01, kwargs: {apply_to: 1, percentile_min: 2.0, percentile_max: 99.8}}
+    - Lightfield2Channel
+
+test_data:
+  names: [regional_fish02_LS1]
+  indices: [0-4]
+  transforms:
+    - {name: norm01, kwargs: {apply_to: 0, percentile_min: 2.0, percentile_max: 99.8}}
+    - {name: norm01, kwargs: {apply_to: 1, percentile_min: 2.0, percentile_max: 99.8}}
+    - Lightfield2Channel

@@ -1,19 +1,17 @@
-from lnet.utils.transforms import (
-    Lightfield2Channel,
-    RandomFlipXYnotZ,
-    RandomRotate,
-)
+from lnet.utils.transforms import Lightfield2Channel, RandomFlipXYnotZ, RandomRotate
 
 from inferno.io.transform.generic import Cast
 
-from lnet.normalizations import norm00
-from lnet.noises import noise00
+from lnet.normalizations import norm, norm01
+from lnet.noises import additive_gaussian_noise
+
 
 known_transforms = {
-    "norm00": lambda config: norm00,
-    "noise00": lambda config: noise00,
-    "RandomRotate": lambda config: RandomRotate(),
-    "RandomFlipXYnotZ": lambda config: RandomFlipXYnotZ(),
-    "Lightfield2Channel": lambda config: Lightfield2Channel(nnum=config.model.nnum),
-    "Cast": lambda config: Cast(config.model.precision),
+    "norm": lambda config, kwargs: norm(**kwargs),
+    "norm01": lambda config, kwargs: norm01(**kwargs),
+    "additive_gaussian_noise": lambda config, kwargs: additive_gaussian_noise(**kwargs),
+    "RandomRotate": lambda config, kwargs: RandomRotate(**kwargs),
+    "RandomFlipXYnotZ": lambda config, kwargs: RandomFlipXYnotZ(**kwargs),
+    "Lightfield2Channel": lambda config, kwargs: Lightfield2Channel(nnum=config.model.nnum, **kwargs),
+    "Cast": lambda config, kwargs: Cast(dtype=kwargs.pop("dtype", config.model.precision), **kwargs),
 }

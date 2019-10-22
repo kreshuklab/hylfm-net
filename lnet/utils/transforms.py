@@ -34,7 +34,7 @@ class Clip(Transform):
 class Normalize01(Transform):
     """Normalizes input by a constant."""
 
-    def __init__(self, min_: float, max_: float, **super_kwargs):
+    def __init__(self, min_: float, max_: float, clip=True, **super_kwargs):
         """
         Parameters
         ----------
@@ -45,10 +45,15 @@ class Normalize01(Transform):
         """
         super().__init__(**super_kwargs)
         self.min_ = float(min_)
-        self.max_ = float(max_)
+        self.range_ = float(max_) - self.min_
+        self.clip = clip
 
     def tensor_function(self, tensor):
-        return numpy.clip((tensor - self.min_) / (self.max_ - self.min_), 0.0, 1.0)
+        ret = (tensor - self.min_) / (self.range_)
+        if self.clip:
+            ret = numpy.clip(ret, 0.0, 1.0)
+
+        return ret
 
 
 class NormalizeSigmoid(Transform):

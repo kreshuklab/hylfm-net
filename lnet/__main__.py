@@ -1,9 +1,8 @@
 import argparse
 import logging.config
+import os
 
 from pathlib import Path
-
-from lnet.experiment import Experiment
 
 
 CONFIG = {
@@ -35,9 +34,14 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="lnet")
     parser.add_argument("experiment_config", type=Path)
+    parser.add_argument("CUDA_VISIBLE_DEVICES", type=str)
     parser.add_argument("--test", action="store_true")
 
     args = parser.parse_args()
+    assert args.experiment_config.exists(), args.experiment_config.absolute()
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.CUDA_VISIBLE_DEVICES
+
+    from lnet.experiment import Experiment
 
     exp = Experiment(config_path=args.experiment_config)
     if args.test:
