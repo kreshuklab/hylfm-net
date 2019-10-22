@@ -9,30 +9,35 @@ log:
     log_scalars_every: [10, iteration_completed]
     log_images_every: [10, epoch_completed]
     log_bead_precision_recall: true
+    save_n_checkpoints: 2
 
 train:
-  loss_fn: WeightedL1Loss
+  loss:
+    name: WeightedL1Loss
+    kwargs: {threshold: .3, initial_weight: 10., decay_by: .9, every_nth_epoch: 1}
 
   optimizer:
     name: Adam
     kwargs: {lr: 1.0e-4, eps: 1.0e-8}
 
   batch_size: 1
-  max_num_epochs: 5000
+  max_num_epochs: 1
   score_function: MS-SSIM
   patience: 30
   validate_every_nth_epoch: 10
 
 eval:
-  batch_size: 3
+  batch_size: 2
 
 train_data:
-  names: [regional_fish02_LS1, fish02_LS0_filet, bead00_LS0_35]
-  indices: [5-73, null, 0-49]
-  eval_indices: [5-8, 0-0, 0-3]
+  names: [regional_fish02_LS1]
+  indices: [5-73]
+  eval_indices: [5-8]
   transforms:
-    - noise00
-    - norm00
+    - {name: norm01, kwargs: {apply_to: 0, percentile_min: 2.0, percentile_max: 99.8}}
+    - {name: norm01, kwargs: {apply_to: 1, percentile_min: 2.0, percentile_max: 99.8}}
+    - {name: additive_gaussian_noise, kwargs: {apply_to: 0, sigma: 0.1}}
+    - {name: additive_gaussian_noise, kwargs: {apply_to: 1, sigma: 0.1}}
     - RandomRotate
     - RandomFlipXYnotZ
     - Lightfield2Channel
@@ -41,12 +46,14 @@ valid_data:
   names: [regional_fish02_LS1]
   indices: [4]
   transforms:
-    - norm00
+    - {name: norm01, kwargs: {apply_to: 0, percentile_min: 2.0, percentile_max: 99.8}}
+    - {name: norm01, kwargs: {apply_to: 1, percentile_min: 2.0, percentile_max: 99.8}}
     - Lightfield2Channel
 
 test_data:
   names: [regional_fish02_LS1]
   indices: [0-4]
   transforms:
-    - norm00
+    - {name: norm01, kwargs: {apply_to: 0, percentile_min: 2.0, percentile_max: 99.8}}
+    - {name: norm01, kwargs: {apply_to: 1, percentile_min: 2.0, percentile_max: 99.8}}
     - Lightfield2Channel

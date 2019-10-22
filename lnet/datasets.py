@@ -3,22 +3,20 @@ import numpy
 import os
 import re
 import torch.utils.data
-import yaml
 import z5py
 
 from concurrent.futures import Future, as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
-from dataclasses import asdict
 from hashlib import sha224 as hash
 from inferno.io.transform import Transform, Compose
 from pathlib import Path
 from scipy.interpolate import griddata
 from scipy.ndimage import zoom
 from tifffile import imread, imsave
-from typing import List, Optional, Tuple, Union, Callable, Sequence, Generator
+from typing import List, Optional, Tuple, Union, Callable, Sequence, Generator, Dict, Any
 
 from lnet.dataset_configs import PathOfInterest, DatasetConfigEntry
-from lnet.stat import compute_stat, DatasetStat
+from lnet.stat import DatasetStat
 
 logger = logging.getLogger(__name__)
 
@@ -220,15 +218,9 @@ class N5Dataset(torch.utils.data.Dataset):
                             )
                         )
 
-        if stat_path.exists():
-            with stat_path.open() as f:
-                self.stat = DatasetStat(**yaml.safe_load(f))
-        else:
-            self.transform = None
-            self.has_aux = False
-            self.stat = compute_stat(self)
-            with stat_path.open("w") as f:
-                yaml.safe_dump(asdict(self.stat), f)
+        self.transform = None
+        self.has_aux = False
+        self.stat = DatasetStat.load(path=stat_path, dataset=self)
 
         transform_instances = []
         for t in transforms:

@@ -1,24 +1,15 @@
-from lnet.utils.transforms import (
-    Lightfield2Channel,
-    RandomFlipXYnotZ,
-    RandomRotate,
-)
+from lnet.utils.transforms import Lightfield2Channel, RandomFlipXYnotZ, RandomRotate
 
 from inferno.io.transform.generic import Cast
 
-from lnet.normalizations import norm00
-from lnet.noises import noise00
+from lnet.normalizations import norm, norm01
+from lnet.noises import additive_gaussian_noise
 
-
-def check_kwargs(ret, kwargs):
-    if kwargs:
-        raise ValueError(f"got unexpected kwargs: {kwargs}")
-
-    return ret
 
 known_transforms = {
-    "norm00": lambda config, kwargs: check_kwargs(norm00, kwargs),
-    "noise00": lambda config, kwargs: check_kwargs(noise00, kwargs),
+    "norm": lambda config, kwargs: norm(**kwargs),
+    "norm01": lambda config, kwargs: norm01(**kwargs),
+    "additive_gaussian_noise": lambda config, kwargs: additive_gaussian_noise(**kwargs),
     "RandomRotate": lambda config, kwargs: RandomRotate(**kwargs),
     "RandomFlipXYnotZ": lambda config, kwargs: RandomFlipXYnotZ(**kwargs),
     "Lightfield2Channel": lambda config, kwargs: Lightfield2Channel(nnum=config.model.nnum, **kwargs),

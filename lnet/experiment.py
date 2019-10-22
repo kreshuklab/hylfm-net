@@ -31,8 +31,8 @@ from lnet.utils.metrics import (
     BEAD_PRECISION,
     BEAD_RECALL,
 )
-from lnet.utils.metrics.output import OutputMetric
-from lnet.utils.plotting import turbo_colormap_data, Box, ColorSelection
+
+from lnet.utils.plotting import turbo_colormap_data, Box
 from lnet.utils.transforms import lightfield_from_channel
 
 

@@ -29,6 +29,11 @@ def get_known(known: Dict[str, Any], name: str):
     return res
 
 
+def resolve_python_name_conflicts(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    trailing_underscore = ["min", "max"]
+    return {k + "_" if k in trailing_underscore else k: v for k, v in kwargs.items()}
+
+
 @dataclass
 class LogConfig:
     config_path: InitVar[Path]
@@ -187,8 +192,9 @@ class DataConfig:
 
     indices: Optional[List[Optional[List[int]]]] = None
     transforms: List[Union[Generator[Transform, None, None], Transform]] = None
-    transform_names: List[str] = None
+    transform_configs: List[Union[str, Dict[str, Union[str, Dict[str, Any]]]]] = None
 
+    transform_names: List[str] = field(init=False)
     factory: DatasetFactory = field(init=False)
 
     @staticmethod
@@ -228,55 +234,57 @@ class DataConfig:
         self.factory = DatasetFactory(*map(find_ds_config, self.names))
 
         def get_trfs_and_their_names(
-            transforms: Optional[List[Any]], names: Optional[List[Union[Dict[str, Any], str]]]
+            transforms: Optional[List[Any]], conf: Optional[List[Union[str, Dict[str, Any]]]]
         ) -> Tuple[List[Callable], List[str]]:
             if transforms is None:
-                if names is None:
+                if conf is None:
                     new_transforms = []
                     new_names = []
                 else:
                     new_transforms = []
                     new_names = []
-                    for nt in names:
-                        if isinstance(nt, str):
-                            name = nt
+                    for c in conf:
+                        if isinstance(c, str):
+                            name = c
                             kwargs = {}
                         else:
-                            assert isinstance(nt, dict), type(nt)
-                            name = nt.pop("name")
-                            kwargs = nt.pop("kwargs", {})
-                            if nt:
+                            assert isinstance(c, dict), type(c)
+                            name = c["name"]
+                            kwargs = c.get("kwargs", {})
+                            left = {k: v for k, v in c.items() if k not in ["name", "kwargs"]}
+                            if left:
                                 raise ValueError(
-                                    f"invalid keys in transformation entry with name: {name} and kwargs: {kwargs}: {nt}"
+                                    f"invalid keys in transformation entry with name: {name} and kwargs: {kwargs}: {left}"
                                 )
 
-                        new_transforms.append(known_transforms[name](config=config, kwargs=kwargs))
+                        kwargs = resolve_python_name_conflicts(kwargs)
+                        new_transforms.append(get_known(known_transforms, name)(config=config, kwargs=kwargs))
                         new_names.append(name)
 
-            elif names is None:
+            elif conf is None:
                 new_transforms = transforms
                 new_names = [t.__name__ for t in transforms]
             else:
                 new_transforms = transforms
-                new_names = names
+                new_names = [c if isinstance(c, str) else c["name"] for c in conf]
 
             return new_transforms, new_names
 
-        self.transforms, self.transform_names = get_trfs_and_their_names(self.transforms, self.transform_names)
+        self.transforms, self.transform_names = get_trfs_and_their_names(self.transforms, self.transform_configs)
         self.transforms.append(known_transforms["Cast"](config=config, kwargs={}))
 
     @classmethod
     def load(
         cls: Type[DataConfigType],
-        transforms: List[str],
+        transforms: List[Union[str, Dict[str, Union[str, Dict[str, Any]]]]],
         indices: Optional[List[Optional[Union[str, int]]]] = None,
         **kwargs,
     ) -> DataConfigType:
-        # note: 'transform_names' is called 'transforms' in yaml!
+        # note: 'transform_configs' is called 'transforms' in yaml!
         if indices is None:
             indices = [None] * len(kwargs["names"])
 
-        return cls(transform_names=transforms, indices=list(map(cls.indice_string_to_list, indices)), **kwargs)
+        return cls(transform_configs=transforms, indices=list(map(cls.indice_string_to_list, indices)), **kwargs)
 
 
 @dataclass
@@ -340,5 +348,5 @@ class Config:
 
 if __name__ == "__main__":
     from_file = Config.from_yaml("experiment_configs/fish0.yml")
-    from_file = Config.from_yaml("experiment_configs/platy0.yml")
-    from_file = Config.from_yaml("experiment_configs/platy/test/1/19-09-03_09-14_63d6439_m12dout-bc.yml")
+    # from_file = Config.from_yaml("experiment_configs/platy0.yml")
+    # from_file = Config.from_yaml("experiment_configs/platy/test/1/19-09-03_09-14_63d6439_m12dout-bc.yml")
