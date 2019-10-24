@@ -4,6 +4,7 @@ model:
   nnum: 19
   precision: float
 #  checkpoint: "/g/kreshuk/beuttenm/repos/lensletnet/logs/beads/00_LS0/8/19-09-19_14-28_db5e04e_8-0/models/v0_model_887.pth"
+# todo: move checkpoint to a 'trained' category that keeps track of training history
 
 log:
     log_scalars_every: [10, iteration_completed]
@@ -20,19 +21,12 @@ train:
     name: Adam
     kwargs: {lr: 1.0e-2, eps: 1.0e-8}
 
-  batch_size: 1
-  max_num_epochs: 2
+  max_num_epochs: 0
+  validate_every_nth_epoch: 1
   score_function: MS-SSIM
   patience: 30
-  validate_every_nth_epoch: 1
 
-eval:
-  batch_size: 2
-
-train_data:
-  names: [regional_fish02_LS1]
-  indices: [5-73]
-  eval_indices: [5-8]
+  batch_size: 1
   transforms:
     - {name: norm01, kwargs: {apply_to: 0, percentile_min: 2.0, percentile_max: 99.8}}
     - {name: norm01, kwargs: {apply_to: 1, percentile_min: 2.0, percentile_max: 99.8}}
@@ -42,18 +36,25 @@ train_data:
     - RandomFlipXYnotZ
     - Lightfield2Channel
 
-valid_data:
-  names: [regional_fish02_LS1]
-  indices: [4]
+  data:
+    regional_fish02_LS1:
+      indices: [5-73]
+
+eval:
+  batch_size: 2
   transforms:
     - {name: norm01, kwargs: {apply_to: 0, percentile_min: 2.0, percentile_max: 99.8}}
     - {name: norm01, kwargs: {apply_to: 1, percentile_min: 2.0, percentile_max: 99.8}}
     - Lightfield2Channel
 
-test_data:
-  names: [regional_fish02_LS1]
-  indices: [0-4]
-  transforms:
-    - {name: norm01, kwargs: {apply_to: 0, percentile_min: 2.0, percentile_max: 99.8}}
-    - {name: norm01, kwargs: {apply_to: 1, percentile_min: 2.0, percentile_max: 99.8}}
-    - Lightfield2Channel
+  train_data:
+    regional_fish02_LS1:
+      indices: [5-8]
+
+  valid_data:
+    regional_fish02_LS1:
+        indices: [4]
+
+  test_data:
+    regional_fish02_LS1:
+      indices: [0-4]

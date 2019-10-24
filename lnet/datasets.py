@@ -10,12 +10,11 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from hashlib import sha224 as hash
 from inferno.io.transform import Transform, Compose
 from pathlib import Path
-from scipy.interpolate import griddata
 from scipy.ndimage import zoom
 from tifffile import imread, imsave
 from typing import List, Optional, Tuple, Union, Callable, Sequence, Generator, Dict, Any
 
-from lnet.dataset_configs import PathOfInterest, DatasetConfigEntry
+from lnet.config.dataset import NamedDatasetInfo
 from lnet.stat import DatasetStat
 
 logger = logging.getLogger(__name__)
@@ -52,26 +51,36 @@ class N5Dataset(torch.utils.data.Dataset):
 
     def __init__(
         self,
-        name: str,
-        x_folder: Path,
-        y_folder: Path,
-        x_shape: Tuple[int, int],
-        y_shape: Tuple[int, int, int],
-        original_y_shape: Tuple[int, int, int],
-        interesting_paths: Optional[List[PathOfInterest]] = None,
-        x_roi: Tuple[slice, slice] = (slice(None), slice(None)),
-        y_roi: Tuple[slice, slice, slice] = (slice(None), slice(None), slice(None)),
+        info: NamedDatasetInfo,
+        scaling: Tuple[float, float],
         interpolation_order: int = 3,
-        n: Optional[int] = None,
-        n_indices: Optional[List[int]] = None,
         save: bool = True,
         transforms: Optional[List[Union[Transform, Callable[[DatasetStat], Generator[Transform, None, None]]]]] = None,
-        has_aux: bool = False,
         data_folder: Optional[Path] = None,
     ):
         super().__init__()
-        x_shape = (1,) + x_shape
-        y_shape = (1,) + y_shape
+        name = info.description
+        x_folder = info.x_path
+        y_folder = info.y_path
+        x_roi = info.x_roi
+        y_roi = info.y_roi
+
+        try:
+            img_name = next(y_folder.glob("*.tif")).as_posix()
+        except StopIteration:
+            logger.error(y_folder.absolute())
+            raise
+
+        original_y_shape = imread(img_name)[y_roi].shape
+        logger.info("determined shape of %s to be %s", img_name, original_y_shape)
+        self.z_out: int = original_y_shape[0]
+
+        x_img_name = next(x_folder.glob("*.tif")).as_posix()
+        original_x_shape: Tuple[int, int] = imread(x_img_name)[x_roi].shape
+        assert original_y_shape[1:] == original_x_shape, (original_y_shape[1:], original_x_shape)
+
+        x_shape = (1,) + original_x_shape
+        y_shape = (1, self.z_out,) + tuple([oxs * sc for oxs, sc in zip(original_x_shape, scaling)])
 
         if data_folder is None:
             data_folder = os.environ.get("DATA_FOLDER", None)
@@ -81,19 +90,13 @@ class N5Dataset(torch.utils.data.Dataset):
                 data_folder = Path(data_folder)
 
         assert data_folder.exists(), data_folder.absolute()
-        assert n is None or n_indices is None, "Cannot select n and n_indices at once"
-        if n is not None:
-            n_indices = list(numpy.arange(n))
-        elif n_indices is None:
-            n_indices = slice(None)
+        assert x_folder.exists(), x_folder.absolute()
+        assert y_folder.exists(), y_folder.absolute()
 
-        assert x_folder.exists(), x_folder
-        assert y_folder.exists(), y_folder
         self.x_shape = x_shape
         self.y_shape = y_shape
         self.interpolation_order = interpolation_order
         shapestr = (
-            f"n: {n}\n"
             f"interpolation order: {interpolation_order}\n"
             f"x roi: {x_roi}\ny roi: {y_roi}\n"
             f"x shape: {x_shape}\ny shape: {y_shape}\n"
@@ -117,12 +120,8 @@ class N5Dataset(torch.utils.data.Dataset):
             y_numbers = [tuple(int(nr) for nr in re.findall(r"\d+", os.path.basename(p))) for p in raw_y_paths]
             common_numbers = set(x_numbers) & set(y_numbers)
             assert len(common_numbers) > 1, (set(x_numbers), set(y_numbers))
-            x_paths = numpy.array(sorted([p for p, xn in zip(raw_x_paths, x_numbers) if xn in common_numbers]))[
-                n_indices
-            ]
-            y_paths = numpy.array(sorted([p for p, yn in zip(raw_y_paths, y_numbers) if yn in common_numbers]))[
-                n_indices
-            ]
+            x_paths = sorted([p for p, xn in zip(raw_x_paths, x_numbers) if xn in common_numbers])
+            y_paths = sorted([p for p, yn in zip(raw_y_paths, y_numbers) if yn in common_numbers])
             assert len(x_paths) >= 1, raw_x_paths
             assert len(x_paths) == len(y_paths), raw_y_paths
             self._len = len(x_paths)
@@ -170,64 +169,62 @@ class N5Dataset(torch.utils.data.Dataset):
                 os.rename(tmp_data_file_name, data_file_name.as_posix())
                 self.data_file = z5py.File(path=data_file_name.as_posix())
             else:
-                self.x_paths = x_paths
-                self.y_paths = y_paths
+                self.x_paths = [Path(p) for p in x_paths]
+                self.y_paths = [Path(p) for p in y_paths]
 
         stat_path = Path(data_file_name.as_posix().replace(".n5", "_stat.yml"))
         assert ".yml" in stat_path.as_posix(), "replacing '.n5' with '_stat.yml' did not work!"
         assert len(self) >= 1, "corrupt saved dataset file?"
         logger.info("dataset length: %s", len(self))
 
-        if interesting_paths is None:
-            self.interesting_path_slices = [[]]
-        else:
-            self.interesting_path_slices: List[List[Optional[Tuple[slice, slice, slice, slice]]]] = [
-                [] for _ in range(len(self))
-            ]
-            for ip in interesting_paths:
-                interesting_path = numpy.array(ip.points, dtype=numpy.float)
-                # scale interesting path to resized roi of target
-                for i, (new_s, old_s) in enumerate(zip(y_shape[1:], original_y_shape)):
-                    roi_start = y_roi[i].start
-                    interesting_path[:, 1 + i] -= 0 if roi_start is None else roi_start
-                    interesting_path[:, 1 + i] *= new_s
-                    interesting_path[:, 1 + i] /= old_s
-
-                path_start = int(interesting_path[:, 0].min())
-                path_stop = int(interesting_path[:, 0].max())
-                # interpolate missing points
-                full_path = griddata(
-                    points=interesting_path[:, 0],
-                    values=interesting_path[:, 1:],
-                    xi=numpy.arange(path_start, path_stop + 1),
-                    method="linear",
-                )
-                # x = numpy.linspace(scipy.stats.norm.ppf(0.01), scipy.stats.norm.ppf(0.99), 100)
-                # ax.plot(x, norm.pdf(x), 'r-', lw=5, alpha=0.6, label='norm pdf')
-                # mask = sparse.csr_matrix(new_y_shape, dtype=numpy.float32)
-                centers = numpy.round(full_path).astype(int)
-                # for p_i, approx_point in enumerate(full_path):
-                #     # center = [int(numpy.round(p)) for p in approx_point]
-                #     roi = [slice(max(0, p-10), p+10) for p in center]
-                for item in range(len(self)):
-                    if item < path_start or item > path_stop:
-                        self.interesting_path_slices[item].append(None)
-                    else:
-                        center = centers[item - path_start]
-                        assert len(center.shape) == 1 and center.shape[0] == 3, center.shape
-                        self.interesting_path_slices[item].append(
-                            (
-                                slice(None),
-                                slice(max(0, center[0] - 1), center[0] + 1),
-                                slice(max(0, center[1] - 3), center[1] + 3),
-                                slice(max(0, center[1] - 3), center[1] + 3),
-                            )
-                        )
+        # if interesting_paths is None:
+        #     self.interesting_path_slices = [[]]
+        # else:
+        #     self.interesting_path_slices: List[List[Optional[Tuple[slice, slice, slice, slice]]]] = [
+        #         [] for _ in range(len(self))
+        #     ]
+        #     for ip in interesting_paths:
+        #         interesting_path = numpy.array(ip.points, dtype=numpy.float)
+        #         # scale interesting path to resized roi of target
+        #         for i, (new_s, old_s) in enumerate(zip(y_shape[1:], original_y_shape)):
+        #             roi_start = y_roi[i].start
+        #             interesting_path[:, 1 + i] -= 0 if roi_start is None else roi_start
+        #             interesting_path[:, 1 + i] *= new_s
+        #             interesting_path[:, 1 + i] /= old_s
+        #
+        #         path_start = int(interesting_path[:, 0].min())
+        #         path_stop = int(interesting_path[:, 0].max())
+        #         # interpolate missing points
+        #         full_path = griddata(
+        #             points=interesting_path[:, 0],
+        #             values=interesting_path[:, 1:],
+        #             xi=numpy.arange(path_start, path_stop + 1),
+        #             method="linear",
+        #         )
+        #         # x = numpy.linspace(scipy.stats.norm.ppf(0.01), scipy.stats.norm.ppf(0.99), 100)
+        #         # ax.plot(x, norm.pdf(x), 'r-', lw=5, alpha=0.6, label='norm pdf')
+        #         # mask = sparse.csr_matrix(new_y_shape, dtype=numpy.float32)
+        #         centers = numpy.round(full_path).astype(int)
+        #         # for p_i, approx_point in enumerate(full_path):
+        #         #     # center = [int(numpy.round(p)) for p in approx_point]
+        #         #     roi = [slice(max(0, p-10), p+10) for p in center]
+        #         for item in range(len(self)):
+        #             if item < path_start or item > path_stop:
+        #                 self.interesting_path_slices[item].append(None)
+        #             else:
+        #                 center = centers[item - path_start]
+        #                 assert len(center.shape) == 1 and center.shape[0] == 3, center.shape
+        #                 self.interesting_path_slices[item].append(
+        #                     (
+        #                         slice(None),
+        #                         slice(max(0, center[0] - 1), center[0] + 1),
+        #                         slice(max(0, center[1] - 3), center[1] + 3),
+        #                         slice(max(0, center[1] - 3), center[1] + 3),
+        #                     )
+        #                 )
 
         self.transform = None
-        self.has_aux = False
         self.stat = DatasetStat(path=stat_path, dataset=self)
-
         transform_instances = []
         for t in transforms:
             if isinstance(t, Transform):
@@ -237,7 +234,6 @@ class N5Dataset(torch.utils.data.Dataset):
                     transform_instances.append(ti)
 
         self.transform = Compose(*transform_instances)
-        self.has_aux = has_aux
 
     def __len__(self):
         return self._len
@@ -271,94 +267,7 @@ class N5Dataset(torch.utils.data.Dataset):
             x, y = self.transform(x, y)
 
         x, y = numpy.ascontiguousarray(x), numpy.ascontiguousarray(y)
-        if self.has_aux:
-            return x, y, numpy.array(y)
-        else:
-            return x, y
-
-
-class DatasetFactory:
-    def __init__(self, *entries: DatasetConfigEntry, n: Optional[int] = None, has_aux: bool = False):
-        assert not has_aux, "deprecated"
-        self.entries = entries
-        self.n = n
-        self.has_aux = has_aux
-
-    def get_z_out(self) -> int:
-        entry = self.entries[0]
-        try:
-            img_name = next(entry.y_path.glob("*.tif")).as_posix()
-        except StopIteration:
-            logger.error("no tif files at %s", entry.y_path.as_posix())
-            raise
-
-        y_shape = imread(img_name).shape
-        z_out = y_shape[0]
-        z_slice = entry.y_roi[0]
-        if z_slice.stop is not None:
-            assert z_out > z_slice.stop, (z_out, z_slice.stop)
-            z_out = z_out - (z_out - z_slice.stop)
-
-        if z_slice.start is not None:
-            z_out -= z_slice.start
-
-        if z_slice.step is not None and z_slice.step != 1:
-            raise NotImplementedError("z slice with step !=1")
-
-        return z_out
-
-    def create_dataset(
-        self,
-        get_yx_yy: Callable[[Tuple[int, int]], Tuple[int, int]],
-        transforms: List[Union[str, Transform]],
-        save=True,
-        n=None,
-    ) -> Tuple[torch.utils.data.ConcatDataset, int, List[List[Tuple[slice, slice, slice, slice]]]]:
-        if n is None:
-            n = self.n
-
-        datasets = []
-        z_out = 0
-        interesting_path_slices = []
-        for entry in self.entries:
-            try:
-                img_name = next(entry.y_path.glob("*.tif")).as_posix()
-            except StopIteration:
-                logger.error(entry.y_path.absolute())
-                raise
-
-            y_shape = imread(img_name)[entry.y_roi].shape
-            logger.info("determined shape of %s to be %s", img_name, y_shape)
-            if z_out:
-                assert z_out == y_shape[0], (z_out, y_shape[0])
-            else:
-                z_out: int = y_shape[0]
-
-            x_img_name = next(entry.x_path.glob("*.tif")).as_posix()
-            x_shape: Tuple[int, int] = imread(x_img_name)[entry.x_roi].shape
-            assert y_shape[1:] == x_shape, (y_shape[1:], x_shape)
-
-            new_y_shape = (z_out,) + get_yx_yy(x_shape)
-
-            ds = N5Dataset(
-                name=entry.description,
-                x_folder=entry.x_path,
-                y_folder=entry.y_path,
-                x_shape=x_shape,
-                y_shape=new_y_shape,
-                x_roi=entry.x_roi,
-                y_roi=entry.y_roi,
-                transforms=transforms,
-                original_y_shape=y_shape,
-                interesting_paths=entry.interesting_paths,
-                save=save,
-                n=n,
-                has_aux=self.has_aux,
-            )
-            interesting_path_slices += ds.interesting_path_slices
-            datasets.append(ds)
-
-        return torch.utils.data.ConcatDataset(datasets), z_out, interesting_path_slices
+        return x, y
 
 
 class Result(torch.utils.data.Dataset):
@@ -378,18 +287,18 @@ class Result(torch.utils.data.Dataset):
                     executor.submit(imsave, (self.folders[bi] / f"{i:04.0f}.tif").as_posix(), img)
 
 
-class SubsetSequentialSampler(torch.utils.data.sampler.Sampler):
-    r"""Samples elements in fixed order from a given list of indices.
-
-    Arguments:
-        indices (sequence): a sequence of indices
-    """
-
-    def __init__(self, indices: Sequence[int]):
-        self.indices = indices
-
-    def __iter__(self):
-        return iter(self.indices)
-
-    def __len__(self):
-        return len(self.indices)
+# class SubsetSequentialSampler(torch.utils.data.sampler.Sampler):
+#     r"""Samples elements in fixed order from a given list of indices.
+#
+#     Arguments:
+#         indices (sequence): a sequence of indices
+#     """
+#
+#     def __init__(self, indices: Sequence[int]):
+#         self.indices = indices
+#
+#     def __iter__(self):
+#         return iter(self.indices)
+#
+#     def __len__(self):
+#         return len(self.indices)

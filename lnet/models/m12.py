@@ -9,11 +9,12 @@ from inferno.extensions.initializers import Initialization, Constant
 
 from lnet.models.layers.conv_layers import Conv2D, ValidConv2D, ValidConv3D, ResnetBlock
 from lnet.models.layers.structural_layers import C2Z
+from lnet.models.lnet import LnetModel
 
 logger = logging.getLogger(__name__)
 
 
-class M12(torch.nn.Module):
+class M12(LnetModel):
     def __init__(self, z_out: int, nnum: int, final_activation: Optional[str] = None):
         super().__init__()
         inplanes = nnum ** 2
@@ -99,5 +100,15 @@ class M12(torch.nn.Module):
         # print('out', out.shape)
         return out
 
-    def get_target_crop(self) -> Tuple[int, int]:
+    @classmethod
+    def get_output_scaling(cls, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
+        return 4.0, 4.0
+
+    @classmethod
+    def get_output_shrinkage(cls, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[int, int]:
         return 13, 13
+
+    def get_output_shape(self, ipt_shape: Tuple[int, int]):
+        return tuple(
+            [i * sc - 2 * sr for i, sc, sr in zip(ipt_shape, self.get_output_scaling(), self.get_output_shrinkage())]
+        )

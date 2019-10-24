@@ -10,7 +10,7 @@ CONFIG = {
     "disable_existing_loggers": False,
     "formatters": {
         "default": {
-            "format": "%(asctime)s.%(msecs)03d [%(processName)s/%(threadName)s] %(levelname)s %(message)s",
+            "format": "%(asctime)s %(name)s %(levelname)s %(message)s", # .%(msecs)03d [%(processName)s/%(threadName)s]
             "datefmt": "%H:%M:%S",
         }
     },

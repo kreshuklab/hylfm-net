@@ -1,3 +1,5 @@
+from lnet.engine import TunedEngine
+
 from lnet.utils.metrics import (
     LOSS_NAME,
     AUX_LOSS_NAME,
@@ -30,10 +32,16 @@ def msssim100f1(engine):
     return score
 
 
+def generic_metric_score(metric_name: str):
+    def score_fn(engine: TunedEngine):
+        return engine.state.metrics[metric_name]
+
+    return score_fn
+
 known_score_functions = {
     msssim100f1.__name__: msssim100f1,
     **{
-        metric_name: lambda engine: engine.state.metrics[metric_name]
+        metric_name: generic_metric_score(metric_name)
         for metric_name in [
             LOSS_NAME,
             AUX_LOSS_NAME,

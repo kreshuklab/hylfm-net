@@ -8,7 +8,8 @@ from ignite.engine import Engine, Events
 from ignite.handlers import TerminateOnNan
 from torch.utils.data import DataLoader, ConcatDataset, SubsetRandomSampler
 
-from lnet.config import Config, DataConfig
+from lnet.config.config import Config
+from lnet.config.data import DataConfig
 from lnet.datasets import SubsetSequentialSampler
 from lnet.output import Output
 from lnet.utils.metrics.output import OutputMetric
@@ -47,68 +48,12 @@ class TunedEngine(Engine):
         self.config = config
         self.logger = logger
         self.model = model
-        self.name = data_config.name
+        self.name = data_config.category.value
         self.run_count = 0
 
-        (config.log.dir / data_config.name).mkdir(parents=False, exist_ok=False)
+        (config.log.dir / self.name).mkdir(parents=False, exist_ok=False)
 
-        @torch.no_grad()
-        def get_yx_yy(x_shape: Tuple[int, int]) -> Tuple[int, int]:
-            xx, xy = x_shape
-            xc = config.model.nnum ** 2
-            xx = xx // config.model.nnum
-            xy = xy // config.model.nnum
-            dummy_pred = model(
-                torch.randn(
-                    (1, xc, xx, xy),
-                    dtype=getattr(torch, config.model.precision),
-                    device=next(model.parameters()).device,
-                )
-            )
-            if isinstance(dummy_pred, tuple):
-                if len(dummy_pred) == 2:
-                    dummy_pred, dummy_pred_aux = dummy_pred
-                    assert dummy_pred.shape == dummy_pred_aux.shape
-                else:
-                    raise NotImplementedError
-
-            n_pred, c_pred, zout_pred, yx, yy = dummy_pred.shape
-            assert n_pred == 1
-            assert c_pred == 1
-
-            if hasattr(model, "get_target_crop"):
-                crop = model.get_target_crop()
-                if crop is not None:
-                    cx, cy = crop
-                    yx += 2 * cx
-                    yy += 2 * cy
-
-            return yx, yy
-
-        transforms = list(data_config.transforms)
-        if hasattr(model, "get_target_crop"):
-            transforms.append(EdgeCrop(model.get_target_crop(), apply_to=[1]))
-
-        self.dataset, z_out, ipaths = data_config.factory.create_dataset(get_yx_yy=get_yx_yy, transforms=transforms)
-
-        def get_full_data_indices(concat_dataset: ConcatDataset, data_indices: Optional[List[List[int]]]) -> List[int]:
-            if data_indices is None:
-                return list(range(len(concat_dataset)))
-            else:
-                full_data_indices = []
-                before = 0
-                for ds, tdi in zip(concat_dataset.datasets, data_indices):
-                    if tdi is None:
-                        full_data_indices += [before + i for i in range(len(ds))]
-                    elif tdi:
-                        assert max(tdi) < len(ds), (max(tdi), len(ds))
-                        full_data_indices += [before + i for i in tdi]
-
-                    before += len(ds)
-
-                return full_data_indices
-
-        self.full_data_indices = get_full_data_indices(self.dataset, data_config.indices)
+        self.data_loader = data_config.data_loader
 
         self.add_event_handler(Events.STARTED, self.prepare_engine)
         self.add_event_handler(Events.COMPLETED, self.log_compute_time)
@@ -205,7 +150,7 @@ class EvalEngine(TunedEngine):
 
         self.data_loader = DataLoader(
             self.dataset,
-            batch_size=config.eval.batch_size,
+            batch_size=config.eval_.batch_size,
             pin_memory=True,
             num_workers=5,
             sampler=SubsetSequentialSampler(self.full_data_indices),

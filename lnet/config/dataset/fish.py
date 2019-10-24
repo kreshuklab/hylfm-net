@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from lnet.dataset_configs import DatasetConfigEntry
+from lnet.config.dataset import NamedDatasetInfo
 
 
-class Fish00(DatasetConfigEntry):
+class Fish00(NamedDatasetInfo):
     common_path = Path(
         "/g/hufnagel/LF/NNG/Experiments/Olympus20x0.5NA/301018_Jakob_sparseLabeling/ISce_p2890/fish1/140Hz6msDelay/wholeheart"
     )
@@ -32,7 +32,7 @@ fish00_9_left = Fish00("2018-10-30_05.48.20_100Laser/stack_1_channel_7", "Rectif
 fish00_9_right = Fish00("2018-10-30_05.48.20_100Laser/stack_1_channel_7", "Rectified_RC", "RCout")
 
 
-class Fish01(DatasetConfigEntry):
+class Fish01(NamedDatasetInfo):
     common_path = Path(
         "/g/hufnagel/LF/NNG/Experiments/Olympus20x0.5NA/060918_Jakob/7943x7943/fish1/140Hz_6msDelay/wholeHeart"
     )
@@ -72,8 +72,8 @@ fish01_9_right = Fish01(
 )  # no folder 'Rectified_RC'
 
 
-class Fish02(DatasetConfigEntry):
-    common_path = Path("/g/hufnagel/LF/LenseLeNet_Microscope/20190605_Fish/8214x7943_H2A-mC_H2B-EGFP/fish2_arrythmic/Fish_120to120_241planes")
+class Fish02(NamedDatasetInfo):
+    common_path = Path("/g/hufnagel/LF/LenseLeNet_Microscope")
     description = "F02"
 
 
@@ -151,17 +151,19 @@ fish02_LF2_TP00_filet = Fish02(
     y_roi=(slice(7, 42), slice(None), slice(None)),
 )
 
-fish02_LF2_TPxx_filets = [Fish02(
-    f"20190605_Fish/8214x7943_H2A-mC_H2B-EGFP/fish2_arrythmic/Fish_120to120_241planes/2019-06-05_05.09.18/stack_6_channel_0/TP_{tp:05}",
-    "RC_rectified",
-    "RCout",
-    "FishDynamicLF_561nm_TP00",
-    y_roi=(slice(7, 42), slice(None), slice(None)),
-) for tp in range(85)]
+fish02_LF2_TPxx_filets = [
+    Fish02(
+        f"20190605_Fish/8214x7943_H2A-mC_H2B-EGFP/fish2_arrythmic/Fish_120to120_241planes/2019-06-05_05.09.18/stack_6_channel_0/TP_{tp:05}",
+        "RC_rectified",
+        "RCout",
+        "FishDynamicLF_561nm_TP00",
+        y_roi=(slice(7, 42), slice(None), slice(None)),
+    )
+    for tp in range(85)
+]
 
 
-
-class RegionalFish(DatasetConfigEntry):
+class RegionalFish(NamedDatasetInfo):
     common_path = Path("/g/kreshuk/beuttenm/Documents/lnet_datasets")
     description = "F02"
 

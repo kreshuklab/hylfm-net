@@ -13,10 +13,10 @@ from pathlib import Path
 from scipy.special import expit
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
-from typing import Union, Optional, List, Callable, Tuple, Iterable, Generator
+from typing import Union, Optional, Callable, Tuple, Iterable
 
-from lnet.config import Config
-from lnet.datasets import DatasetFactory, Result
+from lnet.config.config import Config
+from lnet.datasets import Result
 from lnet.engine import TunedEngine, TrainEngine, EvalEngine
 from lnet.output import Output, AuxOutput
 from lnet.step_functions import training_step, inference_step
@@ -37,19 +37,6 @@ from lnet.utils.transforms import lightfield_from_channel
 
 
 class Experiment:
-    train_dataset_factory: DatasetFactory
-    valid_dataset_factory: Optional[DatasetFactory] = None
-    test_dataset_factory: Optional[DatasetFactory] = None
-
-    train_data_indices: List[Optional[List[int]]]
-    train_eval_data_indices: List[Optional[List[int]]]
-    valid_data_indices: List[Optional[List[int]]]
-    test_data_indices: List[Optional[List[int]]]
-
-    train_transforms: List[Union[Generator[Transform, None, None], Transform]]
-    valid_transforms: List[Union[Generator[Transform, None, None], Transform]]
-    test_transforms: List[Union[Generator[Transform, None, None], Transform]]
-
     max_num_epochs: int
     score_function: Callable[[Engine], float]
 
@@ -94,14 +81,14 @@ class Experiment:
         self.logger = logging.getLogger(config.log.time_stamp)
 
         z_out = None
-        for data_config in [config.train_data, config.valid_data, config.test_data]:
+        for data_config in [config.train.data, config.eval_.train_data, config.eval_.valid_data, config.eval_.test_data]:
             if data_config is None:
                 continue
 
             if z_out is None:
-                z_out = data_config.factory.get_z_out()
+                z_out = data_config.z_out
             else:
-                assert z_out == data_config.factory.get_z_out(), (z_out, data_config.factory.get_z_out())
+                assert z_out == data_config.z_out, (z_out, data_config.z_out)
 
         assert z_out is not None
         self.z_out = z_out
@@ -133,27 +120,28 @@ class Experiment:
         #     self.logger.warning("Failed to save model graph...")
         #     self.logger.exception(e)
 
-        trainer = TrainEngine(process_function=training_step, config=config, logger=self.logger, model=self.model)
-        train_evaluator = EvalEngine(
+        trainer = None if config.train is None else TrainEngine(process_function=training_step, config=config, logger=self.logger, model=self.model)
+
+        train_evaluator = None if config.eval_.train_data is None else EvalEngine(
             process_function=inference_step,
             config=config,
             logger=self.logger,
             model=self.model,
-            data_config=config.train_eval_data,
+            data_config=config.train.data,
         )
-        validator = EvalEngine(
+        validator = None if config.eval_.valid_data is None else EvalEngine(
             process_function=inference_step,
             config=config,
             logger=self.logger,
             model=self.model,
-            data_config=config.valid_data,
+            data_config=config.eval_.valid_data,
         )
-        tester = EvalEngine(
+        tester = None if config.eval_.test_data is None else EvalEngine(
             process_function=inference_step,
             config=config,
             logger=self.logger,
             model=self.model,
-            data_config=config.test_data,
+            data_config=config.eval_.test_data,
         )
 
         saver = ModelCheckpoint(
@@ -304,7 +292,7 @@ class Experiment:
             @engine.on(Events.ITERATION_COMPLETED)
             def save_result(engine: Engine):
                 output: Output = engine.state.output
-                start = ((engine.state.iteration - 1) % len(engine.state.dataloader)) * self.config.eval.batch_size
+                start = ((engine.state.iteration - 1) % len(engine.state.dataloader)) * self.config.eval_.batch_size
                 result.update(
                     *[batch.detach().cpu().numpy() for batch in [output.ipt, output.tgt, output.pred]], at=start
                 )

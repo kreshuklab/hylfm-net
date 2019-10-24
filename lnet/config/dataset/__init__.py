@@ -10,7 +10,7 @@ class PathOfInterest:
         self.sigma = sigma
 
 
-class DatasetConfigEntry:
+class NamedDatasetInfo:
     x_path: Path
     y_path: Path
     x_roi: Tuple[slice, slice]
