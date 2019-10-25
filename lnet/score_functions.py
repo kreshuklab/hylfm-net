@@ -1,6 +1,6 @@
 from lnet.engine import TunedEngine
 
-from lnet.utils.metrics import (
+from lnet.metrics import (
     LOSS_NAME,
     AUX_LOSS_NAME,
     NRMSE_NAME,

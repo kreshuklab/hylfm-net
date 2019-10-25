@@ -54,7 +54,7 @@ class NoCrossBatchSampler(Sampler):
         for idx in self.sampler:
             ds = numpy.searchsorted(self.cumsum, idx)
             batches[ds].append(idx)
-            if len(batches[ds]) == self.batch_sizes[idx]:
+            if len(batches[ds]) == self.batch_sizes[ds]:
                 yield batches.pop(ds)
 
         if batches and not self.drop_last:

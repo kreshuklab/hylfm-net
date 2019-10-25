@@ -6,7 +6,7 @@ from typing import Optional, Dict, Any, Union, List, Generator
 
 from inferno.io.transform import Transform
 from lnet import models
-from torch.utils.data import DataLoader, ConcatDataset, Subset, RandomSampler, SequentialSampler
+from torch.utils.data import DataLoader, ConcatDataset, Subset, RandomSampler, SequentialSampler, Dataset
 
 from lnet.config.model import ModelConfig
 from lnet.config.utils import get_trfs_and_their_names
@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class DataCategory(Enum):
     train = "train_data"
+    eval_train = "eval_train_data"
     valid = "valid_data"
     test = "test_data"
 
@@ -70,6 +71,9 @@ class DataConfigEntry:
         if hasattr(model_config.Model, "get_shrinkage"):
             self.transforms.append(EdgeCrop(model_config.Model.get_shrinkage(), apply_to=[1]))
 
+        if self.batch_size is None:
+            raise ValueError(f"batch size not specified for {self.name}")
+
         if self.batch_size > 1:
             for t in randomly_shape_changing_transforms:
                 if t in self.transform_names:
@@ -105,16 +109,18 @@ class DataConfig:
     category: DataCategory
     entries: List[DataConfigEntry]
 
+    datasets: List[Dataset] = field(init=False)
+    concat_dataset: ConcatDataset = field(init=False)
     data_loader: DataLoader = field(init=False)
 
     z_out: int = field(init=False)
 
     def __post_init__(self, model_config: ModelConfig):
-
-        datasets = [
+        scaling = getattr(models, model_config.name).get_scaling()
+        self.datasets = [
             N5Dataset(
                 info=entry.info,
-                scaling=getattr(models, model_config.name).get_scaling(),
+                scaling=(scaling[0] / model_config.nnum, scaling[1] / model_config.nnum),
                 interpolation_order=3,
                 save=True,
                 transforms=entry.transforms,
@@ -123,18 +129,18 @@ class DataConfig:
         ]
 
         # todo: move to project specific code:
-        z_outs = [ds.z_out for ds in datasets]
+        z_outs = [ds.z_out for ds in self.datasets]
         self.z_out = z_outs[0]
         assert all(zo == self.z_out for zo in z_outs), z_outs
 
-        concat_dataset = ConcatDataset(
-            [ds if entry.indices is None else Subset(ds, entry.indices) for ds, entry in zip(datasets, self.entries)]
+        self.concat_dataset = ConcatDataset(
+            [ds if entry.indices is None else Subset(ds, entry.indices) for ds, entry in zip(self.datasets, self.entries)]
         )
 
         self.data_loader = DataLoader(
-            concat_dataset,
+            self.concat_dataset,
             batch_sampler=NoCrossBatchSampler(
-                concat_dataset=concat_dataset,
+                concat_dataset=self.concat_dataset,
                 sampler_class=RandomSampler if self.category == DataCategory.train else SequentialSampler,
                 batch_sizes=[e.batch_size for e in self.entries],
                 drop_last=False,
@@ -153,6 +159,7 @@ class DataConfig:
         default_transforms: Optional[List[Union[str, Dict[str, Union[str, Dict[str, Any]]]]]] = None,
     ) -> "DataConfig":
         return cls(
+            model_config=model_config,
             category=category,
             entries=[
                 DataConfigEntry.load(
@@ -162,6 +169,6 @@ class DataConfig:
                     transforms=kwargs.pop("transforms", default_transforms),
                     **kwargs,
                 )
-                for name, kwargs in entries
+                for name, kwargs in entries.items()
             ],
         )

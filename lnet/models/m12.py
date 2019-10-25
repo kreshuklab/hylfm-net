@@ -101,14 +101,14 @@ class M12(LnetModel):
         return out
 
     @classmethod
-    def get_output_scaling(cls, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
+    def get_scaling(cls, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
         return 4.0, 4.0
 
     @classmethod
-    def get_output_shrinkage(cls, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[int, int]:
+    def get_shrinkage(cls, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[int, int]:
         return 13, 13
 
     def get_output_shape(self, ipt_shape: Tuple[int, int]):
         return tuple(
-            [i * sc - 2 * sr for i, sc, sr in zip(ipt_shape, self.get_output_scaling(), self.get_output_shrinkage())]
+            [i * sc - 2 * sr for i, sc, sr in zip(ipt_shape, self.get_scaling(), self.get_shrinkage())]
         )

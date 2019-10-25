@@ -80,12 +80,12 @@ class N5Dataset(torch.utils.data.Dataset):
         assert original_y_shape[1:] == original_x_shape, (original_y_shape[1:], original_x_shape)
 
         x_shape = (1,) + original_x_shape
-        y_shape = (1, self.z_out,) + tuple([oxs * sc for oxs, sc in zip(original_x_shape, scaling)])
+        y_shape = (1, self.z_out) + tuple([oxs * sc for oxs, sc in zip(original_x_shape, scaling)])
 
         if data_folder is None:
             data_folder = os.environ.get("DATA_FOLDER", None)
             if data_folder is None:
-                data_folder =  Path(__file__).parent.parent / "data"
+                data_folder = Path(__file__).parent.parent / "data"
             else:
                 data_folder = Path(data_folder)
 
@@ -271,34 +271,29 @@ class N5Dataset(torch.utils.data.Dataset):
 
 
 class Result(torch.utils.data.Dataset):
-    def __init__(self, *file_paths: Path):
-        self.folders = file_paths
-        for folder in self.folders:
-            folder.mkdir(parents=True)
+    folder: List[List[Path]]
+
+    def __init__(self, *file_paths: Path, subfolders: Sequence[str] = ("",), cumsum: Sequence[int] = (float("inf"),)):
+        assert len(subfolders) == len(cumsum)
+        if len(subfolders) > 1:
+            self.folders = [[fp / sf for fp in file_paths] for sf in subfolders]
+        else:
+            self.folders = [file_paths]
+
+        self.cumsum = cumsum
+        for folder_group in self.folders:
+            for folder in folder_group:
+                folder.mkdir(parents=True, exist_ok=False)
+
         # self.file = z5py.File(path=file_path.as_posix(), mode="w", use_zarr_format=False)
 
     def update(self, *batches: numpy.ndarray, at: int):
-        assert len(batches) == len(self.folders)
+        assert len(batches) == len(self.folders[0]), (len(batches), len(self.folders[0]))
         with ThreadPoolExecutor(max_workers=8) as executor:
             for bi, batch in enumerate(batches):
                 assert len(batch.shape) == 4 or len(batch.shape) == 5, batch.shape
                 batch = (batch.clip(min=0, max=1) * numpy.iinfo(numpy.uint16).max).astype(numpy.uint16)
                 for i, img in enumerate(batch, start=at):
-                    executor.submit(imsave, (self.folders[bi] / f"{i:04.0f}.tif").as_posix(), img)
-
-
-# class SubsetSequentialSampler(torch.utils.data.sampler.Sampler):
-#     r"""Samples elements in fixed order from a given list of indices.
-#
-#     Arguments:
-#         indices (sequence): a sequence of indices
-#     """
-#
-#     def __init__(self, indices: Sequence[int]):
-#         self.indices = indices
-#
-#     def __iter__(self):
-#         return iter(self.indices)
-#
-#     def __len__(self):
-#         return len(self.indices)
+                    ds_idx = numpy.searchsorted(self.cumsum, i).item()
+                    offset = self.cumsum[ds_idx - 1] if ds_idx else 0
+                    executor.submit(imsave, (self.folders[ds_idx][bi] / f"{i - offset:04.0f}.tif").as_posix(), img)

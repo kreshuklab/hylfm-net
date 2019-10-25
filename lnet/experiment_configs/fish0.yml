@@ -7,38 +7,39 @@ model:
 # todo: move checkpoint to a 'trained' category that keeps track of training history
 
 log:
-    log_scalars_every: [10, iteration_completed]
-    log_images_every: [10, epoch_completed]
-    log_bead_precision_recall: true
+    log_scalars_every: [1, iteration_completed]
+    log_images_every: [1, iteration_completed]
+    log_bead_precision_recall: false
     save_n_checkpoints: 2
 
 train:
   loss:
     name: WeightedL1Loss
-    kwargs: {threshold: .3, initial_weight: 10., decay_by: .9, every_nth_epoch: 1}
+    kwargs: {threshold: 1.0, initial_weight: .1, apply_below_threshold: true, decay_by: .9, every_nth_epoch: 1}
 
   optimizer:
     name: Adam
-    kwargs: {lr: 1.0e-2, eps: 1.0e-8}
+    kwargs: {lr: 1.0e-4, eps: 1.0e-8}
 
-  max_num_epochs: 0
+  max_num_epochs: 1
   validate_every_nth_epoch: 1
   score_function: MS-SSIM
   patience: 30
 
-  batch_size: 1
-  transforms:
-    - {name: norm01, kwargs: {apply_to: 0, percentile_min: 2.0, percentile_max: 99.8}}
-    - {name: norm01, kwargs: {apply_to: 1, percentile_min: 2.0, percentile_max: 99.8}}
-    - {name: additive_gaussian_noise, kwargs: {apply_to: 0, sigma: 0.1}}
-    - {name: additive_gaussian_noise, kwargs: {apply_to: 1, sigma: 0.1}}
-    - RandomRotate
-    - RandomFlipXYnotZ
-    - Lightfield2Channel
 
   data:
+    batch_size: 1
+    transforms:
+      - {name: norm01, kwargs: {apply_to: 0, percentile_min: 2.0, percentile_max: 99.8}}
+      - {name: norm01, kwargs: {apply_to: 1, percentile_min: 2.0, percentile_max: 99.8}}
+      - {name: additive_gaussian_noise, kwargs: {apply_to: 0, sigma: 0.1}}
+      - {name: additive_gaussian_noise, kwargs: {apply_to: 1, sigma: 0.1}}
+      - RandomRotate
+      - RandomFlipXYnotZ
+      - Lightfield2Channel
+
     regional_fish02_LS1:
-      indices: [5-73]
+      indices: 5  #-73
 
 eval:
   batch_size: 2
@@ -47,14 +48,14 @@ eval:
     - {name: norm01, kwargs: {apply_to: 1, percentile_min: 2.0, percentile_max: 99.8}}
     - Lightfield2Channel
 
-  train_data:
+  eval_train_data:
     regional_fish02_LS1:
-      indices: [5-8]
+      indices: 5-8
 
   valid_data:
     regional_fish02_LS1:
-        indices: [4]
+        indices: 4
 
   test_data:
     regional_fish02_LS1:
-      indices: [0-4]
+      indices: 0-4

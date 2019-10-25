@@ -38,7 +38,10 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
         aux_losses = [w * lf(aux_pred, tgt) for w, lf in engine.state.aux_loss]
         aux_loss = sum(aux_losses)
 
-    losses = [w * lf(pred, tgt) for w, lf in engine.state.loss]
+    raw_losses = [(w, lf(pred, tgt)) for w, lf in engine.state.loss]
+    losses = [w * rl[0] for w, rl in raw_losses]
+    voxel_losses = [None if rl[1] is None else w * rl[1] for w, rl in raw_losses]
+
     total_loss = sum(losses)
     loss = total_loss
     if has_aux:
@@ -57,6 +60,7 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
             pred=pred,
             loss=loss,
             losses=losses,
+            voxel_losses=voxel_losses,
             aux_tgt=aux_tgt,
             aux_pred=aux_pred,
             aux_loss=aux_loss,
@@ -69,6 +73,7 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
             pred=pred,
             loss=loss,
             losses=losses,
+            voxel_losses=voxel_losses,
         )
 
 

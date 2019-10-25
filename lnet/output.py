@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 import torch
 
@@ -11,11 +11,12 @@ class Output:
     pred: torch.Tensor
     loss: torch.Tensor
     losses: List[torch.Tensor]
+    voxel_losses: Optional[List[torch.Tensor]] = None
+
 
 @dataclass
 class AuxOutput(Output):
-    aux_tgt: torch.Tensor
-    aux_pred: torch.Tensor
-    aux_loss: torch.Tensor
-    aux_losses: List[torch.Tensor]
-
+    aux_tgt: Optional[torch.Tensor] = None
+    aux_pred: Optional[torch.Tensor] = None
+    aux_loss: Optional[torch.Tensor] = None
+    aux_losses: Optional[List[torch.Tensor]] = None

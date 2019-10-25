@@ -10,7 +10,7 @@ from functools import partial
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any, Union, List, Callable
 
-from ignite.engine import Engine
+from ignite.engine import Engine, Events
 
 from lnet.config.data import DataConfig, DataCategory
 from lnet.config.model import ModelConfig
@@ -34,8 +34,8 @@ class LogConfig:
     dir: Path = field(init=False)
 
     def __post_init__(self, config_path):
-        assert self.log_scalars_every[1] in ["iteration_completed", "epoch_completed"]
-        assert self.log_images_every[1] in ["iteration_completed", "epoch_completed"]
+        assert self.log_scalars_every[1] in [e.value for e in [Events.ITERATION_COMPLETED, Events.EPOCH_COMPLETED]]
+        assert self.log_images_every[1] in [e.value for e in [Events.ITERATION_COMPLETED, Events.EPOCH_COMPLETED]]
 
         self.commit_hash = pbs3.git("rev-parse", "--verify", "HEAD").stdout
         self.time_stamp = datetime.now().strftime("%y-%m-%d_%H-%M-%S")
@@ -43,7 +43,7 @@ class LogConfig:
         log_sub_dir: List[str] = config_path.with_suffix("").absolute().as_posix().split("/experiment_configs/")
         assert len(log_sub_dir) == 2, log_sub_dir
         log_sub_dir: str = log_sub_dir[1]
-        self.dir = Path(__file__).parent.parent / "logs" / log_sub_dir / self.time_stamp
+        self.dir = Path(__file__).parent.parent.parent / "logs" / log_sub_dir / self.time_stamp
 
         self.dir.mkdir(parents=True, exist_ok=False)
         logger.info("logging to %s", self.dir.as_posix())
@@ -130,7 +130,7 @@ class TrainConfig:
 
 @dataclass
 class EvalConfig:
-    train_data: Optional[DataConfig] = None
+    eval_train_data: Optional[DataConfig] = None
     valid_data: Optional[DataConfig] = None
     test_data: Optional[DataConfig] = None
 
@@ -138,7 +138,7 @@ class EvalConfig:
     def load(
         cls,
         model_config: ModelConfig,
-        train_data: Optional[Dict[str, Any]] = None,
+        eval_train_data: Optional[Dict[str, Any]] = None,
         valid_data: Optional[Dict[str, Any]] = None,
         test_data: Optional[Dict[str, Any]] = None,
         # general eval default:
@@ -148,7 +148,7 @@ class EvalConfig:
         defaults = {"batch_size": batch_size, "transforms": transforms}
         eval_kwargs = {}
         for category, data_kwargs in [
-            (DataCategory.train, train_data),
+            (DataCategory.eval_train, eval_train_data),
             (DataCategory.valid, valid_data),
             (DataCategory.test, test_data),
         ]:
@@ -159,7 +159,7 @@ class EvalConfig:
                 if default not in data_kwargs:
                     data_kwargs[default] = value
 
-            eval_kwargs[category] = DataConfig.load(
+            eval_kwargs[category.value] = DataConfig.load(
                 model_config=model_config,
                 category=category,
                 default_batch_size=data_kwargs.pop("batch_size", None),
@@ -214,5 +214,7 @@ class Config:
 
 if __name__ == "__main__":
     from_file = Config.from_yaml("experiment_configs/fish0.yml")
+    print(from_file)
+    print()
     # from_file = Config.from_yaml("experiment_configs/platy0.yml")
     # from_file = Config.from_yaml("experiment_configs/platy/test/1/19-09-03_09-14_63d6439_m12dout-bc.yml")
