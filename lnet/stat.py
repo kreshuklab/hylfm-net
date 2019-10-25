@@ -42,7 +42,11 @@ class DatasetStat:
         self.dataset = dataset
         if path.exists():
             with path.open() as f:
-                self.computed = ComputedDatasetStat(**yaml.safe_load(f))
+                loaded_data = yaml.safe_load(f)
+                for as_default_dict in ["all_percentiles", "all_mean_std_by_percentile_range"]:
+                    loaded_data[as_default_dict] = defaultdict(set, **loaded_data.pop(as_default_dict))
+
+                self.computed = ComputedDatasetStat(**loaded_data)
         else:
             self.computed = ComputedDatasetStat()
 
@@ -68,7 +72,10 @@ class DatasetStat:
                 )
 
                 # also request all involved percentiles
-                req = set().union(*{set(pr) for pr in pranges})
+                req = set()
+                for pr in pranges:
+                    req |= set(pr)
+
                 self.requested.all_percentiles[idx] |= req - set(self.computed.all_percentiles[idx])
 
         if all_percentiles:
@@ -141,7 +148,7 @@ class DatasetStat:
         all_new_means_vars: DefaultDict[
             int, DefaultDict[Tuple[float, float]], Tuple[numpy.array, numpy.array]
         ] = defaultdict(
-            lambda: defaultdict((numpy.empty((n,), dtype=numpy.float64), numpy.empty((n,), dtype=numpy.float64)))
+            lambda: defaultdict(lambda: (numpy.empty((n,), dtype=numpy.float64), numpy.empty((n,), dtype=numpy.float64)))
         )
         with ThreadPoolExecutor(max_workers=16) as executor:
             futs = [
@@ -162,7 +169,7 @@ class DatasetStat:
                         means[i] = mean_part
                         vars[i] = var_part
 
-        for idx, means_vars in all_new_means_vars:
+        for idx, means_vars in all_new_means_vars.items():
             for range_, (means, vars) in means_vars.items():
                 mean = numpy.mean(means, dtype=numpy.float64)
                 var = numpy.mean((vars + (means - mean) ** 2))
