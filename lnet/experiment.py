@@ -336,10 +336,6 @@ class Experiment:
                 with metric_log_file.open(mode="a") as file:
                     file.write(f"{master_engine.state.epoch}\t{metrics[m]}\n")
 
-            for m in metrics:
-                print('here:', m)
-
-            print()
             [log_metric(m) for m in metrics]
             log_images(engine, master_engine.state.epoch)
 
