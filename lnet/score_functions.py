@@ -8,8 +8,6 @@ from lnet.metrics import (
     SSIM_NAME,
     MSSSIM_NAME,
     BEAD_PRECISION_RECALL,
-    BEAD_PRECISION,
-    BEAD_RECALL,
 )
 
 

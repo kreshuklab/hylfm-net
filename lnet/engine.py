@@ -21,8 +21,6 @@ from lnet.metrics import (
     SSIM_NAME,
     MSSSIM_NAME,
     BEAD_PRECISION_RECALL,
-    BEAD_PRECISION,
-    BEAD_RECALL,
 )
 from lnet.metrics import NRMSE, PSNR, SSIM, MSSSIM
 from lnet.metrics.beads import BeadPrecisionRecall
@@ -60,8 +58,13 @@ class TunedEngine(Engine):
     def prepare_engine(engine: TunedEngineType):
         engine.state.compute_time = 0.0
         engine.run_count += 1
-        engine.state.loss = engine.config.train.loss(engine, engine.config.train.loss_kwargs)
-        engine.state.aux_loss = engine.config.train.aux_loss(engine, engine.config.train.aux_loss_kwargs)
+        if engine.config.train is None:
+            engine.state.loss = []
+            engine.state.aux_loss = None
+        else:
+            engine.state.loss = engine.config.train.loss(engine, engine.config.train.loss_kwargs)
+            engine.state.aux_loss = engine.config.train.aux_loss(engine, engine.config.train.aux_loss_kwargs)
+
         train = isinstance(engine, TrainEngine)
         for w, l in engine.state.loss:
             l.train(mode=train)
@@ -128,15 +131,15 @@ class EvalEngine(TunedEngine):
         super().__init__(
             process_function=process_function, config=config, logger=logger, model=model, data_config=data_config
         )
-
-        MSSSIM().attach(self, MSSSIM_NAME)
-        NRMSE().attach(self, NRMSE_NAME)
-        PSNR(data_range=2.5).attach(self, PSNR_NAME)
-        SSIM().attach(self, SSIM_NAME)
-        if config.log.log_bead_precision_recall:
-            BeadPrecisionRecall(dist_threshold=config.log.log_bead_precision_recall_threshold).attach(
-                self, BEAD_PRECISION_RECALL
-            )
+        if data_config.z_out is not None:
+            MSSSIM().attach(self, MSSSIM_NAME)
+            NRMSE().attach(self, NRMSE_NAME)
+            PSNR(data_range=2.5).attach(self, PSNR_NAME)
+            SSIM().attach(self, SSIM_NAME)
+            if config.log.log_bead_precision_recall:
+                BeadPrecisionRecall(dist_threshold=config.log.log_bead_precision_recall_threshold).attach(
+                    self, BEAD_PRECISION_RECALL
+                )
 
     @staticmethod
     def prepare_engine(engine: TunedEngineType):

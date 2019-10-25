@@ -45,7 +45,9 @@ def resize(
 
 class N5Dataset(torch.utils.data.Dataset):
     x_paths: List[Path]
-    y_paths: List[Path]
+    y_paths: Optional[List[Path]]
+    z_out: Optional[int]
+
     data_file: Optional[z5py.File] = None
     futures: Optional[List[Tuple[Future, Future]]] = None
 
@@ -65,22 +67,29 @@ class N5Dataset(torch.utils.data.Dataset):
         x_roi = info.x_roi
         y_roi = info.y_roi
 
-        try:
-            img_name = next(y_folder.glob("*.tif")).as_posix()
-        except StopIteration:
-            logger.error(y_folder.absolute())
-            raise
-
-        original_y_shape = imread(img_name)[y_roi].shape
-        logger.info("determined shape of %s to be %s", img_name, original_y_shape)
-        self.z_out: int = original_y_shape[0]
-
+        assert x_folder.exists(), x_folder.absolute()
         x_img_name = next(x_folder.glob("*.tif")).as_posix()
         original_x_shape: Tuple[int, int] = imread(x_img_name)[x_roi].shape
-        assert original_y_shape[1:] == original_x_shape, (original_y_shape[1:], original_x_shape)
+        if y_folder:
+            assert y_folder.exists(), y_folder.absolute()
+            self.with_target = True
+            try:
+                img_name = next(y_folder.glob("*.tif")).as_posix()
+            except StopIteration:
+                logger.error(y_folder.absolute())
+                raise
+
+            original_y_shape = imread(img_name)[y_roi].shape
+            logger.info("determined shape of %s to be %s", img_name, original_y_shape)
+            self.z_out = original_y_shape[0]
+            assert original_y_shape[1:] == original_x_shape, (original_y_shape[1:], original_x_shape)
+            y_shape = (1, self.z_out) + tuple([oxs * sc for oxs, sc in zip(original_x_shape, scaling)])
+        else:
+            self.with_target = False
+            self.z_out = None
+            y_shape = None
 
         x_shape = (1,) + original_x_shape
-        y_shape = (1, self.z_out) + tuple([oxs * sc for oxs, sc in zip(original_x_shape, scaling)])
 
         if data_folder is None:
             data_folder = os.environ.get("DATA_FOLDER", None)
@@ -90,8 +99,6 @@ class N5Dataset(torch.utils.data.Dataset):
                 data_folder = Path(data_folder)
 
         assert data_folder.exists(), data_folder.absolute()
-        assert x_folder.exists(), x_folder.absolute()
-        assert y_folder.exists(), y_folder.absolute()
 
         self.x_shape = x_shape
         self.y_shape = y_shape
@@ -104,7 +111,7 @@ class N5Dataset(torch.utils.data.Dataset):
         )
         data_file_name = (
             data_folder
-            / f"{name}_{hash((shapestr + x_folder.as_posix() + y_folder.as_posix()).encode()).hexdigest()}.n5"
+            / f"{name}_{hash(shapestr.encode()).hexdigest()}.n5"
         )
         with Path(data_file_name.as_posix().replace(".n5", ".txt")).open("w") as f:
             f.write(shapestr)
@@ -115,15 +122,21 @@ class N5Dataset(torch.utils.data.Dataset):
             self._len = self.data_file["x"].shape[0]
         else:
             raw_x_paths = list(map(str, Path(x_folder).glob("*.tif")))
-            raw_y_paths = list(map(str, Path(y_folder).glob("*.tif")))
             x_numbers = [tuple(int(nr) for nr in re.findall(r"\d+", os.path.basename(p))) for p in raw_x_paths]
-            y_numbers = [tuple(int(nr) for nr in re.findall(r"\d+", os.path.basename(p))) for p in raw_y_paths]
-            common_numbers = set(x_numbers) & set(y_numbers)
-            assert len(common_numbers) > 1, (set(x_numbers), set(y_numbers))
+
+            common_numbers = set(x_numbers)
+            if self.with_target:
+                raw_y_paths = list(map(str, Path(y_folder).glob("*.tif")))
+                y_numbers = [tuple(int(nr) for nr in re.findall(r"\d+", os.path.basename(p))) for p in raw_y_paths]
+                common_numbers &= set(y_numbers)
+                assert len(common_numbers) > 1, (set(x_numbers), set(y_numbers))
+                y_paths = sorted([p for p, yn in zip(raw_y_paths, y_numbers) if yn in common_numbers])
+
             x_paths = sorted([p for p, xn in zip(raw_x_paths, x_numbers) if xn in common_numbers])
-            y_paths = sorted([p for p, yn in zip(raw_y_paths, y_numbers) if yn in common_numbers])
+            if self.with_target:
+                assert len(x_paths) == len(y_paths), raw_y_paths
+
             assert len(x_paths) >= 1, raw_x_paths
-            assert len(x_paths) == len(y_paths), raw_y_paths
             self._len = len(x_paths)
             if save:
                 tmp_data_file_name = data_file_name.as_posix().replace(".n5", "_tmp.n5")
@@ -133,9 +146,10 @@ class N5Dataset(torch.utils.data.Dataset):
                 x_ds = data_file.create_dataset(
                     "x", shape=(len(x_paths),) + self.x_shape, chunks=(1,) + self.x_shape, dtype=numpy.float32
                 )
-                y_ds = data_file.create_dataset(
-                    "y", shape=(len(self),) + self.y_shape, chunks=(1,) + self.y_shape, dtype=numpy.float32
-                )
+                if self.with_target:
+                    y_ds = data_file.create_dataset(
+                        "y", shape=(len(self),) + self.y_shape, chunks=(1,) + self.y_shape, dtype=numpy.float32
+                    )
 
                 def process_x_chunk(i):
                     ximg = imread(x_paths[i])
@@ -149,13 +163,16 @@ class N5Dataset(torch.utils.data.Dataset):
 
                 # first slice in main thread to catch exceptions
                 process_x_chunk(0)
-                process_y_chunk(0)
+                if self.with_target:
+                    process_y_chunk(0)
+
                 # other slices in parallel
                 futures = []
                 with ThreadPoolExecutor(max_workers=16) as executor:
                     for i in range(1, len(self)):
                         futures.append(executor.submit(process_x_chunk, i))
-                        futures.append(executor.submit(process_y_chunk, i))
+                        if self.with_target:
+                            futures.append(executor.submit(process_y_chunk, i))
 
                     for fut in as_completed(futures):
                         e = fut.exception()
@@ -170,7 +187,8 @@ class N5Dataset(torch.utils.data.Dataset):
                 self.data_file = z5py.File(path=data_file_name.as_posix())
             else:
                 self.x_paths = [Path(p) for p in x_paths]
-                self.y_paths = [Path(p) for p in y_paths]
+                if self.with_target:
+                    self.y_paths = [Path(p) for p in y_paths]
 
         stat_path = Path(data_file_name.as_posix().replace(".n5", "_stat.yml"))
         assert ".yml" in stat_path.as_posix(), "replacing '.n5' with '_stat.yml' did not work!"
@@ -234,40 +252,52 @@ class N5Dataset(torch.utils.data.Dataset):
                     transform_instances.append(ti)
 
         self.transform = Compose(*transform_instances)
+        print("HERE len(self)", len(self))
 
     def __len__(self):
         return self._len
 
     def __getitem__(
         self, item
-    ) -> Union[Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray], Tuple[numpy.ndarray, numpy.ndarray]]:
+    ) -> Union[Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray], Tuple[numpy.ndarray, numpy.ndarray], numpy.ndarray]:
         item = int(item)
         if self.data_file is None:
-            x, y = (
-                resize(imread(self.x_paths[item]), self.x_shape, order=self.interpolation_order),
-                resize(imread(self.y_paths[item]), self.y_shape, order=self.interpolation_order),
-            )
+            x = resize(imread(self.x_paths[item]), self.x_shape, order=self.interpolation_order)
+            if self.with_target:
+                y = resize(imread(self.y_paths[item]), self.y_shape, order=self.interpolation_order)
         elif self.futures is None:
-            # logger.debug("here1 x dg %s", self.data_file["x"].shape)
-            x, y = self.data_file["x"][item], self.data_file["y"][item]
+            logger.warning("here1 x dg %s", self.data_file["x"].shape)
+            x = self.data_file["x"][item]
+            logger.warning("here x %s", x.shape)
+            x = x[0]
+            if self.with_target:
+                y = self.data_file["y"][item]
+                y = y[0]
             # logger.debug("here2 x %s", x.shape)
-            x, y = x[0], y[0]
-            # logger.debug("here3 x %s", x.shape)
         else:
             raise NotImplementedError
             # todo: set high priority for "item"
             for fut in self.futures[item]:
                 fut.result()
 
-            x, y = self.data_file["x"][item], self.data_file["y"][item]
+            x = self.data_file["x"][item]
+            if self.with_target:
+                y =  self.data_file["y"][item]
 
         if self.transform is not None:
             logger.debug("apply transform %s", self.transform)
             # logger.debug("x: %s, y: %s", x.shape, y.shape)
-            x, y = self.transform(x, y)
+            if self.with_target:
+                x, y = self.transform(x, y)
+            else:
+                x = self.transform(x)
 
-        x, y = numpy.ascontiguousarray(x), numpy.ascontiguousarray(y)
-        return x, y
+        x = numpy.ascontiguousarray(x)
+        if self.with_target:
+            y = numpy.ascontiguousarray(y)
+            return x, y
+        else:
+            return x
 
 
 class Result(torch.utils.data.Dataset):

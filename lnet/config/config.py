@@ -152,8 +152,8 @@ class EvalConfig:
             (DataCategory.valid, valid_data),
             (DataCategory.test, test_data),
         ]:
-            if data_kwargs is None:
-                data_kwargs = {}
+            if not data_kwargs:
+                continue
 
             for default, value in defaults.items():
                 if default not in data_kwargs:

@@ -65,3 +65,9 @@ bead00_LS_single_planes_sum0 = NamedDatasetInfo(
 bead01_0 = NamedDatasetInfo(
     Path("/g/hufnagel/DeepLearningReconstruction/NewArtificialBeads49planesVolumes"), "lf_sim", "truth"
 )
+
+
+bead02_test0 = NamedDatasetInfo(
+    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191024_Beam_Beads/Beads/TrainingData/2019-10-24_03.52.50_afterThis_HomogeneousLFillum/stack_0_channel_0/TP_00000"), "RC_rectified",
+    description="bead02_test0"
+)

@@ -25,31 +25,47 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
 
     has_aux = len(batch) == 3
     if has_aux:
-        ipt, tgt, aux_tgt = batch
-        aux_tgt = convert_tensor(aux_tgt, device=device, non_blocking=False)
+        if isinstance(batch, tuple):
+            ipt, tgt, aux_tgt = batch
+            aux_tgt = convert_tensor(aux_tgt, device=device, non_blocking=False)
+        else:
+            ipt = batch
+            tgt = None
+            aux_tgt = None
     else:
-        ipt, tgt = batch
+        if isinstance(batch, tuple):
+            ipt, tgt = batch
+            tgt = convert_tensor(tgt, device=device, non_blocking=False)
+        else:
+            ipt = batch
+            tgt = None
 
     ipt = convert_tensor(ipt, device=device, non_blocking=False)
-    tgt = convert_tensor(tgt, device=device, non_blocking=False)
     pred = model(ipt)
     if has_aux:
         pred, aux_pred = pred
-        aux_losses = [w * lf(aux_pred, tgt) for w, lf in engine.state.aux_loss]
-        aux_loss = sum(aux_losses)
+        if tgt is not None:
+            aux_losses = [w * lf(aux_pred, tgt) for w, lf in engine.state.aux_loss]
+            aux_loss = sum(aux_losses)
 
-    raw_losses = [(w, lf(pred, tgt)) for w, lf in engine.state.loss]
-    losses = [w * rl[0] for w, rl in raw_losses]
-    voxel_losses = [None if rl[1] is None else w * rl[1] for w, rl in raw_losses]
+    if tgt is not None:
+        raw_losses = [(w, lf(pred, tgt)) for w, lf in engine.state.loss]
+        losses = [w * rl[0] for w, rl in raw_losses]
+        voxel_losses = [None if rl[1] is None else w * rl[1] for w, rl in raw_losses]
+    else:
+        losses = []
+        voxel_losses = []
 
-    total_loss = sum(losses)
-    loss = total_loss
-    if has_aux:
-        total_loss += aux_loss
+    loss = sum(losses)
+    if has_aux and tgt is not None:
+        total_loss = loss + aux_loss
 
     if train:
         total_loss.backward()
         optimizer.step()
+    elif tgt is None:
+        loss = torch.FloatTensor((0.0,))
+        tgt = torch.FloatTensor((0.0,))
 
     engine.state.compute_time += perf_counter() - start
     if has_aux:
@@ -67,14 +83,7 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
             aux_losses=aux_losses,
         )
     else:
-        return Output(
-            ipt=ipt,
-            tgt=tgt,
-            pred=pred,
-            loss=loss,
-            losses=losses,
-            voxel_losses=voxel_losses,
-        )
+        return Output(ipt=ipt, tgt=tgt, pred=pred, loss=loss, losses=losses, voxel_losses=voxel_losses)
 
 
 training_step: Callable[[TrainEngine, Any], Output] = partial(step, train=True)

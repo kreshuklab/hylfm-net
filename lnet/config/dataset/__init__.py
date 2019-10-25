@@ -25,7 +25,7 @@ class NamedDatasetInfo:
         self,
         path: Union[str, Path],
         x_dir: str,
-        y_dir: str,
+        y_dir: Optional[str] = None,
         description="",
         x_roi: Tuple[slice, slice] = (slice(None), slice(None)),
         y_roi: Tuple[slice, slice, slice] = (slice(None), slice(None), slice(None)),
@@ -33,7 +33,7 @@ class NamedDatasetInfo:
         interesting_paths: Optional[List[PathOfInterest]] = None,
     ):
         self.x_path = self.common_path / path / x_dir
-        self.y_path = self.common_path / path / y_dir
+        self.y_path = None if y_dir is None else self.common_path / path / y_dir
         self.description = description or self.description
 
         self.x_roi = x_roi
