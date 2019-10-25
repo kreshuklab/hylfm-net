@@ -28,8 +28,6 @@ from lnet.metrics import (
     SSIM_NAME,
     MSSSIM_NAME,
     BEAD_PRECISION_RECALL,
-    BEAD_PRECISION,
-    BEAD_RECALL,
 )
 
 from lnet.utils.plotting import turbo_colormap_data, Box
@@ -63,8 +61,8 @@ class Experiment:
 
         self.dtype = getattr(torch, config.model.precision)
 
-        self.max_num_epochs = config.train.max_num_epochs
-        self.score_function = config.train.score_function
+        self.max_num_epochs = 0 if config.train is None else config.train.max_num_epochs
+        self.score_function = lambda engine: 0.0 if config.train is None else config.train.score_function
 
         # # make sure everything is commited
         # git_status_cmd = pbs3.git.status("--porcelain")
@@ -81,12 +79,15 @@ class Experiment:
         self.logger = logging.getLogger(config.log.time_stamp)
 
         z_out = None
-        for data_config in [
-            config.train.data,
+        data_configs = [
             config.eval_.eval_train_data,
             config.eval_.valid_data,
             config.eval_.test_data,
-        ]:
+        ]
+        if config.train is not None:
+            data_configs.append(config.train.data)
+
+        for data_config in data_configs:
             if data_config is None:
                 continue
 
@@ -95,13 +96,17 @@ class Experiment:
             else:
                 assert z_out == data_config.z_out, (z_out, data_config.z_out)
 
-        assert z_out is not None
-        self.z_out = z_out
+        z_out_kwarg = {}
+        if z_out is not None:
+            if "z_out" in config.model.kwargs:
+                assert z_out == config.model.kwargs["z_out"], (z_out, config.model.kwargs["z_out"])
+            else:
+                z_out_kwarg = {"z_out": z_out}
 
         devices = list(range(torch.cuda.device_count()))
         assert len(devices) == 1, "single gpu for now only"
         self.device = torch.device("cuda", devices[0])
-        self.model = config.model.Model(nnum=config.model.nnum, z_out=self.z_out, **config.model.kwargs).to(
+        self.model = config.model.Model(nnum=config.model.nnum, **z_out_kwarg, **config.model.kwargs).to(
             device=self.device, dtype=self.dtype
         )
         self.model.cuda()
@@ -173,10 +178,19 @@ class Experiment:
             create_dir=True,
             save_as_state_dict=True,
         )
-        validator.add_event_handler(Events.COMPLETED, saver, {"model": self.model})  # , "optimizer": optimizer})
+        if validator:
+            validator.add_event_handler(Events.COMPLETED, saver, {"model": self.model})  # , "optimizer": optimizer})
+            if trainer:
+                stopper = EarlyStopping(patience=config.train.patience, score_function=self.score_function, trainer=trainer)
+                validator.add_event_handler(Events.COMPLETED, stopper)
+        elif trainer:
+            trainer.add_event_handler(Events.COMPLETED, saver, {"model": self.model})
 
-        stopper = EarlyStopping(patience=config.train.patience, score_function=self.score_function, trainer=trainer)
-        validator.add_event_handler(Events.COMPLETED, stopper)
+        if trainer:
+            master_engine = trainer
+        else:
+            master_engine = tester
+
 
         def log_train_scalars(engine: TrainEngine, step: int):
             writer.add_scalar(f"{engine.name}/loss", engine.state.output.loss, step)
@@ -192,9 +206,12 @@ class Experiment:
             tgt_batch = output.tgt.cpu().numpy()
             pred_batch = output.pred.detach().cpu().numpy()
 
-            assert ipt_batch.shape[0] == tgt_batch.shape[0], (ipt_batch.shape, tgt_batch.shape)
-            assert len(tgt_batch.shape) == 5, tgt_batch.shape
-            assert tgt_batch.shape[1] == 1, tgt_batch.shape
+            if len(tgt_batch.shape) == 1:
+                tgt_batch = [None] * ipt_batch.shape[0]
+            else:
+                assert ipt_batch.shape[0] == tgt_batch.shape[0], (ipt_batch.shape, tgt_batch.shape)
+                assert len(tgt_batch.shape) == 5, tgt_batch.shape
+                assert tgt_batch.shape[1] == 1, tgt_batch.shape
 
             has_aux = hasattr(output, "aux_tgt")
             if has_aux:
@@ -255,12 +272,13 @@ class Experiment:
             for i, (ib, tb, pb) in enumerate(zip(ipt_batch, tgt_batch, pred_batch)):
                 col = 0
                 make_subplot(ax[i], "", ib[0])
-                make_subplot(ax[i], "target", tb[0].max(axis=0), boxes=boxes, side_view=tb[0].max(axis=2).T)
                 make_subplot(ax[i], "prediction", pb[0].max(axis=0), boxes=boxes, side_view=pb[0].max(axis=2).T)
-                rel_diff = (numpy.abs(pb - tb) / tb + 1e-6)[0]
-                abs_diff = numpy.abs(pb - tb)[0]
-                make_subplot(ax[i], "rel diff", rel_diff.max(axis=0), side_view=rel_diff.max(axis=2).T)
-                make_subplot(ax[i], "abs_diff", abs_diff.max(axis=0), side_view=abs_diff.max(axis=2).T)
+                if tb is not None:
+                    make_subplot(ax[i], "target", tb[0].max(axis=0), boxes=boxes, side_view=tb[0].max(axis=2).T)
+                    rel_diff = (numpy.abs(pb - tb) / tb + 1e-6)[0]
+                    abs_diff = numpy.abs(pb - tb)[0]
+                    make_subplot(ax[i], "rel diff", rel_diff.max(axis=0), side_view=rel_diff.max(axis=2).T)
+                    make_subplot(ax[i], "abs_diff", abs_diff.max(axis=0), side_view=abs_diff.max(axis=2).T)
 
             if has_aux:
                 col_so_far = col
@@ -313,27 +331,19 @@ class Experiment:
             #         available_metrics.append(BEAD_RECALL)
 
             def log_metric(m: str):
-                writer.add_scalar(f"{engine.name}/{m}", metrics[m], trainer.state.epoch)
+                writer.add_scalar(f"{engine.name}/{m}", metrics[m], master_engine.state.epoch)
                 metric_log_file = self.config.log.dir / engine.name / f"{m.lower()}.txt"
                 with metric_log_file.open(mode="a") as file:
-                    file.write(f"{trainer.state.epoch}\t{metrics[m]}\n")
+                    file.write(f"{master_engine.state.epoch}\t{metrics[m]}\n")
 
-            for m in metrics:
-                print('here:', m)
-
-            print()
             [log_metric(m) for m in metrics]
-            log_images(engine, trainer.state.epoch)
+            log_images(engine, master_engine.state.epoch)
 
             # for i, yy in enumerate(experiment.state.output["y"]):
             #     yy = yy.cpu().numpy()
             #     assert len(yy.shape) == 4, yy.shape
             #     assert yy.shape[0] == 1, yy.shape
             #     writer.add_images(f"{name}/output{i}", yy.max(axis=1), step, dataformats="CHW")
-
-        train_evaluator.add_event_handler(Events.COMPLETED, log_eval)
-        validator.add_event_handler(Events.COMPLETED, log_eval)
-        tester.add_event_handler(Events.COMPLETED, log_eval)
 
         def add_save_result(engine: EvalEngine):
             @engine.on(Events.STARTED)
@@ -349,10 +359,15 @@ class Experiment:
                     else:
                         concat_kwargs["subfolders"] = [str(cs) for cs in cumsum]
 
-                engine.state.result = Result(
+                batches = [
                     self.config.log.dir / engine.name / "input",
-                    self.config.log.dir / engine.name / "target",
                     self.config.log.dir / engine.name / "prediction",
+                ]
+                if engine.data_config.z_out is not None:
+                    batches.append(self.config.log.dir / engine.name / "target")
+
+                engine.state.result = Result(
+                    *batches,
                     **concat_kwargs,
                 )
 
@@ -360,61 +375,82 @@ class Experiment:
             def save_result(engine: EvalEngine):
                 output: Output = engine.state.output
                 start = engine.state.sequential_sample_nr_for_result
+                batches = [output.ipt, output.pred]
+                if engine.data_config.z_out is not None:
+                    batches.append(output.tgt)
                 engine.state.result.update(
-                    *[batch.detach().cpu().numpy() for batch in [output.ipt, output.tgt, output.pred]], at=start
+                    *[batch.detach().cpu().numpy() for batch in batches], at=start
                 )
                 engine.state.sequential_sample_nr_for_result += output.ipt.shape[0]
 
-        add_save_result(tester)
+        if train_evaluator:
+            train_evaluator.add_event_handler(Events.COMPLETED, log_eval)
 
-        @trainer.on(Events.ITERATION_COMPLETED)
-        def log_training_iteration(engine: TrainEngine):
-            iteration = engine.state.iteration
-            it_in_epoch = (iteration - 1) % len(engine.state.dataloader) + 1
-            if (
-                engine.config.log.log_scalars_every[1] == Events.ITERATION_COMPLETED.value
-                and it_in_epoch % engine.config.log.log_scalars_every[0] == 0
-            ):
-                log_train_scalars(engine, iteration)
+        if validator:
+            validator.add_event_handler(Events.COMPLETED, log_eval)
 
-            if (
-                engine.config.log.log_images_every[1] == Events.ITERATION_COMPLETED.value
-                and it_in_epoch % engine.config.log.log_images_every[0] == 0
-            ):
-                log_images(engine, iteration)
+        if tester:
+            tester.add_event_handler(Events.COMPLETED, log_eval)
+            add_save_result(tester)
 
-        @trainer.on(Events.EPOCH_COMPLETED)
-        def log_training_epoch(engine: TrainEngine):
-            epoch = engine.state.epoch
-            if (
-                engine.config.log.log_scalars_every[1] == Events.EPOCH_COMPLETED.value
-                and epoch % engine.config.log.log_scalars_every[0] == 0
-            ):
-                log_train_scalars(engine, epoch)
+        if trainer:
+            @trainer.on(Events.ITERATION_COMPLETED)
+            def log_training_iteration(engine: TrainEngine):
+                iteration = engine.state.iteration
+                it_in_epoch = (iteration - 1) % len(engine.state.dataloader) + 1
+                if (
+                    engine.config.log.log_scalars_every[1] == Events.ITERATION_COMPLETED.value
+                    and it_in_epoch % engine.config.log.log_scalars_every[0] == 0
+                ):
+                    log_train_scalars(engine, iteration)
 
-            if (
-                engine.config.log.log_images_every[1] == Events.EPOCH_COMPLETED.value
-                and epoch % engine.config.log.log_images_every[0] == 0
-            ):
-                log_images(engine, epoch)
+                if (
+                    engine.config.log.log_images_every[1] == Events.ITERATION_COMPLETED.value
+                    and it_in_epoch % engine.config.log.log_images_every[0] == 0
+                ):
+                    log_images(engine, iteration)
 
-        @trainer.on(Events.EPOCH_COMPLETED)
-        def validate(engine: TrainEngine):
-            if engine.state.epoch % engine.config.train.validate_every_nth_epoch == 0:
-                train_evaluator.run()
-                validator.run()
+            @trainer.on(Events.EPOCH_COMPLETED)
+            def log_training_epoch(engine: TrainEngine):
+                epoch = engine.state.epoch
+                if (
+                    engine.config.log.log_scalars_every[1] == Events.EPOCH_COMPLETED.value
+                    and epoch % engine.config.log.log_scalars_every[0] == 0
+                ):
+                    log_train_scalars(engine, epoch)
 
-        @trainer.on(Events.COMPLETED)
-        def log_test_results(engine: TrainEngine):
-            if saver._saved:
-                score, file_list = saver._saved[-1]
-                engine.model.load_state_dict(
-                    torch.load(file_list[0], map_location=next(engine.model.parameters()).device)
-                )
+                if (
+                    engine.config.log.log_images_every[1] == Events.EPOCH_COMPLETED.value
+                    and epoch % engine.config.log.log_images_every[0] == 0
+                ):
+                    log_images(engine, epoch)
 
+            @trainer.on(Events.EPOCH_COMPLETED)
+            def validate(engine: TrainEngine):
+                if engine.state.epoch % engine.config.train.validate_every_nth_epoch == 0:
+                    if train_evaluator:
+                        train_evaluator.run()
+
+                    if validator:
+                        validator.run()
+
+            @trainer.on(Events.COMPLETED)
+            def log_test_results(engine: TrainEngine):
+                if saver._saved:
+                    score, file_list = saver._saved[-1]
+                    engine.model.load_state_dict(
+                        torch.load(file_list[0], map_location=next(engine.model.parameters()).device)
+                    )
+
+                if tester:
+                    tester.run()
+
+            trainer.run(max_epochs=self.max_num_epochs)
+        elif tester:
             tester.run()
+        else:
+            raise ValueError("Neither training nor testing is configured!")
 
-        trainer.run(max_epochs=self.max_num_epochs)
         writer.close()
         if self.config_path is not None:
             with self.config_path.with_suffix(".ran_on.txt").open("a+") as f:

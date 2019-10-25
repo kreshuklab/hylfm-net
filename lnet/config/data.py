@@ -113,11 +113,11 @@ class DataConfig:
     concat_dataset: ConcatDataset = field(init=False)
     data_loader: DataLoader = field(init=False)
 
-    z_out: int = field(init=False)
+    z_out: Optional[int] = field(init=False)
 
     def __post_init__(self, model_config: ModelConfig):
         scaling = getattr(models, model_config.name).get_scaling()
-        self.datasets = [
+        self.datasets: List[N5Dataset] = [
             N5Dataset(
                 info=entry.info,
                 scaling=(scaling[0] / model_config.nnum, scaling[1] / model_config.nnum),
@@ -129,9 +129,12 @@ class DataConfig:
         ]
 
         # todo: move to project specific code:
-        z_outs = [ds.z_out for ds in self.datasets]
-        self.z_out = z_outs[0]
-        assert all(zo == self.z_out for zo in z_outs), z_outs
+        z_outs = [ds.z_out for ds in self.datasets if ds.z_out is not None]
+        if z_outs:
+            self.z_out = z_outs[0]
+            assert all(zo == self.z_out for zo in z_outs), z_outs
+        else:
+            self.z_out = None
 
         self.concat_dataset = ConcatDataset(
             [ds if entry.indices is None else Subset(ds, entry.indices) for ds, entry in zip(self.datasets, self.entries)]

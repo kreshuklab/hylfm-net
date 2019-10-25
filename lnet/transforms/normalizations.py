@@ -10,7 +10,9 @@ def norm(
     apply_to: Union[int, List[int]],
     mean: Optional[float] = None,
     std: Optional[float] = None,
-    percentile_range: Optional[Tuple[Optional[float], Optional[float]]] = None,
+    percentile_min: Optional[float] = None,
+    percentile_max: Optional[float] = None,
+    percentile_range: Optional[Tuple[float, float]] = None,
 ) -> Callable[[DatasetStat], Generator[DatasetStat, None, None]]:
     if isinstance(apply_to, int):
         apply_to = [apply_to]
@@ -26,6 +28,17 @@ def norm(
             "exclusive arguments: use either mean and standard deviation (std) or a percentile range "
             "(percentile_range) to compute these. Default is percentile_range=(0, 100)"
         )
+    if percentile_range is not None and (percentile_min is not None or percentile_max is not None):
+        raise ValueError("percentile_range and (percentile_min, percentile_max) are  ")
+
+    if percentile_range is None and (percentile_min is not None or percentile_max is not None):
+        if percentile_min is None:
+            percentile_min = 0
+
+        if percentile_max is None:
+            percentile_max = 100.0
+
+        percentile_range = (percentile_min, percentile_max)
 
     if all(arg is None for arg in [mean, std, percentile_range]):
         percentile_range = (0.0, 100.0)
@@ -59,7 +72,7 @@ def norm01(
         percentile_min = 0.0
 
     if max_ is None and percentile_max is None:
-        percentile_max = 1000.0
+        percentile_max = 100.0
 
     def norm_impl(stat: DatasetStat) -> Generator[DatasetStat, None, None]:
         percentiles = [p for p, m in [(percentile_min, min_), (percentile_max, max_)] if m is None]
