@@ -48,8 +48,6 @@ known_score_functions = {
             SSIM_NAME,
             MSSSIM_NAME,
             BEAD_PRECISION_RECALL,
-            BEAD_PRECISION,
-            BEAD_RECALL,
         ]
     },
 }

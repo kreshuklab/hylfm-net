@@ -25,7 +25,7 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
 
     has_aux = len(batch) == 3
     if has_aux:
-        if isinstance(batch, tuple):
+        if isinstance(batch, (list, tuple)):
             ipt, tgt, aux_tgt = batch
             aux_tgt = convert_tensor(aux_tgt, device=device, non_blocking=False)
         else:
@@ -33,7 +33,7 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
             tgt = None
             aux_tgt = None
     else:
-        if isinstance(batch, tuple):
+        if isinstance(batch, (list, tuple)):
             ipt, tgt = batch
             tgt = convert_tensor(tgt, device=device, non_blocking=False)
         else:
@@ -57,8 +57,11 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
         voxel_losses = []
 
     loss = sum(losses)
-    if has_aux and tgt is not None:
+
+    if has_aux:
         total_loss = loss + aux_loss
+    else:
+        total_loss = loss
 
     if train:
         total_loss.backward()

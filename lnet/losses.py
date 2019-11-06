@@ -1,12 +1,15 @@
-from collections import namedtuple
-from typing import Union, Callable, Optional
-
+import logging
 import torch
-from torch import nn, Tensor, FloatTensor
+
+from collections import namedtuple
 from ignite.engine import Events
 from inferno.extensions import criteria
+from torch import nn, Tensor, FloatTensor
+from typing import Union, Callable, Optional
 
 from lnet.engine import TrainEngine, EvalEngine
+
+logger = logging.getLogger(__name__)
 
 Loss = namedtuple("Loss", ["reduced", "pixelwise"])
 
@@ -34,6 +37,7 @@ class WeightedL1Loss(nn.L1Loss):
             def decay_weight(engine):
                 if engine.state.epoch % every_nth_epoch == 0:
                     self.weight *= decay_by
+                    logger.info("decayed loss weight to %d (+1.0)", self.weight)
 
         else:
             self.instance_for_training = False

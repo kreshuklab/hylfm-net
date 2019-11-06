@@ -252,7 +252,6 @@ class N5Dataset(torch.utils.data.Dataset):
                     transform_instances.append(ti)
 
         self.transform = Compose(*transform_instances)
-        print("HERE len(self)", len(self))
 
     def __len__(self):
         return self._len
@@ -266,9 +265,9 @@ class N5Dataset(torch.utils.data.Dataset):
             if self.with_target:
                 y = resize(imread(self.y_paths[item]), self.y_shape, order=self.interpolation_order)
         elif self.futures is None:
-            logger.warning("here1 x dg %s", self.data_file["x"].shape)
+            logger.debug("here1 x dg %s", self.data_file["x"].shape)
             x = self.data_file["x"][item]
-            logger.warning("here x %s", x.shape)
+            logger.debug("here x %s", x.shape)
             x = x[0]
             if self.with_target:
                 y = self.data_file["y"][item]

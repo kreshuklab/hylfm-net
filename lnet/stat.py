@@ -42,9 +42,9 @@ class DatasetStat:
         self.dataset = dataset
         if path.exists():
             with path.open() as f:
-                loaded_data = yaml.safe_load(f)
+                loaded_data = yaml.load(f)
                 for as_default_dict in ["all_percentiles", "all_mean_std_by_percentile_range"]:
-                    loaded_data[as_default_dict] = defaultdict(set, **loaded_data.pop(as_default_dict))
+                    loaded_data[as_default_dict] = defaultdict(dict, loaded_data.pop(as_default_dict))
 
                 self.computed = ComputedDatasetStat(**loaded_data)
         else:
@@ -177,7 +177,8 @@ class DatasetStat:
 
         computed_dict = {f.name: dict(getattr(self.computed, f.name)) for f in fields(self.computed) if f.init}
         with self.path.open("w") as file:
-            yaml.safe_dump(computed_dict, file)
+            # todo: serialize tuples (range keys)
+            yaml.dump(computed_dict, file)
 
     def get_percentiles(self, idx: int, percentiles: Sequence[float]) -> List[float]:
         ret = [self.computed.all_percentiles[idx].get(p, None) for p in percentiles]
