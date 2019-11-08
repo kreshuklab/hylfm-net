@@ -1,4 +1,4 @@
-from lnet.utils.transforms import Lightfield2Channel, RandomFlipXYnotZ, RandomRotate
+from lnet.utils.transforms import Lightfield2Channel, RandomFlipXYnotZ, RandomRotate, Clip
 
 from inferno.io.transform.generic import Cast
 
@@ -9,6 +9,7 @@ from .noises import additive_gaussian_noise
 known_transforms = {
     "norm": lambda model_config, kwargs: norm(**kwargs),
     "norm01": lambda model_config, kwargs: norm01(**kwargs),
+    "clip": lambda model_config, kwargs: Clip(**kwargs),
     "additive_gaussian_noise": lambda model_config, kwargs: additive_gaussian_noise(**kwargs),
     "RandomRotate": lambda model_config, kwargs: RandomRotate(**kwargs),
     "RandomFlipXYnotZ": lambda model_config, kwargs: RandomFlipXYnotZ(**kwargs),

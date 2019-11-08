@@ -62,7 +62,11 @@ class Experiment:
         self.dtype = getattr(torch, config.model.precision)
 
         self.max_num_epochs = 0 if config.train is None else config.train.max_num_epochs
-        self.score_function = lambda engine: 0.0 if config.train is None else config.train.score_function
+        if config.train is None:
+            self.score_function = lambda engine: 0.0
+        else:
+            self.score_function = config.train.score_function
+
 
         # # make sure everything is commited
         # git_status_cmd = pbs3.git.status("--porcelain")
@@ -224,10 +228,8 @@ class Experiment:
                 aux_tgt_batch = None
                 aux_pred_batch = None
 
-            has_voxel_losses = output.voxel_losses is not None and not all(vl is None for vl in output.voxel_losses)
-            ncols = 5 + 2 * int(has_aux)
-            if has_voxel_losses:
-                ncols += len(output.voxel_losses)
+            voxel_losses = [ll.detach().cpu().numpy() for ll in output.voxel_losses]
+            ncols = 5 + 2 * int(has_aux) + len(output.voxel_losses)
 
             nrows = ipt_batch.shape[0]
             fig, ax = plt.subplots(ncols=ncols, nrows=nrows, squeeze=False, figsize=(ncols * 3, nrows * 3))
@@ -275,7 +277,7 @@ class Experiment:
                 make_subplot(ax[i], "prediction", pb[0].max(axis=0), boxes=boxes, side_view=pb[0].max(axis=2).T)
                 if tb is not None:
                     make_subplot(ax[i], "target", tb[0].max(axis=0), boxes=boxes, side_view=tb[0].max(axis=2).T)
-                    rel_diff = (numpy.abs(pb - tb) / tb + 1e-6)[0]
+                    rel_diff = (numpy.abs(pb - tb) / (numpy.abs(pb) + numpy.abs(tb) + 1e-6))[0]
                     abs_diff = numpy.abs(pb - tb)[0]
                     make_subplot(ax[i], "rel diff", rel_diff.max(axis=0), side_view=rel_diff.max(axis=2).T)
                     make_subplot(ax[i], "abs_diff", abs_diff.max(axis=0), side_view=abs_diff.max(axis=2).T)
@@ -287,19 +289,17 @@ class Experiment:
                     make_subplot(ax[i], "aux tgt", atb[0].max(axis=0), boxes=boxes)
                     make_subplot(ax[i], "aux pred", apb[0].max(axis=0), boxes=boxes)
 
-            if has_voxel_losses:
-                col_so_far = col
-                voxel_losses = numpy.stack([ll.detach().cpu().numpy() for ll in output.voxel_losses])
-                for loss_nr, vl_batch in enumerate(voxel_losses):
-                    for i, vl in enumerate(vl_batch):
-                        col = col_so_far
-                        make_subplot(
-                            ax[i],
-                            f"voxel loss {loss_nr}",
-                            vl.max(axis=0).max(axis=0),
-                            boxes=boxes,
-                            side_view=vl.max(axis=0).max(axis=2).T,
-                        )
+            col_so_far = col
+            for loss_nr, vl_batch in enumerate(voxel_losses):
+                for i, vl in enumerate(vl_batch):
+                    col = col_so_far
+                    make_subplot(
+                        ax[i],
+                        f"voxel loss {loss_nr}",
+                        vl.max(axis=0).max(axis=0),
+                        boxes=boxes,
+                        side_view=vl.max(axis=0).max(axis=2).T,
+                    )
 
             fig.subplots_adjust(hspace=0, wspace=0, bottom=0, top=1, left=0, right=1)
             fig.tight_layout()

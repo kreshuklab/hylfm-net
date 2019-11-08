@@ -80,14 +80,17 @@ class BCEWithLogitsLoss(torch.nn.BCEWithLogitsLoss):
             pos_weight = FloatTensor(pos_weight)
 
         super().__init__(weight=weight, pos_weight=pos_weight, **kwargs)
-        self.forward: Callable[[Tensor, Tensor], Loss] = reduced_loss_only_decorator(super().forward)
 
+    def forward(self, input: Tensor, target: Tensor) -> Tensor:
+        raise NotImplementedError
 
 class SorensenDiceLoss(criteria.SorensenDiceLoss):
     def __init__(self, channelwise=False, **kwargs):
         super().__init__(channelwise=channelwise, **kwargs)
-        self.forward: Callable[[Tensor, Tensor], Loss] = reduced_loss_only_decorator(super().forward)
 
+    def forward(self, input, target):
+        loss = super().forward(input, target)
+        return Loss(loss, None)
 
 known_losses = {
     "BCEWithLogitsLoss": lambda engine, kwargs: [(1.0, BCEWithLogitsLoss(**kwargs))],

@@ -321,7 +321,7 @@ class Result(torch.utils.data.Dataset):
         with ThreadPoolExecutor(max_workers=8) as executor:
             for bi, batch in enumerate(batches):
                 assert len(batch.shape) == 4 or len(batch.shape) == 5, batch.shape
-                batch = (batch.clip(min=0, max=1) * numpy.iinfo(numpy.uint16).max).astype(numpy.uint16)
+                # batch = (batch.clip(min=0, max=1) * numpy.iinfo(numpy.uint16).max).astype(numpy.uint16)
                 for i, img in enumerate(batch, start=at):
                     ds_idx = numpy.searchsorted(self.cumsum, i).item()
                     offset = self.cumsum[ds_idx - 1] if ds_idx else 0

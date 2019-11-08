@@ -22,8 +22,7 @@ def rename(newname):
 @rename("ms-ssim*100+f1")
 def msssim100f1(engine):
     score = round(engine.state.metrics[MSSSIM_NAME] * 100)
-    p = engine.state.metrics.get(BEAD_PRECISION, 0)
-    r = engine.state.metrics.get(BEAD_RECALL, 0)
+    p, r = engine.state.metrics.get(BEAD_PRECISION_RECALL, (0, 0))
     if p and r:
         score += 2 * p * r / (p + r)
 
@@ -51,3 +50,12 @@ known_score_functions = {
         ]
     },
 }
+
+if __name__ == "__main__":
+    import inspect
+    from lnet.engine import TunedEngine
+
+    print(known_score_functions)
+    sfn = known_score_functions[MSSSIM_NAME]
+    print(sfn)
+    print(inspect.signature(sfn))

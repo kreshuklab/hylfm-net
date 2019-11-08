@@ -51,7 +51,7 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
     if tgt is not None:
         raw_losses = [(w, lf(pred, tgt)) for w, lf in engine.state.loss]
         losses = [w * rl[0] for w, rl in raw_losses]
-        voxel_losses = [None if rl[1] is None else w * rl[1] for w, rl in raw_losses]
+        voxel_losses = [w * rl[1] for w, rl in raw_losses if rl[1] is not None]
     else:
         losses = []
         voxel_losses = []
