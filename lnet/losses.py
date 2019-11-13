@@ -37,7 +37,7 @@ class WeightedL1Loss(nn.L1Loss):
             def decay_weight(engine):
                 if engine.state.epoch % every_nth_epoch == 0:
                     self.weight *= decay_by
-                    logger.info("decayed loss weight to %d (+1.0)", self.weight)
+                    logger.info("decayed loss weight to %f (+1.0)", self.weight)
 
         else:
             self.instance_for_training = False

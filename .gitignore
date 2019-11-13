@@ -1,5 +1,6 @@
 data/
 logs/
+lnet/experiment_configs/**/*.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

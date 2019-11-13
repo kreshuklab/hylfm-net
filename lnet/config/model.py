@@ -11,6 +11,7 @@ class ModelConfig:
     Model: Type[LnetModel]
     kwargs: Dict[str, Any]
     nnum: int
+    z_out: int
     precision: str
     checkpoint: Optional[Path]
 
@@ -27,21 +28,15 @@ class ModelConfig:
 
     @classmethod
     def load(
-        cls,
-        name: str,
-        nnum: int,
-        kwargs: Dict[str, Any] = None,
-        precision: str = "float",
-        checkpoint: Optional[str] = None,
+        cls, name: str, kwargs: Dict[str, Any] = None, checkpoint: Optional[str] = None, **config_kwargs
     ) -> "ModelConfig":
         if kwargs is None:
             kwargs = {}
 
         return cls(
             Model=getattr(models, name),
-            nnum=nnum,
             kwargs=kwargs,
             name=name,
-            precision=precision,
             checkpoint=None if checkpoint is None else Path(checkpoint),
+            **config_kwargs,
         )

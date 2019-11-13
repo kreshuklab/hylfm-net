@@ -9,7 +9,6 @@ from importlib import import_module
 from matplotlib.colors import ListedColormap
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from pathlib import Path
-from scipy.special import expit
 from tensorboardX import SummaryWriter
 from typing import Union, Optional, Callable, Tuple, Iterable
 
@@ -20,15 +19,7 @@ from lnet.datasets import Result
 from lnet.engine import TunedEngine, TrainEngine, EvalEngine
 from lnet.output import Output, AuxOutput
 from lnet.step_functions import training_step, inference_step
-from lnet.metrics import (
-    LOSS_NAME,
-    AUX_LOSS_NAME,
-    NRMSE_NAME,
-    PSNR_NAME,
-    SSIM_NAME,
-    MSSSIM_NAME,
-    BEAD_PRECISION_RECALL,
-)
+from lnet.metrics import LOSS_NAME, AUX_LOSS_NAME, NRMSE_NAME, PSNR_NAME, SSIM_NAME, MSSSIM_NAME, BEAD_PRECISION_RECALL
 
 from lnet.utils.plotting import turbo_colormap_data, Box
 from lnet.utils.transforms import lightfield_from_channel
@@ -67,7 +58,6 @@ class Experiment:
         else:
             self.score_function = config.train.score_function
 
-
         # # make sure everything is commited
         # git_status_cmd = pbs3.git.status("--porcelain")
         # git_status = git_status_cmd.stdout
@@ -83,11 +73,7 @@ class Experiment:
         self.logger = logging.getLogger(config.log.time_stamp)
 
         z_out = None
-        data_configs = [
-            config.eval_.eval_train_data,
-            config.eval_.valid_data,
-            config.eval_.test_data,
-        ]
+        data_configs = [config.eval_.eval_train_data, config.eval_.valid_data, config.eval_.test_data]
         if config.train is not None:
             data_configs.append(config.train.data)
 
@@ -100,17 +86,10 @@ class Experiment:
             else:
                 assert z_out == data_config.z_out, (z_out, data_config.z_out)
 
-        z_out_kwarg = {}
-        if z_out is not None:
-            if "z_out" in config.model.kwargs:
-                assert z_out == config.model.kwargs["z_out"], (z_out, config.model.kwargs["z_out"])
-            else:
-                z_out_kwarg = {"z_out": z_out}
-
         devices = list(range(torch.cuda.device_count()))
         assert len(devices) == 1, "single gpu for now only"
         self.device = torch.device("cuda", devices[0])
-        self.model = config.model.Model(nnum=config.model.nnum, **z_out_kwarg, **config.model.kwargs).to(
+        self.model = config.model.Model(nnum=config.model.nnum, z_out=z_out, **config.model.kwargs).to(
             device=self.device, dtype=self.dtype
         )
         self.model.cuda()
@@ -185,7 +164,9 @@ class Experiment:
         if validator:
             validator.add_event_handler(Events.COMPLETED, saver, {"model": self.model})  # , "optimizer": optimizer})
             if trainer:
-                stopper = EarlyStopping(patience=config.train.patience, score_function=self.score_function, trainer=trainer)
+                stopper = EarlyStopping(
+                    patience=config.train.patience, score_function=self.score_function, trainer=trainer
+                )
                 validator.add_event_handler(Events.COMPLETED, stopper)
         elif trainer:
             trainer.add_event_handler(Events.COMPLETED, saver, {"model": self.model})
@@ -194,7 +175,6 @@ class Experiment:
             master_engine = trainer
         else:
             master_engine = tester
-
 
         def log_train_scalars(engine: TrainEngine, step: int):
             writer.add_scalar(f"{engine.name}/loss", engine.state.output.loss, step)
@@ -366,10 +346,7 @@ class Experiment:
                 if engine.data_config.z_out is not None:
                     batches.append(self.config.log.dir / engine.name / "target")
 
-                engine.state.result = Result(
-                    *batches,
-                    **concat_kwargs,
-                )
+                engine.state.result = Result(*batches, **concat_kwargs)
 
             @engine.on(Events.ITERATION_COMPLETED)
             def save_result(engine: EvalEngine):
@@ -378,9 +355,7 @@ class Experiment:
                 batches = [output.ipt, output.pred]
                 if engine.data_config.z_out is not None:
                     batches.append(output.tgt)
-                engine.state.result.update(
-                    *[batch.detach().cpu().numpy() for batch in batches], at=start
-                )
+                engine.state.result.update(*[batch.detach().cpu().numpy() for batch in batches], at=start)
                 engine.state.sequential_sample_nr_for_result += output.ipt.shape[0]
 
         if train_evaluator:
@@ -394,6 +369,7 @@ class Experiment:
             add_save_result(tester)
 
         if trainer:
+
             @trainer.on(Events.ITERATION_COMPLETED)
             def log_training_iteration(engine: TrainEngine):
                 iteration = engine.state.iteration

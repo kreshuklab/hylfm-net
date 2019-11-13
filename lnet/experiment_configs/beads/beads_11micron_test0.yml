@@ -1,0 +1,57 @@
+model:
+  name: M12
+  kwargs: {final_activation: null}
+  nnum: 19
+  z_out: 49
+  precision: float
+#  checkpoint: "/g/kreshuk/beuttenm/repos/lensletnet/logs/beads/00_LS0/8/19-09-19_14-28_db5e04e_8-0/models/v0_model_887.pth"
+# todo: move checkpoint to a 'trained' category that keeps track of training history
+
+log:
+    log_scalars_every: [1, iteration_completed]
+    log_images_every: [1, epoch_completed]
+    log_bead_precision_recall: false
+    save_n_checkpoints: 1
+
+train:
+  loss:
+    name: WeightedL1Loss
+    kwargs: {threshold: 1.0, initial_weight: .1, apply_below_threshold: true, decay_by: .99, every_nth_epoch: 1}
+
+  optimizer:
+    name: Adam
+    kwargs: {lr: 2.0e-4, eps: 1.0e-8}
+
+  max_num_epochs: 5000
+  validate_every_nth_epoch: 1
+  score_function: MS-SSIM
+  patience: 50
+
+  data:
+    batch_size: 1
+    transforms:
+      - {name: norm01, kwargs: {apply_to: 0, percentile_min: 5.0, percentile_max: 99.8}}
+      - {name: norm01, kwargs: {apply_to: 1, percentile_min: 5.0, percentile_max: 99.8}}
+      - {name: additive_gaussian_noise, kwargs: {apply_to: 0, sigma: 0.1}}
+      - {name: additive_gaussian_noise, kwargs: {apply_to: 1, sigma: 0.1}}
+      - RandomRotate
+      - RandomFlipXYnotZ
+      - Lightfield2Channel
+
+    beads_11micron_0:
+      indices: 5-40
+
+eval:
+  batch_size: 1
+  transforms:
+    - {name: norm01, kwargs: {apply_to: 0, percentile_min: 5.0, percentile_max: 99.8}}
+    - {name: norm01, kwargs: {apply_to: 1, percentile_min: 5.0, percentile_max: 99.8}}
+    - Lightfield2Channel
+
+  valid_data:
+    beads_11micron_0:
+      indices: 0
+
+  test_data:
+    beads_11micron_0:
+      indices: 1-5

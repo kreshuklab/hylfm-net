@@ -121,6 +121,7 @@ class DataConfig:
             N5Dataset(
                 info=entry.info,
                 scaling=(scaling[0] / model_config.nnum, scaling[1] / model_config.nnum),
+                z_out=model_config.z_out,
                 interpolation_order=3,
                 save=True,
                 transforms=entry.transforms,

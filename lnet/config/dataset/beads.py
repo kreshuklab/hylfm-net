@@ -68,6 +68,22 @@ bead01_0 = NamedDatasetInfo(
 
 
 bead02_test0 = NamedDatasetInfo(
-    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191024_Beam_Beads/Beads/TrainingData/2019-10-24_03.52.50_afterThis_HomogeneousLFillum/stack_0_channel_0/TP_00000"), "RC_rectified",
-    description="bead02_test0"
+    Path(""),
+    "/g/kreshuk/beuttenm/tmp/Cam_Right_rectified*.tif",
+    "/g/hufnagel/LF/LenseLeNet_Microscope/20191024_Beam_Beads/Beads/TrainingData/2019-10-24_03.52.50_afterThis_HomogeneousLFillum/stack_1_channel_2/TP_00000/LC/Cam_Left_registered*.tif",
+    description="bead02_test0",
+)
+
+bead03_test0 = NamedDatasetInfo(
+    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_1micron/2019-10-30_07.23.55"),
+    "stack_0_channel_0/TP_00000/RC_rectified",
+    "stack_1_channel_1/TP_00000/LC/Registration_fromTemplateXML",
+    description="bead03_test0",
+)
+
+beads_11micron_0 = NamedDatasetInfo(
+    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_11micron/2019-10-30_09.37.45"),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_11micron_0",
 )

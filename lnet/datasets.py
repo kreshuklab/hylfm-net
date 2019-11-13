@@ -1,4 +1,6 @@
 import logging
+import warnings
+
 import numpy
 import os
 import re
@@ -55,6 +57,7 @@ class N5Dataset(torch.utils.data.Dataset):
         self,
         info: NamedDatasetInfo,
         scaling: Tuple[float, float],
+        z_out: int,
         interpolation_order: int = 3,
         save: bool = True,
         transforms: Optional[List[Union[Transform, Callable[[DatasetStat], Generator[Transform, None, None]]]]] = None,
@@ -67,26 +70,50 @@ class N5Dataset(torch.utils.data.Dataset):
         x_roi = info.x_roi
         y_roi = info.y_roi
 
+        def split_off_glob(path: Path) -> Tuple[Path, str]:
+            not_glob = path.as_posix().split("*")[0]
+            valid_path = Path(not_glob[: not_glob.rfind("/")])
+            glob_str = path.relative_to(valid_path).as_posix()
+            return valid_path, glob_str
+
+        if x_folder.exists():
+            x_glob = "*.tif"
+        elif "*" in x_folder.as_posix():
+            x_folder, x_glob = split_off_glob(x_folder)
+            logger.info("split x_folder into %s and %s", x_folder, x_glob)
+        else:
+            raise NotImplementedError
+
         assert x_folder.exists(), x_folder.absolute()
-        x_img_name = next(x_folder.glob("*.tif")).as_posix()
+        x_img_name = next(x_folder.glob(x_glob)).as_posix()
         original_x_shape: Tuple[int, int] = imread(x_img_name)[x_roi].shape
+        self.z_out = z_out
         if y_folder:
-            assert y_folder.exists(), y_folder.absolute()
             self.with_target = True
+            if y_folder.exists():
+                y_glob = "*.tif"
+            elif "*" in y_folder.as_posix():
+                y_folder, y_glob = split_off_glob(y_folder)
+                logger.info("split y_folder into %s and %s", y_folder, y_glob)
+            else:
+                raise NotImplementedError
+
+            assert y_folder.exists(), y_folder.absolute()
             try:
-                img_name = next(y_folder.glob("*.tif")).as_posix()
+                img_name = next(y_folder.glob(y_glob)).as_posix()
             except StopIteration:
                 logger.error(y_folder.absolute())
                 raise
 
             original_y_shape = imread(img_name)[y_roi].shape
+            if original_y_shape[0] != z_out:
+                warnings.warn("interpolating in z!")
+
             logger.info("determined shape of %s to be %s", img_name, original_y_shape)
-            self.z_out = original_y_shape[0]
             assert original_y_shape[1:] == original_x_shape, (original_y_shape[1:], original_x_shape)
             y_shape = (1, self.z_out) + tuple([oxs * sc for oxs, sc in zip(original_x_shape, scaling)])
         else:
             self.with_target = False
-            self.z_out = None
             y_shape = None
 
         x_shape = (1,) + original_x_shape
@@ -109,27 +136,41 @@ class N5Dataset(torch.utils.data.Dataset):
             f"x shape: {x_shape}\ny shape: {y_shape}\n"
             f"x_folder: {x_folder}\ny_folder: {y_folder}"
         )
-        data_file_name = (
-            data_folder
-            / f"{name}_{hash(shapestr.encode()).hexdigest()}.n5"
-        )
+        data_file_name = data_folder / f"{name}_{hash(shapestr.encode()).hexdigest()}.n5"
         with Path(data_file_name.as_posix().replace(".n5", ".txt")).open("w") as f:
             f.write(shapestr)
+
+        def get_paths_and_numbers(folder: Path, glob_expr: str):
+            found_paths = list(Path(folder).glob(glob_expr))
+            glob_numbers = [nr for nr in re.findall(r"\d+", glob_expr)]
+            logger.info("found numbers %s in glob_exp %s", glob_numbers, glob_expr)
+            numbers = [
+                tuple(int(nr) for nr in re.findall(r"\d+", p.relative_to(folder).as_posix()) if nr not in glob_numbers)
+                for p in found_paths
+            ]
+            logger.info("found number tuples %s in folder %s", numbers, folder)
+            return [p.as_posix() for p in found_paths], numbers
 
         logger.info("data_file_name %s", data_file_name)
         if data_file_name.exists():
             self.data_file = z5py.File(path=data_file_name.as_posix(), mode="r", use_zarr_format=False)
             self._len = self.data_file["x"].shape[0]
         else:
-            raw_x_paths = list(map(str, Path(x_folder).glob("*.tif")))
-            x_numbers = [tuple(int(nr) for nr in re.findall(r"\d+", os.path.basename(p))) for p in raw_x_paths]
-
+            raw_x_paths, x_numbers = get_paths_and_numbers(x_folder, x_glob)
             common_numbers = set(x_numbers)
             if self.with_target:
-                raw_y_paths = list(map(str, Path(y_folder).glob("*.tif")))
-                y_numbers = [tuple(int(nr) for nr in re.findall(r"\d+", os.path.basename(p))) for p in raw_y_paths]
+                raw_y_paths, y_numbers = get_paths_and_numbers(y_folder, y_glob)
                 common_numbers &= set(y_numbers)
-                assert len(common_numbers) > 1, (set(x_numbers), set(y_numbers))
+                assert len(common_numbers) > 1 or len(set(x_numbers) | set(y_numbers)) == 1, (
+                    "x",
+                    set(x_numbers),
+                    "y",
+                    set(y_numbers),
+                    "x|y",
+                    set(x_numbers) | set(y_numbers),
+                    "x&y",
+                    set(x_numbers) & set(y_numbers),
+                )
                 y_paths = sorted([p for p, yn in zip(raw_y_paths, y_numbers) if yn in common_numbers])
 
             x_paths = sorted([p for p, xn in zip(raw_x_paths, x_numbers) if xn in common_numbers])
@@ -281,7 +322,7 @@ class N5Dataset(torch.utils.data.Dataset):
 
             x = self.data_file["x"][item]
             if self.with_target:
-                y =  self.data_file["y"][item]
+                y = self.data_file["y"][item]
 
         if self.transform is not None:
             logger.debug("apply transform %s", self.transform)
