@@ -38,7 +38,7 @@ train:
       - RandomFlipXYnotZ
       - Lightfield2Channel
 
-    beads_11micron_0:
+    beads_11mu_0:
       indices: 5-40
 
 eval:
@@ -49,9 +49,9 @@ eval:
     - Lightfield2Channel
 
   valid_data:
-    beads_11micron_0:
+    beads_11mu_0:
       indices: 0
 
   test_data:
-    beads_11micron_0:
+    beads_11mu_0:
       indices: 1-5

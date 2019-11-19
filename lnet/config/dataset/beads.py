@@ -81,9 +81,110 @@ bead03_test0 = NamedDatasetInfo(
     description="bead03_test0",
 )
 
-beads_11micron_0 = NamedDatasetInfo(
+beads_11mu_0 = NamedDatasetInfo(
     Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_11micron/2019-10-30_09.37.45"),
     "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
     "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
-    description="beads_11micron_0",
+    description="beads_11mu_0",
+)
+
+# beads_1mu_0 2019-10-30_05.20.28_withSimultIllum
+# beads_1mu_1 2019-10-30_05.54.12_withSimultIllum
+beads_1mu_2 = NamedDatasetInfo(
+    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_1micron/2019-10-30_06.25.24"),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_1mu_2",
+)
+# corrected name:
+beads_01mu_2 = beads_1mu_2
+
+beads_1mu_3 = NamedDatasetInfo(
+    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_1micron/2019-10-30_06.44.56"),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_1mu_3",
+)
+# corrected name:
+beads_01mu_3 = beads_1mu_3
+
+beads_1mu_4 = NamedDatasetInfo(
+    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_1micron/2019-10-30_07.04.52"),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_1mu_4",
+)
+# corrected name:
+beads_01mu_4 = beads_1mu_4
+
+beads_1mu_5 = NamedDatasetInfo(
+    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_1micron/2019-10-30_07.23.55"),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_1mu_5",
+)
+# corrected name:
+beads_01mu_5 = beads_1mu_5
+
+beads_4mu_0 = NamedDatasetInfo(
+    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.15.32"),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_4mu_0",
+)
+
+beads_4mu_1 = NamedDatasetInfo(
+    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.34.35"),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_4mu_1",
+)
+
+beads_4mu_2 = NamedDatasetInfo(
+    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.53.53"),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_4mu_2",
+)
+
+
+beads_4mu_3 = NamedDatasetInfo(
+    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_4micron/2019-10-30_09.14.05"),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_4mu_3",
+)
+
+beads_01mix4_0 = NamedDatasetInfo(
+    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191031_Beads_MixedSizes/Beads_mixed01and4microns/2019-10-31_02.27.33"),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_01mix4_0",
+)
+
+beads_01highc_0 = NamedDatasetInfo(
+    Path(
+        "/g/hufnagel/LF/LenseLeNet_Microscope/20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02"
+    ),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_01highc_0",
+)
+
+beads_01highc_1 = NamedDatasetInfo(
+    Path(
+        "/g/hufnagel/LF/LenseLeNet_Microscope/20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_03.01.49"
+    ),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_01highc_1",
+)
+
+beads_01highc_2 = NamedDatasetInfo(
+    Path(
+        "/g/hufnagel/LF/LenseLeNet_Microscope/20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13"
+    ),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_01highc_2",
 )

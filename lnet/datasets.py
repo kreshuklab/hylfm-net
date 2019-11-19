@@ -364,6 +364,6 @@ class Result(torch.utils.data.Dataset):
                 assert len(batch.shape) == 4 or len(batch.shape) == 5, batch.shape
                 # batch = (batch.clip(min=0, max=1) * numpy.iinfo(numpy.uint16).max).astype(numpy.uint16)
                 for i, img in enumerate(batch, start=at):
-                    ds_idx = numpy.searchsorted(self.cumsum, i).item()
+                    ds_idx = numpy.searchsorted(self.cumsum, i, side="right").item()
                     offset = self.cumsum[ds_idx - 1] if ds_idx else 0
                     executor.submit(imsave, (self.folders[ds_idx][bi] / f"{i - offset:04.0f}.tif").as_posix(), img)

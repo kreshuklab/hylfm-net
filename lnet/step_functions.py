@@ -48,15 +48,17 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
             aux_losses = [w * lf(aux_pred, tgt) for w, lf in engine.state.aux_loss]
             aux_loss = sum(aux_losses)
 
-    if tgt is not None:
+    if tgt is None or not engine.state.loss:
+        losses = []
+        voxel_losses = []
+        loss = torch.FloatTensor((0.0,))
+        if tgt is None:
+            tgt = torch.FloatTensor((0.0,))
+    else:
         raw_losses = [(w, lf(pred, tgt)) for w, lf in engine.state.loss]
         losses = [w * rl[0] for w, rl in raw_losses]
         voxel_losses = [w * rl[1] for w, rl in raw_losses if rl[1] is not None]
-    else:
-        losses = []
-        voxel_losses = []
-
-    loss = sum(losses)
+        loss = sum(losses)
 
     if has_aux:
         total_loss = loss + aux_loss
@@ -66,9 +68,6 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
     if train:
         total_loss.backward()
         optimizer.step()
-    elif tgt is None:
-        loss = torch.FloatTensor((0.0,))
-        tgt = torch.FloatTensor((0.0,))
 
     engine.state.compute_time += perf_counter() - start
     if has_aux:

@@ -52,7 +52,7 @@ class DataConfigEntry:
 
     @staticmethod
     def indice_string_to_list(indice_string: Optional[Union[str, int]]) -> Optional[List[int]]:
-        if not indice_string:
+        if indice_string is None:
             return None
         elif isinstance(indice_string, int):
             return [indice_string]

@@ -310,11 +310,20 @@ class Experiment:
             #         met[BEAD_RECALL] = brecall
             #         available_metrics.append(BEAD_RECALL)
 
-            def log_metric(m: str):
-                writer.add_scalar(f"{engine.name}/{m}", metrics[m], master_engine.state.epoch)
+            def log_metric(m: str, value=None):
+                if value is None:
+                    if m == BEAD_PRECISION_RECALL:
+                        p, r = metrics[m]
+                        log_metric("Bead-Precision", p)
+                        log_metric("Bead-Recall", r)
+                        return
+                    else:
+                        value = metrics[m]
+
+                writer.add_scalar(f"{engine.name}/{m}", value, master_engine.state.epoch)
                 metric_log_file = self.config.log.dir / engine.name / f"{m.lower()}.txt"
                 with metric_log_file.open(mode="a") as file:
-                    file.write(f"{master_engine.state.epoch}\t{metrics[m]}\n")
+                    file.write(f"{master_engine.state.epoch}\t{value}\n")
 
             [log_metric(m) for m in metrics]
             log_images(engine, master_engine.state.epoch)
