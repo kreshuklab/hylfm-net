@@ -31,6 +31,7 @@ class NamedDatasetInfo:
         y_roi: Tuple[slice, slice, slice] = (slice(None), slice(None), slice(None)),
         stat: Optional[DatasetStat] = None,
         interesting_paths: Optional[List[PathOfInterest]] = None,
+        length: Optional[int] = None,
     ):
         self.x_path = self.common_path / path / x_dir
         self.y_path = None if y_dir is None else self.common_path / path / y_dir
@@ -40,3 +41,4 @@ class NamedDatasetInfo:
         self.y_roi = y_roi
         self.stat = stat
         self.interesting_paths = interesting_paths
+        self.length = length

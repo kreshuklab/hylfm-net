@@ -2,6 +2,7 @@ from pathlib import Path
 
 from lnet.config.dataset import NamedDatasetInfo
 
+from .beads_simuillu import *
 
 bead00_LS0 = NamedDatasetInfo(
     Path("/g/hufnagel/LF/LenseLeNet_Microscope/20190531_MassiveGT_GenerationBeads_crop"),
@@ -88,43 +89,48 @@ beads_11mu_0 = NamedDatasetInfo(
     description="beads_11mu_0",
 )
 
-# beads_1mu_0 2019-10-30_05.20.28_withSimultIllum
-# beads_1mu_1 2019-10-30_05.54.12_withSimultIllum
-beads_1mu_2 = NamedDatasetInfo(
+
+beads_01mu_0 = NamedDatasetInfo(
+    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.20.28_withSimultIllum"),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_01mu_0",
+)
+
+beads_01mu_1 = NamedDatasetInfo(
+    Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.54.12_withSimultIllum"),
+    "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    description="beads_01mu_1",
+)
+
+beads_01mu_2 = NamedDatasetInfo(
     Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_1micron/2019-10-30_06.25.24"),
     "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
     "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     description="beads_1mu_2",
 )
-# corrected name:
-beads_01mu_2 = beads_1mu_2
 
-beads_1mu_3 = NamedDatasetInfo(
+beads_01mu_3 = NamedDatasetInfo(
     Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_1micron/2019-10-30_06.44.56"),
     "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
     "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     description="beads_1mu_3",
 )
-# corrected name:
-beads_01mu_3 = beads_1mu_3
 
-beads_1mu_4 = NamedDatasetInfo(
+beads_01mu_4 = NamedDatasetInfo(
     Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_1micron/2019-10-30_07.04.52"),
     "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
     "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     description="beads_1mu_4",
 )
-# corrected name:
-beads_01mu_4 = beads_1mu_4
 
-beads_1mu_5 = NamedDatasetInfo(
+beads_01mu_5 = NamedDatasetInfo(
     Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_1micron/2019-10-30_07.23.55"),
     "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
     "stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     description="beads_1mu_5",
 )
-# corrected name:
-beads_01mu_5 = beads_1mu_5
 
 beads_4mu_0 = NamedDatasetInfo(
     Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.15.32"),

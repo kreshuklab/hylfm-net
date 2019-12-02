@@ -86,6 +86,9 @@ class DataConfigEntry:
         if self.info is None:
             raise NotImplementedError(f"could not find named dataset info `{self.name}`")
 
+        if self.info.length is not None and self.indices is not None and self.info.length <= max(self.indices):
+            raise ValueError(f"{self.info.length} <= {max(self.indices)}")
+
     @classmethod
     def load(
         cls: "DataConfigEntry",
@@ -138,7 +141,10 @@ class DataConfig:
             self.z_out = None
 
         self.concat_dataset = ConcatDataset(
-            [ds if entry.indices is None else Subset(ds, entry.indices) for ds, entry in zip(self.datasets, self.entries)]
+            [
+                ds if entry.indices is None else Subset(ds, entry.indices)
+                for ds, entry in zip(self.datasets, self.entries)
+            ]
         )
 
         self.data_loader = DataLoader(

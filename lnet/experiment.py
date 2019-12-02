@@ -352,7 +352,9 @@ class Experiment:
                     self.config.log.dir / engine.name / "input",
                     self.config.log.dir / engine.name / "prediction",
                 ]
-                if engine.data_config.z_out is not None:
+                if engine.data_config.z_out is not None and not any(
+                    e.info.y_path is None for e in engine.data_config.entries
+                ):
                     batches.append(self.config.log.dir / engine.name / "target")
 
                 engine.state.result = Result(*batches, **concat_kwargs)
@@ -437,7 +439,6 @@ class Experiment:
             raise ValueError("Neither training nor testing is configured!")
 
         writer.close()
-        if self.config_path is not None:
-            with self.config_path.with_suffix(".ran_on.txt").open("a+") as f:
-                if self.config.log.commit_hash not in f.read().split("\n"):
-                    f.write(self.config.log.commit_hash)
+        # if self.config_path is not None:
+        #     with (self.config.log.dir / "ran_on.txt").open("w") as f:
+        #         f.write(self.config.log.commit_hash)
