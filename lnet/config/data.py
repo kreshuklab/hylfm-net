@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, ConcatDataset, Subset, RandomSampler, S
 
 from lnet.config.model import ModelConfig
 from lnet.config.utils import get_trfs_and_their_names
-from lnet.config.dataset import beads, platy, fish, NamedDatasetInfo
+from lnet.config.dataset import beads, platy, fish, NamedDatasetInfo, nema
 from lnet.datasets import N5Dataset
 from lnet.transforms import known_transforms, randomly_shape_changing_transforms
 from lnet.utils.batch_sampler import NoCrossBatchSampler
@@ -82,7 +82,7 @@ class DataConfigEntry:
                         f"randomly change shape (here: {t})"
                     )
 
-        self.info = getattr(beads, self.name, None) or getattr(fish, self.name, None) or getattr(platy, self.name, None)
+        self.info = getattr(beads, self.name, None) or getattr(fish, self.name, None) or getattr(platy, self.name, None) or getattr(nema, self.name)
         if self.info is None:
             raise NotImplementedError(f"could not find named dataset info `{self.name}`")
 

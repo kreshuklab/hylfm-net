@@ -13,15 +13,7 @@ from lnet.config.data import DataConfig
 from lnet.output import Output
 from lnet.metrics.output import OutputMetric
 
-from lnet.metrics import (
-    LOSS_NAME,
-    AUX_LOSS_NAME,
-    NRMSE_NAME,
-    PSNR_NAME,
-    SSIM_NAME,
-    MSSSIM_NAME,
-    BEAD_PRECISION_RECALL,
-)
+from lnet.metrics import LOSS_NAME, AUX_LOSS_NAME, NRMSE_NAME, PSNR_NAME, SSIM_NAME, MSSSIM_NAME, BEAD_PRECISION_RECALL
 from lnet.metrics import NRMSE, PSNR, SSIM, MSSSIM
 from lnet.metrics.beads import BeadPrecisionRecall
 
@@ -131,7 +123,7 @@ class EvalEngine(TunedEngine):
         super().__init__(
             process_function=process_function, config=config, logger=logger, model=model, data_config=data_config
         )
-        if data_config.z_out is not None:
+        if data_config.z_out is not None and not any(e.info.y_path is None for e in data_config.entries):
             MSSSIM().attach(self, MSSSIM_NAME)
             NRMSE().attach(self, NRMSE_NAME)
             PSNR(data_range=2.5).attach(self, PSNR_NAME)

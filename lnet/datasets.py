@@ -358,6 +358,7 @@ class Result(torch.utils.data.Dataset):
         # self.file = z5py.File(path=file_path.as_posix(), mode="w", use_zarr_format=False)
 
     def update(self, *batches: numpy.ndarray, at: int):
+        batches = [b for b in batches if b.shape != (1, )]
         assert len(batches) == len(self.folders[0]), (len(batches), len(self.folders[0]))
         with ThreadPoolExecutor(max_workers=8) as executor:
             for bi, batch in enumerate(batches):
