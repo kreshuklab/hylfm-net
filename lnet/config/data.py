@@ -69,7 +69,7 @@ class DataConfigEntry:
         )
         self.transforms.append(known_transforms["Cast"](model_config=model_config, kwargs={}))
         if hasattr(model_config.Model, "get_shrinkage"):
-            self.transforms.append(EdgeCrop(model_config.Model.get_shrinkage(), apply_to=[1]))
+            self.transforms.append(EdgeCrop(model_config.Model(nnum=model_config.nnum, z_out=1, **model_config.kwargs).get_shrinkage(), apply_to=[1]))
 
         if self.batch_size is None:
             raise ValueError(f"batch size not specified for {self.name}")
@@ -119,17 +119,17 @@ class DataConfig:
     z_out: Optional[int] = field(init=False)
 
     def __post_init__(self, model_config: ModelConfig):
-        scaling = getattr(models, model_config.name).get_scaling()
         self.datasets: List[N5Dataset] = [
             N5Dataset(
                 info=entry.info,
-                scaling=(scaling[0] / model_config.nnum, scaling[1] / model_config.nnum),
+                scaling=None,
                 z_out=model_config.z_out,
                 interpolation_order=3,
                 save=True,
                 transforms=entry.transforms,
-            )
-            for entry in self.entries
+                model_config=model_config,
+            )        for entry in self.entries
+
         ]
 
         # todo: move to project specific code:

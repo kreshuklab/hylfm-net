@@ -3,7 +3,7 @@ from typing import Type, Dict, Any, Optional
 
 from attr import dataclass
 from lnet import models
-from lnet.models.lnet import LnetModel
+from lnet.models.base import LnetModel
 
 
 @dataclass

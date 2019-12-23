@@ -12,6 +12,9 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from hashlib import sha224 as hash
 from inferno.io.transform import Transform, Compose
 from pathlib import Path
+
+from lnet import models
+from lnet.config.model import ModelConfig
 from scipy.ndimage import zoom
 from tifffile import imread, imsave
 from typing import List, Optional, Tuple, Union, Callable, Sequence, Generator, Dict, Any
@@ -56,13 +59,15 @@ class N5Dataset(torch.utils.data.Dataset):
     def __init__(
         self,
         info: NamedDatasetInfo,
-        scaling: Tuple[float, float],
+        scaling: Optional[Tuple[float, float]],
         z_out: int,
         interpolation_order: int = 3,
         save: bool = True,
         transforms: Optional[List[Union[Transform, Callable[[DatasetStat], Generator[Transform, None, None]]]]] = None,
         data_folder: Optional[Path] = None,
+        model_config: Optional[ModelConfig] = None
     ):
+        assert scaling is not None or model_config is not None
         super().__init__()
         name = info.description
         x_folder = info.x_path
@@ -88,6 +93,7 @@ class N5Dataset(torch.utils.data.Dataset):
         x_img_name = next(x_folder.glob(x_glob)).as_posix()
         original_x_shape: Tuple[int, int] = imread(x_img_name)[x_roi].shape
         self.z_out = z_out
+        x_shape = (1,) + original_x_shape
         if y_folder:
             self.with_target = True
             if y_folder.exists():
@@ -111,12 +117,16 @@ class N5Dataset(torch.utils.data.Dataset):
 
             logger.info("determined shape of %s to be %s", img_name, original_y_shape)
             assert original_y_shape[1:] == original_x_shape, (original_y_shape[1:], original_x_shape)
+            if scaling is None:
+                assert model_config is not None
+                model_scaling = getattr(models, model_config.name)(nnum=model_config.nnum, z_out=1, **model_config.kwargs).get_scaling(x_shape)
+                scaling = (model_scaling[0] / model_config.nnum, model_scaling[1] / model_config.nnum)
+
             y_shape = (1, self.z_out) + tuple([oxs * sc for oxs, sc in zip(original_x_shape, scaling)])
         else:
             self.with_target = False
             y_shape = None
 
-        x_shape = (1,) + original_x_shape
 
         if data_folder is None:
             data_folder = os.environ.get("DATA_FOLDER", None)

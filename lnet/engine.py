@@ -8,7 +8,7 @@ from ignite.engine import Engine, Events
 from ignite.handlers import TerminateOnNan
 from torch.utils.data import DataLoader
 
-from lnet.config.config import Config
+from lnet.config.base import Config
 from lnet.config.data import DataConfig
 from lnet.output import Output
 from lnet.metrics.output import OutputMetric

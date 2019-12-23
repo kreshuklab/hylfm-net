@@ -14,7 +14,7 @@ from typing import Union, Optional, Callable, Tuple, Iterable
 
 from torch.utils.data import ConcatDataset
 
-from lnet.config.config import Config
+from lnet.config.base import Config
 from lnet.datasets import Result
 from lnet.engine import TunedEngine, TrainEngine, EvalEngine
 from lnet.output import Output, AuxOutput
@@ -257,7 +257,9 @@ class Experiment:
                 make_subplot(ax[i], "prediction", pb[0].max(axis=0), boxes=boxes, side_view=pb[0].max(axis=2).T)
                 if tb is not None:
                     make_subplot(ax[i], "target", tb[0].max(axis=0), boxes=boxes, side_view=tb[0].max(axis=2).T)
-                    rel_diff = (numpy.abs(pb - tb) / (numpy.abs(pb) + numpy.abs(tb) + 1e-6))[0]
+                    tb_abs = numpy.abs(tb) + 0.1
+                    pb_abs = numpy.abs(pb) + 0.1
+                    rel_diff = numpy.max([tb_abs / pb_abs, pb_abs / tb_abs], axis=0)[0]
                     abs_diff = numpy.abs(pb - tb)[0]
                     make_subplot(ax[i], "rel diff", rel_diff.max(axis=0), side_view=rel_diff.max(axis=2).T)
                     make_subplot(ax[i], "abs_diff", abs_diff.max(axis=0), side_view=abs_diff.max(axis=2).T)
