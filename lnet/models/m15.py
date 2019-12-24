@@ -1,7 +1,3 @@
-# if __name__ == "__main__":
-#     import sys
-#     sys.path.append("/g/kreshuk/beuttenm/repos/lnet/")
-
 from typing import Tuple, Optional
 import logging
 import torch.nn
@@ -11,25 +7,23 @@ from functools import partial
 
 from inferno.extensions.initializers import Initialization, Constant
 
-from lnet.models.layers.conv_layers import Conv2D, ValidConv2D, ValidConv3D, ResnetBlock
+from lnet.models.layers.conv_layers import Conv2D, ValidConv3D, ResnetBlock
 from lnet.models.layers.structural_layers import C2Z
 from lnet.models.base import LnetModel
 
 logger = logging.getLogger(__name__)
 
 
-class M12(LnetModel):
+class M15(LnetModel):
     def __init__(self, z_out: int, nnum: int, final_activation: Optional[str] = None):
         super().__init__()
         inplanes = nnum ** 2
-        planes = 64
         z_valid_cut = 10
         z_out += z_valid_cut
-        self.res2d_1 = ResnetBlock(in_n_filters=inplanes, n_filters=planes, valid=False)
-        self.res2d_2 = ResnetBlock(in_n_filters=planes, n_filters=planes, valid=False)
-        self.res2d_3 = ResnetBlock(in_n_filters=planes, n_filters=planes, valid=False)
-
-        inplanes = planes
+        self.res2d_1 = ResnetBlock(in_n_filters=inplanes, n_filters=128, valid=False)
+        self.res2d_2 = ResnetBlock(in_n_filters=128, n_filters=96, valid=False)
+        self.res2d_3 = ResnetBlock(in_n_filters=96, n_filters=96, valid=False)
+        inplanes = 96
         planes = z_out
         init = partial(
             Initialization,
@@ -116,11 +110,3 @@ class M12(LnetModel):
         return tuple(
             [i * sc - 2 * sr for i, sc, sr in zip(ipt_shape, self.get_scaling(), self.get_shrinkage())]
         )
-
-if __name__ == "__main__":
-    # import sys
-    # sys.path.append("/g/kreshuk/beuttenm/repos/lnet")
-    ipt = torch.ones(1, 19**2, 10, 20)
-    model = M12(z_out=7, nnum=19)
-    print('srhink')
-    print((ipt).shape)

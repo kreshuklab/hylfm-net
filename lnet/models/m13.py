@@ -4,7 +4,7 @@ import torch.nn
 from inferno.extensions.initializers import Initialization, Constant
 from typing import Tuple, Optional
 import torch.nn as nn
-from lnet.models.lnet import LnetModel
+from lnet.models.base import LnetModel
 
 from lnet.models.layers.conv_layers import Conv2D, ValidConv2D, ValidConv3D, ResnetBlock
 from lnet.models.layers.structural_layers import C2Z

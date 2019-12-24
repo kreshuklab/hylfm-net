@@ -1,7 +1,3 @@
-# if __name__ == "__main__":
-#     import sys
-#     sys.path.append("/g/kreshuk/beuttenm/repos/lnet/")
-
 from typing import Tuple, Optional
 import logging
 import torch.nn
@@ -18,42 +14,37 @@ from lnet.models.base import LnetModel
 logger = logging.getLogger(__name__)
 
 
-class M12(LnetModel):
+class M18(LnetModel):
     def __init__(self, z_out: int, nnum: int, final_activation: Optional[str] = None):
         super().__init__()
         inplanes = nnum ** 2
-        planes = 64
         z_valid_cut = 10
         z_out += z_valid_cut
-        self.res2d_1 = ResnetBlock(in_n_filters=inplanes, n_filters=planes, valid=False)
-        self.res2d_2 = ResnetBlock(in_n_filters=planes, n_filters=planes, valid=False)
-        self.res2d_3 = ResnetBlock(in_n_filters=planes, n_filters=planes, valid=False)
+        self.res2d_1 = ResnetBlock(in_n_filters=inplanes, n_filters=256, valid=False)
+        # self.res2d_2 = ResnetBlock(in_n_filters=256, n_filters=128, valid=False)
 
-        inplanes = planes
-        planes = z_out
         init = partial(
             Initialization,
             weight_initializer=partial(nn.init.xavier_uniform_, gain=nn.init.calculate_gain("relu")),
             bias_initializer=Constant(0.0),
         )
-        self.conv2 = Conv2D(inplanes, planes, (3, 3), activation="ReLU", initialization=init)
+        self.conv2 = Conv2D(256, z_out * 2, (3, 3), activation="ReLU", initialization=init)
 
         self.c2z = C2Z(z_out)
-        inplanes = self.c2z.get_c_out(planes)
-        planes = 64
-        self.red3d_1 = ResnetBlock(in_n_filters=inplanes, n_filters=planes, kernel_size=(3, 3, 3), valid=True)
+        inplanes = self.c2z.get_c_out(z_out * 2)
+        self.red3d_1 = ResnetBlock(in_n_filters=inplanes, n_filters=32, kernel_size=(3, 3, 3), valid=True)
         self.transposed_conv_1 = nn.ConvTranspose3d(
-            in_channels=planes,
-            out_channels=planes,
+            in_channels=32,
+            out_channels=32,
             kernel_size=(3, 2, 2),
             stride=(1, 2, 2),
             padding=(1, 0, 0),
             output_padding=0,
         )
-        self.red3d_2 = ResnetBlock(in_n_filters=planes, n_filters=planes, kernel_size=(3, 3, 3), valid=True)
+        self.red3d_2 = ResnetBlock(in_n_filters=32, n_filters=16, kernel_size=(3, 3, 3), valid=True)
         self.transposed_conv_2 = nn.ConvTranspose3d(
-            in_channels=planes,
-            out_channels=planes,
+            in_channels=16,
+            out_channels=16,
             kernel_size=(3, 2, 2),
             stride=(1, 2, 2),
             padding=(1, 0, 0),
@@ -64,7 +55,7 @@ class M12(LnetModel):
             weight_initializer=partial(nn.init.xavier_uniform_, gain=nn.init.calculate_gain("linear")),
             bias_initializer=Constant(0.0),
         )
-        self.out = ValidConv3D(planes, 1, (3, 3, 3), initialization=init)
+        self.out = ValidConv3D(16, 1, (3, 3, 3), initialization=init)
 
         if final_activation == "sigmoid":
             self.final_activation = torch.nn.Sigmoid()
@@ -78,9 +69,9 @@ class M12(LnetModel):
         # print(x.shape)
         x = self.res2d_1(x)
         # print(x.shape)
-        x = self.res2d_2(x)
+        # x = self.res2d_2(x)
         # print(x.shape)
-        x = self.res2d_3(x)
+        # x = self.res2d_3(x)
         # print(x.shape)
         x = self.conv2(x)
         # print(x.shape)
@@ -114,13 +105,5 @@ class M12(LnetModel):
 
     def get_output_shape(self, ipt_shape: Tuple[int, int]):
         return tuple(
-            [i * sc - 2 * sr for i, sc, sr in zip(ipt_shape, self.get_scaling(), self.get_shrinkage())]
+            [i * sc - 2 * sr for i, sc, sr in zip(ipt_shape, self.get_scaling(ipt_shape), self.get_shrinkage(ipt_shape))]
         )
-
-if __name__ == "__main__":
-    # import sys
-    # sys.path.append("/g/kreshuk/beuttenm/repos/lnet")
-    ipt = torch.ones(1, 19**2, 10, 20)
-    model = M12(z_out=7, nnum=19)
-    print('srhink')
-    print((ipt).shape)
