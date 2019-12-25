@@ -89,7 +89,7 @@ class Experiment:
         devices = list(range(torch.cuda.device_count()))
         assert len(devices) == 1, "single gpu for now only"
         self.device = torch.device("cuda", devices[0])
-        self.model = config.model.Model(nnum=config.model.nnum, z_out=z_out, **config.model.kwargs).to(
+        self.model = config.model.model.to(
             device=self.device, dtype=self.dtype
         )
         self.model.cuda()

@@ -68,8 +68,8 @@ class DataConfigEntry:
             model_config=model_config, transforms=self.transforms, conf=self.transform_configs
         )
         self.transforms.append(known_transforms["Cast"](model_config=model_config, kwargs={}))
-        if hasattr(model_config.Model, "get_shrinkage"):
-            self.transforms.append(EdgeCrop(model_config.Model(nnum=model_config.nnum, z_out=1, **model_config.kwargs).get_shrinkage(), apply_to=[1]))
+        if hasattr(model_config.model, "get_shrinkage"):
+            self.transforms.append(EdgeCrop(apply_to=[1], crop_fn=model_config.model.get_shrinkage))
 
         if self.batch_size is None:
             raise ValueError(f"batch size not specified for {self.name}")

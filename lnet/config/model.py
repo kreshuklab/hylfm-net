@@ -16,6 +16,7 @@ class ModelConfig:
     checkpoint: Optional[Path]
 
     name: str = None
+    _model: Optional[LnetModel] = None
 
     def __post_init__(self):
         assert self.precision == "float" or self.precision == "half"
@@ -40,3 +41,10 @@ class ModelConfig:
             checkpoint=None if checkpoint is None else Path(checkpoint),
             **config_kwargs,
         )
+
+    @property
+    def model(self):
+        if self._model is None:
+            self._model = self.Model(nnum=self.nnum, z_out=self.z_out, **self.kwargs)
+
+        return self._model

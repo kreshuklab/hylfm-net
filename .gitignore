@@ -1,6 +1,7 @@
 data/
 logs/
 lnet/experiment_configs/**/*.txt
+lnet/experiment_configs/slurm_output
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

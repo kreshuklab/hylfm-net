@@ -48,33 +48,44 @@ class M20(LnetModel):
             self.final_activation = None
 
     def forward(self, x):
-        out = self.tconv(x)
+        out = self.tconv(x)[:, None, ...]
         if self.final_activation is not None:
             out = self.final_activation(out)
 
         return out
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
-        shrinkage = self.get_shrinkage(ipt_shape)
-        out_shape = self.get_output_shape(ipt_shape)
-        return tuple((o + 2 * s) / i for o, s, i in zip(out_shape, shrinkage, ipt_shape))
+        if self.dilation != 1:
+            raise NotImplementedError
 
-    def get_shrinkage(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[int, int]:
+        return self.stride, self.stride
+        # shrinkage = self.get_shrinkage(ipt_shape)
+        # out_shape = self.get_output_shape(ipt_shape)
+        # return tuple((o + s) / i for o, s, i in zip(out_shape, shrinkage, ipt_shape))
+
+    def get_shrinkage(self, ipt_shape: Optional[Tuple[int, int]]) -> Tuple[int, int]:
         if self.output_padding != 0:
             raise NotImplementedError
 
-        return self.padding, self.padding
+        scale = self.get_scaling(ipt_shape)
+        upscaled = [i * s for i, s in zip(ipt_shape, scale)]
+        out = self.get_output_shape(ipt_shape)
+        diff = [u - o for u, o in zip(upscaled, out)]
+        assert all(d % 2 == 0 for d in diff), diff
+        # assert all(d //2 == self.padding for d in diff), (diff, self.padding)
 
-    def get_output_shape(self, ipt_shape: Tuple[int, int]) -> Tuple[int, int]:
-        return tuple(
+        return tuple(d // 2 for d in diff)
+
+    def get_output_shape(self, ipt_shape: Tuple[int, int]) -> Tuple[int, int, int]:
+        return (1, ) + tuple(
             (i - 1) * self.stride - 2 * self.padding + self.dilation * (self.kernel_size - 1) + self.output_padding + 1
             for i in ipt_shape
         )
 
 
 if __name__ == "__main__":
-    ipt = torch.ones(1, 19**2, 10, 20)
-    m20 = M20(z_out=7, nnum=19, kernel_size=4, padding=4, )
-    print('shrink', m20.get_shrinkage())
-    print('scale', m20.get_scaling(ipt.shape[-2:]))
+    ipt = torch.ones(1, 19 ** 2, 10, 20)
+    m20 = M20(z_out=7, nnum=19, kernel_size=8, padding=4, stride=4)
+    print("shrink", m20.get_shrinkage())
+    print("scale", m20.get_scaling(ipt.shape[-2:]))
     print(m20(ipt).shape)
