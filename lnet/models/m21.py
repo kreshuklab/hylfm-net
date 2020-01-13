@@ -28,7 +28,7 @@ class M21(LnetModel):
         assert len(n_res3d) >= 1, n_res3d
         super().__init__()
         self.n_res2d = n_res2d
-        n_res2d = [nnum**2] + list(n_res2d)
+        n_res2d = [nnum ** 2] + list(n_res2d)
         self.n_res3d = n_res3d
         self.z_out = z_out
         z_out += 4 * len(n_res3d)  # add z_out for valid 3d convs
@@ -111,17 +111,22 @@ class M21(LnetModel):
 
     def get_output_shape(self, ipt_shape: Tuple[int, int]) -> Tuple[int, int, int]:
         out2d = tuple(
-            (i - 1) * self.stride - 2 * self.padding + self.dilation * (self.kernel_size - 1) + self.output_padding + 1 - 4 * len(self.n_res3d)
+            (i - 1) * self.stride
+            - 2 * self.padding
+            + self.dilation * (self.kernel_size - 1)
+            + self.output_padding
+            + 1
+            - 4 * len(self.n_res3d)
             for i in ipt_shape
         )
-        return (self.z_out, ) + out2d
+        return (self.z_out,) + out2d
 
 
 if __name__ == "__main__":
     ipt = torch.ones(1, 19 ** 2, 10, 20)
     m = M21(z_out=7, nnum=19, kernel_size=8, padding=4, stride=4)
     print("scale", m.get_scaling(ipt.shape[-2:]))
-    print('out', m.get_output_shape(ipt.shape[-2:]))
+    print("out", m.get_output_shape(ipt.shape[-2:]))
     print("shrink", m.get_shrinkage(ipt.shape[-2:]))
-    print('len 3d', len(m.res3d))
+    print("len 3d", len(m.res3d))
     print(m(ipt).shape)

@@ -95,13 +95,19 @@ class Normalize01Sig(Transform):
 class EdgeCrop(Transform):
     """Crop evenly from both edges of the last m axes for nD tensors with n >= m."""
 
-    def __init__(self, apply_to: List[int], crop: Optional[Tuple[int, ...]] = None, crop_fn: Optional[Callable[[Tuple[int, ...]], Tuple[int, ...]]] = None, **super_kwargs):
+    def __init__(
+        self,
+        apply_to: List[int],
+        crop: Optional[Tuple[int, ...]] = None,
+        crop_fn: Optional[Callable[[Tuple[int, ...]], Tuple[int, ...]]] = None,
+        **super_kwargs
+    ):
         super().__init__(apply_to=apply_to, **super_kwargs)
         if crop_fn is None:
             if crop is None:
                 raise ValueError(crop)
 
-            self.crop_fn = lambda _ : crop
+            self.crop_fn = lambda _: crop
         else:
             self.crop_fn = crop_fn
 

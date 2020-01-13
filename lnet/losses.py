@@ -92,8 +92,16 @@ class SorensenDiceLoss(criteria.SorensenDiceLoss):
         loss = super().forward(input, target)
         return Loss(loss, None)
 
+
+class MSELoss(torch.nn.MSELoss):
+    def forward(self, input: Tensor, target: Tensor) -> Loss:
+        loss = super().forward(input, target)
+        return Loss(loss, None)
+
+
 known_losses = {
     "BCEWithLogitsLoss": lambda engine, kwargs: [(1.0, BCEWithLogitsLoss(**kwargs))],
     "SorensenDiceLoss": lambda engine, kwargs: [(1.0, SorensenDiceLoss(**kwargs))],
     "WeightedL1Loss": lambda engine, kwargs: [(1.0, WeightedL1Loss(engine=engine, **kwargs))],
+    "MSELoss": lambda engine, kwargs: [(1.0, MSELoss(**kwargs))],
 }
