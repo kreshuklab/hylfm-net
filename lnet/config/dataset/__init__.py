@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Tuple, Optional, List, Union
 
+import numpy
+
 from lnet.stat import DatasetStat
 
 
@@ -32,6 +34,8 @@ class NamedDatasetInfo:
         stat: Optional[DatasetStat] = None,
         interesting_paths: Optional[List[PathOfInterest]] = None,
         length: Optional[int] = None,
+        x_shape: Optional[Tuple[int, int]] = None,
+        y_shape: Optional[Tuple[int, int, int]] = None,
     ):
         self.x_path = self.common_path / path / x_dir
         self.y_path = None if y_dir is None else self.common_path / path / y_dir
@@ -42,3 +46,7 @@ class NamedDatasetInfo:
         self.stat = stat
         self.interesting_paths = interesting_paths
         self.length = length
+
+        self.x_shape = x_shape
+        self.y_shape = y_shape
+

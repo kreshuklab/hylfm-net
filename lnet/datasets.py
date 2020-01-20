@@ -17,7 +17,7 @@ from lnet import models
 from lnet.config.model import ModelConfig
 from scipy.ndimage import zoom
 from tifffile import imread, imsave
-from typing import List, Optional, Tuple, Union, Callable, Sequence, Generator, Dict, Any
+from typing import List, Optional, Tuple, Union, Callable, Sequence, Generator
 
 from lnet.config.dataset import NamedDatasetInfo
 from lnet.stat import DatasetStat
@@ -91,7 +91,12 @@ class N5Dataset(torch.utils.data.Dataset):
 
         assert x_folder.exists(), x_folder.absolute()
         x_img_name = next(x_folder.glob(x_glob)).as_posix()
-        original_x_shape: Tuple[int, int] = imread(x_img_name)[x_roi].shape
+        if info.x_shape is None:
+            original_x_shape: Tuple[int, int] = imread(x_img_name)[x_roi].shape
+            logger.info("determined x shape of %s to be %s", x_img_name, original_x_shape)
+        else:
+            original_x_shape = info.x_shape
+
         self.z_out = z_out
         x_shape = (1,) + original_x_shape
         if y_folder:
@@ -111,11 +116,15 @@ class N5Dataset(torch.utils.data.Dataset):
                 logger.error(y_folder.absolute())
                 raise
 
-            original_y_shape = imread(img_name)[y_roi].shape
+            if info.y_shape is None:
+                original_y_shape = imread(img_name)[y_roi].shape
+                logger.info("determined y shape of %s to be %s", img_name, original_y_shape)
+            else:
+                original_y_shape = info.y_shape
+
             if original_y_shape[0] != z_out:
                 warnings.warn("interpolating in z!")
 
-            logger.info("determined shape of %s to be %s", img_name, original_y_shape)
             assert original_y_shape[1:] == original_x_shape, (original_y_shape[1:], original_x_shape)
             if scaling is None:
                 assert model_config is not None

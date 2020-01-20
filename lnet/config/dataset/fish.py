@@ -189,3 +189,4 @@ regional_fish02_RL1 = RegionalFish(
 from .tuesday_fish import *
 # from .fish_20191209 import *
 from .fish_20191208 import *
+from .fish_20191207 import *
