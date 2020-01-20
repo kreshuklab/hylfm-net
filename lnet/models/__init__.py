@@ -7,3 +7,4 @@ from lnet.models.m18 import M18
 from lnet.models.m19 import M19
 from lnet.models.m20 import M20
 from lnet.models.m21 import M21
+from lnet.models.m22 import M22

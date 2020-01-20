@@ -65,7 +65,7 @@ class N5Dataset(torch.utils.data.Dataset):
         save: bool = True,
         transforms: Optional[List[Union[Transform, Callable[[DatasetStat], Generator[Transform, None, None]]]]] = None,
         data_folder: Optional[Path] = None,
-        model_config: Optional[ModelConfig] = None
+        model_config: Optional[ModelConfig] = None,
     ):
         assert scaling is not None or model_config is not None
         super().__init__()
@@ -128,14 +128,15 @@ class N5Dataset(torch.utils.data.Dataset):
             assert original_y_shape[1:] == original_x_shape, (original_y_shape[1:], original_x_shape)
             if scaling is None:
                 assert model_config is not None
-                model_scaling = getattr(models, model_config.name)(nnum=model_config.nnum, z_out=1, **model_config.kwargs).get_scaling(x_shape)
+                model_scaling = getattr(models, model_config.name)(
+                    nnum=model_config.nnum, z_out=1, **model_config.kwargs
+                ).get_scaling(x_shape)
                 scaling = (model_scaling[0] / model_config.nnum, model_scaling[1] / model_config.nnum)
 
             y_shape = (1, self.z_out) + tuple([oxs * sc for oxs, sc in zip(original_x_shape, scaling)])
         else:
             self.with_target = False
             y_shape = None
-
 
         if data_folder is None:
             data_folder = os.environ.get("DATA_FOLDER", None)
@@ -377,7 +378,7 @@ class Result(torch.utils.data.Dataset):
         # self.file = z5py.File(path=file_path.as_posix(), mode="w", use_zarr_format=False)
 
     def update(self, *batches: numpy.ndarray, at: int):
-        batches = [b for b in batches if b.shape != (1, )]
+        batches = [b for b in batches if b.shape != (1,)]
         assert len(batches) == len(self.folders[0]), (len(batches), len(self.folders[0]))
         with ThreadPoolExecutor(max_workers=8) as executor:
             for bi, batch in enumerate(batches):
