@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from lnet.config.dataset.registration import Heart_tightCrop_Transform
+
 from lnet.config.dataset import NamedDatasetInfo
 
 
@@ -12,6 +14,17 @@ fish1_20191208_0216_static = NamedDatasetInfo(
     "fish1_20191208_0216_static",
     length=4,
     y_shape=(838, 1273, 1463),
+)
+fish1_20191208_0216_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.16.30"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish1_20191208_0216_static_affine",
+    length=4,
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
 )
 
 fish1_20191208_0216_static_lr = NamedDatasetInfo(
@@ -34,6 +47,17 @@ fish1_20191208_0223_static = NamedDatasetInfo(
     length=5,
     y_shape=(838, 1273, 1463),
 )
+fish1_20191208_0223_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.23.01"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish1_20191208_0223_static_affine",
+    length=5,
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
+)
 
 
 fish1_20191208_0223_static_lr = NamedDatasetInfo(
@@ -54,6 +78,17 @@ fish1_20191208_0229_static = NamedDatasetInfo(
     "fish1_20191208_0229_static",
     length=5,
     y_shape=(838, 1273, 1463),
+)
+fish1_20191208_0229_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.29.34"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish1_20191208_0229_static_affine",
+    length=5,
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
 )
 
 
@@ -76,6 +111,17 @@ fish1_20191208_0235_static = NamedDatasetInfo(
     length=5,
     y_shape=(838, 1273, 1463),
 )
+fish1_20191208_0235_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.35.49"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish1_20191208_0235_static_affine",
+    length=5,
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
+)
 
 
 fish1_20191208_0235_static_lr = NamedDatasetInfo(
@@ -96,6 +142,17 @@ fish1_20191208_0242_static = NamedDatasetInfo(
     "fish1_20191208_0242_static",
     length=5,
     y_shape=(838, 1273, 1463),
+)
+fish1_20191208_0242_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.42.03"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish1_20191208_0242_static_affine",
+    length=5,
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
 )
 
 
@@ -118,6 +175,17 @@ fish1_20191208_0248_static = NamedDatasetInfo(
     length=5,
     y_shape=(838, 1273, 1463),
 )
+fish1_20191208_0248_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.48.24"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish1_20191208_0248_static_affine",
+    length=5,
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
+)
 
 
 fish1_20191208_0248_static_lr = NamedDatasetInfo(
@@ -138,6 +206,17 @@ fish1_20191208_0254_static = NamedDatasetInfo(
     "fish_20191208_0254_static",
     length=5,
     y_shape=(838, 1273, 1463),
+)
+fish1_20191208_0254_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.54.46"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish_20191208_0254_static_affine",
+    length=5,
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
 )
 
 
@@ -162,7 +241,18 @@ fish2_20191208_0815_static = NamedDatasetInfo(
     x_shape=(1273, 1463),
     y_shape=(838, 1273, 1463),
 )
-
+fish2_20191208_0815_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/Heart_tightCrop/5steps_stepsize8/2019-12-09_08.15.07"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish2_20191208_0815_static_affine",
+    length=1,
+    x_shape=(1273, 1463),
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
+)
 fish2_20191208_0815_static_lr = NamedDatasetInfo(
     Path("/g/kreshuk/"),
     "LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/Heart_tightCrop/5steps_stepsize8/2019-12-09_08.15.07/stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
@@ -183,6 +273,18 @@ fish2_20191209_0819_static = NamedDatasetInfo(
     length=5,
     x_shape=(1273, 1463),
     y_shape=(838, 1273, 1463),
+)
+fish2_20191209_0819_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/Heart_tightCrop/5steps_stepsize8/2019-12-09_08.19.40"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish2_20191209_0819_static_affine",
+    length=5,
+    x_shape=(1273, 1463),
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
 )
 
 fish2_20191209_0819_static_lr = NamedDatasetInfo(
@@ -206,6 +308,18 @@ fish2_20191209_0827_static = NamedDatasetInfo(
     x_shape=(1273, 1463),
     y_shape=(838, 1273, 1463),
 )
+fish2_20191209_0827_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/Heart_tightCrop/5steps_stepsize8/2019-12-09_08.27.14"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish2_20191209_0827_static_affine",
+    length=5,
+    x_shape=(1273, 1463),
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
+)
 
 fish2_20191209_0827_static_lr = NamedDatasetInfo(
     Path("/g/kreshuk/"),
@@ -227,6 +341,18 @@ fish2_20191209_0834_static = NamedDatasetInfo(
     length=5,
     x_shape=(1273, 1463),
     y_shape=(838, 1273, 1463),
+)
+fish2_20191209_0834_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/Heart_tightCrop/5steps_stepsize15/2019-12-09_08.34.44"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish2_20191209_0834_static_affine",
+    length=5,
+    x_shape=(1273, 1463),
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
 )
 
 fish2_20191209_0834_static_lr = NamedDatasetInfo(
@@ -250,6 +376,18 @@ fish2_20191209_0841_static = NamedDatasetInfo(
     x_shape=(1273, 1463),
     y_shape=(838, 1273, 1463),
 )
+fish2_20191209_0841_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/Heart_tightCrop/5steps_stepsize15/2019-12-09_08.41.41"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish2_20191209_0841_static_affine",
+    length=5,
+    x_shape=(1273, 1463),
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
+)
 
 fish2_20191209_0841_static_lr = NamedDatasetInfo(
     Path("/g/kreshuk/"),
@@ -271,6 +409,18 @@ fish2_20191209_0851_static = NamedDatasetInfo(
     length=5,
     x_shape=(1273, 1463),
     y_shape=(838, 1273, 1463),
+)
+fish2_20191209_0851_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/Heart_tightCrop/5steps_stepsize15/2019-12-09_08.51.01"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish2_20191209_0851_static_affine",
+    length=5,
+    x_shape=(1273, 1463),
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
 )
 
 fish2_20191209_0851_static_lr = NamedDatasetInfo(
@@ -294,6 +444,18 @@ fish2_20191209_0901_static = NamedDatasetInfo(
     x_shape=(1273, 1463),
     y_shape=(838, 1273, 1463),
 )
+fish2_20191209_0901_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/Heart_tightCrop/5steps_stepsize15/2019-12-09_09.01.28"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish2_20191209_0901_static_affine",
+    length=5,
+    x_shape=(1273, 1463),
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
+)
 
 fish2_20191209_0901_static_lr = NamedDatasetInfo(
     Path("/g/kreshuk/"),
@@ -315,6 +477,18 @@ fish2_20191209_0911_static = NamedDatasetInfo(
     length=5,
     x_shape=(1273, 1463),
     y_shape=(838, 1273, 1463),
+)
+fish2_20191209_0911_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/Heart_tightCrop/5steps_stepsize15/2019-12-09_09.11.59"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish2_20191209_0911_static_affine",
+    length=5,
+    x_shape=(1273, 1463),
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
 )
 
 fish2_20191209_0911_static_lr = NamedDatasetInfo(
@@ -338,6 +512,18 @@ fish2_20191209_0918_static = NamedDatasetInfo(
     x_shape=(1273, 1463),
     y_shape=(838, 1273, 1463),
 )
+fish2_20191209_0918_static_affine = NamedDatasetInfo(
+    Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/Heart_tightCrop/5steps_stepsize15/2019-12-09_09.18.01"
+    ),
+    "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "fish2_20191209_0918_static_affine",
+    length=5,
+    x_shape=(1273, 1463),
+    y_shape=(838, 1273, 1463),
+    AffineTransform=Heart_tightCrop_Transform,
+)
 
 fish2_20191209_0918_static_lr = NamedDatasetInfo(
     Path("/g/kreshuk/"),
@@ -349,7 +535,7 @@ fish2_20191209_0918_static_lr = NamedDatasetInfo(
     y_shape=(838, 1273, 1463),
 )
 
-#fish3
+# fish3
 fish3_20191210_0424_static = NamedDatasetInfo(
     Path("/g/kreshuk"),
     "LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish3/static/staticHeartFOV/20steps_stepsize5/2019-12-10_04.24.29/stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",

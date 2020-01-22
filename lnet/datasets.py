@@ -49,8 +49,8 @@ def resize(
 
 
 class N5Dataset(torch.utils.data.Dataset):
-    x_paths: List[Path]
-    y_paths: Optional[List[Path]]
+    x_paths: List[str]
+    y_paths: Optional[List[str]]
     z_out: Optional[int]
 
     data_file: Optional[z5py.File] = None
@@ -61,7 +61,7 @@ class N5Dataset(torch.utils.data.Dataset):
         info: NamedDatasetInfo,
         scaling: Optional[Tuple[float, float]],
         z_out: int,
-        interpolation_order: int = 3,
+        interpolation_order: int = 1,
         save: bool = True,
         transforms: Optional[List[Union[Transform, Callable[[DatasetStat], Generator[Transform, None, None]]]]] = None,
         data_folder: Optional[Path] = None,
@@ -72,8 +72,7 @@ class N5Dataset(torch.utils.data.Dataset):
         name = info.description
         x_folder = info.x_path
         y_folder = info.y_path
-        x_roi = info.x_roi
-        y_roi = info.y_roi
+        self.info = info
 
         def split_off_glob(path: Path) -> Tuple[Path, str]:
             not_glob = path.as_posix().split("*")[0]
@@ -92,7 +91,7 @@ class N5Dataset(torch.utils.data.Dataset):
         assert x_folder.exists(), x_folder.absolute()
         x_img_name = next(x_folder.glob(x_glob)).as_posix()
         if info.x_shape is None:
-            original_x_shape: Tuple[int, int] = imread(x_img_name)[x_roi].shape
+            original_x_shape: Tuple[int, int] = imread(x_img_name)[info.x_roi].shape
             logger.info("determined x shape of %s to be %s", x_img_name, original_x_shape)
         else:
             original_x_shape = info.x_shape
@@ -117,23 +116,35 @@ class N5Dataset(torch.utils.data.Dataset):
                 raise
 
             if info.y_shape is None:
-                original_y_shape = imread(img_name)[y_roi].shape
+                original_y_shape = imread(img_name)[info.y_roi].shape
                 logger.info("determined y shape of %s to be %s", img_name, original_y_shape)
+                assert original_y_shape[1:] == original_x_shape, (original_y_shape[1:], original_x_shape)
             else:
                 original_y_shape = info.y_shape
 
-            if original_y_shape[0] != z_out:
-                warnings.warn("interpolating in z!")
-
-            assert original_y_shape[1:] == original_x_shape, (original_y_shape[1:], original_x_shape)
             if scaling is None:
                 assert model_config is not None
                 model_scaling = getattr(models, model_config.name)(
-                    nnum=model_config.nnum, z_out=1, **model_config.kwargs
-                ).get_scaling(x_shape)
+                    nnum=model_config.nnum, z_out=z_out, **model_config.kwargs
+                ).get_scaling(original_x_shape)
                 scaling = (model_scaling[0] / model_config.nnum, model_scaling[1] / model_config.nnum)
 
-            y_shape = (1, self.z_out) + tuple([oxs * sc for oxs, sc in zip(original_x_shape, scaling)])
+            y_shape = (self.z_out,) + tuple([int(oxs * sc) for oxs, sc in zip(original_x_shape, scaling)])
+            if info.AffineTransform is not None:
+                assert info.y_shape is not None, "when working with transforms the output shape needs to be given"
+                scaling_matrix = numpy.zeros((4, 4), dtype=numpy.float32)
+                assert len(y_shape) == len(original_y_shape) == 3
+                scaling_matrix[3, 3] = 1
+                for i, (out, orig) in enumerate(zip(y_shape, original_y_shape)):
+                    scaling_matrix[i, i] = out / orig
+
+                self.affine_transform = info.AffineTransform(
+                    order=interpolation_order, output_shape=y_shape, additional_transforms_left=[scaling_matrix]
+                )
+            else:
+                self.affine_transform = None
+
+            y_shape = (1,) + y_shape  # add channel dim
         else:
             self.with_target = False
             y_shape = None
@@ -152,10 +163,13 @@ class N5Dataset(torch.utils.data.Dataset):
         self.interpolation_order = interpolation_order
         shapestr = (
             f"interpolation order: {interpolation_order}\n"
-            f"x roi: {x_roi}\ny roi: {y_roi}\n"
+            f"x roi: {info.x_roi}\ny roi: {info.y_roi}\n"
             f"x shape: {x_shape}\ny shape: {y_shape}\n"
             f"x_folder: {x_folder}\ny_folder: {y_folder}"
         )
+        if info.AffineTransform is not None:
+            shapestr += f"\naffine transform: {info.AffineTransform.__name__}"
+
         data_file_name = data_folder / f"{name}_{hash(shapestr.encode()).hexdigest()}.n5"
         with Path(data_file_name.as_posix().replace(".n5", ".txt")).open("w") as f:
             f.write(shapestr)
@@ -191,49 +205,39 @@ class N5Dataset(torch.utils.data.Dataset):
                     "x&y",
                     set(x_numbers) & set(y_numbers),
                 )
-                y_paths = sorted([p for p, yn in zip(raw_y_paths, y_numbers) if yn in common_numbers])
+                self.y_paths = sorted([p for p, yn in zip(raw_y_paths, y_numbers) if yn in common_numbers])
 
-            x_paths = sorted([p for p, xn in zip(raw_x_paths, x_numbers) if xn in common_numbers])
+            self.x_paths = sorted([p for p, xn in zip(raw_x_paths, x_numbers) if xn in common_numbers])
             if self.with_target:
-                assert len(x_paths) == len(y_paths), raw_y_paths
+                assert len(self.x_paths) == len(self.y_paths), raw_y_paths
 
-            assert len(x_paths) >= 1, raw_x_paths
-            self._len = len(x_paths)
+            assert len(self.x_paths) >= 1, raw_x_paths
+            self._len = len(self.x_paths)
             if save:
                 tmp_data_file_name = data_file_name.as_posix().replace(".n5", "_tmp.n5")
                 assert not Path(tmp_data_file_name).exists(), f"{tmp_data_file_name} exists!"
                 data_file = z5py.File(path=tmp_data_file_name, mode="w", use_zarr_format=False)
 
-                x_ds = data_file.create_dataset(
-                    "x", shape=(len(x_paths),) + self.x_shape, chunks=(1,) + self.x_shape, dtype=numpy.float32
+                self.x_ds = data_file.create_dataset(
+                    "x", shape=(len(self.x_paths),) + self.x_shape, chunks=(1,) + self.x_shape, dtype=numpy.float32
                 )
                 if self.with_target:
-                    y_ds = data_file.create_dataset(
+                    self.y_ds = data_file.create_dataset(
                         "y", shape=(len(self),) + self.y_shape, chunks=(1,) + self.y_shape, dtype=numpy.float32
                     )
 
-                def process_x_chunk(i):
-                    ximg = imread(x_paths[i])
-                    assert len(ximg.shape) == 2, ximg.shape
-                    x_ds[i, ...] = resize(ximg, x_shape, roi=x_roi, order=self.interpolation_order)
-
-                def process_y_chunk(i):
-                    yimg = imread(y_paths[i])
-                    assert len(yimg.shape) == 3, yimg.shape
-                    y_ds[i, ...] = resize(yimg, y_shape, roi=y_roi, order=self.interpolation_order)
-
                 # first slice in main thread to catch exceptions
-                process_x_chunk(0)
+                self.process_x(0, to_ds=True)
                 if self.with_target:
-                    process_y_chunk(0)
+                    self.process_y(0, to_ds=True)
 
                 # other slices in parallel
                 futures = []
                 with ThreadPoolExecutor(max_workers=16) as executor:
                     for i in range(1, len(self)):
-                        futures.append(executor.submit(process_x_chunk, i))
+                        futures.append(executor.submit(self.process_x, i, to_ds=True))
                         if self.with_target:
-                            futures.append(executor.submit(process_y_chunk, i))
+                            futures.append(executor.submit(self.process_y, i, to_ds=True))
 
                     for fut in as_completed(futures):
                         e = fut.exception()
@@ -241,15 +245,11 @@ class N5Dataset(torch.utils.data.Dataset):
                             raise e
                 # for debugging: other slices in serial
                 # for i in range(1, len(self)):
-                #     process_x_chunk(i)
-                #     process_y_chunk(i)
+                #     process_x(i)
+                #     process_y(i)
 
                 os.rename(tmp_data_file_name, data_file_name.as_posix())
                 self.data_file = z5py.File(path=data_file_name.as_posix())
-            else:
-                self.x_paths = [Path(p) for p in x_paths]
-                if self.with_target:
-                    self.y_paths = [Path(p) for p in y_paths]
 
         stat_path = Path(data_file_name.as_posix().replace(".n5", "_stat.yml"))
         assert ".yml" in stat_path.as_posix(), "replacing '.n5' with '_stat.yml' did not work!"
@@ -314,6 +314,28 @@ class N5Dataset(torch.utils.data.Dataset):
 
         self.transform = Compose(*transform_instances)
 
+    def process_x(self, i, to_ds=False) -> Optional[numpy.ndarray]:
+        x_img = imread(self.x_paths[i])
+        assert len(x_img.shape) == 2, x_img.shape
+        x_img = x_img[self.info.x_roi]
+        assert x_img.shape == self.x_shape[1:]
+        if to_ds:
+            self.x_ds[i, ...] = x_img
+        else:
+            return x_img
+
+    def process_y(self, i, to_ds=False) -> Optional[numpy.ndarray]:
+        y_img = imread(self.y_paths[i])
+        assert len(y_img.shape) == 3, y_img.shape
+        if self.affine_transform is None:
+            y_img = resize(y_img, self.y_shape, roi=self.info.y_roi, order=self.interpolation_order)
+        else:
+            y_img = self.affine_transform.apply(y_img)
+        if to_ds:
+            self.y_ds[i, ...] = y_img
+        else:
+            return y_img
+
     def __len__(self):
         return self._len
 
@@ -322,8 +344,9 @@ class N5Dataset(torch.utils.data.Dataset):
     ) -> Union[Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray], Tuple[numpy.ndarray, numpy.ndarray], numpy.ndarray]:
         item = int(item)
         if self.data_file is None:
-            x = resize(imread(self.x_paths[item]), self.x_shape, order=self.interpolation_order)
+            x = self.process_x(item)
             if self.with_target:
+                y = self.process_y(item)
                 y = resize(imread(self.y_paths[item]), self.y_shape, order=self.interpolation_order)
         elif self.futures is None:
             logger.debug("here1 x dg %s", self.data_file["x"].shape)
