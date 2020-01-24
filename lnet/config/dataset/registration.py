@@ -23,7 +23,7 @@ import numpy
 # For all these cropping sizes there are bead data with the same corresponding sizes, which are used to find the correct registration/ affine transformation. This affine transformation is stored in an xml file. The paths of the respective files are the following:
 from typing import List, Tuple, Optional, Sequence, Union
 
-from lnet.transforms.affine import (
+from lnet.utils.affine import (
     scipy_form2torch_form_2d,
     scipy_form2torch_form_3d,
     inv_scipy_form2torch_form_2d,
