@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import torch.nn.functional
 from scipy.ndimage import affine_transform
 
 # adapted from https://github.com/constantinpape/elf/blob/7b7cd21e632a07876a1302dad92f8d7c1929b37a/elf/transformation/affine.py#L162
@@ -20,7 +21,14 @@ import numpy
 
 # //--------------------------------------------------------//
 # For all these cropping sizes there are bead data with the same corresponding sizes, which are used to find the correct registration/ affine transformation. This affine transformation is stored in an xml file. The paths of the respective files are the following:
-from typing import List, Tuple, Optional, Sequence
+from typing import List, Tuple, Optional, Sequence, Union
+
+from lnet.transforms.affine import (
+    scipy_form2torch_form_2d,
+    scipy_form2torch_form_3d,
+    inv_scipy_form2torch_form_2d,
+    inv_scipy_form2torch_form_3d,
+)
 
 Heart_tightCrop_xml_path = Path(
     "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/Heart_tightCrop/200msExp/2019-12-09_22.23.27/dataset_Heart_tightCrop.xml"
@@ -104,16 +112,33 @@ fast_cropped_8ms_xml_path = Path(
 #
 
 
-class BDVTransform:
+class BDVTransform(torch.nn.Module):
+    mode_from_order = {0: "nearest", 2: "bilinear"}
+
     def __init__(
-        self, affine_transforms: List[List[float]], xml_path: Path, output_shape: Tuple[int, int, int], order: int, additional_transforms_left: Sequence[numpy.ndarray] = tuple(), additional_transforms_right: Sequence[numpy.ndarray] = tuple()
+        self,
+        affine_transforms: List[List[float]],
+        xml_path: Path,
+        output_shape: Optional[Union[Tuple[int, int], Tuple[int, int, int]]] = None,
+        order: int = 0,
+        additional_transforms_left: Sequence[numpy.ndarray] = tuple(),
+        additional_transforms_right: Sequence[numpy.ndarray] = tuple(),
     ):
+        super().__init__()
+        assert output_shape is None or isinstance(output_shape, tuple)
+        self.mode = self.mode_from_order.get(order, None)
+
         # xml path for reference only
         self.affine_transforms = affine_transforms
-        self.trf_matrix = self.concat_affine_matrices(list(additional_transforms_left) + [self.bdv_trafo_to_affine_matrix(at) for at in affine_transforms] + list(additional_transforms_right))
+        self.trf_matrix = self.concat_affine_matrices(
+            list(additional_transforms_left)
+            + [self.bdv_trafo_to_affine_matrix(at) for at in affine_transforms]
+            + list(additional_transforms_right)
+        )
         self.inv_trf_matrix = numpy.linalg.inv(self.trf_matrix)
-        self.order = order
         self.output_shape = output_shape
+        self.order = order
+        self.affine_grid_size = None
 
     @staticmethod
     def bdv_trafo_to_affine_matrix(trafo):
@@ -152,22 +177,53 @@ class BDVTransform:
 
         return ret
 
-    def _apply(
+    def _forward(
         self,
-        ipt: numpy.ndarray,
+        ipt: Union[torch.Tensor, numpy.ndarray],
         matrix: numpy.ndarray,
+        inv_matrix: numpy.ndarray,
         output_shape: Optional[Tuple[int, int, int]] = None,
         order: Optional[int] = None,
     ):
-        assert len(ipt.shape) == 3, ipt.shape
+        output_shape = output_shape or self.output_shape
+        order = order or self.order
+        mode = self.mode_from_order[order]
+        if isinstance(ipt, numpy.ndarray):
+            assert len(ipt.shape) == 3, ipt.shape
 
-        return affine_transform(ipt, matrix, output_shape=output_shape or self.output_shape, order=order or self.order)
+            return affine_transform(ipt, matrix, output_shape=output_shape, order=order or self.order)
+        elif isinstance(ipt, torch.Tensor):
+            assert ipt.shape[0] == 1
+            assert ipt.shape[1] == 1
+            if len(ipt.shape) == 4:
+                torch_form = inv_scipy_form2torch_form_2d(inv_matrix, ipt.shape[2:], output_shape)
+            elif len(ipt.shape) == 5:
+                torch_form = inv_scipy_form2torch_form_3d(inv_matrix, ipt.shape[2:], output_shape)
+            else:
+                raise ValueError(ipt.shape)
 
-    def apply(self, ipt: numpy.ndarray, **kwargs):
-        return self._apply(ipt, matrix=self.inv_trf_matrix, **kwargs)
+            affine_grid_size = tuple(ipt.shape[:2]) + output_shape
+            if self.affine_grid_size != affine_grid_size:
+                self.affine_torch_grid = torch.nn.functional.affine_grid(
+                    theta=torch_form, size=affine_grid_size, align_corners=False
+                )
 
-    def apply_inverse(self, ipt: numpy.ndarray, **kwargs):
-        return self._apply(ipt, matrix=self.trf_matrix, **kwargs)
+            on_cuda = False and ipt.is_cuda
+            if not on_cuda and ipt.is_cuda:
+                ipt = ipt.to(torch.device("cpu"))
+
+            self.affine_torch_grid = self.affine_torch_grid.to(ipt)
+
+            return torch.nn.functional.grid_sample(ipt, self.affine_torch_grid, align_corners=False, mode=mode)
+        else:
+            raise TypeError(type(ipt))
+
+    def forward(self, ipt: Union[torch.Tensor, numpy.ndarray], **kwargs):
+        return self._forward(ipt, matrix=self.inv_trf_matrix, inv_matrix=self.trf_matrix, **kwargs)
+
+    def forward_with_inverse(self, ipt: Union[torch.Tensor, numpy.ndarray], **kwargs):
+        return self._forward(ipt, matrix=self.trf_matrix, inv_matrix=self.inv_trf_matrix, **kwargs)
+
 
 
 class Heart_tightCrop_Transform(BDVTransform):

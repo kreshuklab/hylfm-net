@@ -33,6 +33,7 @@ class DataConfigEntry:
     name: str
     batch_size: int
     indices: Optional[List[int]] = None
+    interpolation_order: int = 3
 
     transforms: List[Union[Generator[Transform, None, None], Transform]] = None
     transform_configs: List[Union[str, Dict[str, Union[str, Dict[str, Any]]]]] = None
@@ -82,7 +83,12 @@ class DataConfigEntry:
                         f"randomly change shape (here: {t})"
                     )
 
-        self.info = getattr(beads, self.name, None) or getattr(fish, self.name, None) or getattr(platy, self.name, None) or getattr(nema, self.name)
+        self.info = (
+            getattr(beads, self.name, None)
+            or getattr(fish, self.name, None)
+            or getattr(platy, self.name, None)
+            or getattr(nema, self.name)
+        )
         if self.info is None:
             raise NotImplementedError(f"could not find named dataset info `{self.name}`")
 
@@ -124,12 +130,12 @@ class DataConfig:
                 info=entry.info,
                 scaling=None,
                 z_out=model_config.z_out,
-                interpolation_order=3,
+                interpolation_order=entry.interpolation_order,
                 save=True,
                 transforms=entry.transforms,
                 model_config=model_config,
-            )        for entry in self.entries
-
+            )
+            for entry in self.entries
         ]
 
         # todo: move to project specific code:
