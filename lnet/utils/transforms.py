@@ -152,3 +152,26 @@ def get_prereorder_transform(*additional_transforms, std: float = 0.1):
         transforms.append(t)
 
     return Compose(*transforms)
+
+
+class RandomIntensityScale(Transform):
+    def __init__(self, factor_between: Tuple[int, int] = (0.9, 1.1), **super_kwargs):
+        """
+        Parameters
+        ----------
+        factor_between : tuple
+            Specifies the range within which to sample the factor (uniformly).
+        super_kwargs : dict
+            Keyword arguments for the superclass.
+        """
+        super().__init__(**super_kwargs)
+        self.factor_between = factor_between
+
+    def build_random_variables(self):
+        numpy.random.seed()
+        self.set_random_variable(
+            "factor", numpy.random.uniform(low=self.factor_between[0], high=self.factor_between[1])
+        )
+
+    def tensor_function(self, tensor):
+        return tensor * self.get_random_variable("factor")

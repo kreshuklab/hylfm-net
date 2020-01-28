@@ -1,9 +1,10 @@
 import logging
-import warnings
 
 import numpy
 import os
 import re
+
+import shutil
 import torch.utils.data
 import z5py
 
@@ -12,6 +13,8 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from hashlib import sha224 as hash
 from inferno.io.transform import Transform, Compose
 from pathlib import Path
+
+from lnet.config.dataset.registration import BDVTransform
 
 from lnet import models
 from lnet.config.model import ModelConfig
@@ -61,13 +64,15 @@ class N5Dataset(torch.utils.data.Dataset):
         info: NamedDatasetInfo,
         scaling: Optional[Tuple[float, float]],
         z_out: int,
-        interpolation_order: int = 1,
+        interpolation_order: int,
         save: bool = True,
         transforms: Optional[List[Union[Transform, Callable[[DatasetStat], Generator[Transform, None, None]]]]] = None,
         data_folder: Optional[Path] = None,
         model_config: Optional[ModelConfig] = None,
+        model: Optional[torch.nn.Module] = None,
+        AffineTransformation: Optional[BDVTransform] = None,
     ):
-        assert scaling is not None or model_config is not None
+        assert scaling is not None or model_config is not None or model is not None
         super().__init__()
         name = info.description
         x_folder = info.x_path
@@ -123,24 +128,20 @@ class N5Dataset(torch.utils.data.Dataset):
                 original_y_shape = info.y_shape
 
             if scaling is None:
-                assert model_config is not None
-                model_scaling = getattr(models, model_config.name)(
-                    nnum=model_config.nnum, z_out=z_out, **model_config.kwargs
-                ).get_scaling(original_x_shape)
+                if model is None:
+                    assert model_config is not None
+                    model = getattr(models, model_config.name)(
+                        nnum=model_config.nnum, z_out=z_out, **model_config.kwargs
+                    )
+
+                model_scaling = model.get_scaling(original_x_shape)
                 scaling = (model_scaling[0] / model_config.nnum, model_scaling[1] / model_config.nnum)
 
             y_shape = (self.z_out,) + tuple([int(oxs * sc) for oxs, sc in zip(original_x_shape, scaling)])
-            if info.AffineTransform is not None:
+            if AffineTransformation is not None:
                 assert info.y_shape is not None, "when working with transforms the output shape needs to be given"
-                scaling_matrix = numpy.zeros((4, 4), dtype=numpy.float32)
-                assert len(y_shape) == len(original_y_shape) == 3
-                scaling_matrix[3, 3] = 1
-                for i, (out, orig) in enumerate(zip(y_shape, original_y_shape)):
-                    scaling_matrix[i, i] = out / orig
 
-                self.affine_transform = info.AffineTransform(
-                    order=interpolation_order, output_shape=y_shape, additional_transforms_left=[scaling_matrix]
-                )
+                self.affine_transform = AffineTransformation(order=interpolation_order, output_shape=y_shape)
             else:
                 self.affine_transform = None
 
@@ -167,8 +168,8 @@ class N5Dataset(torch.utils.data.Dataset):
             f"x shape: {x_shape}\ny shape: {y_shape}\n"
             f"x_folder: {x_folder}\ny_folder: {y_folder}"
         )
-        if info.AffineTransform is not None:
-            shapestr += f"\naffine transform: {info.AffineTransform.__name__}"
+        if AffineTransformation is not None:
+            shapestr += f"\naffine transform: {AffineTransformation.__name__}"
 
         data_file_name = data_folder / f"{name}_{hash(shapestr.encode()).hexdigest()}.n5"
         with Path(data_file_name.as_posix().replace(".n5", ".txt")).open("w") as f:
@@ -216,40 +217,45 @@ class N5Dataset(torch.utils.data.Dataset):
             if save:
                 tmp_data_file_name = data_file_name.as_posix().replace(".n5", "_tmp.n5")
                 assert not Path(tmp_data_file_name).exists(), f"{tmp_data_file_name} exists!"
-                data_file = z5py.File(path=tmp_data_file_name, mode="w", use_zarr_format=False)
+                try:
+                    data_file = z5py.File(path=tmp_data_file_name, mode="w", use_zarr_format=False)
 
-                self.x_ds = data_file.create_dataset(
-                    "x", shape=(len(self.x_paths),) + self.x_shape, chunks=(1,) + self.x_shape, dtype=numpy.float32
-                )
-                if self.with_target:
-                    self.y_ds = data_file.create_dataset(
-                        "y", shape=(len(self),) + self.y_shape, chunks=(1,) + self.y_shape, dtype=numpy.float32
+                    self.x_ds = data_file.create_dataset(
+                        "x", shape=(len(self.x_paths),) + self.x_shape, chunks=(1,) + self.x_shape, dtype=numpy.float32
                     )
+                    if self.with_target:
+                        self.y_ds = data_file.create_dataset(
+                            "y", shape=(len(self),) + self.y_shape, chunks=(1,) + self.y_shape, dtype=numpy.float32
+                        )
 
-                # first slice in main thread to catch exceptions
-                self.process_x(0, to_ds=True)
-                if self.with_target:
-                    self.process_y(0, to_ds=True)
+                    # first slice in main thread to catch exceptions
+                    self.process_x(0, to_ds=True)
+                    if self.with_target:
+                        self.process_y(0, to_ds=True)
 
-                # other slices in parallel
-                futures = []
-                with ThreadPoolExecutor(max_workers=16) as executor:
-                    for i in range(1, len(self)):
-                        futures.append(executor.submit(self.process_x, i, to_ds=True))
-                        if self.with_target:
-                            futures.append(executor.submit(self.process_y, i, to_ds=True))
+                    # other slices in parallel
+                    futures = []
+                    with ThreadPoolExecutor(max_workers=16) as executor:
+                        for i in range(1, len(self)):
+                            futures.append(executor.submit(self.process_x, i, to_ds=True))
+                            if self.with_target:
+                                futures.append(executor.submit(self.process_y, i, to_ds=True))
 
-                    for fut in as_completed(futures):
-                        e = fut.exception()
-                        if e is not None:
-                            raise e
-                # for debugging: other slices in serial
-                # for i in range(1, len(self)):
-                #     process_x(i)
-                #     process_y(i)
+                        for fut in as_completed(futures):
+                            e = fut.exception()
+                            if e is not None:
+                                raise e
+                    # for debugging: other slices in serial
+                    # for i in range(1, len(self)):
+                    #     process_x(i)
+                    #     process_y(i)
+                except:
+                    shutil.rmtree(tmp_data_file_name)
+                    raise
 
                 os.rename(tmp_data_file_name, data_file_name.as_posix())
                 self.data_file = z5py.File(path=data_file_name.as_posix())
+
 
         stat_path = Path(data_file_name.as_posix().replace(".n5", "_stat.yml"))
         assert ".yml" in stat_path.as_posix(), "replacing '.n5' with '_stat.yml' did not work!"
@@ -318,7 +324,7 @@ class N5Dataset(torch.utils.data.Dataset):
         x_img = imread(self.x_paths[i])
         assert len(x_img.shape) == 2, x_img.shape
         x_img = x_img[self.info.x_roi]
-        assert x_img.shape == self.x_shape[1:]
+        assert x_img.shape == self.x_shape[1:], (x_img.shape, self.x_shape)
         if to_ds:
             self.x_ds[i, ...] = x_img
         else:

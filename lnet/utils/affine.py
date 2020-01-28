@@ -2,7 +2,7 @@ import numpy
 import torch
 
 
-def scipy_form2torch_form_2d(scipy_form, img_shape):
+def scipy_form2torch_form_2d(scipy_form, img_shape) -> torch.Tensor:
     assert all(zero == 0 for zero in scipy_form[2, :2])
     assert scipy_form[2, 2] == 1
     transposed_scipy = numpy.eye(3, dtype=scipy_form.dtype)
@@ -23,13 +23,15 @@ def scipy_form2torch_form_2d(scipy_form, img_shape):
     return torch.from_numpy(theta[None, ...])
 
 
-def inv_scipy_form2torch_form_2d(inv_scipy_form, ipt_shape, out_shape):
+def inv_scipy_form2torch_form_2d(inv_scipy_form, ipt_shape, trf_in_shape, trf_out_shape, out_shape) -> torch.Tensor:
     """like scipy_form2torch_form_2d, but allows for ipt_shape != out_shape. Takes the inverse scipy form (and inverts it after scaling)"""
     assert all(zero == 0 for zero in inv_scipy_form[2, :2])
     assert inv_scipy_form[2, 2] == 1
-    assert len(ipt_shape) == len(out_shape) == 2
-    scaling = [si / so for si, so in zip(ipt_shape, out_shape)] + [1.0]
-    scaled_scipy = numpy.linalg.inv(numpy.diag(scaling).dot(inv_scipy_form))
+    assert len(ipt_shape) == len(trf_in_shape) == 2
+
+    in_scaling = [trf_in / ipts for ipts, trf_in in zip(ipt_shape, trf_in_shape)] + [1.0]
+    out_scaling = [outs / trf_out for trf_out, outs in zip(trf_out_shape, out_shape)] + [1.0]
+    scaled_scipy = numpy.linalg.inv(numpy.diag(out_scaling).dot(inv_scipy_form.dot(numpy.diag(in_scaling))))
 
     transposed_scipy = numpy.eye(3, dtype=scaled_scipy.dtype)
     transposed_scipy[:2, :2] = scaled_scipy[:2, :2].T
@@ -49,7 +51,7 @@ def inv_scipy_form2torch_form_2d(inv_scipy_form, ipt_shape, out_shape):
     return torch.from_numpy(theta[None, ...])
 
 
-def scipy_form2torch_form_3d(scipy_form, img_shape):
+def scipy_form2torch_form_3d(scipy_form, img_shape) -> torch.Tensor:
     transposed_scipy = numpy.eye(4, dtype=scipy_form.dtype)
     map_pos = {
         (0, 0): (2, 2),
@@ -97,13 +99,15 @@ def scipy_form2torch_form_3d(scipy_form, img_shape):
     return torch.from_numpy(theta[None, ...])
 
 
-def inv_scipy_form2torch_form_3d(inv_scipy_form, ipt_shape, out_shape):
+def inv_scipy_form2torch_form_3d(inv_scipy_form, ipt_shape, trf_in_shape, trf_out_shape, out_shape) -> torch.Tensor:
     """like scipy_form2torch_form_3d, but allows for ipt_shape != out_shape. Takes the inverse scipy form (and inverts it after scaling)"""
     assert all(zero == 0 for zero in inv_scipy_form[3, :3])
     assert inv_scipy_form[3, 3] == 1
-    assert len(ipt_shape) == len(out_shape) == 3
-    scaling = [si / so for si, so in zip(ipt_shape, out_shape)] + [1.0]
-    scaled_scipy = numpy.linalg.inv(numpy.diag(scaling).dot(inv_scipy_form))
+    assert len(ipt_shape) == len(out_shape) == 3, (ipt_shape, out_shape)
+
+    in_scaling = [trf_in / ipts for ipts, trf_in in zip(ipt_shape, trf_in_shape)] + [1.0]
+    out_scaling = [outs / trf_out for trf_out, outs in zip(trf_out_shape, out_shape)] + [1.0]
+    scaled_scipy = numpy.linalg.inv(numpy.diag(out_scaling).dot(inv_scipy_form.dot(numpy.diag(in_scaling))))
 
     transposed_scipy = numpy.eye(4, dtype=scaled_scipy.dtype)
     map_pos = {

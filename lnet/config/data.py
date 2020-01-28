@@ -2,15 +2,30 @@ import logging
 from enum import Enum
 
 from dataclasses import dataclass, field, InitVar
-from typing import Optional, Dict, Any, Union, List, Generator
+from typing import Optional, Dict, Any, Union, List, Generator, Type
 
 from inferno.io.transform import Transform
+from lnet.config.dataset.registration import BDVTransform
+
 from lnet import models
 from torch.utils.data import DataLoader, ConcatDataset, Subset, RandomSampler, SequentialSampler, Dataset
 
 from lnet.config.model import ModelConfig
 from lnet.config.utils import get_trfs_and_their_names
-from lnet.config.dataset import beads, platy, fish, NamedDatasetInfo, nema
+from lnet.config.dataset import (
+    NamedDatasetInfo,
+    registration,
+    beads,
+    platy,
+    fish,
+    nema,
+    tuesday_fish,
+    fish1_20191203,
+    fish1_20191208,
+    fish1_20191209,
+    fish2_20191209,
+    fish3_20191209,
+)
 from lnet.datasets import N5Dataset
 from lnet.transforms import known_transforms, randomly_shape_changing_transforms
 from lnet.utils.batch_sampler import NoCrossBatchSampler
@@ -34,12 +49,14 @@ class DataConfigEntry:
     batch_size: int
     indices: Optional[List[int]] = None
     interpolation_order: int = 3
+    affine_transformation: Optional[str] = None
 
     transforms: List[Union[Generator[Transform, None, None], Transform]] = None
     transform_configs: List[Union[str, Dict[str, Union[str, Dict[str, Any]]]]] = None
 
     transform_names: List[str] = field(init=False)
     info: NamedDatasetInfo = field(init=False)
+    AffineTransformation: Optional[Type[BDVTransform]] = field(init=False)
 
     @staticmethod
     def range_or_single_index_to_list(indice_string_part: str) -> List[Optional[int]]:
@@ -83,17 +100,45 @@ class DataConfigEntry:
                         f"randomly change shape (here: {t})"
                     )
 
-        self.info = (
-            getattr(beads, self.name, None)
-            or getattr(fish, self.name, None)
-            or getattr(platy, self.name, None)
-            or getattr(nema, self.name)
-        )
+        info_modules = {
+            m.__name__.split(".")[-1]: m
+            for m in [
+                beads,
+                platy,
+                fish,
+                nema,
+                tuesday_fish,
+                fish1_20191203,
+                fish1_20191208,
+                fish1_20191209,
+                fish2_20191209,
+                fish3_20191209,
+            ]
+        }
+        if "." in self.name:
+            module_name, info_name = self.name.split(".")
+            self.info = getattr(info_modules[module_name], info_name)
+            self.info.description = module_name + "_" + self.info.description
+        else:
+            self.info = (
+                getattr(beads, self.name, None)
+                or getattr(fish, self.name, None)
+                or getattr(platy, self.name, None)
+                or getattr(nema, self.name)
+            )
         if self.info is None:
             raise NotImplementedError(f"could not find named dataset info `{self.name}`")
 
         if self.info.length is not None and self.indices is not None and self.info.length <= max(self.indices):
             raise ValueError(f"{self.info.length} <= {max(self.indices)}")
+
+        self.AffineTransformation = (
+            self.info.DefaultAffineTransform
+            if self.affine_transformation == "default"
+            else None
+            if self.affine_transformation is None
+            else getattr(registration, self.affine_transformation)
+        )
 
     @classmethod
     def load(
@@ -134,6 +179,7 @@ class DataConfig:
                 save=True,
                 transforms=entry.transforms,
                 model_config=model_config,
+                AffineTransformation=entry.AffineTransformation,
             )
             for entry in self.entries
         ]

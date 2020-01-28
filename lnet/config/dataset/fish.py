@@ -185,7 +185,3 @@ regional_fish02_RL1 = RegionalFish(
     x_roi=(slice(None), slice(1, None)),
     y_roi=(slice(7, 42), slice(None), slice(1, None)),
 )
-
-from .tuesday_fish import *
-from .fish_20191208 import *
-from .fish_20191209 import *

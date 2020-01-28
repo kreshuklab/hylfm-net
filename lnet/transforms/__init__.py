@@ -1,4 +1,4 @@
-from lnet.utils.transforms import Lightfield2Channel, RandomFlipXYnotZ, RandomRotate, Clip
+from lnet.utils.transforms import Lightfield2Channel, RandomFlipXYnotZ, RandomRotate, Clip, RandomIntensityScale
 
 from inferno.io.transform.generic import Cast
 
@@ -15,6 +15,7 @@ known_transforms = {
     "RandomFlipXYnotZ": lambda model_config, kwargs: RandomFlipXYnotZ(**kwargs),
     "Lightfield2Channel": lambda model_config, kwargs: Lightfield2Channel(nnum=model_config.nnum, **kwargs),
     "Cast": lambda model_config, kwargs: Cast(dtype=kwargs.pop("dtype", model_config.precision), **kwargs),
+    "RandomIntensityScale": lambda model_config, kwargs: RandomIntensityScale(**kwargs),
 }
 
 randomly_shape_changing_transforms = {"RandomRotate", "RandomFlipXYnotZ"}

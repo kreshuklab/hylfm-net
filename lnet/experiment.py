@@ -290,7 +290,7 @@ class Experiment:
 
         def log_eval(engine: TunedEngine):
             metrics = engine.state.metrics
-            self.logger.info("%s - Epoch: %d  Avg loss: %.3f", engine.name, engine.state.epoch, metrics[LOSS_NAME])
+            self.logger.info("%s - Epoch: %d  Avg loss: %.5f", engine.name, engine.state.epoch, metrics[LOSS_NAME])
 
             # available_metrics = [LOSS_NAME, MSSSIM_NAME, SSIM_NAME, PSNR_NAME, NRMSE_NAME]
             # if len(engine.state.loss) > 1:

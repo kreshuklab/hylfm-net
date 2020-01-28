@@ -1,3 +1,4 @@
+from functools import partial
 from pathlib import Path
 from typing import Tuple, Optional, List, Union, Type
 
@@ -5,7 +6,9 @@ import numpy
 
 from lnet.stat import DatasetStat
 from lnet.config.dataset.registration import (
-    Heart_tightCrop_Transform, staticHeartFOV_Transform, wholeFOV_Transform,
+    Heart_tightCrop_Transform,
+    staticHeartFOV_Transform,
+    wholeFOV_Transform,
     BDVTransform,
 )
 
@@ -21,7 +24,7 @@ class NamedDatasetInfo:
     y_path: Path
     x_roi: Tuple[slice, slice]
     y_roi: Tuple[slice, slice, slice]
-    stat: Optional[DatasetStat]
+    # stat: Optional[DatasetStat]
     interesting_paths: Optional[List[PathOfInterest]]
 
     description: str = ""
@@ -33,9 +36,9 @@ class NamedDatasetInfo:
         x_dir: str,
         y_dir: Optional[str] = None,
         description="",
-        x_roi: Tuple[slice, slice] = (slice(None), slice(None)),
-        y_roi: Tuple[slice, slice, slice] = (slice(None), slice(None), slice(None)),
-        stat: Optional[DatasetStat] = None,
+        x_roi: Optional[Tuple[slice, slice]] = None,
+        y_roi: Optional[Tuple[slice, slice, slice]] = None,
+        # stat: Optional[DatasetStat] = None,
         interesting_paths: Optional[List[PathOfInterest]] = None,
         length: Optional[int] = None,
         x_shape: Optional[Tuple[int, int]] = None,
@@ -47,7 +50,7 @@ class NamedDatasetInfo:
         self.description = description or self.description
 
         if isinstance(AffineTransform, str):
-            if AffineTransform == "auto":
+            if AffineTransform == "from_x_path":
                 posix_path = self.x_path.as_posix()
                 indicators_and_AffineTransforms = {
                     "/Heart_tightCrop/": Heart_tightCrop_Transform,
@@ -56,16 +59,26 @@ class NamedDatasetInfo:
                 }
                 for tag, TransformClass in indicators_and_AffineTransforms.items():
                     if tag in posix_path:
-                        assert AffineTransform == "auto"
+                        assert AffineTransform == "from_x_path"  # make sure tag is found only once
                         AffineTransform = TransformClass
 
             else:
                 raise NotImplementedError(AffineTransform)
 
-        self.AffineTransform = AffineTransform
-        self.x_roi = x_roi
-        self.y_roi = y_roi
-        self.stat = stat
+        self.DefaultAffineTransform = AffineTransform
+        if AffineTransform is not None:
+            x_shape = x_shape or AffineTransform.lf_shape[1:]
+            y_shape = y_shape or tuple(
+                y - y_crop[0] - y_crop[1] for y_crop, y in zip(AffineTransform.lf2ls_crop, AffineTransform.ls_shape)
+            )
+            y_roi = y_roi or tuple(
+                slice(y_crop[0], y - y_crop[1])
+                for y_crop, y in zip(AffineTransform.lf2ls_crop, AffineTransform.ls_shape)
+            )
+
+        self.x_roi = x_roi or (slice(None), slice(None))
+        self.y_roi = y_roi or (slice(None), slice(None), slice(None))
+        # self.stat = stat
         self.interesting_paths = interesting_paths
         self.length = length
 

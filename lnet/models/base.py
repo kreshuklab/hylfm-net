@@ -10,5 +10,5 @@ class LnetModel(nn.Module):
     def get_shrinkage(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[int, int]:
         raise NotImplementedError
 
-    def get_output_shape(self, ipt_shape: Tuple[int, int]):
+    def get_output_shape(self, ipt_shape: Tuple[int, int]) -> Tuple[int, int, int]:
         raise NotImplementedError
