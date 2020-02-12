@@ -1,7 +1,5 @@
 from pathlib import Path
 
-from lnet.config.dataset.registration import staticHeartFOV_Transform
-
 from lnet.config.dataset import NamedDatasetInfo
 
 t0815_static = NamedDatasetInfo(
@@ -289,3 +287,23 @@ t0918_static_lr = NamedDatasetInfo(
     x_shape=(1273, 1463),
     y_shape=(838, 1273, 1463),
 )
+
+
+t0952_static_affine = NamedDatasetInfo(
+    Path("/"),
+    "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/staticHeartFOV/completeSlideThrough_125steps_stepsize2/2019-12-09_09.52.38/stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+    "/g/kreshuk/LF_computed/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/staticHeartFOV/completeSlideThrough_125steps_stepsize2/2019-12-09_09.52.38/stack_4_channel_1/TP_*/LC/Cam_Left.tif",
+    "t0952_static_affine",
+    length=125,
+    AffineTransform="from_x_path",
+)
+
+# same z slice throughout volume..?
+# t1210_static_affine = NamedDatasetInfo(
+#     Path("/"),
+#     "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/staticHeartFOV/completeSlideThrough_125steps_stepsize2/2019-12-09_12.10.19/stack_2_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif",
+#     "/g/kreshuk/LF_computed/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/staticHeartFOV/completeSlideThrough_125steps_stepsize2/2019-12-09_12.10.19/stack_2_channel_1/TP_*/LC/Cam_Left.tif",
+#     "t1210_static_affine",
+#     length=3,
+#     AffineTransform="from_x_path",
+# )

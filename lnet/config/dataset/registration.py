@@ -113,7 +113,7 @@ class BDVTransform(torch.nn.Module):
         additional_transforms_left: Sequence[numpy.ndarray] = tuple(),
         additional_transforms_right: Sequence[numpy.ndarray] = tuple(),
         forward: str = "lf2ls",
-        lf_shape: Optional[Tuple[int, int, int]] = None
+        lf_shape: Optional[Tuple[int, int, int]] = None,
     ):
         # check if correctly inherited
         assert hasattr(self, "xml_path") and isinstance(self.xml_path, Path) and self.xml_path.exists()
@@ -145,6 +145,7 @@ class BDVTransform(torch.nn.Module):
         self.output_shape = output_shape
         self.order = order
         self.affine_grid_size = None
+        self.z_offset: int = self.lf2ls_crop[0][0]
 
     @staticmethod
     def bdv_trafo_to_affine_matrix(trafo):
@@ -194,6 +195,7 @@ class BDVTransform(torch.nn.Module):
         trf_out_shape: Optional[Union[Tuple[int, int], Tuple[int, int, int]]] = None,
         output_shape: Optional[Union[Tuple[int, int], Tuple[int, int, int]]] = None,
         order: Optional[int] = None,
+        z_slices: Optional[Sequence[int]] = None,
     ) -> Union[numpy.ndarray, torch.Tensor]:
         output_shape = output_shape or self.output_shape
         order = order or self.order
@@ -210,8 +212,6 @@ class BDVTransform(torch.nn.Module):
 
             return affine_transform(ipt, numpy.linalg.inv(matrix), output_shape=output_shape, order=order)
         elif isinstance(ipt, torch.Tensor):
-            assert ipt.shape[0] == 1
-            assert ipt.shape[1] == 1
             if len(ipt.shape) == 4:
                 torch_form = inv_scipy_form2torch_form_2d(
                     matrix,
@@ -231,7 +231,8 @@ class BDVTransform(torch.nn.Module):
             else:
                 raise ValueError(ipt.shape)
 
-            affine_grid_size = tuple(ipt.shape[:2]) + output_shape
+            # affine_grid_size = tuple(ipt.shape[:2]) + output_shape
+            affine_grid_size = (1, 1) + output_shape
             if self.affine_grid_size != affine_grid_size:
                 self.affine_torch_grid = torch.nn.functional.affine_grid(
                     theta=torch_form, size=affine_grid_size, align_corners=False
@@ -246,7 +247,24 @@ class BDVTransform(torch.nn.Module):
 
             self.affine_torch_grid = self.affine_torch_grid.to(ipt)
 
-            ret = torch.nn.functional.grid_sample(ipt, self.affine_torch_grid, align_corners=False, mode=mode)
+            if z_slices is None:
+                affine_grid = self.affine_torch_grid.repeat(ipt.shape[0], ipt.shape[1], 1, 1, 1)
+            else:
+                assert len(z_slices) == ipt.shape[0], (z_slices, ipt.shape)
+                assert all(self.z_offset <= z_slice for z_slice in z_slices), (self.z_offset, z_slices)
+                affine_grid = torch.cat(
+                    [
+                        self.affine_torch_grid[:, z_slice - self.z_offset : z_slice + 1 - self.z_offset]
+                        for z_slice in z_slices
+                    ]
+                )
+
+            ret = torch.nn.functional.grid_sample(
+                ipt, affine_grid, align_corners=False, mode=mode, padding_mode="border"
+            )
+            if z_slices is not None:
+                assert ret.shape[2] == 1
+                ret = ret[:, :, 0]
 
             if on_cuda == ipt.is_cuda:
                 return ret
@@ -441,7 +459,7 @@ class staticHeartFOV_Transform(BDVTransform):
         ),
         (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0),
     )
-    lf2ls_crop = ((0, 0), (0 ,0), (0, 0))
+    lf2ls_crop = ((23, 10), (130, 130), (100, 50))
     ls_shape = (241, 1451, 1951)
     lf_shape = (838, 1178, 1767)
     xml_path = Path(
@@ -938,6 +956,7 @@ class fast_cropped_6ms_Transform(BDVTransform):
         ),
         (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0),
     )
+    ls_shape = (1, 1024, 1024)
     xml_path = Path(
         "/g/kreshuk//LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/beads_afterStaticHeart/fast_cropped_6ms/2019-12-03_10.47.58/dataset_fast_cropped_6ms.xml"
     )
@@ -1059,6 +1078,7 @@ class fast_cropped_8ms_Transform(BDVTransform):
         ),
         (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0),
     )
+    ls_shape = (1, 1350, 1350)
     xml_path = Path(
         "/g/kreshuk//LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/fast_cropped_8ms/200msExp/2019-12-09_22.13.48/dataset_fast_cropped_8ms.xml"
     )

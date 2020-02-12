@@ -24,10 +24,12 @@ class MSSSIM(ignite.metrics.Metric):
     def update(self, output):
         y_pred, y = output
         n = y.shape[0]
+        y_pred_z_as_batch = y_pred.transpose(1, 2).flatten(end_dim=-4) if len(y_pred.shape) == 5 else y_pred
+        y_z_as_batch = y.transpose(1, 2).flatten(end_dim=-4) if len(y.shape) == 5 else y
         value = (
             msssim(
-                y_pred.transpose(1, 2).flatten(end_dim=-4),
-                y.transpose(1, 2).flatten(end_dim=-4),
+                y_pred_z_as_batch,
+                y_z_as_batch,
                 normalize=self.normalize,
                 size_average=self.size_average,
                 val_range=self.val_range,

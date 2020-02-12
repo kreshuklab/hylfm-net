@@ -1,4 +1,5 @@
 import logging
+import time
 
 import numpy
 import os
@@ -103,6 +104,25 @@ class N5Dataset(torch.utils.data.Dataset):
 
         self.z_out = z_out
         x_shape = (1,) + original_x_shape
+
+        if info.z_slices is not None:
+            z_min, z_max = min(info.z_slices), max(info.z_slices)
+            z_crop = z_min, info.dynamic_z_slice_mod + 1 - z_max
+            z_dim = z_max - z_min
+        elif info.dynamic_z_slice_mod is not None:
+            z_crop = info.DefaultAffineTransform.lf2ls_crop[0]
+            z_min = z_crop[0]
+            z_max = info.dynamic_z_slice_mod - z_crop[1] - 1
+            z_dim = info.dynamic_z_slice_mod - z_crop[0] - z_crop[1]
+        else:
+            z_crop = None
+            z_dim = None
+            z_min = None
+            z_max = None
+
+        self.z_dim = z_dim
+        self.z_min = z_min
+
         if y_folder:
             self.with_target = True
             if y_folder.exists():
@@ -124,6 +144,8 @@ class N5Dataset(torch.utils.data.Dataset):
                 original_y_shape = imread(img_name)[info.y_roi].shape
                 logger.info("determined y shape of %s to be %s", img_name, original_y_shape)
                 assert original_y_shape[1:] == original_x_shape, (original_y_shape[1:], original_x_shape)
+            elif info.z_slices is not None or info.dynamic_z_slice_mod is not None:
+                original_y_shape = info.y_shape[1:]
             else:
                 original_y_shape = info.y_shape
 
@@ -137,11 +159,25 @@ class N5Dataset(torch.utils.data.Dataset):
                 model_scaling = model.get_scaling(original_x_shape)
                 scaling = (model_scaling[0] / model_config.nnum, model_scaling[1] / model_config.nnum)
 
-            y_shape = (self.z_out,) + tuple([int(oxs * sc) for oxs, sc in zip(original_x_shape, scaling)])
+            y_dims_12 = tuple([int(oxs * sc) for oxs, sc in zip(original_x_shape, scaling)])
+            if len(original_y_shape) == 2:
+                # dynamic z slices to original size
+                if info.y_shape is None:
+                    raise NotImplementedError
+                else:
+                    y_dim_0 = info.y_shape[0]
+
+                y_shape = y_dims_12
+            else:
+                y_dim_0 = self.z_out
+                y_shape = (y_dim_0,) + y_dims_12
+
             if AffineTransformation is not None:
                 assert info.y_shape is not None, "when working with transforms the output shape needs to be given"
 
-                self.affine_transform = AffineTransformation(order=interpolation_order, output_shape=y_shape)
+                self.affine_transform = AffineTransformation(
+                    order=interpolation_order, output_shape=(y_dim_0,) + y_dims_12
+                )
             else:
                 self.affine_transform = None
 
@@ -187,6 +223,18 @@ class N5Dataset(torch.utils.data.Dataset):
             return [p.as_posix() for p in found_paths], numbers
 
         logger.info("data_file_name %s", data_file_name)
+
+        tmp_data_file_name = data_file_name.as_posix().replace(".n5", "_tmp.n5")
+        for attempt in range(100):
+            if Path(tmp_data_file_name).exists():
+                logger.warning(f"waiting for data (found {tmp_data_file_name})")
+                time.sleep(300)
+            else:
+                break
+        else:
+            if save:
+                raise FileExistsError(tmp_data_file_name)
+
         if data_file_name.exists():
             self.data_file = z5py.File(path=data_file_name.as_posix(), mode="r", use_zarr_format=False)
             self._len = self.data_file["x"].shape[0]
@@ -207,16 +255,23 @@ class N5Dataset(torch.utils.data.Dataset):
                     set(x_numbers) & set(y_numbers),
                 )
                 self.y_paths = sorted([p for p, yn in zip(raw_y_paths, y_numbers) if yn in common_numbers])
+                if z_crop is not None:
+                    self.y_paths = [
+                        p for i, p in enumerate(self.y_paths) if z_min <= i % self.info.dynamic_z_slice_mod <= z_max
+                    ]
 
             self.x_paths = sorted([p for p, xn in zip(raw_x_paths, x_numbers) if xn in common_numbers])
+            if z_crop is not None:
+                self.x_paths = [
+                    p for i, p in enumerate(self.x_paths) if z_min <= i % self.info.dynamic_z_slice_mod <= z_max
+                ]
+
             if self.with_target:
                 assert len(self.x_paths) == len(self.y_paths), raw_y_paths
 
             assert len(self.x_paths) >= 1, raw_x_paths
             self._len = len(self.x_paths)
             if save:
-                tmp_data_file_name = data_file_name.as_posix().replace(".n5", "_tmp.n5")
-                assert not Path(tmp_data_file_name).exists(), f"{tmp_data_file_name} exists!"
                 try:
                     data_file = z5py.File(path=tmp_data_file_name, mode="w", use_zarr_format=False)
 
@@ -255,7 +310,6 @@ class N5Dataset(torch.utils.data.Dataset):
 
                 os.rename(tmp_data_file_name, data_file_name.as_posix())
                 self.data_file = z5py.File(path=data_file_name.as_posix())
-
 
         stat_path = Path(data_file_name.as_posix().replace(".n5", "_stat.yml"))
         assert ".yml" in stat_path.as_posix(), "replacing '.n5' with '_stat.yml' did not work!"
@@ -332,7 +386,11 @@ class N5Dataset(torch.utils.data.Dataset):
 
     def process_y(self, i, to_ds=False) -> Optional[numpy.ndarray]:
         y_img = imread(self.y_paths[i])
-        assert len(y_img.shape) == 3, y_img.shape
+        if self.info.dynamic_z_slice_mod is not None or self.info.z_slice is not None:
+            assert len(y_img.shape) == 2, y_img.shape
+        else:
+            assert len(y_img.shape) == 3, y_img.shape
+
         if self.affine_transform is None:
             y_img = resize(y_img, self.y_shape, roi=self.info.y_roi, order=self.interpolation_order)
         else:
@@ -347,13 +405,17 @@ class N5Dataset(torch.utils.data.Dataset):
 
     def __getitem__(
         self, item
-    ) -> Union[Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray], Tuple[numpy.ndarray, numpy.ndarray], numpy.ndarray]:
+    ) -> Union[
+        Tuple[numpy.ndarray, numpy.ndarray],
+        Tuple[numpy.ndarray, numpy.ndarray, int],
+        numpy.ndarray,
+        Tuple[numpy.ndarray, int],
+    ]:  # aux? Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray], Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, int]
         item = int(item)
         if self.data_file is None:
             x = self.process_x(item)
             if self.with_target:
                 y = self.process_y(item)
-                y = resize(imread(self.y_paths[item]), self.y_shape, order=self.interpolation_order)
         elif self.futures is None:
             logger.debug("here1 x dg %s", self.data_file["x"].shape)
             x = self.data_file["x"][item]
@@ -381,12 +443,24 @@ class N5Dataset(torch.utils.data.Dataset):
             else:
                 x = self.transform(x)
 
+        if self.info.z_slices is not None:
+            z_slice = self.info.z_slices[item % len(self.info.z_slices)]
+        elif self.info.dynamic_z_slice_mod is not None:
+            z_slice = self.z_min + (item % self.z_dim)
+        else:
+            z_slice = None
+
         x = numpy.ascontiguousarray(x)
         if self.with_target:
             y = numpy.ascontiguousarray(y)
-            return x, y
-        else:
+            if z_slice is None:
+                return x, y
+            else:
+                return x, y, z_slice
+        elif z_slice is None:
             return x
+        else:
+            return x, z_slice
 
 
 class Result(torch.utils.data.Dataset):

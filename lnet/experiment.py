@@ -194,7 +194,7 @@ class Experiment:
                 tgt_batch = [None] * ipt_batch.shape[0]
             else:
                 assert ipt_batch.shape[0] == tgt_batch.shape[0], (ipt_batch.shape, tgt_batch.shape)
-                assert len(tgt_batch.shape) == 5, tgt_batch.shape
+                assert len(tgt_batch.shape) in (4, 5), tgt_batch.shape
                 assert tgt_batch.shape[1] == 1, tgt_batch.shape
 
             has_aux = hasattr(output, "aux_tgt")
@@ -252,28 +252,46 @@ class Experiment:
 
             global col
             for i, (ib, tb, pb) in enumerate(zip(ipt_batch, tgt_batch, pred_batch)):
+                if len(tb.shape) == 4:
+                    assert tb.shape[0] == 1
+                    tb = tb[0]
+
+                if len(pb.shape) == 4:
+                    assert pb.shape[0] == 1
+                    pb = pb[0]
+
                 col = 0
                 make_subplot(ax[i], "", ib[0])
-                make_subplot(ax[i], "prediction", pb[0].max(axis=0), boxes=boxes, side_view=pb[0].max(axis=2).T)
+                make_subplot(ax[i], "prediction", pb.max(axis=0), boxes=boxes, side_view=pb.max(axis=2).T)
                 if tb is not None:
-                    make_subplot(ax[i], "target", tb[0].max(axis=0), boxes=boxes, side_view=tb[0].max(axis=2).T)
+                    make_subplot(ax[i], "target", tb.max(axis=0), boxes=boxes, side_view=tb.max(axis=2).T)
                     tb_abs = numpy.abs(tb) + 0.1
                     pb_abs = numpy.abs(pb) + 0.1
-                    rel_diff = numpy.max([tb_abs / pb_abs, pb_abs / tb_abs], axis=0)[0]
-                    abs_diff = numpy.abs(pb - tb)[0]
+                    rel_diff = numpy.max([tb_abs / pb_abs, pb_abs / tb_abs], axis=0)
+                    abs_diff = numpy.abs(pb - tb)
                     make_subplot(ax[i], "rel diff", rel_diff.max(axis=0), side_view=rel_diff.max(axis=2).T)
                     make_subplot(ax[i], "abs_diff", abs_diff.max(axis=0), side_view=abs_diff.max(axis=2).T)
 
             if has_aux:
                 col_so_far = col
                 for i, (atb, apb) in enumerate(zip(aux_tgt_batch, aux_pred_batch)):
+                    if len(atb.shape) == 4:
+                        assert atb.shape[0] == 1
+                        atb = atb[0]
+
+                    if len(apb.shape) == 4:
+                        assert apb.shape[0] == 1
+                        apb = apb[0]
+
                     col = col_so_far
-                    make_subplot(ax[i], "aux tgt", atb[0].max(axis=0), boxes=boxes)
-                    make_subplot(ax[i], "aux pred", apb[0].max(axis=0), boxes=boxes)
+                    make_subplot(ax[i], "aux tgt", atb.max(axis=0), boxes=boxes)
+                    make_subplot(ax[i], "aux pred", apb.max(axis=0), boxes=boxes)
 
             col_so_far = col
             for loss_nr, vl_batch in enumerate(voxel_losses):
                 for i, vl in enumerate(vl_batch):
+                    if len(vl.shape) ==  3:
+                        vl = vl[None, ...]
                     col = col_so_far
                     make_subplot(
                         ax[i],

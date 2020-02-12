@@ -23,25 +23,38 @@ def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):
     else:
         model.eval()
 
+    z_slices = None
+    if len(batch[-1].shape) == 1:
+        z_slices = batch[-1]
+        batch = batch[:-1]
+
     has_aux = len(batch) == 3
     if has_aux:
         if isinstance(batch, (list, tuple)):
             ipt, tgt, aux_tgt = batch
-            aux_tgt = convert_tensor(aux_tgt, device=device, non_blocking=False)
+            ipt = convert_tensor(ipt, device=device, non_blocking=True)
+            tgt = convert_tensor(tgt, device=device, non_blocking=True)
+            aux_tgt = convert_tensor(aux_tgt, device=device, non_blocking=True)
         else:
             ipt = batch
+            ipt = convert_tensor(ipt, device=device, non_blocking=True)
             tgt = None
             aux_tgt = None
     else:
         if isinstance(batch, (list, tuple)):
             ipt, tgt = batch
-            tgt = convert_tensor(tgt, device=device, non_blocking=False)
+            ipt = convert_tensor(ipt, device=device, non_blocking=True)
+            tgt = convert_tensor(tgt, device=device, non_blocking=True)
         else:
             ipt = batch
+            ipt = convert_tensor(ipt, device=device, non_blocking=True)
             tgt = None
 
-    ipt = convert_tensor(ipt, device=device, non_blocking=False)
-    pred = model(ipt)
+    if z_slices is None:
+        pred = model(ipt)
+    else:
+        pred = model(ipt, z_slices=z_slices)
+
     if has_aux:
         pred, aux_pred = pred
         if tgt is not None:

@@ -2,7 +2,6 @@ import inspect
 from typing import Tuple, Optional, Sequence, Callable, Dict
 import logging
 
-import numpy
 import torch.nn
 import torch.nn as nn
 
@@ -95,6 +94,10 @@ class A01(LnetModel):
             in_shape_for_at: getattr(registration, at_class)(order=interpolation_order)
             for in_shape_for_at, at_class in affine_transform_classes.items()
         }
+        self.z_dims = {
+            in_shape: at.ls_shape[0] - at.lf2ls_crop[0][0] - at.lf2ls_crop[0][1]
+            for in_shape, at in self.affine_transforms.items()
+        }
 
         if final_activation == "sigmoid":
             self.final_activation = torch.nn.Sigmoid()
@@ -103,17 +106,21 @@ class A01(LnetModel):
         else:
             self.final_activation = None
 
-    def forward(self, x):
-        in_shape = ",".join(x.shape)
+    def forward(self, x, z_slices: Optional[Sequence[int]] = None):
+        in_shape = ",".join(str(s) for s in x.shape[1:])
         x = self.res2d(x)
         x = self.conv2d(x)
         x = self.c2z(x)
         x = self.res3d(x)
-        x = self.conv3d(x) + 0.1
+        x = self.conv3d(x)
 
-        x = self.affine_transforms[in_shape](
-            x, output_shape=tuple(int(s * g) for s, g in zip(x.shape[2:], self.grid_sampling_scale))
-        )
+        if z_slices is None:
+            out_shape = tuple(int(s * g) for s, g in zip(x.shape[2:], self.grid_sampling_scale))
+        else:
+            z_dim = self.z_dims[in_shape]
+            out_shape = (z_dim,) + tuple(int(s * g) for s, g in zip(x.shape[3:], self.grid_sampling_scale))
+
+        x = self.affine_transforms[in_shape](x, output_shape=out_shape, z_slices=z_slices)
 
         if self.final_activation is not None:
             x = self.final_activation(x)
@@ -146,6 +153,8 @@ class A01(LnetModel):
 
 
 if __name__ == "__main__":
+    import yaml
+
     import matplotlib.pyplot as plt
     from lnet.config.data import DataConfig, DataCategory
 
@@ -158,32 +167,38 @@ if __name__ == "__main__":
         nnum=19,
         precision="float",
         checkpoint="/g/kreshuk/beuttenm/repos/lnet/logs/fish/fish2_20191208_0815_static/20-01-24_07-47-11/models/v0_model_260.pth",
-        kwargs={
-            "n_res2d": [128, 64],  # [],
-            "inplanes_3d": 32,  # 1,
-            "n_res3d": [[32, 16], [8, 4]],  # [],
-            # "init_fn": nn.init.dirac_,
-            "affine_transform_class": "Heart_tightCrop_Transform",
-            "interpolation_order": interpolation_order,
-            # "grid_sampling_scale: (1.5, 2, 2),
-        },
+        kwargs=yaml.safe_load(
+            """
+affine_transform_classes:
+    361,67,77: Heart_tightCrop_Transform
+    361,77,67: Heart_tightCrop_Transform
+    361,66,77: Heart_tightCrop_Transform
+    361,77,66: Heart_tightCrop_Transform
+    361,62,93: staticHeartFOV_Transform
+    361,93,62: staticHeartFOV_Transform
+interpolation_order: 2
+n_res2d: [128, 64]
+inplanes_3d: 32
+n_res3d: [[32, 16], [8, 4]]
+"""
+        ),
     )
     data_config = DataConfig.load(
         model_config=model_config,
         category=DataCategory.test,
-        entries={
-            "fish2_20191209_0815_static_affine": {
-                "indices": None,
-                "interpolation_order": 2,
-                # "affine_transformation": "default",
-            }
-        },
+        entries=yaml.safe_load(
+            """
+fish2_20191209.t0815_static_affine: {indices: null, interpolation_order: 2}
+"""
+        ),
         default_batch_size=1,
-        default_transforms=[
-            {"name": "norm01", "kwargs": {"apply_to": 0, "percentile_min": 5.0, "percentile_max": 99.8}},
-            {"name": "norm01", "kwargs": {"apply_to": 1, "percentile_min": 5.0, "percentile_max": 99.99}},
-            "Lightfield2Channel",
-        ],
+        default_transforms=yaml.safe_load(
+            """
+- {name: norm01, kwargs: {apply_to: 0, percentile_min: 5.0, percentile_max: 99.8}}
+- {name: norm01, kwargs: {apply_to: 1, percentile_min: 5.0, percentile_max: 99.99}}
+- Lightfield2Channel
+"""
+        ),
     )
     m = model_config.model
     # m.cuda()
@@ -219,3 +234,5 @@ if __name__ == "__main__":
     plt.imshow(out[0, 0].detach().cpu().numpy().max(axis=2))
     plt.title("out")
     plt.show()
+
+    print("done")

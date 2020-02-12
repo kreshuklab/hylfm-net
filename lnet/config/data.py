@@ -1,4 +1,5 @@
 import logging
+import sys
 from enum import Enum
 
 from dataclasses import dataclass, field, InitVar
@@ -25,6 +26,8 @@ from lnet.config.dataset import (
     fish1_20191209,
     fish2_20191209,
     fish3_20191209,
+    fish1_20191207,
+    fish2_20191209_dynamic,
 )
 from lnet.datasets import N5Dataset
 from lnet.transforms import known_transforms, randomly_shape_changing_transforms
@@ -48,6 +51,7 @@ class DataConfigEntry:
     name: str
     batch_size: int
     indices: Optional[List[int]] = None
+    save: bool = True
     interpolation_order: int = 3
     affine_transformation: Optional[str] = None
 
@@ -109,10 +113,12 @@ class DataConfigEntry:
                 nema,
                 tuesday_fish,
                 fish1_20191203,
+                fish1_20191207,
                 fish1_20191208,
                 fish1_20191209,
                 fish2_20191209,
                 fish3_20191209,
+                fish2_20191209_dynamic,
             ]
         }
         if "." in self.name:
@@ -170,13 +176,47 @@ class DataConfig:
     z_out: Optional[int] = field(init=False)
 
     def __post_init__(self, model_config: ModelConfig):
+        # check that the A01 hack works of identifying which transform to apply based on tensor shape
+        x_shape_unique_to_affine_transform = {}
+        for entry in self.entries:
+            x_shape = ",".join(
+                str(s)
+                for s in (
+                    model_config.nnum ** 2,
+                    entry.info.x_shape[0] // model_config.nnum,
+                    entry.info.x_shape[1] // model_config.nnum,
+                )
+            )
+            at_name = x_shape_unique_to_affine_transform.get(x_shape, None)
+
+            if at_name is None:
+                at = entry.info.DefaultAffineTransform
+                if at is not None:
+                    x_shape_unique_to_affine_transform[x_shape] = at.__name__
+
+                    a01_affine_transform_classes = model_config.kwargs.get("affine_transform_classes", None)
+                    if a01_affine_transform_classes is not None:
+                        if x_shape not in a01_affine_transform_classes:
+                            raise ValueError(
+                                f"x shape {x_shape} missing in model kwargs.affine_transformation_classes for entry {entry.name}"
+                            )
+
+                        if a01_affine_transform_classes[x_shape] != at.__name__:
+                            raise ValueError(
+                                f"missmatch for kwargs:affine_transform_classes[x_shape={x_shape}]={a01_affine_transform_classes[x_shape]}!={at.__name__} for entry {entry.name}"
+                            )
+            else:
+                if entry.info.DefaultAffineTransform is not None:
+                    if at_name != entry.info.DefaultAffineTransform.__name__:
+                        raise ValueError(f"x shape {x_shape} already associated with transform {at_name}")
+
         self.datasets: List[N5Dataset] = [
             N5Dataset(
                 info=entry.info,
                 scaling=None,
                 z_out=model_config.z_out,
                 interpolation_order=entry.interpolation_order,
-                save=True,
+                save=entry.save,
                 transforms=entry.transforms,
                 model_config=model_config,
                 AffineTransformation=entry.AffineTransformation,
@@ -208,7 +248,7 @@ class DataConfig:
                 drop_last=False,
             ),
             pin_memory=True,
-            num_workers=8,
+            num_workers=0 if sys.gettrace() is not None else 8,  # debug without worker threads
         )
 
     @classmethod
