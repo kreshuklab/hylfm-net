@@ -95,7 +95,26 @@ class Experiment:
         self.model.cuda()
         if config.model.checkpoint is not None:
             state = torch.load(config.model.checkpoint, map_location=self.device)
-            self.model.load_state_dict(state, strict=False)
+            for attempt in range(2):
+                try:
+                    self.model.load_state_dict(state, strict=False)
+                except RuntimeError as e:
+                    if self.config.train is None or attempt > 0:
+                        raise
+
+                    self.logger.error("!!!State from checkpoint does not match!!!")
+
+                    # load partial state
+                    before = "size mismatch for "
+                    after = ": copying a param with shape"
+                    for line in str(e).split("\n")[1:]:
+                        idx_before = line.find(before)
+                        idx_after = line.find(after)
+                        if idx_before == -1 or idx_after == -1:
+                            self.logger.warning("Didn't understand 'load_state_dict' exception line: %s", line)
+                        else:
+                            state.pop(line[idx_before + len(before):idx_after])
+
 
     def test(self):
         self.max_num_epochs = 0

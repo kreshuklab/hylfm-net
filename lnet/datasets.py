@@ -105,20 +105,20 @@ class N5Dataset(torch.utils.data.Dataset):
         self.z_out = z_out
         x_shape = (1,) + original_x_shape
 
+        z_crop = None
+        z_dim = None
+        z_min = None
+        z_max = None
         if info.z_slices is not None:
-            z_min, z_max = min(info.z_slices), max(info.z_slices)
-            z_crop = z_min, info.dynamic_z_slice_mod + 1 - z_max
-            z_dim = z_max - z_min
+            pass
+            # z_min, z_max = min(info.z_slices), max(info.z_slices)
+            # z_crop = z_min, info.dynamic_z_slice_mod + 1 - z_max
+            # z_dim = z_max - z_min
         elif info.dynamic_z_slice_mod is not None:
             z_crop = info.DefaultAffineTransform.lf2ls_crop[0]
-            z_min = z_crop[0]
-            z_max = info.dynamic_z_slice_mod - z_crop[1] - 1
-            z_dim = info.dynamic_z_slice_mod - z_crop[0] - z_crop[1]
-        else:
-            z_crop = None
-            z_dim = None
-            z_min = None
-            z_max = None
+            z_min = z_crop[1]
+            z_max = info.dynamic_z_slice_mod - z_crop[0] - 1
+            z_dim = info.dynamic_z_slice_mod - z_crop[1] - z_crop[0]
 
         self.z_dim = z_dim
         self.z_min = z_min
@@ -386,7 +386,7 @@ class N5Dataset(torch.utils.data.Dataset):
 
     def process_y(self, i, to_ds=False) -> Optional[numpy.ndarray]:
         y_img = imread(self.y_paths[i])
-        if self.info.dynamic_z_slice_mod is not None or self.info.z_slice is not None:
+        if self.info.dynamic_z_slice_mod is not None or self.info.z_slices is not None:
             assert len(y_img.shape) == 2, y_img.shape
         else:
             assert len(y_img.shape) == 3, y_img.shape
@@ -444,11 +444,13 @@ class N5Dataset(torch.utils.data.Dataset):
                 x = self.transform(x)
 
         if self.info.z_slices is not None:
-            z_slice = self.info.z_slices[item % len(self.info.z_slices)]
+            neg_z_slice = self.info.z_slices[item % len(self.info.z_slices)]
         elif self.info.dynamic_z_slice_mod is not None:
-            z_slice = self.z_min + (item % self.z_dim)
+            neg_z_slice = self.z_min + (item % self.z_dim) + 1
         else:
-            z_slice = None
+            neg_z_slice = None
+
+        z_slice = None if neg_z_slice is None else self.info.dynamic_z_slice_mod - neg_z_slice
 
         x = numpy.ascontiguousarray(x)
         if self.with_target:

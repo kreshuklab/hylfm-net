@@ -52,7 +52,7 @@ class NoCrossBatchSampler(Sampler):
     def __iter__(self):
         batches: DefaultDict[int, List[int]] = defaultdict(list)
         for idx in self.sampler:
-            ds = numpy.searchsorted(self.cumsum, idx)
+            ds = numpy.searchsorted(self.cumsum, idx, side="right")
             batches[ds].append(idx)
             if len(batches[ds]) == self.batch_sizes[ds]:
                 yield batches.pop(ds)

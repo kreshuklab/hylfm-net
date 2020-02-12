@@ -113,8 +113,12 @@ class BDVTransform(torch.nn.Module):
         additional_transforms_left: Sequence[numpy.ndarray] = tuple(),
         additional_transforms_right: Sequence[numpy.ndarray] = tuple(),
         forward: str = "lf2ls",
+        trf_out_zoom: Tuple[float, float, float] = (1.0, 1.0, 1.0),
         lf_shape: Optional[Tuple[int, int, int]] = None,
     ):
+        if output_shape is not None and len(output_shape) == 2:
+            raise NotImplementedError
+
         # check if correctly inherited
         assert hasattr(self, "xml_path") and isinstance(self.xml_path, Path) and self.xml_path.exists()
         assert hasattr(self, "affine_transforms") and isinstance(self.affine_transforms, tuple)
@@ -128,7 +132,7 @@ class BDVTransform(torch.nn.Module):
         assert forward in ["lf2ls", "ls2lf"]
         self.forward = getattr(self, forward)
         super().__init__()
-
+        self.trf_out_zoom = trf_out_zoom
         assert output_shape is None or isinstance(output_shape, tuple)
         self.mode = self.mode_from_order.get(order, None)
 
@@ -276,13 +280,15 @@ class BDVTransform(torch.nn.Module):
             raise TypeError(type(ipt))
 
     def ls2lf(self, ipt: Union[torch.Tensor, numpy.ndarray], **kwargs) -> Union[numpy.ndarray, torch.Tensor]:
+        raise NotImplementedError("trf_out_zoom")
         return self._ls2lf(
             ipt, matrix=self.trf_matrix, trf_in_shape=self.ls_shape, trf_out_shape=self.lf_shape, **kwargs
         )
 
     def lf2ls(self, ipt: Union[torch.Tensor, numpy.ndarray], **kwargs) -> Union[numpy.ndarray, torch.Tensor]:
         cropped_ls_shape: Union[Tuple[int, int], Tuple[int, int, int]] = tuple(
-            lss - ls_crop[0] - ls_crop[1] for lss, ls_crop in zip(self.ls_shape, self.lf2ls_crop)
+            (lss - ls_crop[0] - ls_crop[1]) * zoom
+            for lss, ls_crop, zoom in zip(self.ls_shape, self.lf2ls_crop, self.trf_out_zoom)
         )
         return self._ls2lf(
             ipt, matrix=self.lf2ls_matrix, trf_in_shape=self.lf_shape, trf_out_shape=cropped_ls_shape, **kwargs
@@ -956,7 +962,7 @@ class fast_cropped_6ms_Transform(BDVTransform):
         ),
         (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0),
     )
-    ls_shape = (1, 1024, 1024)
+    ls_shape = (241, 1024, 1024)
     xml_path = Path(
         "/g/kreshuk//LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/beads_afterStaticHeart/fast_cropped_6ms/2019-12-03_10.47.58/dataset_fast_cropped_6ms.xml"
     )
@@ -1078,7 +1084,9 @@ class fast_cropped_8ms_Transform(BDVTransform):
         ),
         (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0),
     )
-    ls_shape = (1, 1350, 1350)
+    lf2ls_crop = ((10, 10), (50, 50), (50, 50))
+    ls_shape = (241, 1350, 1350)
+    lf_shape = (838, 1273, 1254)
     xml_path = Path(
         "/g/kreshuk//LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/fast_cropped_8ms/200msExp/2019-12-09_22.13.48/dataset_fast_cropped_8ms.xml"
     )

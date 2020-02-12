@@ -146,6 +146,14 @@ class Lightfield2Channel(Transform):
         return channel_from_lightfield(cxy_image, nnum=self.nnum)
 
 
+class BatchLightfield2Channel(Transform):
+    def __init__(self, nnum: int, apply_to=(0,), **super_kwargs):
+        super().__init__(apply_to=list(apply_to), **super_kwargs)
+        self.nnum = nnum
+
+    def batch_function(self, ncxy_image):
+        return numpy.stack([channel_from_lightfield(cxy_image, nnum=self.nnum) for cxy_image in ncxy_image])
+
 def get_prereorder_transform(*additional_transforms, std: float = 0.1):
     transforms = [AdditiveGaussianNoise(std, apply_to=[0]), RandomRotate(), RandomFlipXYnotZ()]
     for t in additional_transforms:

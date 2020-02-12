@@ -91,7 +91,9 @@ class A01(LnetModel):
         # todo: make learnable with ModuleDict
 
         self.affine_transforms = {
-            in_shape_for_at: getattr(registration, at_class)(order=interpolation_order)
+            in_shape_for_at: getattr(registration, at_class)(
+                order=interpolation_order, trf_out_zoom=grid_sampling_scale
+            )
             for in_shape_for_at, at_class in affine_transform_classes.items()
         }
         self.z_dims = {
@@ -117,8 +119,8 @@ class A01(LnetModel):
         if z_slices is None:
             out_shape = tuple(int(s * g) for s, g in zip(x.shape[2:], self.grid_sampling_scale))
         else:
-            z_dim = self.z_dims[in_shape]
-            out_shape = (z_dim,) + tuple(int(s * g) for s, g in zip(x.shape[3:], self.grid_sampling_scale))
+            z_dim = int(self.z_dims[in_shape] * self.grid_sampling_scale[0])
+            out_shape = (z_dim,) + tuple(int(s * g) for s, g in zip(x.shape[3:], self.grid_sampling_scale[1:]))
 
         x = self.affine_transforms[in_shape](x, output_shape=out_shape, z_slices=z_slices)
 
@@ -152,7 +154,7 @@ class A01(LnetModel):
         )
 
 
-if __name__ == "__main__":
+def try_a01_static():
     import yaml
 
     import matplotlib.pyplot as plt
@@ -160,7 +162,6 @@ if __name__ == "__main__":
 
     from lnet.config.model import ModelConfig
 
-    interpolation_order = 0
     model_config = ModelConfig.load(
         "A01",
         z_out=49,
@@ -236,3 +237,82 @@ fish2_20191209.t0815_static_affine: {indices: null, interpolation_order: 2}
     plt.show()
 
     print("done")
+
+
+def try_a01_dynamic():
+    import yaml
+
+    import matplotlib.pyplot as plt
+    from lnet.config.data import DataConfig, DataCategory
+
+    from lnet.config.model import ModelConfig
+
+    model_config = ModelConfig.load(
+        "A01",
+        z_out=49,
+        nnum=19,
+        precision="float",
+        # checkpoint="/g/kreshuk/beuttenm/repos/lnet/logs/fish/fish2_20191208_0815_static/20-01-24_07-47-11/models/v0_model_260.pth",
+        checkpoint="/g/kreshuk/beuttenm/repos/lnet/logs/fish/fdyn0_a01/20-01-29_15-56-09/models/v0_model_301.pth",
+        kwargs=yaml.safe_load(
+            """
+affine_transform_classes:
+  361,67,66: fast_cropped_8ms_Transform
+  361,66,67: fast_cropped_8ms_Transform
+interpolation_order: 2
+grid_sampling_scale: [1, 2, 2]
+# n_res2d: [128, 64]
+# inplanes_3d: 32
+# n_res3d: [[32, 16], [8, 4]]
+n_res2d: [212, 212, 212, 212]
+inplanes_3d: 4
+n_res3d: [[8, 4]]
+"""
+        ),
+    )
+    data_config = DataConfig.load(
+        model_config=model_config,
+        category=DataCategory.test,
+        entries=yaml.safe_load(
+            """
+fish2_20191209_dynamic.t0402c11p100a: {indices: null, interpolation_order: 2}
+"""
+        ),
+        default_batch_size=1,
+        default_transforms=yaml.safe_load(
+            """
+- {name: norm01, kwargs: {apply_to: 0, percentile_min: 5.0, percentile_max: 99.8}}
+- {name: norm01, kwargs: {apply_to: 1, percentile_min: 5.0, percentile_max: 99.99}}
+- Lightfield2Channel
+"""
+        ),
+    )
+    m = model_config.model
+    # m.cuda()
+    if model_config.checkpoint is not None:
+        state = torch.load(model_config.checkpoint, map_location=torch.device("cpu"))
+        m.load_state_dict(state, strict=False)
+
+    loader = data_config.data_loader
+    # ipt = torch.rand(1, nnum ** 2, 5, 5)
+    ipt, tgt, z_slice = next(iter(loader))
+    print("ipt", ipt.shape, "tgt", tgt.shape, z_slice)
+    plt.imshow(tgt[0, 0].detach().cpu().numpy())
+    plt.title("tgt")
+    plt.show()
+    # print("scale", m.get_scaling(ipt.shape[2:]))
+    # print("out", m.get_output_shape(ipt.shape[2:]))
+    # print("shrink", m.get_shrinkage(ipt.shape[2:]))
+    # print("len 3d", len(m.res3d))
+
+    out = m(ipt, z_slices=[z_slice])
+    print("out", out.shape)
+    plt.imshow(out[0, 0].detach().cpu().numpy())
+    plt.title(f"out {z_slice}")
+    plt.show()
+
+    print("done")
+
+
+if __name__ == "__main__":
+    try_a01_dynamic()

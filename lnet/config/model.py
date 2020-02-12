@@ -34,6 +34,7 @@ class ModelConfig:
         if kwargs is None:
             kwargs = {}
 
+
         return cls(
             Model=getattr(models, name),
             kwargs=kwargs,
