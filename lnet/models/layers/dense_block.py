@@ -1,4 +1,4 @@
-import torch
+import torch.nn.functional
 from torch import nn
 
 
@@ -24,7 +24,7 @@ class DenseLayer(nn.Sequential):
     def forward(self, x):
         new_features = super(DenseLayer, self).forward(x)
         if self.drop_rate > 0:
-            new_features = F.dropout(new_features, p=self.drop_rate, training=self.training)
+            new_features = torch.nn.functional.dropout(new_features, p=self.drop_rate, training=self.training)
         return torch.cat([x, new_features], 1)
 
 

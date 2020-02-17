@@ -40,18 +40,13 @@ class A02(LnetModel):
         n_res2d = [nnum ** 2] + list(n_res2d)
         self.n_res3d = n_res3d
         self.z_out = z_out
-        z_out += (
-            2 * len([up3d for up3d in n_res3d if len(up3d) == 1])
-            + 4 * len([up3d for up3d in n_res3d if len(up3d) > 1])
-            + 2
-        )  # add z_out for valid 3d convs
+        z_out += 4 * len(n_res3d)  # add z_out for valid 3d convs
 
         res2d = []
         for i in range(len(n_res2d) - 1):
             if n_res2d[i] == "u":
                 assert i > 0
                 assert n_res2d[i + 1] != "u"
-                print('adding up2d')
                 res2d.append(
                     nn.ConvTranspose2d(
                         in_channels=n_res2d[i - 1],
@@ -84,7 +79,6 @@ class A02(LnetModel):
         for n in n_res3d:
             res3d.append(ResnetBlock(in_n_filters=inplanes_3d, n_filters=n[0], kernel_size=(3, 3, 3), valid=True))
             if len(n) == 2:
-                print('adding up3d')
                 res3d.append(
                     nn.ConvTranspose3d(
                         in_channels=n[0],
@@ -155,7 +149,9 @@ class A02(LnetModel):
         return x
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
-        s = max(1, 2 * self.n_res2d.count("u")) * max(1, 2 * len([up3d for up3d in self.n_res3d if len(up3d) == 2]))
+        s = max(1, 2 * sum(isinstance(res2d, str) and "u" in res2d for res2d in self.n_res2d)) * max(
+            1, 2 * len([up3d for up3d in self.n_res3d if len(up3d) == 2])
+        )
         return s, s
 
     def get_shrinkage(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[int, int]:
@@ -165,7 +161,7 @@ class A02(LnetModel):
             if len(up3d) > 1:
                 s *= 2
 
-        s += 1  # 3d valid conv
+        # s += 1  # 3d valid conv
 
         # grid sampling scale
         sfloat = (s * self.grid_sampling_scale[1], s * self.grid_sampling_scale[2])
@@ -203,6 +199,10 @@ affine_transform_classes:
     361,62,93: staticHeartFOV_Transform
     361,93,62: staticHeartFOV_Transform
 interpolation_order: 2
+n_res2d: [976, 488, u, 244, 244, u, 122, 122]
+inplanes_3d: 7
+n_res3d: [[7, 7], [7], [1]]
+final_activation: null
 """
         ),
     )
@@ -211,7 +211,8 @@ interpolation_order: 2
         category=DataCategory.test,
         entries=yaml.safe_load(
             """
-fish2_20191209.t0815_static_affine: {indices: null, interpolation_order: 2}
+fish1_20191207.t0610_static_affine: {indices: null, interpolation_order: 2, save: false}
+# fish2_20191209.t0815_static_affine: {indices: null, interpolation_order: 2, save: false}
 """
         ),
         default_batch_size=1,
@@ -294,7 +295,7 @@ interpolation_order: 2
         category=DataCategory.test,
         entries=yaml.safe_load(
             """
-fish2_20191209_dynamic.t0402c11p100a: {indices: null, interpolation_order: 2}
+fish2_20191209_dynamic.t0402c11p100a: {indices: null, interpolation_order: 2, save: false}
 """
         ),
         default_batch_size=1,

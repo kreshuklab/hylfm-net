@@ -272,7 +272,7 @@ def try_dynamic():
 
     model_config = ModelConfig.load(
         "D01",
-        z_out=49,
+        z_out=79,
         nnum=19,
         precision="float",
         # checkpoint="/g/kreshuk/beuttenm/repos/lnet/logs/fish/fish2_20191208_0815_static/20-01-24_07-47-11/models/v0_model_260.pth",

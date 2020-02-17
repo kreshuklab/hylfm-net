@@ -25,9 +25,9 @@ class D02(LnetModel):
         interpolation_order: int,
         grid_sampling_scale: Tuple[float, float, float] = (1.0, 1.0, 1.0),
         final_activation: Optional[str] = None,
-        block_config_2d=(6, 12, 24, 16),
-        inplanes_3d: int = 32,
-        n_res3d: Sequence[Sequence[int]] = ((16, 8), (8, 4), (4, 1)),
+        block_config_2d=(6, 12, "16u", 16),
+        inplanes_3d: int = 8,
+        n_res3d: Sequence[Sequence[int]] = ((8, 7), (7,)),
         init_fn: Callable = nn.init.xavier_uniform_,
         growth_rate: Union[str, int] = "z_out",
         bn_size=2,
@@ -44,8 +44,9 @@ class D02(LnetModel):
         self.n_res3d = n_res3d
         self.z_out = z_out
         z_out += 4 * len(n_res3d)
-        if n_res3d[-1][1] != 1:
-            z_out += 2  # add z_out for valid 3d convs
+        self.block_config_2d = block_config_2d
+        # if n_res3d[-1][-1] != 1:
+        #     z_out += 2  # add z_out for valid 3d convs
 
         if growth_rate == "z_out":
             growth_rate = z_out
@@ -57,20 +58,12 @@ class D02(LnetModel):
         num_features = nnum ** 2
         for i, num_layers in enumerate(block_config_2d):
             if isinstance(num_layers, str):
-                assert num_features == "u"
-                nn.ConvTranspose2d(
-                    in_channels=num_features,
-                    out_channels=num_features,
-                    kernel_size=(3, 2, 2),
-                    stride=(1, 2, 2),
-                    padding=(1, 0, 0),
-                    output_padding=0,
-                )
-                trans =
-            elif i != len(block_config_2d) - 1:
-                trans = Transition2D(num_input_features=num_features, num_output_features=num_features // 2)
+                assert num_layers.endswith("u")
+                assert i != len(block_config_2d) - 1
+                num_layers = int(num_layers[:-1])
+                upsample = True
             else:
-                trans = None
+                upsample = False
 
             block = DenseBlock(
                 num_layers=num_layers,
@@ -82,9 +75,24 @@ class D02(LnetModel):
             )
             self.dense2d.add_module("denseblock%d" % (i + 1), block)
             num_features = num_features + num_layers * growth_rate
-            if i != len(block_config_2d) - 1:
+
+            if upsample:
+                trans = nn.ConvTranspose2d(
+                    in_channels=num_features,
+                    out_channels=num_features // 2,
+                    kernel_size=(2, 2),
+                    stride=(2, 2),
+                    padding=(0, 0),
+                    output_padding=0,
+                )
+            elif i != len(block_config_2d) - 1:
+                trans = Transition2D(num_input_features=num_features, num_output_features=num_features // 2)
+            else:
+                trans = None
+
+            if trans is not None:
                 self.dense2d.add_module("transition%d" % (i + 1), trans)
-                num_features = num_features // 2
+                num_features //= 2
 
         self.dense2d.add_module(
             "transition_zout*inplances3d",
@@ -96,17 +104,20 @@ class D02(LnetModel):
         res3d = []
         for n in n_res3d:
             res3d.append(ResnetBlock(in_n_filters=inplanes_3d, n_filters=n[0], kernel_size=(3, 3, 3), valid=True))
-            res3d.append(
-                nn.ConvTranspose3d(
-                    in_channels=n[0],
-                    out_channels=n[1],
-                    kernel_size=(3, 2, 2),
-                    stride=(1, 2, 2),
-                    padding=(1, 0, 0),
-                    output_padding=0,
+            if len(n) > 1:
+                res3d.append(
+                    nn.ConvTranspose3d(
+                        in_channels=n[0],
+                        out_channels=n[1],
+                        kernel_size=(3, 2, 2),
+                        stride=(1, 2, 2),
+                        padding=(1, 0, 0),
+                        output_padding=0,
+                    )
                 )
-            )
-            inplanes_3d = n[1]
+                inplanes_3d = n[1]
+            else:
+                inplanes_3d = n[0]
 
         self.res3d = nn.Sequential(*res3d)
         if n_res3d:
@@ -120,7 +131,7 @@ class D02(LnetModel):
             init_fn_conv3d = init_fn
 
         init = partial(Initialization, weight_initializer=init_fn_conv3d, bias_initializer=Constant(0.0))
-        if n_res3d[-1][1] != 1:
+        if n_res3d[-1][-1] != 1:
             self.res3d.add_module("out_transition", Transition3D(res3d_out_channels, 1, batch_norm=batch_norm))
 
         # self.conv3d = ValidConv3D(res3d_out_channels, 1, (3, 3, 3), initialization=init)
@@ -165,14 +176,17 @@ class D02(LnetModel):
         return x
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
-        s = max(1, 2**len(self.n_res3d))
+        s = max(1, 2 * sum(isinstance(block2d, str) and "u" in block2d for block2d in self.block_config_2d)) * max(
+            1, 2 * sum(len(up3d) == 2 for up3d in self.n_res3d)
+        )
         return s, s
 
     def get_shrinkage(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[int, int]:
         s = 0
-        for _ in self.n_res3d:
+        for res3d in self.n_res3d:
             s += 2
-            s *= 2
+            if len(res3d) > 1:
+                s *= 2
 
         # grid sampling scale
         sfloat = (s * self.grid_sampling_scale[1], s * self.grid_sampling_scale[2])
@@ -196,11 +210,10 @@ def try_static():
     from lnet.config.model import ModelConfig
 
     model_config = ModelConfig.load(
-        "D01",
+        D02.__name__,
         z_out=79,
         nnum=19,
         precision="float",
-        # checkpoint="/g/kreshuk/beuttenm/repos/lnet/logs/fish/fish2_20191208_0815_static/20-01-24_07-47-11/models/v0_model_260.pth",
         kwargs=yaml.safe_load(
             """
 affine_transform_classes:
@@ -210,9 +223,13 @@ affine_transform_classes:
     361,77,66: Heart_tightCrop_Transform
     361,62,93: staticHeartFOV_Transform
     361,93,62: staticHeartFOV_Transform
-interpolation_order: 0
-# inplanes_3d: 32
-# n_res3d: [[32, 16], [8, 4]]
+interpolation_order: 2
+grid_sampling_scale: [1.0, 1.0, 1.0]
+block_config_2d: [6, 12, 16u, 12]
+inplanes_3d:  8
+n_res3d: [[8, 7], [7, 1]]
+growth_rate: z_out
+batch_norm: true
 """
         ),
     )
@@ -221,7 +238,7 @@ interpolation_order: 0
         category=DataCategory.test,
         entries=yaml.safe_load(
             """
-fish2_20191209.t0815_static_affine: {indices: null, interpolation_order: 0}
+fish2_20191209.t0815_static_affine: {indices: null, interpolation_order: 2, save: false}
 """
         ),
         default_batch_size=1,
@@ -245,14 +262,18 @@ fish2_20191209.t0815_static_affine: {indices: null, interpolation_order: 0}
     # ipt = torch.rand(1, nnum ** 2, 5, 5)
     ipt, tgt = next(iter(loader))
     ipt, tgt = ipt.to(device), tgt.to(device)
-    print("ipt", ipt.shape, "tgt", tgt.shape)
-    plt.imshow(tgt[0, 0].cpu().numpy().max(axis=0))
+    print("get_scaling", m.get_scaling(ipt.shape[2:]))
+    print("get_shrinkage", m.get_shrinkage(ipt.shape[2:]))
+    print("get_output_shape()", m.get_output_shape(ipt.shape[2:]))
+    print("ipt", ipt.shape)
+    print("tgt", tgt.shape)
+    plt.imshow(tgt[0, 0].detach().cpu().numpy().max(axis=0))
     plt.title("tgt")
     plt.show()
-    plt.imshow(tgt[0, 0].cpu().numpy().max(axis=1))
+    plt.imshow(tgt[0, 0].detach().cpu().numpy().max(axis=1))
     plt.title("tgt")
     plt.show()
-    plt.imshow(tgt[0, 0].cpu().numpy().max(axis=2))
+    plt.imshow(tgt[0, 0].detach().cpu().numpy().max(axis=2))
     plt.title("tgt")
     plt.show()
     # print("scale", m.get_scaling(ipt.shape[2:]))
@@ -263,15 +284,12 @@ fish2_20191209.t0815_static_affine: {indices: null, interpolation_order: 0}
     print("out", out.shape)
     plt.imshow(out[0, 0].detach().cpu().numpy().max(axis=0))
     plt.title("out")
-    plt.colorbar()
     plt.show()
     plt.imshow(out[0, 0].detach().cpu().numpy().max(axis=1))
     plt.title("out")
-    plt.colorbar()
     plt.show()
     plt.imshow(out[0, 0].detach().cpu().numpy().max(axis=2))
     plt.title("out")
-    plt.colorbar()
     plt.show()
 
     print("done")
@@ -286,25 +304,16 @@ def try_dynamic():
     from lnet.config.model import ModelConfig
 
     model_config = ModelConfig.load(
-        "D01",
-        z_out=49,
+        D02.__name__,
+        z_out=79,
         nnum=19,
         precision="float",
-        # checkpoint="/g/kreshuk/beuttenm/repos/lnet/logs/fish/fish2_20191208_0815_static/20-01-24_07-47-11/models/v0_model_260.pth",
-        # checkpoint="/g/kreshuk/beuttenm/repos/lnet/logs/fish/fdyn0_a01/20-01-29_15-56-09/models/v0_model_301.pth",
         kwargs=yaml.safe_load(
             """
 affine_transform_classes:
   361,67,66: fast_cropped_8ms_Transform
   361,66,67: fast_cropped_8ms_Transform
-interpolation_order: 0
-# grid_sampling_scale: [1, 2, 2]
-# n_dense2d: [128, 64]
-# inplanes_3d: 32
-# n_res3d: [[32, 16], [8, 4]]
-# n_dense2d: [212, 212, 212, 212]
-# inplanes_3d: 4
-# n_res3d: [[8, 4]]
+interpolation_order: 2
 """
         ),
     )
@@ -313,7 +322,7 @@ interpolation_order: 0
         category=DataCategory.test,
         entries=yaml.safe_load(
             """
-fish2_20191209_dynamic.t0402c11p100a: {indices: null, interpolation_order: 0}
+fish2_20191209_dynamic.t0402c11p100a: {indices: null, interpolation_order: 2, save: false}
 """
         ),
         default_batch_size=1,
@@ -336,8 +345,12 @@ fish2_20191209_dynamic.t0402c11p100a: {indices: null, interpolation_order: 0}
     loader = data_config.data_loader
     ipt, tgt, z_slice = next(iter(loader))
     ipt, tgt = ipt.to(device), tgt.to(device)
-    print("ipt", ipt.shape, "tgt", tgt.shape, z_slice)
-    plt.imshow(tgt[0, 0].cpu().numpy())
+    print("get_scaling", m.get_scaling(ipt.shape[2:]))
+    print("get_shrinkage", m.get_shrinkage(ipt.shape[2:]))
+    print("get_output_shape()", m.get_output_shape(ipt.shape[2:]))
+    print("ipt", ipt.shape)
+    print("tgt", tgt.shape)
+    plt.imshow(tgt[0, 0].detach().cpu().numpy())
     plt.title("tgt")
     plt.show()
     # print("scale", m.get_scaling(ipt.shape[2:]))
@@ -349,7 +362,6 @@ fish2_20191209_dynamic.t0402c11p100a: {indices: null, interpolation_order: 0}
     print("out", out.shape)
     plt.imshow(out[0, 0].detach().cpu().numpy())
     plt.title(f"out {z_slice}")
-    plt.colorbar()
     plt.show()
 
     print("done")

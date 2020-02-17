@@ -11,4 +11,4 @@ from lnet.models.m22 import M22
 from lnet.models.a01 import A01
 from lnet.models.a02 import A02
 from lnet.models.d01 import D01
-# from lnet.models.d02 import D02
+from lnet.models.d02 import D02

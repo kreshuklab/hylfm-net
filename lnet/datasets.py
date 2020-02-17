@@ -314,7 +314,7 @@ class N5Dataset(torch.utils.data.Dataset):
         stat_path = Path(data_file_name.as_posix().replace(".n5", "_stat.yml"))
         assert ".yml" in stat_path.as_posix(), "replacing '.n5' with '_stat.yml' did not work!"
         assert len(self) >= 1, "corrupt saved dataset file?"
-        logger.info("dataset length: %s", len(self))
+        logger.info("dataset length: %s  x shape: %s  y shape: %s", len(self), x_shape, y_shape)
 
         # if interesting_paths is None:
         #     self.interesting_path_slices = [[]]
