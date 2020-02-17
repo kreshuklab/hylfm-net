@@ -60,7 +60,7 @@ class A02(LnetModel):
             elif n_res2d[i + 1] == "u":
                 continue
             else:
-                assert isinstance(n_res2d[i], int) and isinstance(n_res2d[i + 1], int)
+                assert isinstance(n_res2d[i], int) and isinstance(n_res2d[i + 1], int), (n_res2d[i], n_res2d[i + 1])
                 res2d.append(ResnetBlock(in_n_filters=n_res2d[i], n_filters=n_res2d[i + 1], valid=False))
 
         self.res2d = nn.Sequential(*res2d)
@@ -141,7 +141,8 @@ class A02(LnetModel):
             z_dim = int(self.z_dims[in_shape] * self.grid_sampling_scale[0])
             out_shape = (z_dim,) + tuple(int(s * g) for s, g in zip(x.shape[3:], self.grid_sampling_scale[1:]))
 
-        x = self.affine_transforms[in_shape](x, output_shape=out_shape, z_slices=z_slices)
+        if self.affine_transforms:
+            x = self.affine_transforms[in_shape](x, output_shape=out_shape, z_slices=z_slices)
 
         if self.final_activation is not None:
             x = self.final_activation(x)

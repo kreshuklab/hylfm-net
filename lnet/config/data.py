@@ -1,5 +1,6 @@
 import logging
 import sys
+import warnings
 from enum import Enum
 
 from dataclasses import dataclass, field, InitVar
@@ -197,11 +198,10 @@ class DataConfig:
                     a01_affine_transform_classes = model_config.kwargs.get("affine_transform_classes", None)
                     if a01_affine_transform_classes is not None:
                         if x_shape not in a01_affine_transform_classes:
-                            raise ValueError(
+                            warnings.warn(
                                 f"x shape {x_shape} missing in model kwargs.affine_transformation_classes for entry {entry.name}"
                             )
-
-                        if a01_affine_transform_classes[x_shape] != at.__name__:
+                        elif a01_affine_transform_classes[x_shape] != at.__name__:
                             raise ValueError(
                                 f"missmatch for kwargs:affine_transform_classes[x_shape={x_shape}]={a01_affine_transform_classes[x_shape]}!={at.__name__} for entry {entry.name}"
                             )
