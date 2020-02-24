@@ -69,7 +69,7 @@ class M20(LnetModel):
 
         scale = self.get_scaling(ipt_shape)
         upscaled = [i * s for i, s in zip(ipt_shape, scale)]
-        out = self.get_output_shape(ipt_shape)
+        out = self.get_output_shape(ipt_shape)[1:]
         diff = [u - o for u, o in zip(upscaled, out)]
         assert all(d % 2 == 0 for d in diff), diff
         # assert all(d //2 == self.padding for d in diff), (diff, self.padding)
@@ -77,7 +77,7 @@ class M20(LnetModel):
         return tuple(d // 2 for d in diff)
 
     def get_output_shape(self, ipt_shape: Tuple[int, int]) -> Tuple[int, int, int]:
-        return (1, ) + tuple(
+        return (1,) + tuple(
             (i - 1) * self.stride - 2 * self.padding + self.dilation * (self.kernel_size - 1) + self.output_padding + 1
             for i in ipt_shape
         )
