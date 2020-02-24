@@ -257,8 +257,8 @@ class Collector:
         eval_dict = spec_dict["eval"]
         eval_dict.pop("valid_data", None)
         eval_dict.pop("test_data", None)
-
         model_dict["checkpoint"] = pth_path.as_posix().replace("/kreshuk.embl.de", "g")
+
         return {"model": model_dict, "eval": eval_dict}
 
     def write_out_trained_models(self, category: str):

@@ -14,6 +14,7 @@ if __name__ == "__main__":
     parser.add_argument("--cuda", type=int, default=3)
 
     args = parser.parse_args()
+    prediction_only = args.comp.endswith("prediction")
     model_group = args.model_group
     model_group_yml = lnet_path / "trained_models" / f"{model_group}.yml"
     assert model_group_yml.exists()
@@ -54,6 +55,13 @@ if __name__ == "__main__":
         tm_config["eval"].update(comp_template["eval"])
 
         print("batch size", tm_config["eval"]["batch_size"])
+
+        if prediction_only:
+            tm_config["eval"]["transforms"] = [
+                trf
+                for trf in tm_config["eval"]["transforms"]
+                if not isinstance(trf, dict) or trf.get("kwargs", {}).get("apply_to", 0) != 1
+            ]
 
         tm_id = Path(tm).parent.name
         tm_yml = (comp_template_yml.parent / tm_id).with_suffix(".yml")

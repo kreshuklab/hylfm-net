@@ -271,7 +271,7 @@ class Experiment:
 
             global col
             for i, (ib, tb, pb) in enumerate(zip(ipt_batch, tgt_batch, pred_batch)):
-                if len(tb.shape) == 4:
+                if tb is not None and len(tb.shape) == 4:
                     assert tb.shape[0] == 1
                     tb = tb[0]
 
