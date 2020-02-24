@@ -58,4 +58,8 @@ if __name__ == "__main__":
     if args.test:
         exp.test()
     else:
-        exp.run()
+        try:
+            exp.run()
+        except KeyboardInterrupt:
+            logger.error("Training interrupted. Start test")
+            exp.test()
