@@ -24,9 +24,7 @@ CONFIG = {
             "formatter": "default",
         }
     },
-    "loggers": {
-        "": {"handlers": ["default"], "level": "INFO", "propagate": True},
-    },
+    "loggers": {"": {"handlers": ["default"], "level": "INFO", "propagate": True}},
 }
 logging.config.dictConfig(CONFIG)
 logger = logging.getLogger(__name__)
