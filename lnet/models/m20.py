@@ -84,8 +84,9 @@ class M20(LnetModel):
 
 
 if __name__ == "__main__":
-    ipt = torch.ones(1, 19 ** 2, 10, 20)
-    m20 = M20(z_out=7, nnum=19, kernel_size=8, padding=4, stride=4)
-    print("shrink", m20.get_shrinkage())
+    ipt = torch.ones(1, 19 ** 2, 67, 77)
+    m20 = M20(z_out=49, nnum=19, kernel_size=8, padding=4, stride=4)
+    print("shrink", m20.get_shrinkage((10, 20)))
     print("scale", m20.get_scaling(ipt.shape[-2:]))
+    print("out", m20.get_output_shape(ipt.shape[-2:]))
     print(m20(ipt).shape)

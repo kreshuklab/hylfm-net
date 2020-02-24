@@ -1,3 +1,4 @@
+from lnet.models.wrapper import AffineTransformationAndSliceWrapper
 from lnet.models.m12 import M12
 from lnet.models.m13 import M13
 from lnet.models.m15 import M15

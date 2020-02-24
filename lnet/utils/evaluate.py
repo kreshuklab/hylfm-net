@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import torch
+from lnet import models
 from scipy.ndimage import zoom
 from torch.utils.data import DataLoader
 

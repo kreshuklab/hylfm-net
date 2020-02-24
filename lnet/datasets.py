@@ -159,7 +159,7 @@ class N5Dataset(torch.utils.data.Dataset):
                 model_scaling = model.get_scaling(original_x_shape)
                 scaling = (model_scaling[0] / model_config.nnum, model_scaling[1] / model_config.nnum)
 
-            y_dims_12 = tuple([int(oxs * sc) for oxs, sc in zip(original_x_shape, scaling)])
+            y_dims_12 = tuple(int(oxs * sc) for oxs, sc in zip(original_x_shape, scaling))
             if len(original_y_shape) == 2:
                 # dynamic z slices to original size
                 if info.y_shape is None:
@@ -449,9 +449,10 @@ class N5Dataset(torch.utils.data.Dataset):
             logger.debug("apply transform %s", self.transform)
             # logger.debug("x: %s, y: %s", x.shape, y.shape)
             if self.with_target:
-                x, y = self.transform(x, y)
+                x, y = self.transform(x[None, ...], y[None, ...])
+                x, y = x[0], y[0]
             else:
-                x = self.transform(x)
+                x = self.transform(x[None, ...])[0]
 
         if self.info.z_slices is not None:
             neg_z_slice = self.info.z_slices[item % len(self.info.z_slices)]
