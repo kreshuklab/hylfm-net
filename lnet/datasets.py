@@ -241,6 +241,7 @@ class N5Dataset(torch.utils.data.Dataset):
         else:
             raw_x_paths, x_numbers = get_paths_and_numbers(x_folder, x_glob)
             common_numbers = set(x_numbers)
+
             if self.with_target:
                 raw_y_paths, y_numbers = get_paths_and_numbers(y_folder, y_glob)
                 common_numbers &= set(y_numbers)
@@ -255,15 +256,24 @@ class N5Dataset(torch.utils.data.Dataset):
                     set(x_numbers) & set(y_numbers),
                 )
                 self.y_paths = sorted([p for p, yn in zip(raw_y_paths, y_numbers) if yn in common_numbers])
+                y_drop = sorted([yn for yn in y_numbers if yn not in common_numbers])
+                logger.warning("dropping y: %s", y_drop)
+
                 if z_crop is not None:
                     self.y_paths = [
                         p for i, p in enumerate(self.y_paths) if z_min <= i % self.info.dynamic_z_slice_mod <= z_max
                     ]
 
             self.x_paths = sorted([p for p, xn in zip(raw_x_paths, x_numbers) if xn in common_numbers])
+
+            x_drop = sorted([xn for xn in x_numbers if xn not in common_numbers])
+            logger.warning("dropping x: %s", x_drop)
+
             if z_crop is not None:
                 self.x_paths = [
-                    p for i, p in enumerate(self.x_paths) if z_min <= i % self.info.dynamic_z_slice_mod <= z_max
+                    p
+                    for i, p in enumerate(self.x_paths)
+                    if z_min <= i % self.info.dynamic_z_slice_mod and i % self.info.dynamic_z_slice_mod <= z_max
                 ]
 
             if self.with_target:
@@ -271,6 +281,8 @@ class N5Dataset(torch.utils.data.Dataset):
 
             assert len(self.x_paths) >= 1, raw_x_paths
             self._len = len(self.x_paths)
+            assert len(self) >= 1, "corrupt saved dataset file?"
+            logger.info("dataset length: %s  x shape: %s  y shape: %s", len(self), x_shape, y_shape)
             if save:
                 try:
                     data_file = z5py.File(path=tmp_data_file_name, mode="w", use_zarr_format=False)
@@ -313,8 +325,6 @@ class N5Dataset(torch.utils.data.Dataset):
 
         stat_path = Path(data_file_name.as_posix().replace(".n5", "_stat.yml"))
         assert ".yml" in stat_path.as_posix(), "replacing '.n5' with '_stat.yml' did not work!"
-        assert len(self) >= 1, "corrupt saved dataset file?"
-        logger.info("dataset length: %s  x shape: %s  y shape: %s", len(self), x_shape, y_shape)
 
         # if interesting_paths is None:
         #     self.interesting_path_slices = [[]]
