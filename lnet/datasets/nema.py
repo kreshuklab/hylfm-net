@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from lnet.config.dataset import NamedDatasetInfo
-
+from .base import NamedDatasetInfo
 
 nema0_lf_only = NamedDatasetInfo(
     Path("/g/hufnagel/LF/LenseLeNet_Microscope/20191129_tenticles/2019-11-29_03.06.09"),

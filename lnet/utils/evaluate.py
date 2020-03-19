@@ -1,17 +1,15 @@
+import os
 from pathlib import Path
 from typing import List, Optional
 
-import torch
-from lnet import models
 from scipy.ndimage import zoom
-from torch.utils.data import DataLoader
-
-from lnet.metrics import MSSSIM, SSIM  # SSIMSkImage != SSIM
-from lnet.metrics import NRMSE
-from lnet.metrics import PSNR
-
 from tifffile import imread
+from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
+
+from lnet.metrics import MSSSIM, NRMSE, PSNR, SSIM  # SSIMSkImage != SSIM
+
+GRESHUK = os.environ.get("GRESHUK", "/g/kreshuk")
 
 
 class FileListDataset(Dataset):
@@ -59,15 +57,17 @@ if __name__ == "__main__":
     print(
         "LS-LS",
         evaluate(
-            "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
-            "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
+            GRESHUK
+            + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
+            GRESHUK
+            + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
         ),
     )
     # print([0.0])
 
     # print("full LR-LS", evaluate(
-    #     "/g/kreshuk/LF_computed/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.16.30/stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif",
-    #     "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.16.30/stack_4_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    #     GRESHUK + "LF_computed/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.16.30/stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif",
+    #     GRESHUK + "LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.16.30/stack_4_channel_1/TP_*/LC/Cam_Left_registered.tif",
     #     z_out=49,
     # ))
     # print([0.944491050046173])
@@ -75,8 +75,10 @@ if __name__ == "__main__":
     print(
         "LR-LS",
         evaluate(
-            "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static_lr/*.tif",
-            "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
+            GRESHUK
+            + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static_lr/*.tif",
+            GRESHUK
+            + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
         ),
     )
     # print([0.9044772294017559])
@@ -84,16 +86,20 @@ if __name__ == "__main__":
     print(
         "NN-LS",
         evaluate(
-            "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/prediction/fish1_20191208_0216_static/*.tif",
-            "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
+            GRESHUK
+            + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/prediction/fish1_20191208_0216_static/*.tif",
+            GRESHUK
+            + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
         ),
     )
 
     print(
         "NN-LR",
         evaluate(
-            "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/prediction/fish1_20191208_0216_static/*.tif",
-            "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static_lr/*.tif",
+            GRESHUK
+            + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/prediction/fish1_20191208_0216_static/*.tif",
+            GRESHUK
+            + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static_lr/*.tif",
         ),
     )
     # print([0.8583414594192545])
@@ -101,33 +107,33 @@ if __name__ == "__main__":
 
 """
     print("LS-LS", evaluate(
-        "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
-        "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
+        GRESHUK + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
+        GRESHUK + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
     ))
     # print([0.0])
 
     # print("full LR-LS", evaluate(
-    #     "/g/kreshuk/LF_computed/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.16.30/stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif",
-    #     "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.16.30/stack_4_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    #     GRESHUK + "LF_computed/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.16.30/stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif",
+    #     GRESHUK + "LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/2019-12-09_02.16.30/stack_4_channel_1/TP_*/LC/Cam_Left_registered.tif",
     #     z_out=49,
     # ))
     # print([0.944491050046173])
 
     print("LR-LS", evaluate(
-        "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static_lr/*.tif",
-        "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
+        GRESHUK + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static_lr/*.tif",
+        GRESHUK + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
     ))
     # print([0.9044772294017559])
 
 
     print("NN-LS", evaluate(
-        "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/prediction/fish1_20191208_0216_static/*.tif",
-        "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
+        GRESHUK + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/prediction/fish1_20191208_0216_static/*.tif",
+        GRESHUK + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static/*.tif",
     ))
 
     print("NN-LR", evaluate(
-        "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/prediction/fish1_20191208_0216_static/*.tif",
-        "/g/kreshuk/beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static_lr/*.tif",
+        GRESHUK + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/prediction/fish1_20191208_0216_static/*.tif",
+        GRESHUK + "beuttenm/repos/lnet/logs/fish/test/20-01-20_13-22-09/test_data/target/fish1_20191208_0216_static_lr/*.tif",
     ))
     # print([0.8583414594192545])
 """

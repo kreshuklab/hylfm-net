@@ -16,7 +16,7 @@ model:
   nnum: 19
   z_out: 49
   precision: float
-  checkpoint: /g/kreshuk/beuttenm/repos/lnet/logs/fish/fdyn1_a02/20-02-21_08-54-55/models/v0_model_4.pth
+#  checkpoint: /g/kreshuk/beuttenm/repos/lnet/logs/fish/fdyn1_a02/20-02-21_08-54-55/models/v0_model_4.pth
 
 
 log:
@@ -52,7 +52,8 @@ train:
       - RandomFlipXYnotZ
       - Lightfield2Channel
 
-    fish2_20191209_dynamic.t0454c2: {indices: 30-10535, interpolation_order: 2}   # lenght: ‭10,965‬
+#    fish2_20191209_dynamic.t0454c2: {indices: 30-10535, interpolation_order: 2}   # lenght: ‭10,965‬
+    fish2_20191209_dynamic.t0454c2: {indices: 30-31, interpolation_order: 2}
 #    fish2_20191209_dynamic.t0454c3: {indices: 71-170|282-452|, interpolation_order: 2}  # lenght: ‭10,965‬
 #    fish2_20191209_dynamic.t0521c2: {indices: null, interpolation_order: 2}
 #    fish2_20191209_dynamic.t0521c3: {indices: null, interpolation_order: 2}
@@ -73,10 +74,12 @@ eval:
     - Lightfield2Channel
 
   valid_data:
-    fish2_20191209_dynamic.t0454c2: {indices: 10535-10750, interpolation_order: 2}  # lenght: ‭10,965‬
+#    fish2_20191209_dynamic.t0454c2: {indices: 10535-10750, interpolation_order: 2}  # lenght: ‭10,965‬
+    fish2_20191209_dynamic.t0454c2: {indices: 10535-10537, interpolation_order: 2}
 
   test_data:
-    fish2_20191209_dynamic.t0454c2: {indices: 10750-10965, interpolation_order: 2}  # lenght: ‭10,965‬
+#    fish2_20191209_dynamic.t0454c2: {indices: 10750-10965, interpolation_order: 2}  # lenght: ‭10,965‬
+    fish2_20191209_dynamic.t0454c2: {indices: 10750-10752, interpolation_order: 2}
 
 #    fish2_20191209_dynamic.t0541c3p30: {indices: null, interpolation_order: 2}
 #    fish2_20191209_dynamic.t0541c3p50: {indices: null, interpolation_order: 2}

@@ -1,6 +1,6 @@
-from typing import Dict, Any, Optional, List, Union, Tuple, Callable
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from lnet.config.model import ModelConfig
+from .model import ModelConfig
 from lnet.transforms import known_transforms
 
 

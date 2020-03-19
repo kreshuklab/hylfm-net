@@ -1,22 +1,21 @@
 import warnings
 from logging import Logger
-from typing import Callable, Optional, Any, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 import torch
-
 from ignite.engine import Engine, Events
 from ignite.handlers import TerminateOnNan
 from torch.utils.data import DataLoader
 
-from lnet.config.base import Config
+from lnet.config import Config
 from lnet.config.data import DataConfig
-from lnet.output import Output
-from lnet.metrics.output import OutputMetric
-
-from lnet.metrics import LOSS_NAME, AUX_LOSS_NAME, NRMSE_NAME, PSNR_NAME, SSIM_NAME, MSSSIM_NAME, BEAD_PRECISION_RECALL
-from lnet.metrics import NRMSE, PSNR, SSIM, MSSSIM
+from lnet.metrics import (
+    AUX_LOSS_NAME, BEAD_PRECISION_RECALL, LOSS_NAME, MSSSIM, MSSSIM_NAME, NRMSE, NRMSE_NAME, PSNR,
+    PSNR_NAME, SSIM, SSIM_NAME,
+)
 from lnet.metrics.beads import BeadPrecisionRecall
-
+from lnet.metrics.output import OutputMetric
+from lnet.output import Output
 
 TunedEngineType = TypeVar("TunedEngineType", bound="TunedEngine")
 

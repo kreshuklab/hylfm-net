@@ -1,6 +1,6 @@
-from typing import Dict, Any
+from typing import Any, Dict
 
-from lnet.config.dataset import registration
+from lnet import registration
 from lnet.models.base import LnetModel
 
 

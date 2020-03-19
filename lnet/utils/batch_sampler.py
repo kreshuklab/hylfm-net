@@ -1,6 +1,6 @@
 import warnings
 from collections import defaultdict
-from typing import List, DefaultDict, Type
+from typing import DefaultDict, List, Type
 
 import numpy
 from torch.utils.data import ConcatDataset, Sampler

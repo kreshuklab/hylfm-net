@@ -1,8 +1,7 @@
 import logging
-from concurrent.futures._base import as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 import numpy
 import pandas

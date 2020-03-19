@@ -1,32 +1,133 @@
 import logging
-import time
-
-import numpy
 import os
 import re
-
 import shutil
-import torch.utils.data
-import z5py
-
+import time
+import warnings
 from concurrent.futures import Future, as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
 from hashlib import sha224 as hash
-from inferno.io.transform import Transform, Compose
 from pathlib import Path
+from typing import Callable, Generator, List, Optional, Sequence, Tuple, Type, Union
 
-from lnet.config.dataset.registration import BDVTransform
+import numpy
+import torch.utils.data
+import z5py
+from inferno.io.transform import Compose, Transform
+from scipy.ndimage import zoom
+from tifffile import imread, imsave
 
 from lnet import models
 from lnet.config.model import ModelConfig
-from scipy.ndimage import zoom
-from tifffile import imread, imsave
-from typing import List, Optional, Tuple, Union, Callable, Sequence, Generator
-
-from lnet.config.dataset import NamedDatasetInfo
+from lnet.registration import (
+    BDVTransform,
+    Heart_tightCrop_Transform,
+    fast_cropped_6ms_Transform,
+    fast_cropped_8ms_Transform,
+    staticHeartFOV_Transform,
+    wholeFOV_Transform,
+)
 from lnet.stat import DatasetStat
 
 logger = logging.getLogger(__name__)
+
+GKRESHUK = os.environ.get("GKRESHUK", "/g/kreshuk")
+GHUFNAGELLFLenseLeNet_Microscope = os.environ.get(
+    "GHUFNAGELLFLenseLeNet_Microscope", "/g/hufnagel/LF/LenseLeNet_Microscope"
+)
+
+
+class PathOfInterest:
+    def __init__(self, *points: Tuple[int, int, int, int], sigma: int = 1):
+        self.points = points
+        self.sigma = sigma
+
+
+class NamedDatasetInfo:
+    x_path: Path
+    y_path: Path
+    x_roi: Tuple[slice, slice]
+    y_roi: Tuple[slice, slice, slice]
+    # stat: Optional[DatasetStat]
+    interesting_paths: Optional[List[PathOfInterest]]
+
+    description: str = ""
+    common_path: Path = Path("/")
+
+    def __init__(
+        self,
+        path: Union[str, Path],
+        x_dir: str,
+        y_dir: Optional[str] = None,
+        description="",
+        x_roi: Optional[Tuple[slice, slice]] = None,
+        y_roi: Optional[Tuple[slice, slice, slice]] = None,
+        # stat: Optional[DatasetStat] = None,
+        interesting_paths: Optional[List[PathOfInterest]] = None,
+        length: Optional[int] = None,
+        x_shape: Optional[Tuple[int, int]] = None,
+        y_shape: Optional[Tuple[int, int, int]] = None,
+        AffineTransform: Optional[Union[str, Type[BDVTransform]]] = None,
+        z_slices: Optional[Sequence[int]] = None,
+        dynamic_z_slice_mod: Optional[int] = None,
+    ):
+        if z_slices is not None:
+            assert AffineTransform is not None
+
+        self.x_path = self.common_path / path / x_dir
+        self.y_path = None if y_dir is None else self.common_path / path / y_dir
+        self.description = description or self.description
+
+        if isinstance(AffineTransform, str):
+            if AffineTransform == "from_x_path":
+                posix_path = self.x_path.as_posix()
+                indicators_and_AffineTransforms = {
+                    "fast_cropped_6ms": fast_cropped_6ms_Transform,
+                    "fast_cropped_8ms": fast_cropped_8ms_Transform,
+                    "Heart_tightCrop": Heart_tightCrop_Transform,
+                    "staticHeartFOV": staticHeartFOV_Transform,
+                    "wholeFOV": wholeFOV_Transform,
+                }
+                for tag, TransformClass in indicators_and_AffineTransforms.items():
+                    if tag in posix_path:
+                        assert AffineTransform == "from_x_path"  # make sure tag is found only once
+                        AffineTransform = TransformClass
+
+            else:
+                raise NotImplementedError(AffineTransform)
+
+        self.DefaultAffineTransform = AffineTransform
+        if AffineTransform is not None:
+            x_shape = x_shape or AffineTransform.lf_shape[1:]
+
+            auto_y_shape = tuple(
+                y - y_crop[0] - y_crop[1] for y_crop, y in zip(AffineTransform.lf2ls_crop, AffineTransform.ls_shape)
+            )
+            auto_y_roi = tuple(
+                slice(y_crop[0], y - y_crop[1])
+                for y_crop, y in zip(AffineTransform.lf2ls_crop, AffineTransform.ls_shape)
+            )
+            if z_slices is not None or dynamic_z_slice_mod is not None:
+                # auto_y_shape = auto_y_shape[1:]
+                auto_y_roi = auto_y_roi[1:]
+
+            y_shape = y_shape or auto_y_shape
+            y_roi = y_roi or auto_y_roi
+
+            if z_slices is not None or dynamic_z_slice_mod is not None:
+                assert len(y_shape) == 3
+                assert len(y_roi) == 2
+
+        self.x_roi = x_roi or (slice(None), slice(None))
+        self.y_roi = y_roi or (slice(None), slice(None), slice(None))
+        self.interesting_paths = interesting_paths
+        self.length = length
+
+        self.x_shape = x_shape
+        self.y_shape = y_shape
+
+        self.z_slices = z_slices
+        self.dynamic_z_slice_mod = dynamic_z_slice_mod
 
 
 def resize(
@@ -86,11 +187,11 @@ class N5Dataset(torch.utils.data.Dataset):
             glob_str = path.relative_to(valid_path).as_posix()
             return valid_path, glob_str
 
-        if x_folder.exists():
-            x_glob = "*.tif"
-        elif "*" in x_folder.as_posix():
+        if "*" in str(x_folder):
             x_folder, x_glob = split_off_glob(x_folder)
             logger.info("split x_folder into %s and %s", x_folder, x_glob)
+        elif x_folder.exists():
+            x_glob = "*.tif"
         else:
             raise NotImplementedError
 
@@ -125,11 +226,11 @@ class N5Dataset(torch.utils.data.Dataset):
 
         if y_folder:
             self.with_target = True
-            if y_folder.exists():
-                y_glob = "*.tif"
-            elif "*" in y_folder.as_posix():
+            if "*" in y_folder.as_posix():
                 y_folder, y_glob = split_off_glob(y_folder)
                 logger.info("split y_folder into %s and %s", y_folder, y_glob)
+            elif y_folder.exists():
+                y_glob = "*.tif"
             else:
                 raise NotImplementedError
 
@@ -189,7 +290,7 @@ class N5Dataset(torch.utils.data.Dataset):
         if data_folder is None:
             data_folder = os.environ.get("DATA_FOLDER", None)
             if data_folder is None:
-                data_folder = Path(__file__).parent.parent / "data"
+                data_folder = Path(__file__).parent / "../../data"
             else:
                 data_folder = Path(data_folder)
 
@@ -224,9 +325,10 @@ class N5Dataset(torch.utils.data.Dataset):
 
         logger.info("data_file_name %s", data_file_name)
 
-        tmp_data_file_name = data_file_name.as_posix().replace(".n5", "_tmp.n5")
+        tmp_data_file_name = Path(data_file_name.as_posix().replace(".n5", "_tmp.n5"))
+        part_data_file_name = Path(data_file_name.as_posix().replace(".n5", "_part.n5"))
         for attempt in range(100):
-            if Path(tmp_data_file_name).exists():
+            if tmp_data_file_name.exists():
                 logger.warning(f"waiting for data (found {tmp_data_file_name})")
                 time.sleep(300)
             else:
@@ -239,6 +341,9 @@ class N5Dataset(torch.utils.data.Dataset):
             self.data_file = z5py.File(path=data_file_name.as_posix(), mode="r", use_zarr_format=False)
             self._len = self.data_file["x"].shape[0]
         else:
+            if part_data_file_name.exists():
+                part_data_file_name.rename(tmp_data_file_name)
+
             raw_x_paths, x_numbers = get_paths_and_numbers(x_folder, x_glob)
             common_numbers = set(x_numbers)
 
@@ -281,19 +386,28 @@ class N5Dataset(torch.utils.data.Dataset):
 
             assert len(self.x_paths) >= 1, raw_x_paths
             self._len = len(self.x_paths)
-            assert len(self) >= 1, "corrupt saved dataset file?"
-            logger.info("dataset length: %s  x shape: %s  y shape: %s", len(self), x_shape, y_shape)
+            assert len(self) >= 1, "corrupt saved datasets file?"
+            logger.info("datasets length: %s  x shape: %s  y shape: %s", len(self), x_shape, y_shape)
             if save:
                 try:
-                    data_file = z5py.File(path=tmp_data_file_name, mode="w", use_zarr_format=False)
+                    data_file = z5py.File(path=str(tmp_data_file_name), mode="a", use_zarr_format=False)
 
-                    self.x_ds = data_file.create_dataset(
-                        "x", shape=(len(self.x_paths),) + self.x_shape, chunks=(1,) + self.x_shape, dtype=numpy.float32
-                    )
-                    if self.with_target:
-                        self.y_ds = data_file.create_dataset(
-                            "y", shape=(len(self),) + self.y_shape, chunks=(1,) + self.y_shape, dtype=numpy.float32
+                    if "x" in data_file:
+                        self.x_ds = data_file["x"]
+                    else:
+                        self.x_ds = data_file.create_dataset(
+                            "x",
+                            shape=(len(self.x_paths),) + self.x_shape,
+                            chunks=(1,) + self.x_shape,
+                            dtype=numpy.float32,
                         )
+                    if self.with_target:
+                        if "y" in data_file:
+                            self.y_ds = data_file["y"]
+                        else:
+                            self.y_ds = data_file.create_dataset(
+                                "y", shape=(len(self),) + self.y_shape, chunks=(1,) + self.y_shape, dtype=numpy.float32
+                            )
 
                     # first slice in main thread to catch exceptions
                     self.process_x(0, to_ds=True)
@@ -317,7 +431,8 @@ class N5Dataset(torch.utils.data.Dataset):
                     #     process_x(i)
                     #     process_y(i)
                 except:
-                    shutil.rmtree(tmp_data_file_name)
+                    # shutil.rmtree(tmp_data_file_name)
+                    tmp_data_file_name.rename(part_data_file_name)
                     raise
 
                 os.rename(tmp_data_file_name, data_file_name.as_posix())
@@ -385,6 +500,9 @@ class N5Dataset(torch.utils.data.Dataset):
         self.transform = Compose(*transform_instances)
 
     def process_x(self, i, to_ds=False) -> Optional[numpy.ndarray]:
+        if to_ds and self.x_ds.chunk_exists(tuple([i] + [0] * (len(self.x_ds.shape) - 1))):
+            return self.x_ds[i]
+
         x_img = imread(self.x_paths[i])
         assert len(x_img.shape) == 2, x_img.shape
         x_img = x_img[self.info.x_roi]
@@ -395,6 +513,9 @@ class N5Dataset(torch.utils.data.Dataset):
             return x_img
 
     def process_y(self, i, to_ds=False) -> Optional[numpy.ndarray]:
+        if to_ds and self.y_ds.chunk_exists(tuple([i] + [0] * (len(self.y_ds.shape) - 1))):
+            return self.y_ds[i]
+
         y_img = imread(self.y_paths[i])
         if self.info.dynamic_z_slice_mod is not None or self.info.z_slices is not None:
             assert len(y_img.shape) == 2, y_img.shape

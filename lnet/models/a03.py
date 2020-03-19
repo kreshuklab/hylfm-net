@@ -1,18 +1,15 @@
 import inspect
-from typing import Tuple, Optional, Sequence, Callable, Dict
 import logging
+from functools import partial
+from typing import Callable, Dict, Optional, Sequence, Tuple
 
 import torch.nn
 import torch.nn as nn
+from inferno.extensions.initializers import Constant, Initialization
 
-from functools import partial
-
-from inferno.extensions.initializers import Initialization, Constant
-
-from lnet.config.dataset import registration
-
-from lnet.models.layers.conv_layers import Conv2D, ValidConv2D, ValidConv3D, ResnetBlock
+from lnet import registration
 from lnet.models.base import LnetModel
+from lnet.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +180,7 @@ def try_static(backprop: bool = True):
     import matplotlib.pyplot as plt
     from lnet.config.data import DataConfig, DataCategory
 
-    from lnet.config.model import ModelConfig
+    from lnet.config import ModelConfig
 
     model_config = ModelConfig.load(
         A03.__name__,
@@ -282,7 +279,7 @@ def try_dynamic():
     import matplotlib.pyplot as plt
     from lnet.config.data import DataConfig, DataCategory
 
-    from lnet.config.model import ModelConfig
+    from lnet.config import ModelConfig
 
     model_config = ModelConfig.load(
         A03.__name__,

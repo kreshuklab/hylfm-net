@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from tifffile import imsave, imread
+from tifffile import imread, imsave
 
 
 def compress_tif(path: Path, glob: str, compress: int, for_real: bool):

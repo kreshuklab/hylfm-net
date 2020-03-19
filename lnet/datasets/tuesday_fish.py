@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from lnet.config.dataset import NamedDatasetInfo
+from .base import NamedDatasetInfo
 
 tuesday_fish0 = {
     f"tuesday_fish0_{i:05}": NamedDatasetInfo(

@@ -2,7 +2,6 @@ from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import numpy
-
 from matplotlib.figure import Figure
 from tifffile import imread
 

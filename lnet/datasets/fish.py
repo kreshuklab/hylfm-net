@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from lnet.config.dataset import NamedDatasetInfo
+from .base import NamedDatasetInfo, GKRESHUK
 
 
 class Fish00(NamedDatasetInfo):
@@ -164,7 +164,7 @@ fish02_LF2_TPxx_filets = [
 
 
 class RegionalFish(NamedDatasetInfo):
-    common_path = Path("/g/kreshuk/beuttenm/Documents/lnet_datasets")
+    common_path = Path(GKRESHUK) / "beuttenm/Documents/lnet_datasets"
     description = "F02"
 
 

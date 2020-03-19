@@ -1,7 +1,7 @@
 import logging
+
 import ignite
 import numpy
-
 from ignite.exceptions import NotComputableError
 from pytorch_msssim import msssim, ssim
 from skimage.measure import compare_ssim

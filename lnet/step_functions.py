@@ -1,13 +1,12 @@
 from functools import partial
-from typing import Union, Callable, Any
+from time import perf_counter
+from typing import Any, Callable, Union
 
 import torch
 from ignite.utils import convert_tensor
 
-from time import perf_counter
-
-from lnet.engine import TrainEngine, EvalEngine
-from lnet.output import Output, AuxOutput
+from lnet.engine import EvalEngine, TrainEngine
+from lnet.output import AuxOutput, Output
 
 
 def step(engine: Union[EvalEngine, TrainEngine], batch, train: bool):

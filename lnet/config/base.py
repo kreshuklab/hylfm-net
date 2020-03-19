@@ -1,20 +1,19 @@
 import logging
-
-import pbs3
 import shutil
-import yaml
-
-from dataclasses import dataclass, field, InitVar
+import subprocess
+from dataclasses import InitVar, dataclass, field
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Tuple, Optional, Dict, Any, Union, List, Callable
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+import pbs3
+import yaml
 from ignite.engine import Engine, Events
 
-from lnet.config.data import DataConfig, DataCategory
-from lnet.config.model import ModelConfig
-from lnet.config.utils import get_known
+from .data import DataCategory, DataConfig
+from .model import ModelConfig
+from .utils import get_known
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +36,12 @@ class LogConfig:
         assert self.log_scalars_every[1] in [e.value for e in [Events.ITERATION_COMPLETED, Events.EPOCH_COMPLETED]]
         assert self.log_images_every[1] in [e.value for e in [Events.ITERATION_COMPLETED, Events.EPOCH_COMPLETED]]
 
-        self.commit_hash = pbs3.git("rev-parse", "--verify", "HEAD").stdout
+        try:
+            self.commit_hash = pbs3.git("rev-parse", "--verify", "HEAD").stdout
+        except pbs3.CommandNotFound:
+            self.commit_hash = subprocess.run(["git", "rev-parse", "--verify", "HEAD"], capture_output=True, text=True).stdout
+
+        assert isinstance(self.commit_hash, str), (type(self.commit_hash), self.commit_hash)
         self.time_stamp = datetime.now().strftime("%y-%m-%d_%H-%M-%S")
 
         log_sub_dir: List[str] = config_path.with_suffix("").absolute().as_posix().split("/experiment_configs/")

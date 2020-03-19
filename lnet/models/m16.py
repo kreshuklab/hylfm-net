@@ -1,15 +1,14 @@
-from typing import Tuple, Optional
 import logging
+from functools import partial
+from typing import Optional, Tuple
+
 import torch.nn
 import torch.nn as nn
+from inferno.extensions.initializers import Constant, Initialization
 
-from functools import partial
-
-from inferno.extensions.initializers import Initialization, Constant
-
-from lnet.models.layers.conv_layers import Conv2D, ValidConv2D, ValidConv3D, ResnetBlock
-from lnet.models.layers.structural_layers import C2Z
 from lnet.models.base import LnetModel
+from lnet.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
+from lnet.models.layers.structural_layers import C2Z
 
 logger = logging.getLogger(__name__)
 

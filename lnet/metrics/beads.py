@@ -1,10 +1,10 @@
-import numpy
 import logging
-from ignite.metrics import Metric
 from typing import Callable
 
-from lnet.utils.detect_beads import match_beads
+import numpy
+from ignite.metrics import Metric
 
+from lnet.utils.detect_beads import match_beads
 
 logger = logging.getLogger(__name__)
 

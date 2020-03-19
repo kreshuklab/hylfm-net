@@ -1,7 +1,6 @@
-import torch
-
 from typing import Optional, Tuple
 
+import torch
 from inferno.io.transform import Transform
 
 

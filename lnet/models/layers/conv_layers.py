@@ -1,31 +1,15 @@
 import logging
-import sys
+
 import matplotlib.pyplot as plt
 import numpy
-import torch
 import torch.nn as nn
-from torchvision.models.resnet import BasicBlock, Bottleneck
-
-from functools import partial
-from inferno.extensions.layers.convolutional import (
-    ConvActivation,
-    ValidConvActivation,
-    ConvReLU2D,
-    ValidConvReLU2D,
-    ConvReLU3D,
-    ValidConvReLU3D,
-    BNReLUConv2D,
-    ValidBNReLUConv2D,
-    BNReLUConv3D,
-    ValidBNReLUConv3D,
-)
 from inferno.extensions.initializers import (
-    OrthogonalWeightsZeroBias,
     KaimingNormalWeightsZeroBias,
-    Initialization,
-    Constant,
 )
-from inferno.extensions.layers.reshape import Flatten
+from inferno.extensions.layers.convolutional import (
+    BNReLUConv2D, BNReLUConv3D, ConvActivation, ConvReLU2D, ConvReLU3D, ValidBNReLUConv2D, ValidBNReLUConv3D,
+    ValidConvActivation, ValidConvReLU2D, ValidConvReLU3D,
+)
 
 from .structural_layers import Crop
 

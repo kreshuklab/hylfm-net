@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from lnet.config.dataset import NamedDatasetInfo
+from .base import NamedDatasetInfo
 
 beads_01mu_0_simuillu = {
         f"beads_01mu_0_simuillu_{i}": NamedDatasetInfo(

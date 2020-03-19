@@ -1,13 +1,13 @@
 import logging
-import torch
-
 from collections import namedtuple
+from typing import Callable, Optional, Union
+
+import torch
 from ignite.engine import Events
 from inferno.extensions import criteria
-from torch import nn, Tensor, FloatTensor
-from typing import Union, Callable, Optional
+from torch import FloatTensor, Tensor, nn
 
-from lnet.engine import TrainEngine, EvalEngine
+from lnet.engine import EvalEngine, TrainEngine
 
 logger = logging.getLogger(__name__)
 

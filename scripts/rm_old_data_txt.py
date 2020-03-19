@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import shutil
-
 data_path = Path("../data")
 
 

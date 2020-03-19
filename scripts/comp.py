@@ -1,11 +1,14 @@
 import argparse
+import os
 import subprocess
 from pathlib import Path
 
 import yaml
 
+GKRESHUK = os.environ.get("GKRESHUK", "/g/kreshuk/")
+
 if __name__ == "__main__":
-    lnet_path = Path("/g/kreshuk/beuttenm/repos/lnet")
+    lnet_path = Path(GKRESHUK) / "beuttenm/repos/lnet"
 
     parser = argparse.ArgumentParser()
     parser.add_argument("comp", type=str, help="e.g. comp/fdyn1")

@@ -1,5 +1,6 @@
-from typing import Tuple, Optional
 import logging
+from typing import Optional, Tuple
+
 import torch.nn
 import torch.nn as nn
 

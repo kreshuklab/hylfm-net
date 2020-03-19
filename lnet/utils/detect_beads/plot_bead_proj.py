@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy
-
 from tifffile import imread
 
 from lnet.utils.detect_beads import get_bead_pos

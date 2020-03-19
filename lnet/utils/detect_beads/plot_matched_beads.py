@@ -1,9 +1,8 @@
+from typing import List
+
 import matplotlib.pyplot as plt
 import numpy
-
 from matplotlib.figure import Figure
-from mpl_toolkits.mplot3d import Axes3D  # required for 'fig.gca(projection="3d")'
-from typing import List
 
 
 def plot_matched_beads(

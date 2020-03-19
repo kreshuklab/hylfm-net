@@ -32,7 +32,11 @@ logging.config.dictConfig(CONFIG)
 logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
-    os.nice(10)
+    try:
+        os.nice(10)
+    except Exception as e:
+        logger.error(e)
+
     parser = argparse.ArgumentParser(description="lnet")
     parser.add_argument("experiment_config", type=Path)
     parser.add_argument("--cuda", metavar="CUDA_VISIBLE_DEVICES", type=str, nargs="?", const="0", default=None)

@@ -1,39 +1,36 @@
 import logging
 import sys
 import warnings
+from dataclasses import InitVar, dataclass, field
 from enum import Enum
-
-from dataclasses import dataclass, field, InitVar
-from typing import Optional, Dict, Any, Union, List, Generator, Type
+from typing import Any, Dict, Generator, List, Optional, Type, Union
 
 from inferno.io.transform import Transform
-from lnet.config.dataset.registration import BDVTransform
+from torch.utils.data import ConcatDataset, DataLoader, Dataset, RandomSampler, SequentialSampler, Subset
 
-from lnet import models
-from torch.utils.data import DataLoader, ConcatDataset, Subset, RandomSampler, SequentialSampler, Dataset
-
-from lnet.config.model import ModelConfig
+from lnet import registration
 from lnet.config.utils import get_trfs_and_their_names
-from lnet.config.dataset import (
+from lnet.datasets import (
+    N5Dataset,
     NamedDatasetInfo,
-    registration,
     beads,
-    platy,
     fish,
-    nema,
-    tuesday_fish,
     fish1_20191203,
+    fish1_20191207,
     fish1_20191208,
     fish1_20191209,
     fish2_20191209,
-    fish3_20191209,
-    fish1_20191207,
     fish2_20191209_dynamic,
+    fish3_20191209,
+    nema,
+    platy,
+    tuesday_fish,
 )
-from lnet.datasets import N5Dataset
+from lnet.registration import BDVTransform
 from lnet.transforms import known_transforms, randomly_shape_changing_transforms
 from lnet.utils.batch_sampler import NoCrossBatchSampler
 from lnet.utils.transforms import EdgeCrop
+from .model import ModelConfig
 
 logger = logging.getLogger(__name__)
 

@@ -1,13 +1,15 @@
 from pathlib import Path
-from typing import Type, Dict, Any, Optional
+from typing import Any, Dict, Optional, Type
 
 from attr import dataclass
+
 from lnet import models
-from lnet.models.base import LnetModel
 
 
 @dataclass
 class ModelConfig:
+    from lnet.models.base import LnetModel
+
     Model: Type[LnetModel]
     kwargs: Dict[str, Any]
     nnum: int
@@ -33,7 +35,6 @@ class ModelConfig:
     ) -> "ModelConfig":
         if kwargs is None:
             kwargs = {}
-
 
         return cls(
             Model=getattr(models, name),

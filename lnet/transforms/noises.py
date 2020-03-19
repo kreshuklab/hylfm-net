@@ -1,4 +1,4 @@
-from typing import Generator, Optional, Tuple, Callable, Union, List
+from typing import Callable, Generator, List, Optional, Tuple, Union
 
 from inferno.io.transform.image import AdditiveGaussianNoise
 

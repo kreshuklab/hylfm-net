@@ -1,4 +1,4 @@
-from lnet.config.dataset import NamedDatasetInfo, PathOfInterest
+from .base import NamedDatasetInfo, PathOfInterest
 
 
 class Platyn00(NamedDatasetInfo):

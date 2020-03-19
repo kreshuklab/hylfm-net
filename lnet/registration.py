@@ -1,14 +1,18 @@
 from pathlib import Path
 
-import torch.nn.functional
-from scipy.ndimage import affine_transform
+# //--------------------------------------------------------//
+# For all these cropping sizes there are bead data with the same corresponding sizes, which are used to find the correct registration/ affine transformation. This affine transformation is stored in an xml file. The paths of the respective files are the following:
+from typing import List, Optional, Sequence, Tuple, Union
 
 # adapted from https://github.com/constantinpape/elf/blob/7b7cd21e632a07876a1302dad92f8d7c1929b37a/elf/transformation/affine.py#L162
 import numpy
+import torch.nn.functional
+from scipy.ndimage import affine_transform
+
+from lnet.utils.affine import inv_scipy_form2torch_form_2d, inv_scipy_form2torch_form_3d
 
 
 # commented notes on data organisation from "/g/kreshuk//LF_partially_restored/LenseLeNet_Microscope/README_InfoOnDataStructure.txt":
-
 # Information on the data:
 # file structure is as follows. There are different crop types, depending on how fast we imaged (when imaging fast the image was already cropped during the imaging and therefore not during copying), and where the heart was positioned in the image (when we slided the static heart with the stage we needed a bigger cropping region). In general there is a trade off when choosing the size of the cropping region: the smaller the better the rectification, but complete heart has to remain in the FOV.
 # //--------------------------GENERAL INFO ON CROPPING AND AFFINE TRAFOS------------------------------//
@@ -18,17 +22,6 @@ import numpy
 # 3) wholeFOV				[450,450,1150,1150] %(sorry for naming, relict of former exps)
 # 4) fast_cropped_8ms		[0,0,1350,1350]
 # 5) fast_cropped_6ms		[0,0,1024,1024]
-
-# //--------------------------------------------------------//
-# For all these cropping sizes there are bead data with the same corresponding sizes, which are used to find the correct registration/ affine transformation. This affine transformation is stored in an xml file. The paths of the respective files are the following:
-from typing import List, Tuple, Optional, Sequence, Union
-
-from lnet.utils.affine import (
-    scipy_form2torch_form_2d,
-    scipy_form2torch_form_3d,
-    inv_scipy_form2torch_form_2d,
-    inv_scipy_form2torch_form_3d,
-)
 
 # //--------------------------INFO FOR REGISTRATION------------------------------//
 #
@@ -94,6 +87,7 @@ from lnet.utils.affine import (
 # Unfortunately the naming here is going to be a little weird. This has to do with the configuration of the ETL, how RL is reconstructing (orientation in z) and the fact, that in the affine transformations, a flip in z had to be precomputed. Therefore during the saving from h5 to tiff, the stack is flipped in z... For a dynamic sample and single planes this is not possible, because the temporal information would be lost (mixed)..
 # Therefore the flip is done when creating the stack with zeros everywhere, except in the plane of interest. This leads to a weird naming (didnt have this in mind during the experiment). So, files with 'plane_100' actually correspond to stacks with single plane validation in plane (241-100+1 = 142).
 #
+from scripts.comp import GKRESHUK
 
 
 class BDVTransform(torch.nn.Module):
@@ -120,11 +114,11 @@ class BDVTransform(torch.nn.Module):
             raise NotImplementedError
 
         # check if correctly inherited
-        assert hasattr(self, "xml_path") and isinstance(self.xml_path, Path) and self.xml_path.exists()
-        assert hasattr(self, "affine_transforms") and isinstance(self.affine_transforms, tuple)
-        assert hasattr(self, "ls_shape") and isinstance(self.ls_shape, tuple)
-        assert hasattr(self, "lf2ls_crop") and isinstance(self.lf2ls_crop, tuple)
-        assert hasattr(self, "lf_shape") and isinstance(self.lf_shape, tuple)
+        assert hasattr(self, "xml_path") and isinstance(self.xml_path, Path) and self.xml_path.exists(), self.xml_path
+        assert hasattr(self, "affine_transforms") and isinstance(self.affine_transforms, tuple), self.affine_transforms
+        assert hasattr(self, "ls_shape") and isinstance(self.ls_shape, tuple), self.ls_shape
+        assert hasattr(self, "lf2ls_crop") and isinstance(self.lf2ls_crop, tuple), self.lf2ls_crop
+        assert hasattr(self, "lf_shape") and isinstance(self.lf_shape, tuple), self.lf_shape
 
         if lf_shape is not None:
             self.lf_shape = lf_shape
@@ -414,8 +408,9 @@ class Heart_tightCrop_Transform(BDVTransform):
     lf2ls_crop = ((18, 8), (100, 100), (100, 100))
     ls_shape = (241, 1451, 1651)
     lf_shape = (838, 1273, 1463)
-    xml_path = Path(
-        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/Heart_tightCrop/200msExp/2019-12-09_22.23.27/dataset_Heart_tightCrop.xml"
+    xml_path = (
+        Path(GKRESHUK)
+        / "LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/Heart_tightCrop/200msExp/2019-12-09_22.23.27/dataset_Heart_tightCrop.xml"
     )
 
 
@@ -468,8 +463,9 @@ class staticHeartFOV_Transform(BDVTransform):
     lf2ls_crop = ((23, 10), (130, 130), (100, 50))
     ls_shape = (241, 1451, 1951)
     lf_shape = (838, 1178, 1767)
-    xml_path = Path(
-        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/staticHeartFOV/200msExp/2019-12-09_22.23.27/dataset_staticHeartFOV.xml"
+    xml_path = (
+        Path(GKRESHUK)
+        / "LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/staticHeartFOV/200msExp/2019-12-09_22.23.27/dataset_staticHeartFOV.xml"
     )
 
 
@@ -743,8 +739,9 @@ class wholeFOV_Transform(BDVTransform):
         ),
         (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0),
     )
-    xml_path = Path(
-        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/beads_afterStaticHeart/wholeFOV/2019-12-03_10.43.05/dataset_wholeFOV.xml"
+    xml_path = (
+        Path(GKRESHUK)
+        / "LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/beads_afterStaticHeart/wholeFOV/2019-12-03_10.43.05/dataset_wholeFOV.xml"
     )
 
 
@@ -963,8 +960,9 @@ class fast_cropped_6ms_Transform(BDVTransform):
         (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0),
     )
     ls_shape = (241, 1024, 1024)
-    xml_path = Path(
-        "/g/kreshuk//LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/beads_afterStaticHeart/fast_cropped_6ms/2019-12-03_10.47.58/dataset_fast_cropped_6ms.xml"
+    xml_path = (
+        Path(GKRESHUK)
+        / "LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/beads_afterStaticHeart/fast_cropped_6ms/2019-12-03_10.47.58/dataset_fast_cropped_6ms.xml"
     )
 
 
@@ -1087,6 +1085,7 @@ class fast_cropped_8ms_Transform(BDVTransform):
     lf2ls_crop = ((10, 10), (50, 50), (50, 50))
     ls_shape = (241, 1350, 1350)
     lf_shape = (838, 1273, 1254)
-    xml_path = Path(
-        "/g/kreshuk//LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/fast_cropped_8ms/200msExp/2019-12-09_22.13.48/dataset_fast_cropped_8ms.xml"
+    xml_path = (
+        Path(GKRESHUK)
+        / "LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/fast_cropped_8ms/200msExp/2019-12-09_22.13.48/dataset_fast_cropped_8ms.xml"
     )

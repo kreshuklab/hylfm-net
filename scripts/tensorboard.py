@@ -5,7 +5,9 @@ from pathlib import Path
 from subprocess import STDOUT, TimeoutExpired, check_output
 from time import sleep
 
-LOG_DIR = Path("/g/kreshuk/beuttenm/repos/lnet/logs")
+from lnet.datasets.base import GKRESHUK
+
+LOG_DIR = Path(GKRESHUK) / "beuttenm/repos/lnet/logs"
 
 CONFIG = {
     "version": 1,

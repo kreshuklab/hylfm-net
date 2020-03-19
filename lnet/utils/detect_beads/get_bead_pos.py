@@ -1,11 +1,11 @@
 import logging
+from typing import List
+
 import numpy
 import scipy.ndimage as ndimage
+from skimage.feature import peak_local_max
 
 # import matplotlib.pyplot as plt
-
-from skimage.feature import peak_local_max
-from typing import List
 
 
 logger = logging.getLogger(__name__)

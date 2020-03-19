@@ -1,10 +1,10 @@
 import logging
+from typing import List, Tuple
+
 import matplotlib.pyplot as plt
 import numpy
-
 from scipy.optimize import linear_sum_assignment
 from tifffile import imread
-from typing import Tuple, List
 
 from lnet.utils.detect_beads import get_bead_pos
 from lnet.utils.detect_beads.plot_matched_beads import plot_matched_beads

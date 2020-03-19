@@ -1,10 +1,9 @@
+from typing import Callable, List, Optional, Tuple
+
 import numpy
-
+from inferno.io.transform import Compose, Transform
+from inferno.io.transform.image import AdditiveGaussianNoise, RandomRotate
 from scipy.special import expit
-from typing import List, Tuple, Optional, Callable
-
-from inferno.io.transform import Transform, Compose
-from inferno.io.transform.image import AdditiveGaussianNoise, RandomRotate, RandomTranspose
 
 
 def lightfield_from_channel(cxy, nnum=19):

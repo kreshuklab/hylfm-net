@@ -1,12 +1,11 @@
 from collections import defaultdict
-from concurrent.futures import as_completed, ThreadPoolExecutor
-from dataclasses import dataclass, field, asdict, fields
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Set, DefaultDict, List, Sequence
+from typing import DefaultDict, Dict, List, Optional, Sequence, Set, Tuple
 
 import numpy
 import yaml
-
 from torch.utils.data import Dataset
 
 

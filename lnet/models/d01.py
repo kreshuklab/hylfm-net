@@ -7,7 +7,7 @@ import torch.nn
 import torch.nn as nn
 from inferno.extensions.initializers import Constant, Initialization
 
-from lnet.config.dataset import registration
+from lnet import registration
 from lnet.models.base import LnetModel
 from lnet.models.layers.conv_layers import ResnetBlock
 from lnet.models.layers.dense_block import DenseBlock
@@ -178,7 +178,7 @@ def try_static():
     import matplotlib.pyplot as plt
     from lnet.config.data import DataConfig, DataCategory
 
-    from lnet.config.model import ModelConfig
+    from lnet.config import ModelConfig
 
     model_config = ModelConfig.load(
         "D01",
@@ -268,7 +268,7 @@ def try_dynamic():
     import matplotlib.pyplot as plt
     from lnet.config.data import DataConfig, DataCategory
 
-    from lnet.config.model import ModelConfig
+    from lnet.config import ModelConfig
 
     model_config = ModelConfig.load(
         "D01",

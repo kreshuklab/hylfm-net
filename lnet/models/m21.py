@@ -1,11 +1,11 @@
-from typing import Tuple, Optional, Sequence
 import logging
+from typing import Optional, Sequence, Tuple
+
 import torch.nn
 import torch.nn as nn
 
-
-from lnet.models.layers.conv_layers import ResnetBlock
 from lnet.models.base import LnetModel
+from lnet.models.layers.conv_layers import ResnetBlock
 
 logger = logging.getLogger(__name__)
 
