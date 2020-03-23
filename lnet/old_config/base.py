@@ -114,7 +114,7 @@ class TrainConfig:
             loss_variant_kwargs = loss_dict.pop("kwargs", {})
             kwargs[f"{loss_variant}_kwargs"] = loss_variant_kwargs
             if loss_dict:
-                raise ValueError(f"unknown config keys in {loss_variant}: {loss_dict}")
+                raise ValueError(f"unknown oldconfig keys in {loss_variant}: {loss_dict}")
 
         return cls(
             data=DataConfig.load(
@@ -196,7 +196,7 @@ class Config:
         with config_path.open("r") as config_file:
             config = yaml.safe_load(config_file)
 
-        # data_configs = {attr: config.pop(attr) for attr in ["train_data", "valid_data", "test_data"] if attr in config}
+        # data_configs = {attr: oldconfig.pop(attr) for attr in ["train_data", "valid_data", "test_data"] if attr in oldconfig}
         #
         # train_data = data_configs.get("train_data", None)
         # if train_data is not None:

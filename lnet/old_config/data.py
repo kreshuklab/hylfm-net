@@ -11,7 +11,7 @@ from torch.utils.data import ConcatDataset, DataLoader, Dataset, RandomSampler, 
 from lnet import registration
 from lnet.config.utils import get_trfs_and_their_names
 from lnet.datasets import (
-    N5Dataset,
+    N5ChunkAsSampleDataset,
     NamedDatasetInfo,
     beads,
     fish,
@@ -53,7 +53,7 @@ class DataConfigEntry:
     interpolation_order: int = 3
     affine_transformation: Optional[str] = None
 
-    transforms: List[Union[Generator[Transform, None, None], Transform]] = None
+    transform: Transform = field(default_factory=lambda: Transform(apply_to=[]))
     transform_configs: List[Union[str, Dict[str, Union[str, Dict[str, Any]]]]] = None
 
     transform_names: List[str] = field(init=False)
@@ -207,8 +207,8 @@ class DataConfig:
                     if at_name != entry.info.DefaultAffineTransform.__name__:
                         raise ValueError(f"x shape {x_shape} already associated with transform {at_name}")
 
-        self.datasets: List[N5Dataset] = [
-            N5Dataset(
+        self.datasets: List[N5ChunkAsSampleDataset] = [
+            N5ChunkAsSampleDataset(
                 info=entry.info,
                 scaling=None,
                 z_out=model_config.z_out,
