@@ -2,23 +2,27 @@ import logging
 import os
 import re
 import shutil
+import threading
 import time
 import warnings
+from collections import OrderedDict
 from concurrent.futures import Future, as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
 from hashlib import sha224 as hash
 from pathlib import Path
-from typing import Callable, Generator, List, Optional, Sequence, Tuple, Type, Union
+from typing import Callable, Generator, List, Optional, Sequence, Tuple, Type, Union, Dict
 
 import numpy
 import torch.utils.data
+import typing
 import z5py
-from inferno.io.transform import Compose, Transform
+from inferno.io.transform import Transform
 from scipy.ndimage import zoom
 from tifffile import imread, imsave
 
 from lnet import models
 from lnet.config.model import ModelConfig
+from lnet.datasets.utils import get_paths_and_numbers, get_image_paths, split_off_glob
 from lnet.registration import (
     BDVTransform,
     Heart_tightCrop_Transform,
@@ -28,6 +32,7 @@ from lnet.registration import (
     wholeFOV_Transform,
 )
 from lnet.stat import DatasetStat
+from lnet.transforms import ComposedTransform
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +51,10 @@ class PathOfInterest:
 class NamedDatasetInfo:
     x_path: Path
     y_path: Path
+    paths: List[Path]
     x_roi: Tuple[slice, slice]
     y_roi: Tuple[slice, slice, slice]
+    rois: List[Tuple[slice, ...]]
     # stat: Optional[DatasetStat]
     interesting_paths: Optional[List[PathOfInterest]]
 
@@ -76,6 +83,7 @@ class NamedDatasetInfo:
 
         self.x_path = self.common_path / path / x_dir
         self.y_path = None if y_dir is None else self.common_path / path / y_dir
+
         self.description = description or self.description
 
         if isinstance(AffineTransform, str):
@@ -120,6 +128,7 @@ class NamedDatasetInfo:
 
         self.x_roi = x_roi or (slice(None), slice(None))
         self.y_roi = y_roi or (slice(None), slice(None), slice(None))
+
         self.interesting_paths = interesting_paths
         self.length = length
 
@@ -128,6 +137,14 @@ class NamedDatasetInfo:
 
         self.z_slices = z_slices
         self.dynamic_z_slice_mod = dynamic_z_slice_mod
+
+        self.paths = [self.x_path]
+        self.rois = [self.x_roi]
+        self.shapes = [self.x_shape]
+        if self.y_path is not None:
+            self.paths.append(self.y_path)
+            self.rois.append(self.y_roi)
+            self.shapes.append(self.y_shape)
 
 
 def resize(
@@ -153,13 +170,16 @@ def resize(
     return zoom(arr, [sout / sin for sin, sout in zip(arr_shape, output_shape)], order=order)
 
 
-class N5Dataset(torch.utils.data.Dataset):
-    x_paths: List[str]
-    y_paths: Optional[List[str]]
+class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
+    paths: Tuple[List[str], ...]
     z_out: Optional[int]
 
-    data_file: Optional[z5py.File] = None
-    futures: Optional[List[Tuple[Future, Future]]] = None
+    data_file: z5py.File
+
+    executor: Optional[ThreadPoolExecutor] = None
+
+    futures: Optional[Dict[int, Future]] = None
+    submit_lock = threading.Lock()
 
     def __init__(
         self,
@@ -167,25 +187,31 @@ class N5Dataset(torch.utils.data.Dataset):
         scaling: Optional[Tuple[float, float]],
         z_out: int,
         interpolation_order: int,
-        save: bool = True,
         transforms: Optional[List[Union[Transform, Callable[[DatasetStat], Generator[Transform, None, None]]]]] = None,
         data_folder: Optional[Path] = None,
         model_config: Optional[ModelConfig] = None,
         model: Optional[torch.nn.Module] = None,
         AffineTransformation: Optional[BDVTransform] = None,
+        max_workers=16,
+        reserved_workers_for_getitem=8,
     ):
+
+        assert data_folder.exists(), data_folder.absolute()
+        assert max_workers >= reserved_workers_for_getitem
         assert scaling is not None or model_config is not None or model is not None
         super().__init__()
-        name = info.description
+
+        if data_folder is None:
+            data_folder = os.environ.get("DATA_FOLDER", None)
+            if data_folder is None:
+                data_folder = Path(__file__).parent / "../../data"
+            else:
+                data_folder = Path(data_folder)
+
+        self.description = info.description
         x_folder = info.x_path
         y_folder = info.y_path
         self.info = info
-
-        def split_off_glob(path: Path) -> Tuple[Path, str]:
-            not_glob = path.as_posix().split("*")[0]
-            valid_path = Path(not_glob[: not_glob.rfind("/")])
-            glob_str = path.relative_to(valid_path).as_posix()
-            return valid_path, glob_str
 
         if "*" in str(x_folder):
             x_folder, x_glob = split_off_glob(x_folder)
@@ -206,25 +232,25 @@ class N5Dataset(torch.utils.data.Dataset):
         self.z_out = z_out
         x_shape = (1,) + original_x_shape
 
-        z_crop = None
-        z_dim = None
-        z_min = None
-        z_max = None
-        if info.z_slices is not None:
-            pass
-            # z_min, z_max = min(info.z_slices), max(info.z_slices)
-            # z_crop = z_min, info.dynamic_z_slice_mod + 1 - z_max
-            # z_dim = z_max - z_min
-        elif info.dynamic_z_slice_mod is not None:
+        if info.z_slices is None and info.dynamic_z_slice_mod is not None:
             z_crop = info.DefaultAffineTransform.lf2ls_crop[0]
             z_min = z_crop[1]
             z_max = info.dynamic_z_slice_mod - z_crop[0] - 1
             z_dim = info.dynamic_z_slice_mod - z_crop[1] - z_crop[0]
+        else:
+            z_crop = None
+            z_min = None
+            z_max = None
+            z_dim = None
 
         self.z_dim = z_dim
         self.z_min = z_min
 
-        if y_folder:
+        if y_folder is None:
+            self.with_target = False
+            y_shape = None
+            y_glob = None
+        else:
             self.with_target = True
             if "*" in y_folder.as_posix():
                 y_folder, y_glob = split_off_glob(y_folder)
@@ -283,21 +309,11 @@ class N5Dataset(torch.utils.data.Dataset):
                 self.affine_transform = None
 
             y_shape = (1,) + y_shape  # add channel dim
-        else:
-            self.with_target = False
-            y_shape = None
 
-        if data_folder is None:
-            data_folder = os.environ.get("DATA_FOLDER", None)
-            if data_folder is None:
-                data_folder = Path(__file__).parent / "../../data"
-            else:
-                data_folder = Path(data_folder)
+        self.shapes = [x_shape]
+        if y_shape is not None:
+            self.shapes.append(y_shape)
 
-        assert data_folder.exists(), data_folder.absolute()
-
-        self.x_shape = x_shape
-        self.y_shape = y_shape
         self.interpolation_order = interpolation_order
         shapestr = (
             f"interpolation order: {interpolation_order}\n"
@@ -308,186 +324,83 @@ class N5Dataset(torch.utils.data.Dataset):
         if AffineTransformation is not None:
             shapestr += f"\naffine transform: {AffineTransformation.__name__}"
 
-        data_file_name = data_folder / f"{name}_{hash(shapestr.encode()).hexdigest()}.n5"
+        data_file_name = data_folder / f"{self.description}_{hash(shapestr.encode()).hexdigest()}.n5"
         with Path(data_file_name.as_posix().replace(".n5", ".txt")).open("w") as f:
             f.write(shapestr)
 
-        def get_paths_and_numbers(folder: Path, glob_expr: str):
-            found_paths = list(Path(folder).glob(glob_expr))
-            glob_numbers = [nr for nr in re.findall(r"\d+", glob_expr)]
-            logger.info("found numbers %s in glob_exp %s", glob_numbers, glob_expr)
-            numbers = [
-                tuple(int(nr) for nr in re.findall(r"\d+", p.relative_to(folder).as_posix()) if nr not in glob_numbers)
-                for p in found_paths
-            ]
-            logger.info("found number tuples %s in folder %s", numbers, folder)
-            return [p.as_posix() for p in found_paths], numbers
-
         logger.info("data_file_name %s", data_file_name)
 
-        tmp_data_file_name = Path(data_file_name.as_posix().replace(".n5", "_tmp.n5"))
-        part_data_file_name = Path(data_file_name.as_posix().replace(".n5", "_part.n5"))
+        self.tmp_data_file_name = Path(data_file_name.as_posix().replace(".n5", "_tmp.n5"))
+        self.part_data_file_name = Path(data_file_name.as_posix().replace(".n5", "_part.n5"))
+
         for attempt in range(100):
-            if tmp_data_file_name.exists():
-                logger.warning(f"waiting for data (found {tmp_data_file_name})")
+            if self.tmp_data_file_name.exists():
+                logger.warning(f"waiting for data (found {self.tmp_data_file_name})")
                 time.sleep(300)
             else:
                 break
         else:
-            if save:
-                raise FileExistsError(tmp_data_file_name)
+            raise FileExistsError(self.tmp_data_file_name)
+
+        if self.with_target:
+            self.tensor_names = "xy"
+        else:
+            self.tensor_names = "x"
 
         if data_file_name.exists():
             self.data_file = z5py.File(path=data_file_name.as_posix(), mode="r", use_zarr_format=False)
             self._len = self.data_file["x"].shape[0]
+            self.ready = lambda idx: True
         else:
-            if part_data_file_name.exists():
-                part_data_file_name.rename(tmp_data_file_name)
-
-            raw_x_paths, x_numbers = get_paths_and_numbers(x_folder, x_glob)
-            common_numbers = set(x_numbers)
-
-            if self.with_target:
-                raw_y_paths, y_numbers = get_paths_and_numbers(y_folder, y_glob)
-                common_numbers &= set(y_numbers)
-                assert len(common_numbers) > 1 or len(set(x_numbers) | set(y_numbers)) == 1, (
-                    "x",
-                    set(x_numbers),
-                    "y",
-                    set(y_numbers),
-                    "x|y",
-                    set(x_numbers) | set(y_numbers),
-                    "x&y",
-                    set(x_numbers) & set(y_numbers),
-                )
-                self.y_paths = sorted([p for p, yn in zip(raw_y_paths, y_numbers) if yn in common_numbers])
-                y_drop = sorted([yn for yn in y_numbers if yn not in common_numbers])
-                logger.warning("dropping y: %s", y_drop)
-
-                if z_crop is not None:
-                    self.y_paths = [
-                        p for i, p in enumerate(self.y_paths) if z_min <= i % self.info.dynamic_z_slice_mod <= z_max
-                    ]
-
-            self.x_paths = sorted([p for p, xn in zip(raw_x_paths, x_numbers) if xn in common_numbers])
-
-            x_drop = sorted([xn for xn in x_numbers if xn not in common_numbers])
-            logger.warning("dropping x: %s", x_drop)
-
-            if z_crop is not None:
-                self.x_paths = [
-                    p
-                    for i, p in enumerate(self.x_paths)
-                    if z_min <= i % self.info.dynamic_z_slice_mod and i % self.info.dynamic_z_slice_mod <= z_max
-                ]
-
-            if self.with_target:
-                assert len(self.x_paths) == len(self.y_paths), raw_y_paths
-
-            assert len(self.x_paths) >= 1, raw_x_paths
-            self._len = len(self.x_paths)
-            assert len(self) >= 1, "corrupt saved datasets file?"
+            self.paths = get_image_paths(
+                x_folder,
+                x_glob,
+                y_folder,
+                y_glob,
+                z_crop=z_crop,
+                z_min=z_min,
+                z_max=z_max,
+                z_dim=z_dim,
+                dynamic_z_slice_mod=info.dynamic_z_slice_mod,
+            )
+            self._len = len(self.paths[0])
+            assert len(self) >= 1, "corrupt existing datasets file?"
             logger.info("datasets length: %s  x shape: %s  y shape: %s", len(self), x_shape, y_shape)
-            if save:
-                try:
-                    data_file = z5py.File(path=str(tmp_data_file_name), mode="a", use_zarr_format=False)
 
-                    if "x" in data_file:
-                        self.x_ds = data_file["x"]
-                    else:
-                        self.x_ds = data_file.create_dataset(
-                            "x",
-                            shape=(len(self.x_paths),) + self.x_shape,
-                            chunks=(1,) + self.x_shape,
-                            dtype=numpy.float32,
-                        )
-                    if self.with_target:
-                        if "y" in data_file:
-                            self.y_ds = data_file["y"]
-                        else:
-                            self.y_ds = data_file.create_dataset(
-                                "y", shape=(len(self),) + self.y_shape, chunks=(1,) + self.y_shape, dtype=numpy.float32
-                            )
+            if self.part_data_file_name.exists():
+                self.part_data_file_name.rename(self.tmp_data_file_name)
+            data_file = z5py.File(path=str(self.tmp_data_file_name), mode="a", use_zarr_format=False)
 
-                    # first slice in main thread to catch exceptions
-                    self.process_x(0, to_ds=True)
-                    if self.with_target:
-                        self.process_y(0, to_ds=True)
+            self.n5datasets = OrderedDict()
 
-                    # other slices in parallel
-                    futures = []
-                    with ThreadPoolExecutor(max_workers=16) as executor:
-                        for i in range(1, len(self)):
-                            futures.append(executor.submit(self.process_x, i, to_ds=True))
-                            if self.with_target:
-                                futures.append(executor.submit(self.process_y, i, to_ds=True))
+            for idx, name in enumerate(self.tensor_names):
+                if name in data_file:
+                    self.n5datasets[name] = data_file[name]
+                else:
+                    self.n5datasets[name] = data_file.create_dataset(
+                        name, shape=(len(self),) + self.shapes[idx], chunks=(1,) + self.shapes[idx], dtype=numpy.float32
+                    )
 
-                        for fut in as_completed(futures):
-                            e = fut.exception()
-                            if e is not None:
-                                raise e
-                    # for debugging: other slices in serial
-                    # for i in range(1, len(self)):
-                    #     process_x(i)
-                    #     process_y(i)
-                except:
-                    # shutil.rmtree(tmp_data_file_name)
-                    tmp_data_file_name.rename(part_data_file_name)
-                    raise
+            self.futures = {}
+            self.executor = ThreadPoolExecutor(max_workers=max_workers)
 
-                os.rename(tmp_data_file_name, data_file_name.as_posix())
-                self.data_file = z5py.File(path=data_file_name.as_posix())
+            worker_nr = 0
+            self.nr_background_workers = max_workers - reserved_workers_for_getitem
+            idx = 0
+            while worker_nr < max_workers - reserved_workers_for_getitem and idx < len(self):
+                fut = self.submit(idx)
+                if isinstance(fut, Future):
+                    fut.add_done_callback(self.background_worker_callback)
+                    idx += 1
+                    worker_nr += 1
+                else:
+                    idx += 1
+
+            self.data_file = z5py.File(path=data_file_name.as_posix())
 
         stat_path = Path(data_file_name.as_posix().replace(".n5", "_stat.yml"))
-        assert ".yml" in stat_path.as_posix(), "replacing '.n5' with '_stat.yml' did not work!"
 
-        # if interesting_paths is None:
-        #     self.interesting_path_slices = [[]]
-        # else:
-        #     self.interesting_path_slices: List[List[Optional[Tuple[slice, slice, slice, slice]]]] = [
-        #         [] for _ in range(len(self))
-        #     ]
-        #     for ip in interesting_paths:
-        #         interesting_path = numpy.array(ip.points, dtype=numpy.float)
-        #         # scale interesting path to resized roi of target
-        #         for i, (new_s, old_s) in enumerate(zip(y_shape[1:], original_y_shape)):
-        #             roi_start = y_roi[i].start
-        #             interesting_path[:, 1 + i] -= 0 if roi_start is None else roi_start
-        #             interesting_path[:, 1 + i] *= new_s
-        #             interesting_path[:, 1 + i] /= old_s
-        #
-        #         path_start = int(interesting_path[:, 0].min())
-        #         path_stop = int(interesting_path[:, 0].max())
-        #         # interpolate missing points
-        #         full_path = griddata(
-        #             points=interesting_path[:, 0],
-        #             values=interesting_path[:, 1:],
-        #             xi=numpy.arange(path_start, path_stop + 1),
-        #             method="linear",
-        #         )
-        #         # x = numpy.linspace(scipy.stats.norm.ppf(0.01), scipy.stats.norm.ppf(0.99), 100)
-        #         # ax.plot(x, norm.pdf(x), 'r-', lw=5, alpha=0.6, label='norm pdf')
-        #         # mask = sparse.csr_matrix(new_y_shape, dtype=numpy.float32)
-        #         centers = numpy.round(full_path).astype(int)
-        #         # for p_i, approx_point in enumerate(full_path):
-        #         #     # center = [int(numpy.round(p)) for p in approx_point]
-        #         #     roi = [slice(max(0, p-10), p+10) for p in center]
-        #         for item in range(len(self)):
-        #             if item < path_start or item > path_stop:
-        #                 self.interesting_path_slices[item].append(None)
-        #             else:
-        #                 center = centers[item - path_start]
-        #                 assert len(center.shape) == 1 and center.shape[0] == 3, center.shape
-        #                 self.interesting_path_slices[item].append(
-        #                     (
-        #                         slice(None),
-        #                         slice(max(0, center[0] - 1), center[0] + 1),
-        #                         slice(max(0, center[1] - 3), center[1] + 3),
-        #                         slice(max(0, center[1] - 3), center[1] + 3),
-        #                     )
-        #                 )
-
-        self.transform = None
+        self.transform = lambda x: x  # for computing stat
         self.stat = DatasetStat(path=stat_path, dataset=self)
         transform_instances = []
         for t in transforms:
@@ -497,104 +410,74 @@ class N5Dataset(torch.utils.data.Dataset):
                 for ti in t(self.stat):
                     transform_instances.append(ti)
 
-        self.transform = Compose(*transform_instances)
-
-    def process_x(self, i, to_ds=False) -> Optional[numpy.ndarray]:
-        if to_ds and self.x_ds.chunk_exists(tuple([i] + [0] * (len(self.x_ds.shape) - 1))):
-            return self.x_ds[i]
-
-        x_img = imread(self.x_paths[i])
-        assert len(x_img.shape) == 2, x_img.shape
-        x_img = x_img[self.info.x_roi]
-        assert x_img.shape == self.x_shape[1:], (x_img.shape, self.x_shape)
-        if to_ds:
-            self.x_ds[i, ...] = x_img
-        else:
-            return x_img
-
-    def process_y(self, i, to_ds=False) -> Optional[numpy.ndarray]:
-        if to_ds and self.y_ds.chunk_exists(tuple([i] + [0] * (len(self.y_ds.shape) - 1))):
-            return self.y_ds[i]
-
-        y_img = imread(self.y_paths[i])
-        if self.info.dynamic_z_slice_mod is not None or self.info.z_slices is not None:
-            assert len(y_img.shape) == 2, y_img.shape
-        else:
-            assert len(y_img.shape) == 3, y_img.shape
-
-        if self.affine_transform is None:
-            y_img = resize(y_img, self.y_shape, roi=self.info.y_roi, order=self.interpolation_order)
-        else:
-            y_img = self.affine_transform.apply(y_img)
-        if to_ds:
-            self.y_ds[i, ...] = y_img
-        else:
-            return y_img
+        self.transform = ComposedTransform(*transform_instances)
 
     def __len__(self):
         return self._len
 
-    def __getitem__(
-        self, item
-    ) -> Union[
-        Tuple[numpy.ndarray, numpy.ndarray],
-        Tuple[numpy.ndarray, numpy.ndarray, int],
-        numpy.ndarray,
-        Tuple[numpy.ndarray, int],
-    ]:  # aux? Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray], Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, int]
-        item = int(item)
-        if self.data_file is None:
-            x = self.process_x(item)
-            if self.with_target:
-                y = self.process_y(item)
-        elif self.futures is None:
-            logger.debug("here1 x dg %s", self.data_file["x"].shape)
-            x = self.data_file["x"][item]
-            logger.debug("here x %s", x.shape)
-            x = x[0]
-            if self.with_target:
-                y = self.data_file["y"][item]
-                y = y[0]
-            # logger.debug("here2 x %s", x.shape)
-        else:
-            raise NotImplementedError
-            # todo: set high priority for "item"
-            for fut in self.futures[item]:
-                fut.result()
+    def __getitem__(self, idx) -> typing.OrderedDict[str, Union[numpy.ndarray, int, DatasetStat]]:
+        idx = int(idx)
+        fut = self.submit(idx)
+        if isinstance(fut, Future):
+            fut = fut.result()
 
-            x = self.data_file["x"][item]
-            if self.with_target:
-                y = self.data_file["y"][item]
-
-        if self.transform is not None:
-            logger.debug("apply transform %s", self.transform)
-            # logger.debug("x: %s, y: %s", x.shape, y.shape)
-            if self.with_target:
-                x, y = self.transform(x[None, ...], y[None, ...])
-                x, y = x[0], y[0]
-            else:
-                x = self.transform(x[None, ...])[0]
+        assert isinstance(fut, int) and fut == idx
+        sample = OrderedDict([(name, self.n5datasets[name][idx][None, ...]) for name in self.tensor_names])
 
         if self.info.z_slices is not None:
-            neg_z_slice = self.info.z_slices[item % len(self.info.z_slices)]
+            neg_z_slice = self.info.z_slices[idx % len(self.info.z_slices)]
         elif self.info.dynamic_z_slice_mod is not None:
-            neg_z_slice = self.z_min + (item % self.z_dim) + 1
+            neg_z_slice = self.z_min + (idx % self.z_dim) + 1
         else:
             neg_z_slice = None
 
         z_slice = None if neg_z_slice is None else self.info.dynamic_z_slice_mod - neg_z_slice
+        if z_slice is not None:
+            sample["z_slice"] = z_slice
 
-        x = numpy.ascontiguousarray(x)
-        if self.with_target:
-            y = numpy.ascontiguousarray(y)
-            if z_slice is None:
-                return x, y
+        sample["meta"] = {"stat": self.stat}
+
+        logger.debug("apply transform %s", self.transform)
+        sample = self.transform(sample)
+        return OrderedDict(
+            [
+                (key, item) if isinstance(item, int) else (key, numpy.ascontiguousarray(item))
+                for key, item in sample.items()
+            ]
+        )
+
+    def __del__(self):
+        self.tmp_data_file_name.rename(self.part_data_file_name)
+
+    def background_worker_callback(self, fut: Future):
+        idx = fut.result()["idx"]
+        for next_idx in range(idx, len(self), self.nr_background_workers):
+            next_fut = self.submit(idx + self.nr_background_workers)
+            if next_fut is not None:
+                next_fut.add_done_callback(self.background_worker_callback)
+                break
+
+    def ready(self, idx: int) -> bool:
+        chunk_idx = tuple([idx] + [0] * (len(self.shapes[0]) - 1))
+        return self.n5datasets[0].chunk_exists(chunk_idx)
+
+    def submit(self, idx: int) -> Union[int, Future]:
+        with self.submit_lock:
+            if self.ready(idx) or idx in self.futures:
+                return idx
             else:
-                return x, y, z_slice
-        elif z_slice is None:
-            return x
-        else:
-            return x, z_slice
+                fut = self.executor.submit(self.process, idx)
+                self.futures[idx] = fut
+                return fut
+
+    def process(self, idx: int) -> int:
+        for t, name in enumerate(self.tensor_names):
+            img = imread(self.paths[t][idx])
+            img = img[self.info.rois[t]]
+            assert img.shape == self.shapes[t][1:], (img.shape, self.shapes[t])
+            self.n5datasets[t][idx, ...] = img
+
+        return idx
 
 
 class Result(torch.utils.data.Dataset):
