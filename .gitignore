@@ -1,8 +1,6 @@
 data/
 logs/
 lnet/experiment_configs
-#lnet/experiment_configs/**/*.txt
-#lnet/experiment_configs/slurm_output
 
 notebooks/**/*.svg
 notebooks/**/*.npy

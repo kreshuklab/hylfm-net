@@ -1,0 +1,68 @@
+precision: float
+nnum: &nnum 19
+z_out: &z_out 49
+model:
+  name: A02
+  kwargs:
+    interpolation_order: 2
+    n_res2d: [16, 16, u, 8, 8]
+    inplanes_3d: 4
+    n_res3d: [[4, 2], [1]]
+    final_activation: null
+    nnum: *nnum
+    z_out: *z_out
+#  checkpoint: /g/kreshuk/beuttenm/repos/lnet/logs/fish/fdyn1_a02/20-02-21_08-54-55/models/v0_model_4.pth
+
+
+test:
+  batch_size: &eval_batch_size 2
+  transforms: &eval_transforms
+    - {name: norm01, kwargs: {apply_to: 0, percentile_min: 5.0, percentile_max: 99.8}}
+    - {name: norm01, kwargs: {apply_to: 1, percentile_min: 5.0, percentile_max: 99.99}}
+    - Lightfield2Channel
+  data:
+    fish2_20191209_dynamic.t0454c2: {indices: 10750-10752, interpolation_order: 2}
+
+
+train:
+  batch_size: 1
+  max_num_epochs: 500
+  score_metric: MS-SSIM
+  patience: 5
+
+  log:
+    log_scalars_period: {value: 1, unit: iteration}
+    log_images_period: {value: 1, unit: epoch}
+    log_bead_precision_recall: false
+    save_n_checkpoints: 2
+
+  validate:
+    period: {value: 1, unit: epoch}
+    batch_size: *eval_batch_size
+    transforms: *eval_transforms
+    data:
+      fish2_20191209_dynamic.t0454c2: {indices: 10535-10537, interpolation_order: 2}
+
+  loss:
+    name: WeightedSmoothL1Loss
+    kwargs: {threshold: 0.8, initial_weight: .05, apply_below_threshold: true, decay_by: .8, every_nth_epoch: 1}
+
+  optimizer:
+    name: Adam
+    kwargs: {lr: 4.0e-4, eps: 1.0e-8}
+
+  batch_groups:
+    default:
+      interpolation_order: 2
+      transforms:
+        - {name: norm01, kwargs: {apply_to: 0, percentile_min: 5.0, percentile_max: 99.8}}
+        - {name: norm01, kwargs: {apply_to: 1, percentile_min: 5.0, percentile_max: 99.99}}
+        - {name: additive_gaussian_noise, kwargs: {apply_to: 0, sigma: 0.1}}
+        - {name: additive_gaussian_noise, kwargs: {apply_to: 1, sigma: 0.05}}
+        - {name: RandomIntensityScale, kwargs: {factor_between: [.8, 1.2]}}
+        - RandomRotate
+        - RandomFlipXYnotZ
+        - Lightfield2Channel
+
+  data:
+    fish2_20191209_dynamic.t0454c2: {indices: 30-31}
