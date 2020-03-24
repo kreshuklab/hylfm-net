@@ -1,1 +1,1 @@
-from .base import PathOfInterest, N5ChunkAsSampleDataset, NamedDatasetInfo, Result
+from .base import ConcatDataset, N5ChunkAsSampleDataset, NamedDatasetInfo, PathOfInterest, Result

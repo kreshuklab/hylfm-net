@@ -12,9 +12,13 @@ except ImportError:
 
 
 class Transform:
+    randomly_changes_shape: bool = False
+
     def __init__(self, apply_to: Optional[Union[str, int, Sequence[Union[str, int]]]] = None):
         if isinstance(apply_to, (int, str)):
             self.apply_to = [str(apply_to)]
+        elif apply_to is None:
+            self.apply_to = None
         else:
             self.apply_to = [str(at) for at in apply_to]
 

@@ -13,7 +13,7 @@ class EdgeCrop(Transform):
         self,
         crop: Optional[Tuple[int, ...]] = None,
         crop_fn: Optional[Callable[[Tuple[int, ...]], Tuple[int, ...]]] = None,
-        **super_kwargs
+        **super_kwargs,
     ):
         super().__init__(**super_kwargs)
         if crop is not None and crop_fn is not None:
@@ -73,3 +73,29 @@ class RandomIntensityScale(Transform):
 
     def apply_to_tensor(self, tensor: Any, *, name: str, idx: int, meta: Optional[dict]):
         return tensor * meta[self.meta_key]
+
+
+class RandomRotate90(Transform):
+    randomly_changes_shape = True
+    meta_key = "random_rotate_90"
+
+    def __init__(self, sample_axes: Tuple[int, int] = (-2, -1), **super_kwargs):
+        super().__init__(**super_kwargs)
+        self.sample_axes = sample_axes
+
+    def edit_meta_before(self, meta: Optional[dict]) -> dict:
+        meta = meta or {}
+        assert self.meta_key not in meta, meta
+        meta[self.meta_key] = numpy.random.randint(4)
+        return meta
+
+    def apply_to_sample(
+        self,
+        sample: Union[numpy.ndarray, torch.Tensor],
+        *,
+        tensor_name: str,
+        tensor_idx: int,
+        batch_idx: int,
+        meta: Optional[dict],
+    ):
+        return numpy.rot90(sample, k=meta[self.meta_key], axes=self.sample_axes)

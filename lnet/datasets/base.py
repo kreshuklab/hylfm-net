@@ -1,12 +1,9 @@
 import logging
 import os
-import re
-import shutil
 import threading
 import time
-import warnings
 from collections import OrderedDict
-from concurrent.futures import Future, as_completed
+from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
 from hashlib import sha224 as hash
 from pathlib import Path
@@ -21,8 +18,9 @@ from scipy.ndimage import zoom
 from tifffile import imread, imsave
 
 from lnet import models
-from lnet.config.model import ModelConfig
-from lnet.datasets.utils import get_paths_and_numbers, get_image_paths, split_off_glob
+
+# from config.__init__ import ModelConfig
+from lnet.datasets.utils import get_image_paths, split_off_glob
 from lnet.registration import (
     BDVTransform,
     Heart_tightCrop_Transform,
@@ -32,7 +30,6 @@ from lnet.registration import (
     wholeFOV_Transform,
 )
 from lnet.stat import DatasetStat
-from lnet.transforms import ComposedTransform
 
 logger = logging.getLogger(__name__)
 
@@ -183,30 +180,22 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
 
     def __init__(
         self,
+        *,
         info: NamedDatasetInfo,
-        scaling: Optional[Tuple[float, float]],
+        nnum: int,
         z_out: int,
         interpolation_order: int,
-        transforms: Optional[List[Union[Transform, Callable[[DatasetStat], Generator[Transform, None, None]]]]] = None,
-        data_folder: Optional[Path] = None,
-        model_config: Optional[ModelConfig] = None,
-        model: Optional[torch.nn.Module] = None,
-        AffineTransformation: Optional[BDVTransform] = None,
-        max_workers=16,
-        reserved_workers_for_getitem=8,
+        data_cache_path: Path,
+        get_model_scaling: Callable[[Tuple[int, int]], Tuple[float, float]],
+        transform: Optional[Transform] = None,
+        ls_affine_transform_class: Optional[BDVTransform] = None,
+        max_workers: int = 16,
+        reserved_workers_for_getitem: int = 8,
     ):
 
-        assert data_folder.exists(), data_folder.absolute()
+        assert data_cache_path.exists(), data_cache_path.absolute()
         assert max_workers >= reserved_workers_for_getitem
-        assert scaling is not None or model_config is not None or model is not None
         super().__init__()
-
-        if data_folder is None:
-            data_folder = os.environ.get("DATA_FOLDER", None)
-            if data_folder is None:
-                data_folder = Path(__file__).parent / "../../data"
-            else:
-                data_folder = Path(data_folder)
 
         self.description = info.description
         x_folder = info.x_path
@@ -276,15 +265,8 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
             else:
                 original_y_shape = info.y_shape
 
-            if scaling is None:
-                if model is None:
-                    assert model_config is not None
-                    model = getattr(models, model_config.name)(
-                        nnum=model_config.nnum, z_out=z_out, **model_config.kwargs
-                    )
-
-                model_scaling = model.get_scaling(original_x_shape)
-                scaling = (model_scaling[0] / model_config.nnum, model_scaling[1] / model_config.nnum)
+            model_scaling = get_model_scaling(original_x_shape)
+            scaling = (model_scaling[0] / nnum, model_scaling[1] / nnum)
 
             y_dims_12 = tuple(int(oxs * sc) for oxs, sc in zip(original_x_shape, scaling))
             if len(original_y_shape) == 2:
@@ -299,14 +281,14 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
                 y_dim_0 = self.z_out
                 y_shape = (y_dim_0,) + y_dims_12
 
-            if AffineTransformation is not None:
+            if ls_affine_transform_class is not None:
                 assert info.y_shape is not None, "when working with transforms the output shape needs to be given"
 
-                self.affine_transform = AffineTransformation(
+                self.ls_affine_transform = ls_affine_transform_class(
                     order=interpolation_order, output_shape=(y_dim_0,) + y_dims_12
                 )
             else:
-                self.affine_transform = None
+                self.ls_affine_transform = None
 
             y_shape = (1,) + y_shape  # add channel dim
 
@@ -316,15 +298,15 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
 
         self.interpolation_order = interpolation_order
         shapestr = (
-            f"interpolation order: {interpolation_order}\n"
-            f"x roi: {info.x_roi}\ny roi: {info.y_roi}\n"
-            f"x shape: {x_shape}\ny shape: {y_shape}\n"
+            f"interpolation_order: {interpolation_order}\n"
+            f"x_roi: {info.x_roi}\ny_roi: {info.y_roi}\n"
+            f"x_shape: {x_shape}\ny_shape: {y_shape}\n"
             f"x_folder: {x_folder}\ny_folder: {y_folder}"
         )
-        if AffineTransformation is not None:
-            shapestr += f"\naffine transform: {AffineTransformation.__name__}"
+        if ls_affine_transform_class is not None:
+            shapestr += f"\nls_affine_transform: {ls_affine_transform_class.__name__}"
 
-        data_file_name = data_folder / f"{self.description}_{hash(shapestr.encode()).hexdigest()}.n5"
+        data_file_name = data_cache_path / f"{self.description}_{hash(shapestr.encode()).hexdigest()}.n5"
         with Path(data_file_name.as_posix().replace(".n5", ".txt")).open("w") as f:
             f.write(shapestr)
 
@@ -343,9 +325,9 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
             raise FileExistsError(self.tmp_data_file_name)
 
         if self.with_target:
-            self.tensor_names = "xy"
+            self.tensor_names = ["lf", "ls"]
         else:
-            self.tensor_names = "x"
+            self.tensor_names = ["lf"]
 
         if data_file_name.exists():
             self.data_file = z5py.File(path=data_file_name.as_posix(), mode="r", use_zarr_format=False)
@@ -400,17 +382,9 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
 
         stat_path = Path(data_file_name.as_posix().replace(".n5", "_stat.yml"))
 
-        self.transform = lambda x: x  # for computing stat
+        self.transform = None  # for computing stat
         self.stat = DatasetStat(path=stat_path, dataset=self)
-        transform_instances = []
-        for t in transforms:
-            if isinstance(t, Transform):
-                transform_instances.append(t)
-            else:
-                for ti in t(self.stat):
-                    transform_instances.append(ti)
-
-        self.transform = ComposedTransform(*transform_instances)
+        self.transform = transform
 
     def __len__(self):
         return self._len
@@ -438,7 +412,9 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
         sample["meta"] = {"stat": self.stat}
 
         logger.debug("apply transform %s", self.transform)
-        sample = self.transform(sample)
+        if self.transform is not None:
+            sample = self.transform(sample)
+
         return OrderedDict(
             [
                 (key, item) if isinstance(item, int) else (key, numpy.ascontiguousarray(item))
@@ -474,10 +450,26 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
         for t, name in enumerate(self.tensor_names):
             img = imread(self.paths[t][idx])
             img = img[self.info.rois[t]]
+            if name == "ls" and self.ls_affine_transform is not None:
+                img = self.ls_affine_transform(img)
+
             assert img.shape == self.shapes[t][1:], (img.shape, self.shapes[t])
             self.n5datasets[t][idx, ...] = img
 
         return idx
+
+
+class ConcatDataset(torch.utils.data.ConcatDataset):
+    def __init__(self, datasets: List[torch.utils.data.Dataset], transform: Optional[Transform] = None):
+        self.transform = transform
+        super().__init__(datasets=datasets)
+
+    def __getitem__(self, item):
+        sample = super().__getitem__(item)
+        if self.transform is not None:
+            sample = self.transform(sample)
+
+        return sample
 
 
 class Result(torch.utils.data.Dataset):

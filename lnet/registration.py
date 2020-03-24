@@ -102,17 +102,15 @@ class BDVTransform(torch.nn.Module):
 
     def __init__(
         self,
+        *,
+        forward: str,
+        order: int,
         output_shape: Optional[Union[Tuple[int, int], Tuple[int, int, int]]] = None,
-        order: int = 0,
         additional_transforms_left: Sequence[numpy.ndarray] = tuple(),
         additional_transforms_right: Sequence[numpy.ndarray] = tuple(),
-        forward: str = "lf2ls",
         trf_out_zoom: Tuple[float, float, float] = (1.0, 1.0, 1.0),
         lf_shape: Optional[Tuple[int, int, int]] = None,
     ):
-        if output_shape is not None and len(output_shape) == 2:
-            raise NotImplementedError
-
         # check if correctly inherited
         assert hasattr(self, "xml_path") and isinstance(self.xml_path, Path) and self.xml_path.exists(), self.xml_path
         assert hasattr(self, "affine_transforms") and isinstance(self.affine_transforms, tuple), self.affine_transforms
@@ -120,14 +118,24 @@ class BDVTransform(torch.nn.Module):
         assert hasattr(self, "lf2ls_crop") and isinstance(self.lf2ls_crop, tuple), self.lf2ls_crop
         assert hasattr(self, "lf_shape") and isinstance(self.lf_shape, tuple), self.lf_shape
 
+        if forward == "lf2ls":
+            self.forward = self.lf2ls
+        elif forward == "lsf2lf":
+            self.forward = self.ls2lf
+        else:
+            raise NotImplementedError(forward)
+
+        super().__init__()
+        assert output_shape is None or isinstance(output_shape, tuple)
+        if output_shape is not None and len(output_shape) == 2:
+            raise NotImplementedError
+
+        self.output_shape = output_shape
+
         if lf_shape is not None:
             self.lf_shape = lf_shape
 
-        assert forward in ["lf2ls", "ls2lf"]
-        self.forward = getattr(self, forward)
-        super().__init__()
         self.trf_out_zoom = trf_out_zoom
-        assert output_shape is None or isinstance(output_shape, tuple)
         self.mode = self.mode_from_order.get(order, None)
 
         self.trf_matrix = self.concat_affine_matrices(
@@ -140,7 +148,6 @@ class BDVTransform(torch.nn.Module):
         lf2ls_crop_shift[:-1, -1] = [c[0] for c in self.lf2ls_crop]
         matrix_with_lf2ls_crop = self.trf_matrix.dot(lf2ls_crop_shift)
         self.lf2ls_matrix = numpy.linalg.inv(matrix_with_lf2ls_crop)
-        self.output_shape = output_shape
         self.order = order
         self.affine_grid_size = None
         self.z_offset: int = self.lf2ls_crop[0][0]

@@ -1,9 +1,15 @@
+data_cache_path: /repos/lnet/data
 precision: float
 nnum: &nnum 19
 z_out: &z_out 49
 model:
   name: A02
   kwargs:
+    affine_transform_classes:
+      361,67,77: Heart_tightCrop_Transform
+      361,77,67: Heart_tightCrop_Transform
+      361,66,77: Heart_tightCrop_Transform
+      361,77,66: Heart_tightCrop_Transform
     interpolation_order: 2
     n_res2d: [16, 16, u, 8, 8]
     inplanes_3d: 4
@@ -15,17 +21,18 @@ model:
 
 
 test:
-  batch_size: &eval_batch_size 2
-  transforms: &eval_transforms
-    - {name: norm01, kwargs: {apply_to: 0, percentile_min: 5.0, percentile_max: 99.8}}
-    - {name: norm01, kwargs: {apply_to: 1, percentile_min: 5.0, percentile_max: 99.99}}
-    - Lightfield2Channel
   data:
-    fish2_20191209_dynamic.t0454c2: {indices: 10750-10752, interpolation_order: 2}
+    - batch_size: &test_batch_size 2
+      interpolation_order: &test_interpolation_order 2
+      transforms: &test_transforms
+        - {name: Normalize01, kwargs: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}}
+        - {name: Normalize01, kwargs: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}}
+        - {name: LightFieldFromChannel, kwargs: {apply_to: lf, nnum: *nnum}}
+      datasets:
+        fish2_20191209_dynamic.t0454c2: {indices: 10750-10752}
 
 
 train:
-  batch_size: 1
   max_num_epochs: 500
   score_metric: MS-SSIM
   patience: 5
@@ -38,10 +45,12 @@ train:
 
   validate:
     period: {value: 1, unit: epoch}
-    batch_size: *eval_batch_size
-    transforms: *eval_transforms
     data:
-      fish2_20191209_dynamic.t0454c2: {indices: 10535-10537, interpolation_order: 2}
+      - batch_size: *test_batch_size
+        interpolation_order: *test_interpolation_order
+        transforms: *test_transforms
+        datasets:
+          fish2_20191209_dynamic.t0454c2: {indices: 10535-10537, interpolation_order: 2}
 
   loss:
     name: WeightedSmoothL1Loss
@@ -51,18 +60,18 @@ train:
     name: Adam
     kwargs: {lr: 4.0e-4, eps: 1.0e-8}
 
-  batch_groups:
-    default:
-      interpolation_order: 2
-      transforms:
-        - {name: norm01, kwargs: {apply_to: 0, percentile_min: 5.0, percentile_max: 99.8}}
-        - {name: norm01, kwargs: {apply_to: 1, percentile_min: 5.0, percentile_max: 99.99}}
-        - {name: additive_gaussian_noise, kwargs: {apply_to: 0, sigma: 0.1}}
-        - {name: additive_gaussian_noise, kwargs: {apply_to: 1, sigma: 0.05}}
-        - {name: RandomIntensityScale, kwargs: {factor_between: [.8, 1.2]}}
-        - RandomRotate
-        - RandomFlipXYnotZ
-        - Lightfield2Channel
-
   data:
-    fish2_20191209_dynamic.t0454c2: {indices: 30-31}
+    - batch_size: &train_batch_size 2
+      interpolation_order: *test_interpolation_order
+      transforms: &train_transforms
+        - {name: Normalize01, kwargs: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}}
+        - {name: Normalize01, kwargs: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}}
+        - {name: AdditiveGaussianNoise, kwargs: {apply_to: lf, sigma: 0.1}}
+        - {name: AdditiveGaussianNoise, kwargs: {apply_to: ls, sigma: 0.05}}
+        - {name: RandomIntensityScale, kwargs: {factor_min: .8, factor_max: 1.2}}
+        - {name: RandomRotate90, kwargs: {}}
+        - {name: RandomlyFlipAxis, kwargs: {axis: -1}}
+        - {name: RandomlyFlipAxis, kwargs: {axis: -2}}
+        - {name: LightFieldFromChannel, kwargs: {apply_to: lf, nnum: *nnum}}
+      datasets:
+        fish2_20191209_dynamic.t0454c2: {indices: 30-31}
