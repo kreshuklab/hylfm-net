@@ -36,7 +36,7 @@ class Period:
 
 @enforce_types
 @dataclass
-class ModelConfig:
+class ModelSetup:
     name: str
     kwargs: Dict[str, Any]
     checkpoint: Optional[str] = None
@@ -78,7 +78,7 @@ class ModelConfig:
 
 @enforce_types
 @dataclass
-class LogConfig:
+class LogSetup:
     log_scalars_period: Dict[str, Union[int, str]]
     log_images_period: Dict[str, Union[int, str]]
     log_bead_precision_recall: bool = False
@@ -92,7 +92,7 @@ class LogConfig:
 
 @enforce_types
 @dataclass
-class DatasetGroupConfig:
+class DatasetGroupSetup:
     batch_size: int
     datasets: Dict[str, Dict[str, Any]]
     interpolation_order: int
@@ -123,8 +123,8 @@ class DatasetGroupConfig:
         self.sample_transform = ComposedTransform(*self.transforms[:batch_transform_start])
         self.batch_transform = ComposedTransform(*self.transforms[batch_transform_start:])
 
-        self.datasets: Dict[str, DatasetConfig] = {
-            name: DatasetConfig(**kwargs, group_config=self, name=name) for name, kwargs in self.datasets.items()
+        self.datasets: Dict[str, DatasetSetup] = {
+            name: DatasetSetup(**kwargs, group_config=self, name=name) for name, kwargs in self.datasets.items()
         }
         self.ls_affine_transform_class = (
             None
@@ -153,15 +153,15 @@ class DatasetGroupConfig:
 
 @enforce_types
 @dataclass
-class DatasetConfig:
+class DatasetSetup:
     name: str
     indices: Union[str, int]
-    group_config: InitVar[DatasetGroupConfig]
+    group_config: InitVar[DatasetGroupSetup]
     interpolation_order: Optional[int] = None
     transform: ComposedTransform = field(init=False)
     info: NamedDatasetInfo = field(init=False)
 
-    def __post_init__(self, group_config: DatasetGroupConfig):
+    def __post_init__(self, group_config: DatasetGroupSetup):
         self.interpolation_order = None if self.interpolation_order is None else group_config.interpolation_order
         self.transform = group_config.sample_transform
         info_module_name, info_name = self.name.split(".")
@@ -173,8 +173,8 @@ class DatasetConfig:
     #     return
 
 
-class DataConfig:
-    def __init__(self, dataset_groups: List[DatasetGroupConfig]):
+class DataSetup:
+    def __init__(self, dataset_groups: List[DatasetGroupSetup]):
         self.groups = dataset_groups
         self._dataset = None
 
@@ -192,7 +192,7 @@ class DataConfig:
 
 @enforce_types
 @dataclass
-class TestConfig:
+class TestSetup:
     data: List[Dict[str, Any]]
     _nnum: InitVar[int]
     _z_out: InitVar[int]
@@ -201,9 +201,9 @@ class TestConfig:
 
     def __post_init__(self, _nnum: int, _z_out: int, _data_cache_path: Path, _get_model_scaling: Callable):
         data: List[Dict[str, Any]] = self.data  # noqa
-        self.data: DataConfig = DataConfig(
+        self.data: DataSetup = DataSetup(
             [
-                DatasetGroupConfig(
+                DatasetGroupSetup(
                     **d,
                     _nnum=_nnum,
                     _z_out=_z_out,
@@ -217,7 +217,7 @@ class TestConfig:
 
 @enforce_types
 @dataclass
-class ValidateConfig:
+class ValidateSetup:
     data: List[Dict[str, Any]]
     period: Dict[str, Union[int, str]]
     _nnum: InitVar[int]
@@ -227,9 +227,9 @@ class ValidateConfig:
 
     def __post_init__(self, _nnum: int, _z_out: int, _data_cache_path: Path, _get_model_scaling: Callable):
         data: List[Dict[str, Any]] = self.data  # noqa
-        self.data: DataConfig = DataConfig(
+        self.data: DataSetup = DataSetup(
             [
-                DatasetGroupConfig(
+                DatasetGroupSetup(
                     **d,
                     _nnum=_nnum,
                     _z_out=_z_out,
@@ -244,25 +244,25 @@ class ValidateConfig:
 
 @enforce_types
 @dataclass
-class LossConfig:
+class LossSetup:
     name: str
     kwargs: Dict[str, Any]
 
 
 @enforce_types
 @dataclass
-class OptimizerConfig:
+class OptimizerSetup:
     name: str
     kwargs: Dict[str, Any]
 
 
 @enforce_types
 @dataclass
-class SamplerConfig:
+class SamplerSetup:
     strategy: str
     drop_last: bool
 
-    data_config: InitVar[DataConfig]
+    data_config: InitVar[DataSetup]
 
     def __post_init__(self, data_config):
         base_sampler = getattr(torch.utils.data, self.strategy)
@@ -276,7 +276,7 @@ class SamplerConfig:
 
 @enforce_types
 @dataclass
-class TrainConfig:
+class TrainSetup:
     max_num_epochs: int
     score_metric: str
     patience: int
@@ -292,20 +292,20 @@ class TrainConfig:
     _get_model_scaling: InitVar[Callable]
 
     def __post_init__(self, _nnum: int, _z_out: int, _data_cache_path: Path, _get_model_scaling: Callable):
-        self.log: LogConfig = LogConfig(**self.log)
-        self.validate: ValidateConfig = ValidateConfig(
+        self.log: LogSetup = LogSetup(**self.log)
+        self.validate: ValidateSetup = ValidateSetup(
             **self.validate,
             _nnum=_nnum,
             _z_out=_z_out,
             _data_cache_path=_data_cache_path,
             _get_model_scaling=_get_model_scaling
         )
-        self.loss: LossConfig = LossConfig(**self.loss)
-        self.optimizer: OptimizerConfig = OptimizerConfig(**self.optimizer)
+        self.loss: LossSetup = LossSetup(**self.loss)
+        self.optimizer: OptimizerSetup = OptimizerSetup(**self.optimizer)
         data: List[Dict[str, Any]] = self.data  # noqa
-        self.data: DataConfig = DataConfig(
+        self.data: DataSetup = DataSetup(
             [
-                DatasetGroupConfig(
+                DatasetGroupSetup(
                     **d,
                     _nnum=_nnum,
                     _z_out=_z_out,
@@ -319,7 +319,7 @@ class TrainConfig:
 
 @enforce_types
 @dataclass
-class Config:
+class Setup:
     data_cache_path: str
     precision: str
     nnum: int
@@ -342,16 +342,16 @@ class Config:
 
         self.device: torch.device = torch.device(self.device)  # noqa
         self.data_cache_path = Path(self.data_cache_path)
-        self.model_config: ModelConfig = ModelConfig(**self.model)
+        self.model_config: ModelSetup = ModelSetup(**self.model)
         self.model: LnetModel = self.model_config.get_model(device=self.device, dtype=self.dtype)
-        self.test: TestConfig = TestConfig(
+        self.test: TestSetup = TestSetup(
             **self.test,
             _nnum=self.nnum,
             _z_out=self.z_out,
             _data_cache_path=self.data_cache_path,
             _get_model_scaling=self.model.get_scaling
         )
-        self.train: Optional[TrainConfig] = None if self.train is None else TrainConfig(
+        self.train: Optional[TrainSetup] = None if self.train is None else TrainSetup(
             **self.train,
             _nnum=self.nnum,
             _z_out=self.z_out,
