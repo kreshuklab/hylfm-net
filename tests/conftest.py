@@ -9,4 +9,4 @@ def data_path() -> Path:
 
 @pytest.fixture
 def dummy_config_path(data_path: Path) -> Path:
-    return data_path / "dummy.yml"
+    return data_path / "experiment_configs/dummy.yml"

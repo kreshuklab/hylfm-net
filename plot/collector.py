@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class Collector:
     class valid_names:
-        general = {"start time", "config name", "model name", "z_out"}
+        general = {"start time", "setup name", "model name", "z_out"}
         test_metric = {
             "test bead-precision",
             "test bead-precision",
@@ -49,7 +49,7 @@ class Collector:
         # start_times = [pandas.Timestamp(datetime.fromisoformat(st)) for st in start_times]
         self.data = pandas.DataFrame(start_times, columns=["start time"])
         config_name = [sp.stem for sp in self.spec_paths]
-        self.data.insert(0, "config name", config_name)
+        self.data.insert(0, "setup name", config_name)
         model_name = []
         z_out = []
         for sp in self.spec_paths:

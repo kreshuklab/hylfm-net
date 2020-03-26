@@ -6,6 +6,7 @@ from typing import Callable, Iterable, Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import numpy
 import torch.nn
+import yaml
 from ignite.engine import Engine, Events
 from ignite.handlers import EarlyStopping, ModelCheckpoint
 from matplotlib.colors import ListedColormap
@@ -18,107 +19,32 @@ from lnet.datasets import Result
 from lnet.engine import EvalEngine, TrainEngine, TunedEngine
 from lnet.metrics import BEAD_PRECISION_RECALL, LOSS_NAME
 from lnet.output import AuxOutput, Output
-from lnet.step_functions import inference_step, training_step
+from lnet.old_step_functions import inference_step, training_step
+from lnet.transforms.light_field import LightFieldFromChannel
 from lnet.utils.plotting import Box, turbo_colormap_data
-from lnet.utils.transforms import lightfield_from_channel
 
 
 class Experiment:
-    max_num_epochs: int
-    score_function: Callable[[Engine], float]
-
     config: Config
     add_in_name: Optional[str] = None
 
     def __init__(self, config_path: Path):
         self.config_path = config_path
-        if config_path.suffix == ".py":
-            config_module_name = (
-                config_path.absolute()
-                .relative_to(Path(__file__).parent.parent)
-                .with_suffix("")
-                .as_posix()
-                .replace("/", ".")
-            )
-            config_module = import_module(config_module_name)
-            config = getattr(config_module, "config")
-            assert isinstance(config, Config)
-        else:
-            config = Config.from_yaml(config_path)
+        with config_path.open() as f:
+            raw_config = yaml.safe_load(f)
 
-        self.config = config
+        self.config = config = Config(**raw_config)
+        self.dtype = getattr(torch, config.precision)
 
-        self.dtype = getattr(torch, config.model.precision)
 
         self.max_num_epochs = 0 if config.train is None else config.train.max_num_epochs
-        if config.train is None:
-            self.score_function = lambda engine: 0.0
-        else:
-            self.score_function = config.train.score_function
 
         # # make sure everything is commited
         # git_status_cmd = pbs3.git.status("--porcelain")
         # git_status = git_status_cmd.stdout
         # assert not git_status, git_status  # uncommited changes exist
 
-        self.pre_loss_transform: Callable[
-            [torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]
-        ] = lambda *x: x
-        self.pre_aux_loss_transform: Callable[
-            [torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]
-        ] = lambda *x: x
-
-        self.logger = logging.getLogger(config.log.time_stamp)
-
-        z_out = None
-        data_configs = [config.eval_.eval_train_data, config.eval_.valid_data, config.eval_.test_data]
-        if config.train is not None:
-            data_configs.append(config.train.data)
-
-        for data_config in data_configs:
-            if data_config is None:
-                continue
-
-            if z_out is None:
-                z_out = data_config.z_out
-            else:
-                assert z_out == data_config.z_out, (z_out, data_config.z_out)
-
-        devices = list(range(torch.cuda.device_count()))
-        assert len(devices) == 1, "single gpu for now only"
-        self.device = torch.device("cuda", devices[0])
-        self.model = config.model.model.to(
-            device=self.device, dtype=self.dtype
-        )
-        self.model.cuda()
-        if config.model.checkpoint is not None:
-            state = torch.load(config.model.checkpoint, map_location=self.device)
-            for attempt in range(2):
-                try:
-                    self.model.load_state_dict(state, strict=False)
-                except RuntimeError as e:
-                    if self.config.train is None or attempt > 0:
-                        raise
-
-                    self.logger.error("!!!State from checkpoint does not match!!!")
-
-                    # load partial state
-                    before = "size mismatch for "
-                    after = ": copying a param with shape"
-                    for line in str(e).split("\n")[1:]:
-                        idx_before = line.find(before)
-                        idx_after = line.find(after)
-                        if idx_before == -1 or idx_after == -1:
-                            self.logger.warning("Didn't understand 'load_state_dict' exception line: %s", line)
-                        else:
-                            state.pop(line[idx_before + len(before):idx_after])
-
-
-    def test(self):
-        self.max_num_epochs = 0
-        self.run()
-
-    def run(self):
+    def run(self, epochs: Optional[int] =None):
         config = self.config
         # tensorboardX
         writer = SummaryWriter(self.config.log.dir.as_posix())
@@ -173,7 +99,7 @@ class Experiment:
         saver = ModelCheckpoint(
             (self.config.log.dir / "models").as_posix(),
             "v0",
-            score_function=self.score_function,
+            score_function=score_functions.get(self.setup.train.score_metric),
             n_saved=config.log.save_n_checkpoints,
             create_dir=True,
             save_as_state_dict=True,
@@ -182,7 +108,7 @@ class Experiment:
             validator.add_event_handler(Events.COMPLETED, saver, {"model": self.model})  # , "optimizer": optimizer})
             if trainer:
                 stopper = EarlyStopping(
-                    patience=config.train.patience, score_function=self.score_function, trainer=trainer
+                    patience=config.train.patience, score_function=self.score_metric, trainer=trainer
                 )
                 validator.add_event_handler(Events.COMPLETED, stopper)
         elif trainer:
@@ -196,6 +122,7 @@ class Experiment:
         def log_train_scalars(engine: TrainEngine, step: int):
             writer.add_scalar(f"{engine.name}/loss", engine.state.output.loss, step)
 
+        lightfield_from_channel = LightFieldFromChannel(nnum=config.nnum)
         def log_images(engine: TunedEngine, step: int, boxes: Iterable[Box] = tuple()):
             output: Union[AuxOutput, Output] = engine.state.output
             ipt_batch = numpy.stack(
@@ -469,7 +396,7 @@ class Experiment:
                 if tester:
                     tester.run()
 
-            trainer.run(max_epochs=self.max_num_epochs)
+            trainer.run(max_epochs=self.config.train.max_num_epochs)
         elif tester:
             tester.run()
         else:

@@ -1,6 +1,7 @@
 import logging
+from typing import Dict, Callable
 
-import ignite
+import ignite.metrics
 import numpy
 from ignite.exceptions import NotComputableError
 from pytorch_msssim import msssim, ssim
@@ -10,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 class MSSSIM(ignite.metrics.Metric):
-    def __init__(self, window_size=11, size_average=True, val_range=None, normalize=False):
-        super().__init__(lambda out: (out.pred, out.tgt))
+    def __init__(self, window_size=11, size_average=True, val_range=None, normalize=False, **super_kwargs):
+        super().__init__(**super_kwargs)
         self.normalize = normalize
         self.size_average = size_average
         self.val_range = val_range
@@ -22,14 +23,14 @@ class MSSSIM(ignite.metrics.Metric):
         self._num_examples = 0
 
     def update(self, output):
-        y_pred, y = output
-        n = y.shape[0]
-        y_pred_z_as_batch = y_pred.transpose(1, 2).flatten(end_dim=-4) if len(y_pred.shape) == 5 else y_pred
-        y_z_as_batch = y.transpose(1, 2).flatten(end_dim=-4) if len(y.shape) == 5 else y
+        pred, tgt = output
+        n = tgt.shape[0]
+        pred_z_as_batch = pred.transpose(1, 2).flatten(end_dim=-4) if len(pred.shape) == 5 else pred
+        tgt_z_as_batch = tgt.transpose(1, 2).flatten(end_dim=-4) if len(tgt.shape) == 5 else tgt
         value = (
             msssim(
-                y_pred_z_as_batch,
-                y_z_as_batch,
+                pred_z_as_batch,
+                tgt_z_as_batch,
                 normalize=self.normalize,
                 size_average=self.size_average,
                 val_range=self.val_range,
@@ -51,8 +52,8 @@ class MSSSIM(ignite.metrics.Metric):
 
 
 class SSIM(ignite.metrics.Metric):
-    def __init__(self, window_size=11, window=None, size_average=True, full=False, val_range=None):
-        super().__init__(lambda out: (out.pred, out.tgt))
+    def __init__(self, window_size=11, window=None, size_average=True, full=False, val_range=None, **super_kwargs):
+        super().__init__(**super_kwargs)
         self.full = full
         self.size_average = size_average
         self.val_range = val_range
@@ -105,8 +106,10 @@ def ssim_skimage(pred, target, **kwargs):
 
 
 class SSIM_SkImage(ignite.metrics.Metric):
-    def __init__(self, win_size=11, gradient=False, data_range=None, gaussian_weights=False, full=False):
-        super().__init__(lambda out: (out.pred, out.tgt))
+    def __init__(
+        self, win_size=11, gradient=False, data_range=None, gaussian_weights=False, full=False, **super_kwargs
+    ):
+        super().__init__(**super_kwargs)
         self.data_range = data_range
         self.full = full
         self.gaussian_weights = gaussian_weights

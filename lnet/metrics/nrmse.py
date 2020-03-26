@@ -1,3 +1,5 @@
+from typing import Callable
+
 import ignite
 import numpy
 import torch
@@ -13,8 +15,8 @@ def nrmse_skimage(pred, target, **kwargs):
 
 
 class NRMSE_SkImage(ignite.metrics.Metric):
-    def __init__(self, norm_type="Euclidean"):
-        super().__init__(lambda out: (out.pred, out.tgt))
+    def __init__(self, norm_type="Euclidean", **super_kwargs):
+        super().__init__(**super_kwargs)
         self.norm_type = norm_type
 
     def reset(self):
@@ -45,9 +47,6 @@ class NRMSE_SkImage(ignite.metrics.Metric):
 
 
 class NRMSE(ignite.metrics.Metric):
-    def __init__(self):
-        super().__init__(lambda out: (out.pred, out.tgt))
-
     def reset(self):
         self._num_samples: int = 0
         self._mse: float = 0.0

@@ -1,1 +1,1 @@
-from .base import Setup
+from .base import Setup, Stage

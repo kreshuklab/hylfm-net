@@ -2,22 +2,22 @@ import logging
 import os
 import threading
 import time
+import typing
 from collections import OrderedDict
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
 from hashlib import sha224 as hash
 from pathlib import Path
-from typing import Callable, Generator, List, Optional, Sequence, Tuple, Type, Union, Dict
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 import numpy
 import torch.utils.data
-import typing
 import z5py
 from inferno.io.transform import Transform
 from scipy.ndimage import zoom
 from tifffile import imread, imsave
 
-from lnet import models
+from lnet import settings
 
 # from config.__init__ import ModelConfig
 from lnet.datasets.utils import get_image_paths, split_off_glob
@@ -189,12 +189,9 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
         get_model_scaling: Callable[[Tuple[int, int]], Tuple[float, float]],
         transform: Optional[Transform] = None,
         ls_affine_transform_class: Optional[BDVTransform] = None,
-        max_workers: int = 16,
-        reserved_workers_for_getitem: int = 8,
     ):
 
         assert data_cache_path.exists(), data_cache_path.absolute()
-        assert max_workers >= reserved_workers_for_getitem
         super().__init__()
 
         self.description = info.description
@@ -364,12 +361,17 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
                     )
 
             self.futures = {}
-            self.executor = ThreadPoolExecutor(max_workers=max_workers)
+            self.executor = ThreadPoolExecutor(max_workers=settings.max_workers_per_dataset)
 
             worker_nr = 0
-            self.nr_background_workers = max_workers - reserved_workers_for_getitem
+            self.nr_background_workers = (
+                settings.max_workers_per_dataset - settings.reserved_workers_per_dataset_for_getitem
+            )
             idx = 0
-            while worker_nr < max_workers - reserved_workers_for_getitem and idx < len(self):
+            while (
+                worker_nr < settings.max_workers_per_dataset - settings.reserved_workers_per_dataset_for_getitem
+                and idx < len(self)
+            ):
                 fut = self.submit(idx)
                 if isinstance(fut, Future):
                     fut.add_done_callback(self.background_worker_callback)
@@ -457,6 +459,25 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
             self.n5datasets[t][idx, ...] = img
 
         return idx
+
+
+def collate_fn(samples: List[typing.OrderedDict[str, Any]]):
+    assert len(samples) > 0
+    batch = OrderedDict()
+    for b in zip(*[s.items() for s in samples]):
+        keys, values = zip(*b)
+        k0 = keys[0]
+        v0 = values[0]
+        assert all(k0 == k for k in keys[1:])
+        assert all(type(v0) is type(v) for v in values[1:])
+        if isinstance(v0, numpy.ndarray):
+            values = numpy.concatenate(values, axis=0)
+        elif isinstance(v0, torch.Tensor):
+            values = torch.cat(values, dim=0)
+
+        batch[k0] = values
+
+    return batch
 
 
 class ConcatDataset(torch.utils.data.ConcatDataset):

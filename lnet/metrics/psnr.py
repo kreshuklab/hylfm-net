@@ -17,8 +17,8 @@ def psnr_skimage(pred, target, **kwargs):
 
 
 class PSNR_SkImage(ignite.metrics.Metric):
-    def __init__(self, data_range=None):
-        super().__init__(lambda out: (out.pred, out.tgt))
+    def __init__(self, data_range=None, **super_kwargs):
+        super().__init__(**super_kwargs)
         self.data_range = data_range
 
     def reset(self):
@@ -57,8 +57,8 @@ def psnr(pred: torch.Tensor, target: torch.Tensor, data_range: float) -> float:
 
 
 class PSNR(ignite.metrics.Metric):
-    def __init__(self, data_range=None):
-        super().__init__(lambda out: (out.pred, out.tgt))
+    def __init__(self, data_range=None, **super_kwargs):
+        super().__init__(**super_kwargs)
         self.data_range = data_range
 
     def reset(self):

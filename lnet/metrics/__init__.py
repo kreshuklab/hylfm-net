@@ -1,11 +1,5 @@
-LOSS_NAME = "Loss"
-AUX_LOSS_NAME = "AuxLoss"
-NRMSE_NAME = "NRMSE"
-PSNR_NAME = "PSNR"
-SSIM_NAME = "SSIM"
-MSSSIM_NAME = "MS-SSIM"
-BEAD_PRECISION_RECALL = "Bead-Precision-Recall"
-
+from ._utils import get_output_transform
+from .beads import BeadPrecisionRecall
 from .msssim import MSSSIM, SSIM  # SSIMSkImage != SSIM
 from .nrmse import NRMSE
 from .psnr import PSNR

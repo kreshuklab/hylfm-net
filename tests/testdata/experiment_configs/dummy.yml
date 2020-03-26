@@ -1,0 +1,92 @@
+data_cache_path: /repos/lnet/data
+precision: float
+nnum: &nnum 19
+z_out: &z_out 49
+model:
+  name: A02
+  kwargs:
+    affine_transform_classes:
+      361,67,77: Heart_tightCrop_Transform
+      361,77,67: Heart_tightCrop_Transform
+      361,66,77: Heart_tightCrop_Transform
+      361,77,66: Heart_tightCrop_Transform
+    interpolation_order: &interpolation_order 2
+    n_res2d: [16, 16, u, 8, 8]
+    inplanes_3d: 4
+    n_res3d: [[4, 2], [1]]
+    final_activation: null
+    nnum: *nnum
+    z_out: *z_out
+#  checkpoint: /g/kreshuk/beuttenm/repos/lnet/logs/fish/fdyn1_a02/20-02-21_08-54-55/models/v0_model_4.pth
+
+
+stages:
+- train:
+    max_num_epochs: 500
+
+    metrics: &metrics
+      MSSSIM: {window_size: 11, size_average: true, val_range: null, normalize: false}
+      SSIM: {window_size: 11, window: null, size_average: true, full: false, val_range: null}
+      NRMSE: {norm_type: Euclidean}
+      PSNR: {data_range: null}
+      BeadPrecisionRecall: {dist_threshold: 5.0}
+
+    log:
+      log_scalars_period: {value: 1, unit: iteration}
+      log_images_period: {value: 1, unit: epoch}
+      save_n_checkpoints: 2
+
+    validation_stages:
+      validate:
+        metrics: *metrics
+        score_metric: -WeightedSmoothL1Loss
+        period: {value: 1, unit: epoch}
+        patience: 5
+        data:
+          - batch_size: &eval_batch_size 2
+            interpolation_order: *interpolation_order
+            transforms: &eval_transforms
+              - {name: Normalize01, kwargs: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}}
+              - {name: Normalize01, kwargs: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}}
+              - {name: LightFieldFromChannel, kwargs: {apply_to: lf, nnum: *nnum}}
+
+            datasets:
+              fish2_20191209_dynamic.t0454c2: {indices: 10535-10537}
+
+    criterion:
+      name: WeightedSmoothL1Loss
+      kwargs: {threshold: 0.8, initial_weight: .05, apply_below_threshold: true, decay_by: .8, every_nth_epoch: 1}
+      tensor_names: {input: pred, target: ls}
+
+    optimizer:
+      name: Adam
+      kwargs: {lr: 4.0e-4, eps: 1.0e-8}
+
+    sampler:
+      base: RandomSampler
+      drop_last: false
+
+    data:
+      - batch_size: 2
+        interpolation_order: *interpolation_order
+        transforms:
+          - {name: Normalize01, kwargs: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}}
+          - {name: Normalize01, kwargs: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}}
+          - {name: AdditiveGaussianNoise, kwargs: {apply_to: lf, sigma: 0.1}}
+          - {name: AdditiveGaussianNoise, kwargs: {apply_to: ls, sigma: 0.05}}
+          - {name: RandomIntensityScale, kwargs: {factor_min: .8, factor_max: 1.2}}
+          - {name: RandomRotate90, kwargs: {}}
+          - {name: RandomlyFlipAxis, kwargs: {axis: -1}}
+          - {name: RandomlyFlipAxis, kwargs: {axis: -2}}
+          - {name: LightFieldFromChannel, kwargs: {apply_to: lf, nnum: *nnum}}
+        datasets:
+          fish2_20191209_dynamic.t0454c2: {indices: 30-31}
+
+- test:
+    metrics: *metrics
+    data:
+      - batch_size: *eval_batch_size
+        interpolation_order: *interpolation_order
+        transforms: *eval_transforms
+        datasets:
+          fish2_20191209_dynamic.t0454c2: {indices: 10750-10752}

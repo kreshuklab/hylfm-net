@@ -1,5 +1,4 @@
 import logging
-from typing import Callable
 
 import numpy
 from ignite.metrics import Metric
@@ -10,8 +9,8 @@ logger = logging.getLogger(__name__)
 
 
 class BeadPrecisionRecall(Metric):
-    def __init__(self, output_to_tgt_pred: Callable = lambda out: (out.tgt, out.pred), dist_threshold: float = 5.0):
-        super().__init__(output_transform=output_to_tgt_pred)
+    def __init__(self, dist_threshold: float = 5.0, **super_kwargs,):
+        super().__init__(**super_kwargs)
         self.dist_threshold = dist_threshold
 
     def reset(self):

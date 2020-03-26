@@ -56,7 +56,7 @@ class Transform:
     def edit_meta_before(self, meta: Optional[dict]) -> Optional[dict]:
         return meta
 
-    def apply(self, **tensors: Any) -> typing.OrderedDict[str, Any]:
+    def apply(self, tensors: typing.OrderedDict[str, Any]) -> typing.OrderedDict[str, Any]:
         apply_to = tensors.keys() if self.apply_to is None else self.apply_to
         return OrderedDict(
             [
