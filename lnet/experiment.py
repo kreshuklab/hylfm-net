@@ -44,6 +44,19 @@ class Experiment:
         # git_status = git_status_cmd.stdout
         # assert not git_status, git_status  # uncommited changes exist
 
+        self.pre_loss_transform: Callable[
+            [torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]
+        ] = lambda *x: x
+        self.pre_aux_loss_transform: Callable[
+            [torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]
+        ] = lambda *x: x
+
+        self.logger = logging.getLogger(config.log.time_stamp)
+
+
+    def test(self):
+        self.run(epochs = 0)
+
     def run(self, epochs: Optional[int] =None):
         config = self.config
         # tensorboardX

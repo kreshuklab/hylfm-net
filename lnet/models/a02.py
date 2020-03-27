@@ -1,10 +1,11 @@
 import inspect
 import logging
 from functools import partial
-from typing import Callable, Dict, Optional, Sequence, Tuple
+from typing import Callable, Dict, Optional, Sequence, Tuple, Any
 
 import torch.nn
 import torch.nn as nn
+import typing
 from inferno.extensions.initializers import Constant, Initialization
 
 from lnet import registration
@@ -108,7 +109,7 @@ class A02(LnetModel):
 
         self.affine_transforms = {
             in_shape_for_at: getattr(registration, at_class)(
-                order=interpolation_order, trf_out_zoom=grid_sampling_scale
+                order=interpolation_order, trf_out_zoom=grid_sampling_scale, forward="lf2ls"
             )
             for in_shape_for_at, at_class in affine_transform_classes.items()
         }
@@ -124,7 +125,8 @@ class A02(LnetModel):
         else:
             self.final_activation = None
 
-    def forward(self, x, z_slices: Optional[Sequence[int]] = None):
+    def forward(self, tensors: typing.OrderedDict[str, Any]):
+        x = tensors["lf"]
         in_shape = ",".join(str(s) for s in x.shape[1:])
         x = self.res2d(x)
         x = self.conv2d(x)
@@ -132,11 +134,13 @@ class A02(LnetModel):
         x = self.res3d(x)
         x = self.conv3d(x)
 
-        if z_slices is None:
-            out_shape = tuple(int(s * g) for s, g in zip(x.shape[2:], self.grid_sampling_scale))
-        else:
+        z_slices = [meta["z_slice"] for meta in tensors["meta"] if meta["z_slice"] is not None]
+        if z_slices:
+            assert len(z_slices) == len(x)
             z_dim = int(self.z_dims[in_shape] * self.grid_sampling_scale[0])
             out_shape = (z_dim,) + tuple(int(s * g) for s, g in zip(x.shape[3:], self.grid_sampling_scale[1:]))
+        else:
+            out_shape = tuple(int(s * g) for s, g in zip(x.shape[2:], self.grid_sampling_scale))
 
         if self.affine_transforms:
             x = self.affine_transforms[in_shape](x, output_shape=out_shape, z_slices=z_slices)
@@ -178,7 +182,7 @@ def try_static():
     import yaml
 
     import matplotlib.pyplot as plt
-    from lnet.config.data import DataConfig, DataCategory
+    from lnet.config import DataConfig, DataCategory
 
     from lnet.config import ModelConfig
 
@@ -270,7 +274,7 @@ def try_dynamic():
     import yaml
 
     import matplotlib.pyplot as plt
-    from lnet.config.data import DataConfig, DataCategory
+    from lnet.config import DataConfig, DataCategory
 
     from lnet.config import ModelConfig
 

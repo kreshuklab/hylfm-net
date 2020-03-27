@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class MSSSIM(ignite.metrics.Metric):
-    def __init__(self, window_size=11, size_average=True, val_range=None, normalize=False, **super_kwargs):
+    def __init__(self, *, window_size=11, size_average=True, val_range=None, normalize=False, **super_kwargs):
         super().__init__(**super_kwargs)
         self.normalize = normalize
         self.size_average = size_average
@@ -52,7 +52,7 @@ class MSSSIM(ignite.metrics.Metric):
 
 
 class SSIM(ignite.metrics.Metric):
-    def __init__(self, window_size=11, window=None, size_average=True, full=False, val_range=None, **super_kwargs):
+    def __init__(self, *, window_size=11, window=None, size_average=True, full=False, val_range=None, **super_kwargs):
         super().__init__(**super_kwargs)
         self.full = full
         self.size_average = size_average
@@ -107,7 +107,7 @@ def ssim_skimage(pred, target, **kwargs):
 
 class SSIM_SkImage(ignite.metrics.Metric):
     def __init__(
-        self, win_size=11, gradient=False, data_range=None, gaussian_weights=False, full=False, **super_kwargs
+        self, *, win_size=11, gradient=False, data_range=None, gaussian_weights=False, full=False, **super_kwargs
     ):
         super().__init__(**super_kwargs)
         self.data_range = data_range

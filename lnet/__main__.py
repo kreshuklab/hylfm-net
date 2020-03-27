@@ -40,7 +40,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="lnet")
     parser.add_argument("experiment_config", type=Path)
     parser.add_argument("--cuda", metavar="CUDA_VISIBLE_DEVICES", type=str, nargs="?", const="0", default=None)
-    parser.add_argument("--test", action="store_true")
+    # parser.add_argument("--test", action="store_true")
 
     args = parser.parse_args()
     assert args.experiment_config.exists(), args.experiment_config.absolute()
@@ -56,14 +56,14 @@ if __name__ == "__main__":
         if cuda_env != cuda_arg:
             raise ValueError("env and arg values for 'CUDA_VISIBLE_DEVICES' unequal!")
 
-    from lnet.experiment import Experiment
-
-    exp = Experiment(config_path=args.experiment_config)
-    if args.test:
-        exp.test()
-    else:
-        try:
-            exp.run()
-        except KeyboardInterrupt:
-            logger.error("Training interrupted. Start test")
-            exp.test()
+    from lnet.setup import Setup
+    setup = Setup.from_yaml(args.experiment_config)
+    setup.run()
+    # if args.test:
+    #     exp.test()
+    # else:
+    #     try:
+    #         exp.run()
+    #     except KeyboardInterrupt:
+    #         logger.error("Training interrupted. Start test")
+    #         exp.test()

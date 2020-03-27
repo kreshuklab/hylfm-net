@@ -15,11 +15,9 @@ import torch.utils.data
 import z5py
 from inferno.io.transform import Transform
 from scipy.ndimage import zoom
-from tifffile import imread, imsave
+from tifffile import imread
 
 from lnet import settings
-
-# from config.__init__ import ModelConfig
 from lnet.datasets.utils import get_image_paths, split_off_glob
 from lnet.registration import (
     BDVTransform,
@@ -49,8 +47,8 @@ class NamedDatasetInfo:
     x_path: Path
     y_path: Path
     paths: List[Path]
-    x_roi: Tuple[slice, slice]
-    y_roi: Tuple[slice, slice, slice]
+    x_roi: Tuple[slice, slice, slice]
+    y_roi: Tuple[slice, slice, slice, slice]
     rois: List[Tuple[slice, ...]]
     # stat: Optional[DatasetStat]
     interesting_paths: Optional[List[PathOfInterest]]
@@ -123,8 +121,8 @@ class NamedDatasetInfo:
                 assert len(y_shape) == 3
                 assert len(y_roi) == 2
 
-        self.x_roi = x_roi or (slice(None), slice(None))
-        self.y_roi = y_roi or (slice(None), slice(None), slice(None))
+        self.x_roi = (slice(None), slice(None), slice(None)) if x_roi is None else (slice(None),) + x_roi
+        self.y_roi = (slice(None), slice(None), slice(None), slice(None)) if y_roi is None else (slice(None),) + y_roi
 
         self.interesting_paths = interesting_paths
         self.length = length
@@ -149,22 +147,16 @@ def resize(
 ) -> numpy.ndarray:
     assert 0 <= order <= 5, order
     if roi is not None:
+        assert len(arr.shape) == len(roi)
         arr = arr[roi]
 
-    arr_shape = arr.shape
-    if len(arr_shape) == len(output_shape):
-        pass
-    elif len(arr_shape) + 1 == len(output_shape):
-        assert output_shape[0] == 1, (arr_shape, output_shape)
-        arr_shape = (1,) + arr_shape
-        arr = arr[None,]
+    assert len(arr.shape) == len(output_shape), (arr.shape, output_shape)
+    assert all([sin >= sout for sin, sout in zip(arr.shape, output_shape)]), (arr.shape, output_shape)
+
+    if arr.shape == output_shape:
+        return arr
     else:
-        raise ValueError(f"{arr_shape} {output_shape}")
-
-    assert len(arr_shape) == len(output_shape), (arr_shape, output_shape)
-    assert all([sout <= sin for sin, sout in zip(arr_shape, output_shape)]), (arr_shape, output_shape)
-
-    return zoom(arr, [sout / sin for sin, sout in zip(arr_shape, output_shape)], order=order)
+        return zoom(arr, [sout / sin for sin, sout in zip(arr.shape, output_shape)], order=order)
 
 
 class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
@@ -304,13 +296,12 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
             shapestr += f"\nls_affine_transform: {ls_affine_transform_class.__name__}"
 
         data_file_name = data_cache_path / f"{self.description}_{hash(shapestr.encode()).hexdigest()}.n5"
-        with Path(data_file_name.as_posix().replace(".n5", ".txt")).open("w") as f:
-            f.write(shapestr)
+        data_file_name.with_suffix(".txt").write_text(shapestr)
 
         logger.info("data_file_name %s", data_file_name)
 
-        self.tmp_data_file_name = Path(data_file_name.as_posix().replace(".n5", "_tmp.n5"))
-        self.part_data_file_name = Path(data_file_name.as_posix().replace(".n5", "_part.n5"))
+        self.tmp_data_file_name = data_file_name.with_suffix(".tmp.n5")
+        self.part_data_file_name = data_file_name.with_suffix(".part.n5")
 
         for attempt in range(100):
             if self.tmp_data_file_name.exists():
@@ -321,14 +312,14 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
         else:
             raise FileExistsError(self.tmp_data_file_name)
 
+        self.tensor_names = ["lf"]
         if self.with_target:
-            self.tensor_names = ["lf", "ls"]
-        else:
-            self.tensor_names = ["lf"]
+            self.tensor_names.append("ls")
 
         if data_file_name.exists():
+            self.tmp_data_file_name = None
             self.data_file = z5py.File(path=data_file_name.as_posix(), mode="r", use_zarr_format=False)
-            self._len = self.data_file["x"].shape[0]
+            self._len = self.data_file[self.tensor_names[0]].shape[0]
             self.ready = lambda idx: True
         else:
             self.paths = get_image_paths(
@@ -348,6 +339,7 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
 
             if self.part_data_file_name.exists():
                 self.part_data_file_name.rename(self.tmp_data_file_name)
+
             data_file = z5py.File(path=str(self.tmp_data_file_name), mode="a", use_zarr_format=False)
 
             self.n5datasets = OrderedDict()
@@ -380,8 +372,6 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
                 else:
                     idx += 1
 
-            self.data_file = z5py.File(path=data_file_name.as_posix())
-
         stat_path = Path(data_file_name.as_posix().replace(".n5", "_stat.yml"))
 
         self.transform = None  # for computing stat
@@ -408,10 +398,7 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
             neg_z_slice = None
 
         z_slice = None if neg_z_slice is None else self.info.dynamic_z_slice_mod - neg_z_slice
-        if z_slice is not None:
-            sample["z_slice"] = z_slice
-
-        sample["meta"] = {"stat": self.stat}
+        sample["meta"] = [{"stat": self.stat, "idx": idx, "z_slice": z_slice}]
 
         logger.debug("apply transform %s", self.transform)
         if self.transform is not None:
@@ -425,7 +412,8 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
         )
 
     def __del__(self):
-        self.tmp_data_file_name.rename(self.part_data_file_name)
+        if self.tmp_data_file_name is not None:
+            self.tmp_data_file_name.rename(self.part_data_file_name)
 
     def background_worker_callback(self, fut: Future):
         idx = fut.result()["idx"]
@@ -437,7 +425,7 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
 
     def ready(self, idx: int) -> bool:
         chunk_idx = tuple([idx] + [0] * (len(self.shapes[0]) - 1))
-        return self.n5datasets[0].chunk_exists(chunk_idx)
+        return self.n5datasets[self.tensor_names[0]].chunk_exists(chunk_idx)
 
     def submit(self, idx: int) -> Union[int, Future]:
         with self.submit_lock:
@@ -450,13 +438,13 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
 
     def process(self, idx: int) -> int:
         for t, name in enumerate(self.tensor_names):
-            img = imread(self.paths[t][idx])
-            img = img[self.info.rois[t]]
+            img = imread(self.paths[t][idx])[None, ...]
             if name == "ls" and self.ls_affine_transform is not None:
                 img = self.ls_affine_transform(img)
 
-            assert img.shape == self.shapes[t][1:], (img.shape, self.shapes[t])
-            self.n5datasets[t][idx, ...] = img
+            img = resize(arr=img, output_shape=self.shapes[t], roi=self.info.rois[t], order=self.interpolation_order)
+            assert img.shape == self.shapes[t], (img.shape, self.shapes[t])
+            self.n5datasets[name][idx, ...] = img
 
         return idx
 
@@ -474,7 +462,9 @@ def collate_fn(samples: List[typing.OrderedDict[str, Any]]):
             values = numpy.concatenate(values, axis=0)
         elif isinstance(v0, torch.Tensor):
             values = torch.cat(values, dim=0)
-
+        elif isinstance(v0, list):
+            assert all(len(v) == 1 for v in values)  # expect explicit batch dimension! (list of len 1 for all samples)
+            values = [vv for v in values for vv in v]
         batch[k0] = values
 
     return batch
@@ -491,33 +481,3 @@ class ConcatDataset(torch.utils.data.ConcatDataset):
             sample = self.transform(sample)
 
         return sample
-
-
-class Result(torch.utils.data.Dataset):
-    folder: List[List[Path]]
-
-    def __init__(self, *file_paths: Path, subfolders: Sequence[str] = ("",), cumsum: Sequence[int] = (float("inf"),)):
-        assert len(subfolders) == len(cumsum)
-        if len(subfolders) > 1:
-            self.folders = [[fp / sf for fp in file_paths] for sf in subfolders]
-        else:
-            self.folders = [file_paths]
-
-        self.cumsum = cumsum
-        for folder_group in self.folders:
-            for folder in folder_group:
-                folder.mkdir(parents=True, exist_ok=False)
-
-        # self.file = z5py.File(path=file_path.as_posix(), mode="w", use_zarr_format=False)
-
-    def update(self, *batches: numpy.ndarray, at: int):
-        batches = [b for b in batches if b.shape != (1,)]
-        assert len(batches) == len(self.folders[0]), (len(batches), len(self.folders[0]))
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            for bi, batch in enumerate(batches):
-                assert len(batch.shape) == 4 or len(batch.shape) == 5, batch.shape
-                # batch = (batch.clip(min=0, max=1) * numpy.iinfo(numpy.uint16).max).astype(numpy.uint16)
-                for i, img in enumerate(batch, start=at):
-                    ds_idx = numpy.searchsorted(self.cumsum, i, side="right").item()
-                    offset = self.cumsum[ds_idx - 1] if ds_idx else 0
-                    executor.submit(imsave, (self.folders[ds_idx][bi] / f"{i - offset:04.0f}.tif").as_posix(), img)

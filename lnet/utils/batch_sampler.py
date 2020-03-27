@@ -3,10 +3,11 @@ from collections import defaultdict
 from typing import DefaultDict, List, Type
 
 import numpy
-from torch.utils.data import ConcatDataset, Sampler
+import torch.utils.data.sampler
+from torch.utils.data import ConcatDataset
 
 
-class NoCrossBatchSampler(Sampler):
+class NoCrossBatchSampler(torch.utils.data.sampler.BatchSampler):
     """Wraps another sampler to yield a mini-batch of indices,
         while never mixing mini batches across datasets of the given (ConcatDataset's) cumulative indices.
 
@@ -20,9 +21,13 @@ class NoCrossBatchSampler(Sampler):
     """
 
     def __init__(
-        self, concat_dataset: ConcatDataset, sampler_class: Type[Sampler], batch_sizes: List[int], drop_last: bool
+        self,
+        concat_dataset: ConcatDataset,
+        sampler_class: Type[torch.utils.data.sampler.Sampler],
+        batch_sizes: List[int],
+        drop_last: bool,
     ):
-        if not issubclass(sampler_class, Sampler):
+        if not issubclass(sampler_class, torch.utils.data.sampler.Sampler):
             raise ValueError(f"sampler_class should inherite from torch.utils.data.Sampler, but got {sampler_class}")
         if (
             not isinstance(batch_sizes, list)

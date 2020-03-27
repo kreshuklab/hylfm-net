@@ -30,12 +30,7 @@ class Transform:
     # def clear_random_variables(self):
     #     self._random_variables = {}
 
-    def __call__(self, *tensor_list, **tensors) -> typing.OrderedDict[str, Any]:
-        assert not tensor_list  # todo remove this debug line
-        if tensor_list:
-            assert not tensors
-            tensors = OrderedDict([(str(i), t) for i, t in enumerate(tensor_list)])
-
+    def __call__(self, tensors: typing.OrderedDict[str, Any]) -> typing.OrderedDict[str, Any]:
         if self.apply_to is not None:
             cant_apply = [at for at in self.apply_to if at not in tensors]
             if cant_apply:
@@ -48,7 +43,7 @@ class Transform:
         elif initial_meta is not None:
             tensors.pop("meta")
 
-        transformed = self.apply(**tensors)
+        transformed = self.apply(tensors)
         assert isinstance(transformed, OrderedDict)
 
         return transformed
@@ -89,7 +84,7 @@ class Transform:
         raise NotImplementedError
 
 class TransformLike(Protocol):
-    def __call__(self, *tensor_list: Any, **tensors: Any) -> typing.OrderedDict[str, Any]:
+    def __call__(self, tensors: typing.OrderedDict[str, Any]) -> typing.OrderedDict[str, Any]:
         pass
 
 
@@ -115,7 +110,7 @@ class ComposedTransform(Transform):
 
         return self
 
-    def apply(self, **tensors):
+    def apply(self, tensors: typing.OrderedDict[str, Any]):
         for transform in self.transforms:
             tensors = transform(tensors)
             assert isinstance(tensors, OrderedDict), transform

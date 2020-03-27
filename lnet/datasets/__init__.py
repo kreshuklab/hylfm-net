@@ -1,1 +1,1 @@
-from .base import ConcatDataset, N5ChunkAsSampleDataset, NamedDatasetInfo, PathOfInterest, Result, collate_fn
+from .base import ConcatDataset, N5ChunkAsSampleDataset, NamedDatasetInfo, PathOfInterest, collate_fn

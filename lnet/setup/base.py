@@ -10,7 +10,7 @@ from enum import Enum
 from importlib import import_module
 from inspect import signature
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union, Sequence
 
 import ignite
 import numpy
@@ -31,7 +31,6 @@ from lnet.models import LnetModel
 from lnet.step import inference_step, training_step
 from lnet.transforms.base import ComposedTransform, Transform
 from lnet.utils.batch_sampler import NoCrossBatchSampler
-from ._utils import enforce_types
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +40,6 @@ class PeriodUnit(Enum):
     iteration = "iteration"
 
 
-# @enforce_types
 @dataclass
 class Period:
     value: int
@@ -51,7 +49,6 @@ class Period:
         self.unit: PeriodUnit = PeriodUnit(self.unit)
 
 
-# @enforce_types
 @dataclass
 class ModelSetup:
     name: str
@@ -93,7 +90,6 @@ class ModelSetup:
         return model
 
 
-# @enforce_types
 class LogSetup:
     def __init__(
         self,
@@ -110,7 +106,6 @@ class LogSetup:
         self.save_n_checkpoints = save_n_checkpoints
 
 
-# @enforce_types
 class DatasetGroupSetup:
     def __init__(
         self,
@@ -161,7 +156,6 @@ class DatasetGroupSetup:
         return self._dataset
 
 
-# @enforce_types
 @dataclass
 class DatasetSetup:
     name: str
@@ -197,7 +191,6 @@ class DataSetup:
         return [group.batch_size for group in self.groups]
 
 
-# @enforce_types
 @dataclass
 class SamplerSetup:
     base: str
@@ -220,9 +213,8 @@ class SamplerSetup:
         return self._batch_sampler
 
 
-# @enforce_types
 class Stage:
-    step_function: Callable[[ignite.engine.Engine, Any], typing.OrderedDict[str, Any]]
+    step_function: Callable[[ignite.engine.Engine, typing.OrderedDict[str, Any]], typing.OrderedDict[str, Any]]
     max_epochs: int = 1
     epoch_length: Optional[int] = None
     seed: Optional[int] = None
@@ -235,13 +227,16 @@ class Stage:
         sampler: Dict[str, Any],
         metrics: Dict[str, Any] = None,
         setup: Setup,
+        outputs_to_save: Optional[Sequence[str]] = tuple(),
     ):
         self.name = name
+        self.outputs_to_save = outputs_to_save
         self.metrics = metrics or {}
-        self.data: DataSetup = DataSetup([DatasetGroupSetup(**d, setup=setup) for d in data])
-        self.sampler: SamplerSetup = SamplerSetup(**sampler, _data_setup=self.data)
+        self._data_loader: Optional[torch.utils.data.DataLoader] = None
         self._engine: Optional[ignite.engine.Engine] = None
         self.setup = setup
+        self.data: DataSetup = DataSetup([DatasetGroupSetup(**d, setup=setup) for d in data])
+        self.sampler: SamplerSetup = SamplerSetup(**sampler, _data_setup=self.data)
 
     @property
     def data_loader(self) -> torch.utils.data.DataLoader:
@@ -256,9 +251,9 @@ class Stage:
 
         return self._data_loader
 
-    def prepare_engine(self, engine: ignite.engine.Engine):
+    def start_engine(self, engine: ignite.engine.Engine):
         engine.state.compute_time = 0.0
-        engine.state.setup = self.setup
+        engine.state.stage = self
 
     def log_compute_time(self, engine: ignite.engine.Engine):
         mins, secs = divmod(engine.state.compute_time / max(1, engine.state.iteration), 60)
@@ -275,7 +270,10 @@ class Stage:
             msecs,
         )
 
-    def attach_metrics(self, engine: ignite.engine.Engine):
+    def setup_engine(self, engine: ignite.engine.Engine):
+        engine.add_event_handler(ignite.engine.Events.STARTED, self.start_engine)
+        engine.add_event_handler(ignite.engine.Events.COMPLETED, self.log_compute_time)
+
         for metric_name, kwargs in self.metrics.items():
             metric_class = getattr(lnet.metrics, metric_name, None)
             if metric_class is None:
@@ -295,39 +293,34 @@ class Stage:
                     criterion.eval()
                     metric = ignite.metrics.Average(lambda tensors: tensors[criterion_class.__name__ + postfix])
             else:
-                metric = metric_class(get_output_transform(kwargs.pop("tensor_names")), **kwargs)
+                try:
+                    metric = metric_class(output_transform=get_output_transform(kwargs.pop("tensor_names")), **kwargs)
+                except Exception:
+                    logger.error("Cannot init %s", metric_name)
+                    raise
 
             metric.attach(engine, metric.__name__)
-
-    def attach_handlers(self, engine: ignite.engine.Engine):
-        pass
-
-    @property
-    def log_path(self) -> Path:
-        return self.setup.log_path / self.name
 
     @property
     def engine(self):
         if self._engine is None:
             self.log_path.mkdir(parents=True, exist_ok=False)
-            engine = ignite.engine.Engine(self.step_function)
-            engine.add_event_handler(ignite.engine.Events.STARTED, self.prepare_engine)
-            engine.add_event_handler(ignite.engine.Events.COMPLETED, self.log_compute_time)
-            self.attach_metrics(engine)
-            self.attach_handlers(engine)
-
-            self._engine = engine
+            self._engine  = ignite.engine.Engine(self.step_function)
+            self.setup_engine(self._engine)
         return self._engine
 
+    @property
+    def log_path(self) -> Path:
+        return self.setup.log_path / self.name
+
     def run(self):
-        self.engine.run(
+        return self.engine.run(
             data=self.data_loader, max_epochs=self.max_epochs, epoch_length=self.epoch_length, seed=self.seed
         )
 
 
-# @enforce_types
 class EvalStage(Stage):
-    step_function = inference_step
+    step_function = staticmethod(inference_step)
 
     def __init__(self, sampler: Dict[str, Any] = None, **super_kwargs):
         if sampler is None:
@@ -336,7 +329,6 @@ class EvalStage(Stage):
         super().__init__(sampler=sampler, **super_kwargs)
 
 
-# @enforce_types
 class ValidateStage(EvalStage):
     def __init__(
         self,
@@ -345,7 +337,7 @@ class ValidateStage(EvalStage):
         patience: int,
         train_stage: TrainStage,
         metrics: Dict[str, Any],
-        score_metric: str,
+        score_metric: Optional[str] = None,
         **super_kwargs,
     ):
         super().__init__(metrics=metrics, **super_kwargs)
@@ -356,30 +348,29 @@ class ValidateStage(EvalStage):
         self.negate_score_metric = score_metric.startswith("-")
         self.score_metric = score_metric[int(self.negate_score_metric) :]
 
-    def attach_handlers(self, engine: ignite.engine.Engine):
-        super().attach_handlers(engine)
-        loss_name = self.train_stage.criterion_setup.name + "-running"
-        if self.score_metric[1:] == loss_name:
+    # def attach_handlers(self, engine: ignite.engine.Engine):
+    #     super().attach_handlers(engine)
+    #     loss_name = self.train_stage.criterion_setup.name + "-running"
+    #     if self.score_metric[1:] == loss_name:
+    #
+    #         def score_function(e: ignite.engine.Engine):
+    #             return -e.state.output[loss_name]
+    #
+    #     else:
+    #
+    #         def score_function(e: ignite.engine.Engine):
+    #             score = getattr(e.state, self.score_metric)
+    #             if self.negate_score_metric:
+    #                 score *= -1
+    #
+    #             return score
+    #
+    #     early_stopping = ignite.handlers.EarlyStopping(
+    #         patience=self.patience, score_function=score_function, trainer=self.train_stage.engine
+    #     )
+    #     engine.add_event_handler(ignite.engine.Events.COMPLETED, early_stopping)
 
-            def score_function(e: ignite.engine.Engine):
-                return -e.state.output[loss_name]
 
-        else:
-
-            def score_function(e: ignite.engine.Engine):
-                score = getattr(e.state, self.score_metric)
-                if self.negate_score_metric:
-                    score *= -1
-
-                return score
-
-        early_stopping = ignite.handlers.EarlyStopping(
-            patience=self.patience, score_function=score_function, trainer=self.train_stage.engine
-        )
-        engine.add_event_handler(ignite.engine.Events.COMPLETED, early_stopping)
-
-
-# @enforce_typesb
 @dataclass
 class CriterionSetup:
     name: str
@@ -401,7 +392,6 @@ class CriterionSetup:
         return CriterionWrapper(tensor_names=self.tensor_names, criterion_class=self._class, **kwargs)
 
 
-# @enforce_types
 @dataclass
 class OptimizerSetup:
     name: str
@@ -418,18 +408,17 @@ class OptimizerSetup:
         if "engine" in sig.parameters:
             kwargs["engine"] = engine
 
-        return self._class(engine.state.model.parameters(), **kwargs)
+        return self._class(engine.state.stage.setup.model.parameters(), **kwargs)
 
 
-# @enforce_types
 class TrainStage(Stage):
-    step_function = training_step
+    step_function = staticmethod(training_step)
 
     def __init__(
         self,
         max_num_epochs: int,
         log: Dict[str, Dict[str, Any]],
-        validation_stages: Dict[str, Dict[str, Any]],
+        validate: Dict[str, Any],
         criterion: Dict[str, Dict[str, Any]],
         optimizer: Dict[str, Dict[str, Any]],
         setup: Setup,
@@ -439,36 +428,58 @@ class TrainStage(Stage):
         self.max_num_epochs = max_num_epochs
         self.log = LogSetup(**log)
         self.criterion_setup = CriterionSetup(**criterion)
-        # self._criterion: Optional[torch.nn.Module] = None
         self.optimizer_setup = OptimizerSetup(**optimizer)
-        self.validation_stages = {
-            ValidateStage(**config, name=name, setup=setup, train_stage=self)
-            for name, config in validation_stages.items()
-        }
+        self.validate = ValidateStage(name="validate", setup=setup, train_stage=self, **validate)
 
-    def prepare_engine(self, engine: ignite.engine.Engine):
-        super().prepare_engine(engine)
+    def setup_engine(self, engine: ignite.engine.Engine):
+        super().setup_engine(engine)
+        running_loss = ignite.metrics.RunningAverage(output_transform=lambda out: out[self.criterion_setup.name])
+        running_loss.attach(engine, f"{self.criterion_setup.name}-running")
+
+        if self.validate.period.unit == PeriodUnit.epoch:
+            event = ignite.engine.Events.EPOCH_COMPLETED
+        elif self.validate.period.unit == PeriodUnit.iteration:
+            event = ignite.engine.Events.ITERATION_COMPLETED
+        else:
+            raise NotImplementedError
+
+        checkpointer = ignite.handlers.ModelCheckpoint(
+            (self.log_path / "checkpoints").as_posix(),
+            "v1",
+            score_function=lambda e: e.state.validation_score,
+            score_name=self.validate.score_metric,
+            n_saved=self.log.save_n_checkpoints,
+            create_dir=True,
+        )
+
+        early_stopper = ignite.handlers.EarlyStopping(
+            patience=self.validate.patience, score_function=lambda e: e.state.validation_score, trainer=self.engine
+        )
+
+        @engine.on(event(every=self.validate.period.value))
+        def validate(e: ignite.engine.Engine):
+            validation_state = self.validate.run()
+            validation_score = getattr(validation_state, self.validate.score_metric)
+            e.state.validation_score = validation_score
+            checkpointer(
+                e, {"model": e.state.model, "optimizer": e.state.optimizer, "criterion": e.state.criterion, "engine": e}
+            )
+            early_stopper(e)
+
+        @engine.on(ignite.engine.Events.COMPLETED)
+        def load_best_model(e: ignite.engine.Engine):
+            best_score, best_checkpoint = checkpointer._saved[-1]
+            assert best_score == max([item.priority for item in checkpointer._saved])
+            model: torch.nn.Module = e.state.model
+            model.load_state_dict(state_dict=torch.load(best_checkpoint["model"]))
+
+    def start_engine(self, engine: ignite.engine.Engine):
+        super().start_engine(engine)
         engine.state.optimizer = self.optimizer_setup.get_optimizer(engine=engine)
         engine.state.criterion = self.criterion_setup.get_criterion(engine=engine)
         engine.state.criterion_name = self.criterion_setup.name
 
-    def attach_metrics(self, engine: ignite.engine.Engine):
-        running_loss = ignite.metrics.RunningAverage(output_transform=lambda out: out[self.criterion_setup.name])
-        running_loss.attach(engine, f"{self.criterion_setup.name}-running")
 
-    # @property
-    # def criterion(self):
-    #     if self._criterion is None:
-    #         self._criterion = self.criterion_setup.get_criterion()
-    #     return self._criterion
-    #
-    # @property
-    # def optimizer(self):
-    #     if self._optimizer is None:
-    #         self._optimizer = self.optimizer_setup.get_optimizer(self.model)
-
-
-# @enforce_types
 class Setup:
     def __init__(
         self,
@@ -511,16 +522,6 @@ class Setup:
             }
             for stage in stages
         ]
-        # self.test: EvalStage = EvalStage(
-        #     **test,
-        # )
-        # self.train: Optional[TrainStage] = None if train is None else TrainStage(
-        #     **train,
-        #     _nnum=self.nnum,
-        #     _z_out=self.z_out,
-        #     _data_cache_path=self.data_cache_path,
-        #     model=self.get_scaling,
-        # )
 
     @classmethod
     def from_yaml(cls, yaml_path: Path) -> "Setup":
@@ -542,12 +543,11 @@ class Setup:
             log_sub_dir: List[str] = self.config_path.with_suffix("").resolve().as_posix().split("/experiment_configs/")
             assert len(log_sub_dir) == 2, log_sub_dir
             log_sub_dir: str = log_sub_dir[1]
-            log_path = Path(__file__).parent / "../../logs" / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
-            logger.info("log_path: %s", log_path)
-            log_path.mkdir(parents=True, exist_ok=True)
-            (log_path / "full_commit_hash.txt").write_text(commit_hash)
-            shutil.copy(self.config_path.as_posix(), (log_path / "config.yaml").as_posix())
-            self._log_path = log_path
+            self._log_path = Path(__file__).parent / "../../logs" / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
+            logger.info("log_path: %s", self._log_path)
+            self._log_path.mkdir(parents=True, exist_ok=False)
+            (self._log_path / "full_commit_hash.txt").write_text(commit_hash)
+            shutil.copy(self.config_path.as_posix(), (self._log_path / "config.yaml").as_posix())
 
         return self._log_path
 
@@ -561,8 +561,12 @@ class Setup:
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
         return self.model.get_scaling(ipt_shape)
 
-    def run(self):
+    def run(self) -> typing.List[typing.Set]:
+        states = []
         for parallel_stages in self.stages:
+            states.append(set())
             for stage in parallel_stages:
                 logger.info("starting stage: %s", stage.name)
-                stage.run()
+                states[-1].add(stage.run())
+
+        return states

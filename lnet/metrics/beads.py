@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class BeadPrecisionRecall(Metric):
-    def __init__(self, dist_threshold: float = 5.0, **super_kwargs,):
+    def __init__(self, *, dist_threshold: float = 5.0, **super_kwargs,):
         super().__init__(**super_kwargs)
         self.dist_threshold = dist_threshold
 

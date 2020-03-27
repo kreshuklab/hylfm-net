@@ -15,7 +15,7 @@ def nrmse_skimage(pred, target, **kwargs):
 
 
 class NRMSE_SkImage(ignite.metrics.Metric):
-    def __init__(self, norm_type="Euclidean", **super_kwargs):
+    def __init__(self, *, norm_type="Euclidean", **super_kwargs):
         super().__init__(**super_kwargs)
         self.norm_type = norm_type
 

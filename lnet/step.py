@@ -13,8 +13,9 @@ if typing.TYPE_CHECKING:
 def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.Any], train: bool):
     start = perf_counter()
 
-    setup: Setup = engine.state.setup
+    setup: Setup = engine.state.stage.setup
     model = setup.model
+
 
     model.train(train)
     if train:
