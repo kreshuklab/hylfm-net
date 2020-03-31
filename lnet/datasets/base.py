@@ -13,7 +13,6 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, U
 import numpy
 import torch.utils.data
 import z5py
-from inferno.io.transform import Transform
 from scipy.ndimage import zoom
 from tifffile import imread
 
@@ -179,7 +178,7 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
         interpolation_order: int,
         data_cache_path: Path,
         get_model_scaling: Callable[[Tuple[int, int]], Tuple[float, float]],
-        transform: Optional[Transform] = None,
+        transform: Optional[Callable] = None,
         ls_affine_transform_class: Optional[BDVTransform] = None,
     ):
 
@@ -471,7 +470,7 @@ def collate_fn(samples: List[typing.OrderedDict[str, Any]]):
 
 
 class ConcatDataset(torch.utils.data.ConcatDataset):
-    def __init__(self, datasets: List[torch.utils.data.Dataset], transform: Optional[Transform] = None):
+    def __init__(self, datasets: List[torch.utils.data.Dataset], transform: Optional[Callable] = None):
         self.transform = transform
         super().__init__(datasets=datasets)
 
