@@ -484,7 +484,6 @@ class Setup:
     def __init__(
         self,
         *,
-        data_cache_path: str,
         config_path: Path,
         precision: str,
         device: Union[int, str] = 0,
@@ -492,15 +491,16 @@ class Setup:
         z_out: int,
         model: Dict[str, Any],
         stages: List[Dict[str, Any]],
-        log_path: Optional[Path] = None,
+        data_cache_path: Optional[str] = None,
+        log_path: Optional[str] = None,
     ):
         self.dtype: torch.dtype = getattr(torch, precision)
         assert isinstance(self.dtype, torch.dtype)
-        self.data_cache_path = Path(data_cache_path)
         self.nnum = nnum
         self.z_out = z_out
         self.config_path = config_path
-        self._log_path = log_path
+        self._data_cache_path = None if data_cache_path is None else Path(data_cache_path)
+        self._log_path = None if log_path is None else Path(log_path)
         self._model: Optional[LnetModel] = None
         if isinstance(device, int) or "cuda" in device:
             cuda_device_count = torch.cuda.device_count()
@@ -529,6 +529,14 @@ class Setup:
             config = yaml.safe_load(f)
 
         return cls(**config, config_path=yaml_path)
+
+    @property
+    def data_cache_path(self) -> Path:
+        if self._data_cache_path is None:
+            self._data_cache_path = Path(__file__).parent / "../../data"
+            self._data_cache_path.mkdir(exist_ok=True)
+
+        return self._data_cache_path
 
     @property
     def log_path(self) -> Path:

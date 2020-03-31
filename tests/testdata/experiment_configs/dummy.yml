@@ -1,4 +1,3 @@
-data_cache_path: /repos/lnet/data
 precision: float
 nnum: &nnum 19
 z_out: &z_out 49
