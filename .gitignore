@@ -1,6 +1,7 @@
 data/
 logs/
 lnet/experiment_configs
+lnet/settings.py
 
 notebooks/**/*.svg
 notebooks/**/*.npy

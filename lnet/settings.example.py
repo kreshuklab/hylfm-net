@@ -1,3 +1,4 @@
+# resave this file for editing as `settings.py`
 experiment_configs_folder = "experiment_configs"
 
 num_workers_train_data_loader: int = 0
