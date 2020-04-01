@@ -400,19 +400,19 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
 
         logger.debug("apply transform %s", self.transform)
 
-        return OrderedDict(
-            [
-                (key, item) if isinstance(item, int) else (key, numpy.ascontiguousarray(item))
-                for key, item in sample.items()
-            ]
-        )
+        return sample
 
     def __getitem__(self, idx) -> typing.OrderedDict[str, Union[numpy.ndarray, list]]:
         sample = self.get_wo_transform(idx)
-        if self.transform is None:
-            return sample
-        else:
-            return self.transform(sample)
+        if self.transform is not None:
+            sample = self.transform(sample)
+
+        return OrderedDict(
+            [
+                (key, numpy.ascontiguousarray(item)) if isinstance(item, numpy.ndarray) else (key, item)
+                for key, item in sample.items()
+            ]
+        )
 
     def __del__(self):
         if self.tmp_data_file_name is not None:
