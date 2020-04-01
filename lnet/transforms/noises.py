@@ -29,7 +29,7 @@ class AdditiveGaussianNoise(Transform):
 
     def apply_to_sample(self, sample, tensor_name: str, tensor_idx: int, batch_idx: int, meta: Optional[Dict]):
         if self.sigma is None:
-            mean, sigma = meta[batch_idx]["stat"].get_mean_std(idx=tensor_idx, percentile_range=self.percentile_range)
+            mean, sigma = meta[batch_idx]["stat"].get_mean_std(name=tensor_name, percentile_range=self.percentile_range)
         else:
             sigma = self.sigma
 

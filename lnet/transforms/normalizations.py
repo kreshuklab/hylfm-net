@@ -39,7 +39,7 @@ class Normalize01(Transform):
             p for p, m in [(self.min_percentile, self.min), (self.max_percentile, self.max)] if m is None
         ]
         if percentiles2compute:
-            min_max = meta[batch_idx]["stat"].get_percentiles(idx=tensor_idx, percentiles=percentiles2compute)
+            min_max = meta[batch_idx]["stat"].get_percentiles(name=tensor_name, percentiles=percentiles2compute)
         else:
             min_max = []
 
@@ -103,7 +103,7 @@ class NormalizeMeanStd(Transform):
     ):
         if self.mean is None:
             assert self.std is None
-            mean, std = meta[batch_idx]["stat"].get_mean_std(idx=tensor_idx, percentile_range=self.percentile_range)
+            mean, std = meta[batch_idx]["stat"].get_mean_std(name=tensor_name, percentile_range=self.percentile_range)
         else:
             assert self.std is not None
             mean, std = self.mean, self.std
