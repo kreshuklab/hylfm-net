@@ -106,11 +106,12 @@ class DatasetStat:
             }
 
             def compute_hist(i: int):
-                return {
-                    name: numpy.histogram(tensor, bins=nbins, range=(hist_min, hist_max))[0]
-                    for name, tensor in self.dataset.get_wo_transform(i).items()
-                    if isinstance(tensor, numpy.ndarray)
-                }
+                ret = {}
+                for name, tensor in self.dataset.get_wo_transform(i).items():
+                    if isinstance(tensor, numpy.ndarray):
+                        ret[name] = numpy.histogram(tensor, bins=nbins, range=(hist_min, hist_max))[0]
+
+                return ret
 
             futs = []
             with ThreadPoolExecutor(max_workers=16) as executor:
