@@ -8,5 +8,6 @@ pin_memory: bool = True
 max_workers_per_dataset = 8
 reserved_workers_per_dataset_for_getitem = 8
 max_workers_save_output: int = 16
+max_workers_for_stat_per_ds: int = 16
 
 assert reserved_workers_per_dataset_for_getitem <= max_workers_per_dataset
