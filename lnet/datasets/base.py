@@ -419,7 +419,7 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
             self.tmp_data_file_name.rename(self.part_data_file_name)
 
     def background_worker_callback(self, fut: Future):
-        idx = fut.result()["idx"]
+        idx = fut.result()
         for next_idx in range(idx, len(self), self.nr_background_workers):
             next_fut = self.submit(idx + self.nr_background_workers)
             if next_fut is not None:
