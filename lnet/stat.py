@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, fields
@@ -15,6 +16,8 @@ from lnet import settings
 if TYPE_CHECKING:
     from numpy.lib.npyio import NpzFile
     from lnet.datasets import N5ChunkAsSampleDataset
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -110,6 +113,7 @@ class DatasetStat:
                     for name in sample.keys()
                     if isinstance(sample[name], numpy.ndarray)
                 }
+                logger.info("Compute histograms for %s", list(hist.keys()))
 
                 def compute_hist(i: int):
                     ret = {}

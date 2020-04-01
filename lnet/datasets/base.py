@@ -3,6 +3,7 @@ import os
 import threading
 import time
 import typing
+import warnings
 from collections import OrderedDict
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -302,14 +303,20 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
         self.tmp_data_file_name = data_file_name.with_suffix(".tmp.n5")
         self.part_data_file_name = data_file_name.with_suffix(".part.n5")
 
-        for attempt in range(100):
-            if self.tmp_data_file_name.exists():
-                logger.warning(f"waiting for data (found {self.tmp_data_file_name})")
-                time.sleep(300)
+        if self.tmp_data_file_name.exists():
+            existing_tmp_data_file_name = self.tmp_data_file_name
+            self.tmp_data_file_name = None
+            for attempt in range(100):
+                if existing_tmp_data_file_name.exists():
+                    warnings.warn(f"waiting for data (found {self.tmp_data_file_name})")
+                    time.sleep(300)
+                else:
+                    self.tmp_data_file_name = existing_tmp_data_file_name
+                    break
             else:
-                break
-        else:
-            raise FileExistsError(self.tmp_data_file_name)
+                raise FileExistsError(self.tmp_data_file_name)
+
+        assert not self.tmp_data_file_name.exists()
 
         self.tensor_names = ["lf"]
         if self.with_target:
