@@ -432,12 +432,16 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
 
     def submit(self, idx: int) -> Union[int, Future]:
         with self.submit_lock:
-            if self.ready(idx) or idx in self.futures:
-                return idx
+            if self.ready(idx):
+                fut = Future()
+                fut.set_result(idx)
             else:
-                fut = self.executor.submit(self.process, idx)
-                self.futures[idx] = fut
-                return fut
+                fut = self.futures.get(idx, None)
+                if fut is None:
+                    fut = self.executor.submit(self.process, idx)
+                    self.futures[idx] = fut
+
+            return fut
 
     def process(self, idx: int) -> int:
         for t, name in enumerate(self.tensor_names):
