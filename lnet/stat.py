@@ -1,26 +1,31 @@
+from __future__ import annotations
+
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import DefaultDict, Dict, List, Optional, Sequence, Set, Tuple
+from typing import DefaultDict, Dict, List, Optional, Sequence, Set, TYPE_CHECKING, Tuple
 
 import numpy
 import yaml
-from torch.utils.data import Dataset
+
+if TYPE_CHECKING:
+    from numpy.lib.npyio import NpzFile
+    from lnet.datasets import N5ChunkAsSampleDataset
 
 
 @dataclass
 class ComputedDatasetStat:
-    all_percentiles: DefaultDict[int, Dict[float, float]] = field(default_factory=lambda: defaultdict(dict))
-    all_mean_std_by_percentile_range: DefaultDict[int, Dict[Tuple[float, float], Tuple[float, float]]] = field(
+    all_percentiles: DefaultDict[str, Dict[float, float]] = field(default_factory=lambda: defaultdict(dict))
+    all_mean_std_by_percentile_range: DefaultDict[str, Dict[Tuple[float, float], Tuple[float, float]]] = field(
         default_factory=lambda: defaultdict(dict)
     )
 
 
 @dataclass
 class RequestedDatasetStat:
-    all_percentiles: DefaultDict[int, Set[float]] = field(default_factory=lambda: defaultdict(set))
-    all_mean_std_by_percentile_range: DefaultDict[int, Set[Tuple[float, float]]] = field(
+    all_percentiles: DefaultDict[str, Set[float]] = field(default_factory=lambda: defaultdict(set))
+    all_mean_std_by_percentile_range: DefaultDict[str, Set[Tuple[float, float]]] = field(
         default_factory=lambda: defaultdict(set)
     )
 
@@ -32,9 +37,9 @@ class DatasetStat:
     def __init__(
         self,
         path: Path,
-        dataset: Dataset,
-        percentiles: Optional[Dict[int, Set[float]]] = None,
-        means: Optional[Dict[int, Set[Tuple[float, float]]]] = None,
+        dataset: N5ChunkAsSampleDataset,
+        percentiles: Optional[Dict[str, Set[float]]] = None,
+        means: Optional[Dict[str, Set[Tuple[float, float]]]] = None,
     ):
         assert path.suffix == ".yml", path.suffix == "yaml"
         self.path = path
@@ -61,8 +66,8 @@ class DatasetStat:
 
     def request(
         self,
-        all_percentiles: Optional[Dict[int, Set[float]]] = None,
-        all_mean_std_by_percentile_range: Optional[Dict[int, Set[Tuple[float, float]]]] = None,
+        all_percentiles: Optional[Dict[str, Set[float]]] = None,
+        all_mean_std_by_percentile_range: Optional[Dict[str, Set[Tuple[float, float]]]] = None,
     ):
         if all_mean_std_by_percentile_range:
             for idx, pranges in all_mean_std_by_percentile_range.items():
@@ -83,20 +88,29 @@ class DatasetStat:
 
     def compute_requested(self):
         n = len(self.dataset)
-        sample = self.dataset[0]
+        sample = self.dataset.get_wo_transform(0)
         nbins = numpy.iinfo(numpy.uint16).max // 5
         hist_min = 0.0
         hist_max = numpy.iinfo(numpy.uint16).max
         bin_width = (hist_max - hist_min) / nbins
 
-        hist_path = self.path.with_suffix(".hist.npy")
+        hist_path = self.path.with_suffix(".hist.npz")
         if hist_path.exists():
-            hist = numpy.load(hist_path)
+            hist_npz: NpzFile = numpy.load(hist_path)
+            hist = {name: hist_npz[name] for name in hist_npz.files}
         else:
-            hist = numpy.zeros((len(sample), nbins), numpy.uint64)
+            hist = {
+                name: numpy.zeros(nbins, numpy.uint64)
+                for name in sample.keys()
+                if isinstance(sample[name], numpy.ndarray)
+            }
 
             def compute_hist(i: int):
-                return [numpy.histogram(s, bins=nbins, range=(hist_min, hist_max))[0] for s in self.dataset[i]]
+                return {
+                    name: numpy.histogram(tensor, bins=nbins, range=(hist_min, hist_max))[0]
+                    for name, tensor in self.dataset.get_wo_transform(i).items()
+                    if isinstance(tensor, numpy.ndarray)
+                }
 
             futs = []
             with ThreadPoolExecutor(max_workers=16) as executor:
@@ -104,40 +118,37 @@ class DatasetStat:
                     futs.append(executor.submit(compute_hist, i))
 
                 for fut in as_completed(futs):
-                    e = fut.exception()
-                    if e is not None:
-                        raise e
+                    for name, h in fut.result().items():
+                        hist[name] = hist[name] + h  # somehow `+=` invovles casting to float64 which doesn't fly...
 
-                    hist = hist + fut.result()  # somehow `+=` invovles casting to float64 which doesn't fly...
+            numpy.savez_compressed(hist_path, **hist)
 
-            numpy.save(hist_path, hist)
+        cumsums = {name: h.cumsum() for name, h in hist.items()}
 
-        cumsum = hist.cumsum(axis=1)
-
-        all_new_percentiles: Dict[int, Dict[float, float]] = {}
-        for idx, pers in self.requested.all_percentiles.items():
+        all_new_percentiles: Dict[str, Dict[float, float]] = {}
+        for name, pers in self.requested.all_percentiles.items():
             pers = numpy.array(list(pers))
-            per_values = numpy.searchsorted(cumsum[idx], pers * cumsum[idx, -1] / 100) * bin_width
-            all_new_percentiles[idx] = dict(zip(pers.tolist(), per_values.tolist()))
+            per_values = numpy.searchsorted(cumsums[name], pers * cumsums[name][-1] / 100) * bin_width
+            all_new_percentiles[name] = dict(zip(pers.tolist(), per_values.tolist()))
 
-        for idx, new_percentiles in all_new_percentiles.items():
-            self.computed.all_percentiles[idx].update(new_percentiles)
+        for name, new_percentiles in all_new_percentiles.items():
+            self.computed.all_percentiles[name].update(new_percentiles)
 
         def compute_clipped_means_vars(
-            i: int, ranges: DefaultDict[int, Set[Tuple[float, float]]]
-        ) -> Tuple[int, DefaultDict[int, Dict[Tuple[float, float], Tuple[float, float]]]]:
+            i: int, ranges: DefaultDict[str, Set[Tuple[float, float]]]
+        ) -> Tuple[int, DefaultDict[str, Dict[Tuple[float, float], Tuple[float, float]]]]:
             ret = defaultdict(dict)
-            for idx, data in enumerate(self.dataset[i]):
-                for range_ in ranges[idx]:
+            for name, data in enumerate(self.dataset.get_wo_transform(i)):
+                for range_ in ranges[name]:
                     lower, upper = range_
                     if lower is not None or upper is not None:
                         data = numpy.clip(
                             data,
-                            a_min=None if lower is None else self.computed.all_percentiles[idx][lower],
-                            a_max=None if upper is None else self.computed.all_percentiles[idx][upper],
+                            a_min=None if lower is None else self.computed.all_percentiles[name][lower],
+                            a_max=None if upper is None else self.computed.all_percentiles[name][upper],
                         )
 
-                    ret[idx][range_] = (
+                    ret[name][range_] = (
                         numpy.mean(data, dtype=numpy.float64).item(),
                         numpy.var(data, dtype=numpy.float64).item(),
                     )
@@ -145,9 +156,11 @@ class DatasetStat:
             return i, ret
 
         all_new_means_vars: DefaultDict[
-            int, DefaultDict[Tuple[float, float]], Tuple[numpy.array, numpy.array]
+            str, DefaultDict[Tuple[float, float]], Tuple[numpy.array, numpy.array]
         ] = defaultdict(
-            lambda: defaultdict(lambda: (numpy.empty((n,), dtype=numpy.float64), numpy.empty((n,), dtype=numpy.float64)))
+            lambda: defaultdict(
+                lambda: (numpy.empty((n,), dtype=numpy.float64), numpy.empty((n,), dtype=numpy.float64))
+            )
         )
         with ThreadPoolExecutor(max_workers=16) as executor:
             futs = [
@@ -156,43 +169,39 @@ class DatasetStat:
             ]
 
             for fut in as_completed(futs):
-                e = fut.exception()
-                if e is not None:
-                    raise e
-
-                fut_res: Tuple[int, DefaultDict[int, Dict[Tuple[float, float, Tuple[float, float]]]]] = fut.result()
+                fut_res: Tuple[int, DefaultDict[str, Dict[Tuple[float, float], Tuple[float, float]]]] = fut.result()
                 i, res = fut_res
-                for idx, means_dict in res.items():
+                for name, means_dict in res.items():
                     for range_, (mean_part, var_part) in means_dict.items():
-                        means, vars = all_new_means_vars[idx][range_]
+                        means, vars = all_new_means_vars[name][range_]
                         means[i] = mean_part
                         vars[i] = var_part
 
-        for idx, means_vars in all_new_means_vars.items():
+        for name, means_vars in all_new_means_vars.items():
             for range_, (means, vars) in means_vars.items():
                 mean = numpy.mean(means, dtype=numpy.float64)
                 var = numpy.mean((vars + (means - mean) ** 2))
-                self.computed.all_mean_std_by_percentile_range[idx][range_] = (float(mean), float(numpy.sqrt(var)))
+                self.computed.all_mean_std_by_percentile_range[name][range_] = (float(mean), float(numpy.sqrt(var)))
 
         computed_dict = {f.name: dict(getattr(self.computed, f.name)) for f in fields(self.computed) if f.init}
         with self.path.open("w") as file:
             # todo: serialize tuples (range keys)
             yaml.dump(computed_dict, file)
 
-    def get_percentiles(self, idx: int, percentiles: Sequence[float]) -> List[float]:
-        ret = [self.computed.all_percentiles[idx].get(p, None) for p in percentiles]
+    def get_percentiles(self, name: str, percentiles: Sequence[float]) -> List[float]:
+        ret = [self.computed.all_percentiles[name].get(p, None) for p in percentiles]
         if None in ret:
-            self.request(all_percentiles={idx: {p for p, r in zip(percentiles, ret) if r is None}})
+            self.request(all_percentiles={name: {p for p, r in zip(percentiles, ret) if r is None}})
             self.compute_requested()
-            return self.get_percentiles(idx, percentiles)
+            return self.get_percentiles(name, percentiles)
         else:
             return ret
 
-    def get_mean_std(self, idx: int, percentile_range: Tuple[float, float]) -> Tuple[float, float]:
-        mean_std = self.computed.all_mean_std_by_percentile_range[idx].get(percentile_range, None)
+    def get_mean_std(self, name: str, percentile_range: Tuple[float, float]) -> Tuple[float, float]:
+        mean_std = self.computed.all_mean_std_by_percentile_range[name].get(percentile_range, None)
         if mean_std is None:
-            self.request(all_mean_std_by_percentile_range={idx: {percentile_range}})
+            self.request(all_mean_std_by_percentile_range={name: {percentile_range}})
             self.compute_requested()
-            return self.get_mean_std(idx, percentile_range)
+            return self.get_mean_std(name, percentile_range)
         else:
             return mean_std

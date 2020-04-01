@@ -373,14 +373,13 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
 
         stat_path = Path(data_file_name.as_posix().replace(".n5", "_stat.yml"))
 
-        self.transform = None  # for computing stat
-        self.stat = DatasetStat(path=stat_path, dataset=self)
         self.transform = transform
+        self.stat = DatasetStat(path=stat_path, dataset=self)
 
     def __len__(self):
         return self._len
 
-    def __getitem__(self, idx) -> typing.OrderedDict[str, Union[numpy.ndarray, int, DatasetStat]]:
+    def get_wo_transform(self, idx: int) -> typing.OrderedDict[str, Union[numpy.ndarray, list]]:
         idx = int(idx)
         fut = self.submit(idx)
         if isinstance(fut, Future):
@@ -400,8 +399,6 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
         sample["meta"] = [{"stat": self.stat, "idx": idx, "z_slice": z_slice}]
 
         logger.debug("apply transform %s", self.transform)
-        if self.transform is not None:
-            sample = self.transform(sample)
 
         return OrderedDict(
             [
@@ -409,6 +406,13 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
                 for key, item in sample.items()
             ]
         )
+
+    def __getitem__(self, idx) -> typing.OrderedDict[str, Union[numpy.ndarray, list]]:
+        sample = self.get_wo_transform(idx)
+        if self.transform is None:
+            return sample
+        else:
+            return self.transform(sample)
 
     def __del__(self):
         if self.tmp_data_file_name is not None:
