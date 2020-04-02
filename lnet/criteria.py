@@ -12,7 +12,9 @@ from torch.autograd import Variable
 logger = logging.getLogger(__name__)
 
 
+L1Loss = torch.nn.L1Loss
 MSELoss = torch.nn.MSELoss
+SmoothL1Loss = torch.nn.SmoothL1Loss
 
 
 class CriterionWrapper(torch.nn.Module):

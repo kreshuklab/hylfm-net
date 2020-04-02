@@ -1,15 +1,16 @@
 import logging
 
 import numpy
-from ignite.metrics import Metric
+from ignite.metrics import Metric, MetricsLambda
 
 from lnet.utils.detect_beads import match_beads
+from ._utils import get_output_transform
 
 logger = logging.getLogger(__name__)
 
 
 class BeadPrecisionRecall(Metric):
-    def __init__(self, *, dist_threshold: float = 5.0, **super_kwargs,):
+    def __init__(self, *, dist_threshold: float = 5.0, **super_kwargs):
         super().__init__(**super_kwargs)
         self.dist_threshold = dist_threshold
 
@@ -40,3 +41,29 @@ class BeadPrecisionRecall(Metric):
             recall = numpy.nan
 
         return precision, recall
+
+
+def get_BeadPrecision(*, initialized_metrics: dict, kwargs: dict):
+    prec_and_recall = initialized_metrics.get(BeadPrecisionRecall.__name__, None)
+    if prec_and_recall is None:
+        initialized_metrics[BeadPrecisionRecall.__name__] = BeadPrecisionRecall(
+            output_transform=get_output_transform(kwargs.pop("tensor_names")), **kwargs
+        )
+
+    class BeadPrecision(MetricsLambda):
+        pass
+
+    return BeadPrecision(lambda p, r: p, initialized_metrics[BeadPrecisionRecall.__name__])
+
+
+def get_BeadRecall(*, initialized_metrics: dict, kwargs: dict):
+    prec_and_recall = initialized_metrics.get(BeadPrecisionRecall.__name__, None)
+    if prec_and_recall is None:
+        initialized_metrics[BeadPrecisionRecall.__name__] = BeadPrecisionRecall(
+            output_transform=get_output_transform(kwargs.pop("tensor_names")), **kwargs
+        )
+
+    class BeadRecall(MetricsLambda):
+        pass
+
+    return BeadRecall(lambda p, r: r, initialized_metrics[BeadPrecisionRecall.__name__])

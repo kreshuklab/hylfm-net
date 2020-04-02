@@ -28,7 +28,10 @@ stages:
       SSIM: {tensor_names: {y_pred: pred, y: ls}, window_size: 11, window: null, size_average: true, full: false, val_range: null}
       NRMSE: {tensor_names: {y_pred: pred, y: ls}}
       PSNR: {tensor_names: {y_pred: pred, y: ls}, data_range: null}
-      BeadPrecisionRecall: {tensor_names: {y_pred: pred, y: ls}, dist_threshold: 5.0}
+      BeadPrecision: {tensor_names: {y_pred: pred, y: ls}, dist_threshold: 5.0}
+      BeadRecall: {}  # same as BeadPrecision
+      SmoothL1Loss: {tensor_names: {input: pred, target: ls}}
+      MSELoss: {tensor_names: {input: pred, target: ls}}
 
     log:
       log_scalars_period: {value: 1, unit: iteration}

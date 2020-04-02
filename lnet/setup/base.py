@@ -280,6 +280,7 @@ class Stage:
         engine.add_event_handler(ignite.engine.Events.STARTED, self.start_engine)
         engine.add_event_handler(ignite.engine.Events.COMPLETED, self.log_compute_time)
 
+        initialized_metrics = {}
         for metric_name, kwargs in self.metrics.items():
             metric_class = getattr(lnet.metrics, metric_name, None)
             if metric_class is None:
@@ -292,12 +293,16 @@ class Stage:
                 else:
                     criterion_class = getattr(lnet.criteria, metric_name, None)
                     if criterion_class is None:
-                        raise ValueError(f"{metric_name} is not a valid metric name")
+                        metric_getter = getattr(lnet.metrics, "get_" + metric_name, None)
+                        if metric_getter is None:
+                            raise ValueError(f"{metric_name} is not a valid metric name")
 
-                    postfix = kwargs.get("postfix", "-for-metric")
-                    criterion = lnet.criteria.CriterionWrapper(criterion_class=criterion_class, **kwargs)
-                    criterion.eval()
-                    metric = ignite.metrics.Average(lambda tensors: tensors[criterion_class.__name__ + postfix])
+                        metric = metric_getter(initialized_metrics=initialized_metrics, kwargs=kwargs)
+                    else:
+                        postfix = kwargs.get("postfix", "-for-metric")
+                        criterion = lnet.criteria.CriterionWrapper(criterion_class=criterion_class, **kwargs)
+                        criterion.eval()
+                        metric = ignite.metrics.Average(lambda tensors: tensors[criterion_class.__name__ + postfix])
             else:
                 try:
                     metric = metric_class(output_transform=get_output_transform(kwargs.pop("tensor_names")), **kwargs)
