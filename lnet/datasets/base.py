@@ -308,7 +308,7 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
             self.tmp_data_file_name = None
             for attempt in range(100):
                 if existing_tmp_data_file_name.exists():
-                    warnings.warn(f"waiting for data (found {self.tmp_data_file_name})")
+                    warnings.warn(f"waiting for data (found {existing_tmp_data_file_name})")
                     time.sleep(300)
                 else:
                     self.tmp_data_file_name = existing_tmp_data_file_name
@@ -422,13 +422,20 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
         )
 
     def __del__(self):
+        if self.futures:
+            for fut in self.futures.values():
+                fut.cancel()
+
+        if self.executor is not None:
+            self.executor.shutdown()
+
         if self.tmp_data_file_name is not None:
             self.tmp_data_file_name.rename(self.part_data_file_name)
 
     def background_worker_callback(self, fut: Future):
         idx = fut.result()
-        for next_idx in range(idx, len(self), self.nr_background_workers):
-            next_fut = self.submit(idx + self.nr_background_workers)
+        for next_idx in range(idx + self.nr_background_workers, len(self), self.nr_background_workers):
+            next_fut = self.submit(next_idx)
             if next_fut is not None:
                 next_fut.add_done_callback(self.background_worker_callback)
                 break

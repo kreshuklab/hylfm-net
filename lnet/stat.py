@@ -76,7 +76,7 @@ class DatasetStat:
         all_percentiles: Optional[Dict[str, Set[float]]] = None,
         all_mean_std_by_percentile_range: Optional[Dict[str, Set[Tuple[float, float]]]] = None,
     ):
-        with self.rlock.acquire():
+        with self.rlock:
             if all_mean_std_by_percentile_range:
                 for idx, pranges in all_mean_std_by_percentile_range.items():
                     self.requested.all_mean_std_by_percentile_range[idx] |= pranges - set(
@@ -95,7 +95,7 @@ class DatasetStat:
                     self.requested.all_percentiles[idx] |= pers - set(self.computed.all_percentiles[idx])
 
     def compute_requested(self):
-        with self.rlock.acquire():
+        with self.rlock:
             n = len(self.dataset)
             sample = self.dataset.get_wo_transform(0)
             nbins = numpy.iinfo(numpy.uint16).max // 5
@@ -204,7 +204,7 @@ class DatasetStat:
     def get_percentiles(self, name: str, percentiles: Sequence[float]) -> List[float]:
         ret = [self.computed.all_percentiles[name].get(p, None) for p in percentiles]
         if None in ret:
-            with self.rlock.acquire():
+            with self.rlock:
                 # check if meanwhile another thread did the job
                 ret = [self.computed.all_percentiles[name].get(p, None) for p in percentiles]
 
@@ -218,7 +218,7 @@ class DatasetStat:
     def get_mean_std(self, name: str, percentile_range: Tuple[float, float]) -> Tuple[float, float]:
         ret = self.computed.all_mean_std_by_percentile_range[name].get(percentile_range, None)
         if ret is None:
-            with self.rlock.acquire():
+            with self.rlock:
                 # check if meanwhile another thread did the job
                 ret = self.computed.all_mean_std_by_percentile_range[name].get(percentile_range, None)
                 if ret is None:

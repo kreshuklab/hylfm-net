@@ -83,6 +83,7 @@ class Transform:
     ):
         raise NotImplementedError
 
+
 class TransformLike(Protocol):
     def __call__(self, tensors: typing.OrderedDict[str, Any]) -> typing.OrderedDict[str, Any]:
         pass
