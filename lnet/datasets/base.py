@@ -7,6 +7,7 @@ import warnings
 from collections import OrderedDict
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
+from dataclasses import asdict
 from hashlib import sha224 as hash
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
@@ -284,11 +285,25 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
             self.shapes.append(y_shape)
 
         self.interpolation_order = interpolation_order
+        for root in asdict(settings.data_roots).values():
+            if root in x_folder.parents:
+                x_folder_relative = x_folder.relative_to(root)
+                break
+        else:
+            raise NotImplementedError((x_folder, settings.data_roots))
+
+        for root in asdict(settings.data_roots).values():
+            if root in y_folder.parents:
+                y_folder_relative = y_folder.relative_to(root)
+                break
+        else:
+            raise NotImplementedError((y_folder, settings.data_roots))
+
         shapestr = (
             f"interpolation_order: {interpolation_order}\n"
             f"x_roi: {info.x_roi}\ny_roi: {info.y_roi}\n"
             f"x_shape: {x_shape}\ny_shape: {y_shape}\n"
-            f"x_folder: {x_folder}\ny_folder: {y_folder}"
+            f"x_folder: {x_folder_relative.as_posix()}\ny_folder: {y_folder_relative.as_posix()}"
         )
         if ls_affine_transform_class is not None:
             shapestr += f"\nls_affine_transform: {ls_affine_transform_class.__name__}"
