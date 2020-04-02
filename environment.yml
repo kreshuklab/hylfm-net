@@ -1,4 +1,4 @@
-name: lnet
+name: llnet
 channels:
   - pytorch
   - conda-forge
@@ -7,20 +7,26 @@ dependencies:
   - dill
   - git>=2.22
   - h5py>=2.9.0
-  - ignite>=0.2.0
+  - ignite>=0.3.0
   - jupyterlab>=0.35.5
   - matplotlib>=3.0.3
   - numpy>=1.16.3
+  - pandas
   - pip>=19.1
+  - plotly
   - python>=3.7.3
-  - pytorch>=1.2.0
+  - pytorch>=1.4.0
   - pyyaml>=5.1
   - scikit-image>=0.15.0
   - scikit-learn>=0.20.3
   - scipy>=1.2.1
+  - tensorboard
   - tifffile>=0.15.1
   - torchvision>=0.2.1
+  - typing_extensions  # for python <3.7
   - z5py>=1.4.1
   - pip:
     - gputil>=1.4.0
+    - imagecodecs
     - pbs3>=3.0.2
+    - git+https://github.com/jorge-pessoa/pytorch-msssim.git

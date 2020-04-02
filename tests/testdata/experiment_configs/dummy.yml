@@ -34,12 +34,24 @@ stages:
       MSELoss: {tensor_names: {input: pred, target: ls}}
 
     log:
+      save_n_checkpoints: 2
       log_scalars_period: {value: 1, unit: iteration}
       log_images_period: {value: 1, unit: epoch}
-      save_n_checkpoints: 2
+      input: lf
+      prediction: pred
+      target: ls
+      voxel_losses: []
 
     validate:
       metrics: *metrics
+      log: &eval_log
+        log_scalars_period: {value: 1, unit: iteration}
+        log_images_period: {value: 1, unit: epoch}
+        input: lf
+        prediction: pred
+        target: ls
+        voxel_losses: []
+
       score_metric: -WeightedSmoothL1Loss
       period: {value: 1, unit: epoch}
       patience: 5
@@ -49,7 +61,7 @@ stages:
           transforms: &eval_transforms
             - {name: Normalize01, kwargs: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}}
             - {name: Normalize01, kwargs: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}}
-            - {name: LightFieldFromChannel, kwargs: {apply_to: lf, nnum: *nnum}}
+            - {name: ChannelFromLightField, kwargs: {apply_to: lf, nnum: *nnum}}
 
           datasets:
             fish2_20191209_dynamic.t0454c2: {indices: 10535-10537}
@@ -79,12 +91,13 @@ stages:
           - {name: RandomRotate90, kwargs: {apply_to: [lf, ls]}}
           - {name: RandomlyFlipAxis, kwargs: {apply_to: [lf, ls], axis: -1}}
           - {name: RandomlyFlipAxis, kwargs: {apply_to: [lf, ls], axis: -2}}
-          - {name: LightFieldFromChannel, kwargs: {apply_to: lf, nnum: *nnum}}
+          - {name: ChannelFromLightField, kwargs: {apply_to: lf, nnum: *nnum}}
         datasets:
           fish2_20191209_dynamic.t0454c2: {indices: 30-31}
 
 - test:
     metrics: *metrics
+    log: *eval_log
     outputs_to_save: null
     data:
       - batch_size: *eval_batch_size

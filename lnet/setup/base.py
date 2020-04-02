@@ -19,6 +19,7 @@ import torch.utils.data
 import yaml
 
 import lnet.criteria
+import lnet.log
 import lnet.metrics
 import lnet.optimizers
 import lnet.registration
@@ -93,16 +94,22 @@ class ModelSetup:
 class LogSetup:
     def __init__(
         self,
+        backend: str,
         log_scalars_period: Dict[str, Union[int, str]],
         log_images_period: Dict[str, Union[int, str]],
-        log_bead_precision_recall: bool = False,
-        log_bead_precision_recall_threshold: float = 5.0,
-        save_n_checkpoints: int = 1,
+        **kwargs,
     ):
         self.log_scalars_period: Period = Period(**log_scalars_period)
         self.log_images_period: Period = Period(**log_images_period)
-        self.log_bead_precision_recall = log_bead_precision_recall
-        self.log_bead_precision_recall_threshold = log_bead_precision_recall_threshold
+        self.backend = getattr(lnet.log, backend)(**kwargs)
+
+    def register_callbacks(self, engine: ignite.engine.Engine):
+        pass
+
+
+class TrainLogSetup(LogSetup):
+    def __init__(self, save_n_checkpoints: int = 1, **super_kwargs):
+        super().__init__(**super_kwargs)
         self.save_n_checkpoints = save_n_checkpoints
 
 
@@ -228,19 +235,20 @@ class Stage:
         name: str,
         data: List[Dict[str, Any]],
         sampler: Dict[str, Any],
-        metrics: Dict[str, Any] = None,
+        metrics: Dict[str, Any],
+        log: LogSetup,
         setup: Setup,
         outputs_to_save: Optional[Sequence[str]] = tuple(),
     ):
         self.name = name
         self.outputs_to_save = outputs_to_save
-        self.metrics = metrics or {}
+        self.metrics = metrics
+        self.log = log
         self._data_loader: Optional[torch.utils.data.DataLoader] = None
         self._engine: Optional[ignite.engine.Engine] = None
         self.setup = setup
         self.data: DataSetup = DataSetup([DatasetGroupSetup(**d, setup=setup) for d in data])
         self.sampler: SamplerSetup = SamplerSetup(**sampler, _data_setup=self.data)
-
     @property
     def data_loader(self) -> torch.utils.data.DataLoader:
         if self._data_loader is None:
@@ -318,6 +326,8 @@ class Stage:
             self.log_path.mkdir(parents=True, exist_ok=False)
             self._engine = ignite.engine.Engine(self.step_function)
             self.setup_engine(self._engine)
+            self.log.register_callbacks(engine=self._engine)
+
         return self._engine
 
     @property
@@ -333,11 +343,11 @@ class Stage:
 class EvalStage(Stage):
     step_function = staticmethod(inference_step)
 
-    def __init__(self, sampler: Dict[str, Any] = None, **super_kwargs):
+    def __init__(self, *, log: Dict[str, Any], sampler: Dict[str, Any] = None, **super_kwargs):
         if sampler is None:
             sampler = {"base": "SequentialSampler", "drop_last": False}
 
-        super().__init__(sampler=sampler, **super_kwargs)
+        super().__init__(log=LogSetup(**log), sampler=sampler, **super_kwargs)
 
 
 class ValidateStage(EvalStage):
@@ -437,7 +447,7 @@ class TrainStage(Stage):
     ):
         super().__init__(setup=setup, **super_kwargs)
         self.max_num_epochs = max_num_epochs
-        self.log = LogSetup(**log)
+        self.log = TrainLogSetup(**log)
         self.criterion_setup = CriterionSetup(**criterion)
         self.optimizer_setup = OptimizerSetup(**optimizer)
         self.validate = ValidateStage(name="validate", setup=setup, train_stage=self, **validate)
