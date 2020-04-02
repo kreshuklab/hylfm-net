@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import typing
 from collections import OrderedDict
@@ -11,10 +13,12 @@ from ignite.engine import Engine
 from tifffile import imsave
 
 from lnet import settings
-from lnet.setup import Stage
-from lnet.setup.base import EvalStage, TrainStage
 from lnet.transforms import LightFieldFromChannel
 from lnet.utils.plotting import get_batch_figure
+
+if typing.TYPE_CHECKING:
+    from lnet.setup import Stage
+    from lnet.setup.base import EvalStage, TrainStage
 
 logger = logging.getLogger(__name__)
 

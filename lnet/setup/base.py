@@ -10,7 +10,7 @@ from enum import Enum
 from importlib import import_module
 from inspect import signature
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 import ignite
 import numpy
@@ -94,22 +94,25 @@ class ModelSetup:
 class LogSetup:
     def __init__(
         self,
-        backend: str,
+        *,
         log_scalars_period: Dict[str, Union[int, str]],
         log_images_period: Dict[str, Union[int, str]],
+        stage: Stage,
+        backend: str = "TensorBoadEvalLogger",
         **kwargs,
     ):
         self.log_scalars_period: Period = Period(**log_scalars_period)
         self.log_images_period: Period = Period(**log_images_period)
-        self.backend = getattr(lnet.log, backend)(**kwargs)
+        self.stage = stage
+        self.backend = getattr(lnet.log, backend)(stage=self.stage, **kwargs)
 
     def register_callbacks(self, engine: ignite.engine.Engine):
         pass
 
 
 class TrainLogSetup(LogSetup):
-    def __init__(self, save_n_checkpoints: int = 1, **super_kwargs):
-        super().__init__(**super_kwargs)
+    def __init__(self, save_n_checkpoints: int = 1, backend: str = "TensorBoadTrainLogger", **super_kwargs):
+        super().__init__(backend=backend, **super_kwargs)
         self.save_n_checkpoints = save_n_checkpoints
 
 
@@ -229,6 +232,9 @@ class Stage:
     epoch_length: Optional[int] = None
     seed: Optional[int] = None
 
+    log: LogSetup
+    log_class: Type[LogSetup]
+
     def __init__(
         self,
         *,
@@ -236,19 +242,20 @@ class Stage:
         data: List[Dict[str, Any]],
         sampler: Dict[str, Any],
         metrics: Dict[str, Any],
-        log: LogSetup,
+        log: Dict[str, Any],
         setup: Setup,
         outputs_to_save: Optional[Sequence[str]] = tuple(),
     ):
         self.name = name
         self.outputs_to_save = outputs_to_save
         self.metrics = metrics
-        self.log = log
         self._data_loader: Optional[torch.utils.data.DataLoader] = None
         self._engine: Optional[ignite.engine.Engine] = None
         self.setup = setup
         self.data: DataSetup = DataSetup([DatasetGroupSetup(**d, setup=setup) for d in data])
         self.sampler: SamplerSetup = SamplerSetup(**sampler, _data_setup=self.data)
+        self.log = self.log_class(stage=self, **log)
+
     @property
     def data_loader(self) -> torch.utils.data.DataLoader:
         if self._data_loader is None:
@@ -342,12 +349,14 @@ class Stage:
 
 class EvalStage(Stage):
     step_function = staticmethod(inference_step)
+    log: LogSetup
+    log_class = LogSetup
 
-    def __init__(self, *, log: Dict[str, Any], sampler: Dict[str, Any] = None, **super_kwargs):
+    def __init__(self, *, sampler: Dict[str, Any] = None, **super_kwargs):
         if sampler is None:
             sampler = {"base": "SequentialSampler", "drop_last": False}
 
-        super().__init__(log=LogSetup(**log), sampler=sampler, **super_kwargs)
+        super().__init__(sampler=sampler, **super_kwargs)
 
 
 class ValidateStage(EvalStage):
@@ -433,12 +442,13 @@ class OptimizerSetup:
 
 
 class TrainStage(Stage):
+    log: TrainLogSetup
+    log_class = TrainLogSetup
     step_function = staticmethod(training_step)
 
     def __init__(
         self,
         max_num_epochs: int,
-        log: Dict[str, Dict[str, Any]],
         validate: Dict[str, Any],
         criterion: Dict[str, Dict[str, Any]],
         optimizer: Dict[str, Dict[str, Any]],
@@ -447,7 +457,6 @@ class TrainStage(Stage):
     ):
         super().__init__(setup=setup, **super_kwargs)
         self.max_num_epochs = max_num_epochs
-        self.log = TrainLogSetup(**log)
         self.criterion_setup = CriterionSetup(**criterion)
         self.optimizer_setup = OptimizerSetup(**optimizer)
         self.validate = ValidateStage(name="validate", setup=setup, train_stage=self, **validate)
