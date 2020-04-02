@@ -72,10 +72,10 @@ stages:
           - {name: Normalize01, kwargs: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}}
           - {name: AdditiveGaussianNoise, kwargs: {apply_to: lf, sigma: 0.1}}
           - {name: AdditiveGaussianNoise, kwargs: {apply_to: ls, sigma: 0.05}}
-          - {name: RandomIntensityScale, kwargs: {factor_min: .8, factor_max: 1.2}}
-          - {name: RandomRotate90, kwargs: {}}
-          - {name: RandomlyFlipAxis, kwargs: {axis: -1}}
-          - {name: RandomlyFlipAxis, kwargs: {axis: -2}}
+          - {name: RandomIntensityScale, kwargs: {apply_to: [lf, ls], factor_min: .8, factor_max: 1.2}}  # todo: try indep. scaling
+          - {name: RandomRotate90, kwargs: {apply_to: [lf, ls]}}
+          - {name: RandomlyFlipAxis, kwargs: {apply_to: [lf, ls], axis: -1}}
+          - {name: RandomlyFlipAxis, kwargs: {apply_to: [lf, ls], axis: -2}}
           - {name: LightFieldFromChannel, kwargs: {apply_to: lf, nnum: *nnum}}
         datasets:
           fish2_20191209_dynamic.t0454c2: {indices: 30-31}

@@ -434,7 +434,7 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
             ]
         )
 
-    def __del__(self):
+    def shutdown(self):
         if self.futures:
             for fut in self.futures.values():
                 fut.cancel()
@@ -505,7 +505,7 @@ def collate_fn(samples: List[typing.OrderedDict[str, Any]]):
 
 
 class ConcatDataset(torch.utils.data.ConcatDataset):
-    def __init__(self, datasets: List[torch.utils.data.Dataset], transform: Optional[Callable] = None):
+    def __init__(self, datasets: List[N5ChunkAsSampleDataset], transform: Optional[Callable] = None):
         self.transform = transform
         super().__init__(datasets=datasets)
 
@@ -515,3 +515,8 @@ class ConcatDataset(torch.utils.data.ConcatDataset):
             sample = self.transform(sample)
 
         return sample
+
+    def shutdown(self):
+        for ds in self.datasets:
+            if hasattr(ds, "shutdown"):
+                ds.shutdown()

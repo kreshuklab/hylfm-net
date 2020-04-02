@@ -176,8 +176,7 @@ class DatasetSetup:
 class DataSetup:
     def __init__(self, dataset_groups: List[DatasetGroupSetup]):
         self.groups = dataset_groups
-        self._dataset = None
-        self._data_loader = None
+        self._dataset: Optional[ConcatDataset] = None
 
     @property
     def dataset(self) -> ConcatDataset:
@@ -189,6 +188,10 @@ class DataSetup:
     @property
     def batch_sizes(self) -> List[int]:
         return [group.batch_size for group in self.groups]
+
+    def shutdown(self):
+        if self._dataset is not None:
+            self._dataset.shutdown()
 
 
 @dataclass
@@ -270,6 +273,9 @@ class Stage:
             msecs,
         )
 
+    def shutdown(self):
+        self.data.shutdown()
+
     def setup_engine(self, engine: ignite.engine.Engine):
         engine.add_event_handler(ignite.engine.Events.STARTED, self.start_engine)
         engine.add_event_handler(ignite.engine.Events.COMPLETED, self.log_compute_time)
@@ -305,7 +311,7 @@ class Stage:
     def engine(self):
         if self._engine is None:
             self.log_path.mkdir(parents=True, exist_ok=False)
-            self._engine  = ignite.engine.Engine(self.step_function)
+            self._engine = ignite.engine.Engine(self.step_function)
             self.setup_engine(self._engine)
         return self._engine
 
@@ -479,6 +485,10 @@ class TrainStage(Stage):
         engine.state.criterion = self.criterion_setup.get_criterion(engine=engine)
         engine.state.criterion_name = self.criterion_setup.name
 
+    def shutdown(self):
+        self.validate.shutdown()
+        super().shutdown()
+
 
 class Setup:
     def __init__(
@@ -551,7 +561,9 @@ class Setup:
             log_sub_dir: List[str] = self.config_path.with_suffix("").resolve().as_posix().split("/experiment_configs/")
             assert len(log_sub_dir) == 2, log_sub_dir
             log_sub_dir: str = log_sub_dir[1]
-            self._log_path = Path(__file__).parent / "../../logs" / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
+            self._log_path = (
+                Path(__file__).parent / "../../logs" / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
+            )
             logger.info("log_path: %s", self._log_path)
             self._log_path.mkdir(parents=True, exist_ok=False)
             (self._log_path / "full_commit_hash.txt").write_text(commit_hash)
@@ -571,10 +583,16 @@ class Setup:
 
     def run(self) -> typing.List[typing.Set]:
         states = []
-        for parallel_stages in self.stages:
-            states.append(set())
-            for stage in parallel_stages:
-                logger.info("starting stage: %s", stage.name)
-                states[-1].add(stage.run())
+        try:
+            for parallel_stages in self.stages:
+                states.append(set())
+                for stage in parallel_stages:
+                    logger.info("starting stage: %s", stage.name)
+                    states[-1].add(stage.run())
+        finally:
+            self.shutdown()
 
         return states
+
+    def shutdown(self):
+        [stage.shutdown() for parallel_stages in self.stages for stage in parallel_stages]
