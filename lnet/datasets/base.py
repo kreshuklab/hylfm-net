@@ -31,10 +31,8 @@ from lnet.stat import DatasetStat
 
 logger = logging.getLogger(__name__)
 
-GKRESHUK = os.environ.get("GKRESHUK", "/g/kreshuk")
-GHUFNAGELLFLenseLeNet_Microscope = os.environ.get(
-    "GHUFNAGELLFLenseLeNet_Microscope", "/g/hufnagel/LF/LenseLeNet_Microscope"
-)
+GKRESHUK = settings.data_roots.GKRESHUK
+GHUFNAGELLFLenseLeNet_Microscope = settings.data_roots.GHUFNAGELLFLenseLeNet_Microscope
 
 
 class PathOfInterest:
