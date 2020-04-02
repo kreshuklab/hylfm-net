@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 import numpy
 
@@ -34,12 +34,12 @@ class Normalize01(Transform):
         self.max_percentile = max_percentile
         self.clip = clip
 
-    def apply_to_sample(self, sample, tensor_name: str, tensor_idx: int, batch_idx: int, meta: Optional[Dict]):
+    def apply_to_sample(self, sample, tensor_name: str, tensor_idx: int, batch_idx: int, meta: dict):
         percentiles2compute = [
             p for p, m in [(self.min_percentile, self.min), (self.max_percentile, self.max)] if m is None
         ]
         if percentiles2compute:
-            min_max = meta[batch_idx]["stat"].get_percentiles(name=tensor_name, percentiles=percentiles2compute)
+            min_max = meta["stat"].get_percentiles(name=tensor_name, percentiles=percentiles2compute)
         else:
             min_max = []
 
@@ -98,12 +98,10 @@ class NormalizeMeanStd(Transform):
         self.std = std
         self.epsilon = epsilon
 
-    def apply_to_sample(
-        self, sample, tensor_name: str, tensor_idx: int, batch_idx: int, meta: Optional[Dict[str, Any]]
-    ):
+    def apply_to_sample(self, sample, tensor_name: str, tensor_idx: int, batch_idx: int, meta: dict):
         if self.mean is None:
             assert self.std is None
-            mean, std = meta[batch_idx]["stat"].get_mean_std(name=tensor_name, percentile_range=self.percentile_range)
+            mean, std = meta["stat"].get_mean_std(name=tensor_name, percentile_range=self.percentile_range)
         else:
             assert self.std is not None
             mean, std = self.mean, self.std

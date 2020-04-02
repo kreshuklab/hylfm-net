@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy
 import torch
@@ -12,7 +12,7 @@ class AddConstant(Transform):
         super().__init__(**super_kwargs)
         self.value = value
 
-    def apply_to_tensor(self, tensor: numpy.ndarray, *, name: str, idx: int, meta: Optional[dict]):
+    def apply_to_tensor(self, tensor: numpy.ndarray, *, name: str, idx: int, meta: List[dict]):
         return tensor + self.value
 
 
@@ -24,7 +24,7 @@ class Cast(Transform, DTypeMapping):
         self.dtype = self.DTYPE_MAPPING[dtype]
         self.numpy_kwargs = numpy_kwargs
 
-    def apply_to_tensor(self, tensor: numpy.ndarray, *, name: str, idx: int, meta: Optional[dict]):
+    def apply_to_tensor(self, tensor: numpy.ndarray, *, name: str, idx: int, meta: List[dict]):
         if isinstance(tensor, numpy.ndarray):
             return tensor.astype(self.dtype, **self.numpy_kwargs)
         else:
@@ -37,7 +37,7 @@ class Clip(Transform):
         self.min_ = min_
         self.max_ = max_
 
-    def apply_to_tensor(self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: Optional[dict]):
+    def apply_to_tensor(self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: List[dict]):
         if isinstance(tensor, numpy.ndarray):
             return tensor.clip(self.min_, self.max_)
         elif isinstance(tensor, torch.Tensor):
@@ -47,7 +47,7 @@ class Clip(Transform):
 
 
 class Sigmoid(Transform):
-    def apply_to_tensor(self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: Optional[dict]):
+    def apply_to_tensor(self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: List[dict]):
         if isinstance(tensor, numpy.ndarray):
             return expit(tensor)
         elif isinstance(tensor, torch.Tensor):

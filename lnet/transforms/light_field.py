@@ -1,5 +1,3 @@
-from typing import Optional
-
 from lnet.transforms.base import Transform
 
 
@@ -8,7 +6,7 @@ class ChannelFromLightField(Transform):
         super().__init__(**super_kwargs)
         self.nnum = nnum
 
-    def apply_to_sample(self, sample, *, tensor_name: str, tensor_idx: int, batch_idx: int, meta: Optional[dict]):
+    def apply_to_sample(self, sample, *, tensor_name: str, tensor_idx: int, batch_idx: int, meta: dict):
         assert len(sample.shape) == 3
         c, x, y = sample.shape
         assert c == 1
@@ -26,7 +24,7 @@ class LightFieldFromChannel(Transform):
         super().__init__(**super_kwargs)
         self.nnum = nnum
 
-    def apply_to_sample(self, sample, *, tensor_name: str, tensor_idx: int, batch_idx: int, meta: Optional[dict]):
+    def apply_to_sample(self, sample, *, tensor_name: str, tensor_idx: int, batch_idx: int, meta: dict):
         assert len(sample.shape) == 3
         c, x, y = sample.shape
         assert c == self.nnum ** 2

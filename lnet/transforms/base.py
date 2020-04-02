@@ -1,6 +1,6 @@
 import typing
 from collections import OrderedDict
-from typing import Any, Dict, Optional, Sequence, Union, NewType
+from typing import Any, Optional, Sequence, Union
 
 import numpy
 import torch
@@ -37,35 +37,45 @@ class Transform:
                 raise ValueError(f"`apply_to` keys {cant_apply} not found in tensors {tensors}")
 
         initial_meta = tensors.get("meta", None)
-        meta = self.edit_meta_before(initial_meta)
-        if meta is not None:
-            tensors["meta"] = meta
-        elif initial_meta is not None:
-            tensors.pop("meta")
+        if initial_meta is None:
+            for t in tensors.values():
+                if isinstance(t, (list, numpy.ndarray)):
+                    batch_dim = len(t)
+                    break
+            else:
+                raise NotImplementedError(f"Could not determine batch dimension for batch {list(tensors.keys())}")
 
+            editable_meta = [{} for _ in range(batch_dim)]
+        else:
+            assert isinstance(initial_meta, list), type(initial_meta)
+            editable_meta = [{} if im is None else im for im in initial_meta]
+
+        meta = self.edit_meta_before(editable_meta)
+        assert isinstance(meta, list), type(meta)
+        tensors["meta"] = meta
         transformed = self.apply(tensors)
         assert isinstance(transformed, OrderedDict)
 
         return transformed
 
-    def edit_meta_before(self, meta: Optional[dict]) -> Optional[dict]:
+    def edit_meta_before(self, meta: typing.List[dict]) -> typing.List[dict]:
         return meta
 
     def apply(self, tensors: typing.OrderedDict[str, Any]) -> typing.OrderedDict[str, Any]:
         apply_to = tensors.keys() if self.apply_to is None else self.apply_to
         return OrderedDict(
             [
-                (n, self.apply_to_tensor(t, name=n, idx=i, meta=tensors.get("meta", None))) if n in apply_to else (n, t)
+                (n, self.apply_to_tensor(t, name=n, idx=i, meta=tensors["meta"])) if n in apply_to else (n, t)
                 for i, (n, t) in enumerate(tensors.items())
             ]
         )
 
-    def apply_to_tensor(self, tensor: Any, *, name: str, idx: int, meta: Optional[dict]):
+    def apply_to_tensor(self, tensor: Any, *, name: str, idx: int, meta: typing.List[dict]):
 
         if isinstance(tensor, numpy.ndarray):
             return numpy.stack(
                 [
-                    self.apply_to_sample(s, tensor_name=name, tensor_idx=idx, batch_idx=i, meta=meta)
+                    self.apply_to_sample(s, tensor_name=name, tensor_idx=idx, batch_idx=i, meta=meta[i])
                     for i, s in enumerate(tensor)
                 ]
             )
@@ -79,7 +89,7 @@ class Transform:
         tensor_name: str,
         tensor_idx: int,
         batch_idx: int,
-        meta: Optional[dict],
+        meta: dict,
     ):
         raise NotImplementedError
 

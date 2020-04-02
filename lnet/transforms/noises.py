@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 import numpy
 
@@ -27,9 +27,9 @@ class AdditiveGaussianNoise(Transform):
         self.percentile_range = percentile_range
         self.scale_factor = scale_factor
 
-    def apply_to_sample(self, sample, tensor_name: str, tensor_idx: int, batch_idx: int, meta: Optional[Dict]):
+    def apply_to_sample(self, sample, tensor_name: str, tensor_idx: int, batch_idx: int, meta: dict):
         if self.sigma is None:
-            mean, sigma = meta[batch_idx]["stat"].get_mean_std(name=tensor_name, percentile_range=self.percentile_range)
+            mean, sigma = meta["stat"].get_mean_std(name=tensor_name, percentile_range=self.percentile_range)
         else:
             sigma = self.sigma
 

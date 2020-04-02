@@ -1,4 +1,4 @@
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import numpy
 import torch
@@ -35,24 +35,29 @@ class RandomlyFlipAxis(Transform):
         super().__init__(**super_kwargs)
         self.axis = axis
 
-    def edit_meta_before(self, meta: Optional[dict]) -> Optional[dict]:
-        meta = meta or {}
+    def edit_meta_before(self, meta: List[dict]) -> List[dict]:
         key = self.meta_key_format.format(self.axis)
-        assert key not in meta
-        meta[key] = numpy.random.uniform() > 0.5
+        for m in meta:
+            assert key not in m, (key, m)
+            m[key] = numpy.random.uniform() > 0.5
+
         return meta
 
-    def apply_to_tensor(self, tensor: Any, *, name: str, idx: int, meta: Optional[dict]):
-        # additional check to avoid to randomly not raise
-        if not isinstance(tensor, (numpy.ndarray, torch.Tensor)):
-            raise NotImplementedError
-
+    def apply_to_sample(
+        self,
+        sample: Union[numpy.ndarray, torch.Tensor],
+        *,
+        tensor_name: str,
+        tensor_idx: int,
+        batch_idx: int,
+        meta: dict,
+    ):
         key = self.meta_key_format.format(self.axis)
         if meta[key]:
-            if isinstance(tensor, numpy.ndarray):
-                return numpy.flip(tensor, axis=self.axis)
-            elif isinstance(tensor, torch.Tensor):
-                return tensor.flip([self.axis])
+            if isinstance(sample, numpy.ndarray):
+                return numpy.flip(sample, axis=self.axis)
+            elif isinstance(sample, torch.Tensor):
+                return sample.flip([self.axis])
             else:
                 raise NotImplementedError
 
@@ -65,14 +70,23 @@ class RandomIntensityScale(Transform):
         self.factor_min = factor_min
         self.factor_max = factor_max
 
-    def edit_meta_before(self, meta: Optional[dict]) -> dict:
-        meta = meta or {}
-        assert self.meta_key not in meta, meta
-        meta[self.meta_key] = numpy.random.uniform(low=self.factor_min, high=self.factor_max)
+    def edit_meta_before(self, meta: List[dict]) -> List[dict]:
+        for m in meta:
+            assert self.meta_key not in m, m
+            m[self.meta_key] = numpy.random.uniform(low=self.factor_min, high=self.factor_max)
+
         return meta
 
-    def apply_to_tensor(self, tensor: Any, *, name: str, idx: int, meta: Optional[dict]):
-        return tensor * meta[self.meta_key]
+    def apply_to_sample(
+        self,
+        sample: Union[numpy.ndarray, torch.Tensor],
+        *,
+        tensor_name: str,
+        tensor_idx: int,
+        batch_idx: int,
+        meta: dict,
+    ):
+        return sample * meta[self.meta_key]
 
 
 class RandomRotate90(Transform):
@@ -83,10 +97,12 @@ class RandomRotate90(Transform):
         super().__init__(**super_kwargs)
         self.sample_axes = sample_axes
 
-    def edit_meta_before(self, meta: Optional[dict]) -> dict:
-        meta = meta or {}
-        assert self.meta_key not in meta, meta
-        meta[self.meta_key] = numpy.random.randint(4)
+    def edit_meta_before(self, meta: List[dict]) -> List[dict]:
+        value = numpy.random.randint(4)  # same for whole batch
+        for m in meta:
+            assert self.meta_key not in m, m
+            m[self.meta_key] = value
+
         return meta
 
     def apply_to_sample(
@@ -96,6 +112,6 @@ class RandomRotate90(Transform):
         tensor_name: str,
         tensor_idx: int,
         batch_idx: int,
-        meta: Optional[dict],
+        meta: dict,
     ):
         return numpy.rot90(sample, k=meta[self.meta_key], axes=self.sample_axes)
