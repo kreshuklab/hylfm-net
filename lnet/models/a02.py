@@ -11,6 +11,7 @@ from inferno.extensions.initializers import Constant, Initialization
 from lnet import registration
 from lnet.models.base import LnetModel
 from lnet.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
+from lnet.transforms import EdgeCrop
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +19,14 @@ logger = logging.getLogger(__name__)
 class A02(LnetModel):
     def __init__(
         self,
+        *,
         z_out: int,
         nnum: int,
         affine_transform_classes: Dict[str, str],
         interpolation_order: int,
+        input_name: str,
+        prediction_name: str,
+        target_name: str,
         grid_sampling_scale: Tuple[float, float, float] = (1.0, 1.0, 1.0),
         final_activation: Optional[str] = None,
         n_res2d: Sequence[int] = (976, 976, "u", 488, 488, "u", 244, 122),
@@ -125,8 +130,13 @@ class A02(LnetModel):
         else:
             self.final_activation = None
 
+        self.input_name = input_name
+        self.prediction_name = prediction_name
+        self.transform = EdgeCrop(apply_to=target_name, crop=self.get_shrinkage())
+
     def forward(self, tensors: typing.OrderedDict[str, Any]):
-        x = tensors["lf"]
+        tensors = self.transform(tensors)
+        x = tensors[self.input_name]
         in_shape = ",".join(str(s) for s in x.shape[1:])
         x = self.res2d(x)
         x = self.conv2d(x)
@@ -148,7 +158,7 @@ class A02(LnetModel):
         if self.final_activation is not None:
             x = self.final_activation(x)
 
-        tensors["pred"] = x
+        tensors[self.prediction_name] = x
         return tensors
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:

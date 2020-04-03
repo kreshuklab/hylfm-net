@@ -16,6 +16,9 @@ model:
     final_activation: null
     nnum: *nnum
     z_out: *z_out
+    input_name: &ipt lf
+    prediction_name: &pred pred
+    target_name: &tgt ls
 #  checkpoint: /g/kreshuk/beuttenm/repos/lnet/logs/fish/fdyn1_a02/20-02-21_08-54-55/models/v0_model_4.pth
 
 
@@ -24,22 +27,22 @@ stages:
     max_num_epochs: 1
 
     metrics: &metrics
-      MSSSIM: {tensor_names: {y_pred: pred, y: ls}, window_size: 11, size_average: true, val_range: null, normalize: false}
-      SSIM: {tensor_names: {y_pred: pred, y: ls}, window_size: 11, window: null, size_average: true, full: false, val_range: null}
-      NRMSE: {tensor_names: {y_pred: pred, y: ls}}
-      PSNR: {tensor_names: {y_pred: pred, y: ls}, data_range: null}
-      BeadPrecision: {tensor_names: {y_pred: pred, y: ls}, dist_threshold: 5.0}
+      MSSSIM: {tensor_names: {y_pred: *pred, y: *tgt}, window_size: 11, size_average: true, val_range: null, normalize: false}
+      SSIM: {tensor_names: {y_pred: *pred, y: *tgt}, window_size: 11, window: null, size_average: true, full: false, val_range: null}
+      NRMSE: {tensor_names: {y_pred: *pred, y: *tgt}}
+      PSNR: {tensor_names: {y_pred: *pred, y: *tgt}, data_range: null}
+      BeadPrecision: {tensor_names: {y_pred: *pred, y: *tgt}, dist_threshold: 5.0}
       BeadRecall: {}  # same as BeadPrecision
-      SmoothL1Loss: {tensor_names: {input: pred, target: ls}}
-      MSELoss: {tensor_names: {input: pred, target: ls}}
+      SmoothL1Loss: {tensor_names: {input: *pred, target: *tgt}}
+      MSELoss: {tensor_names: {input: *pred, target: *tgt}}
 
     log:
       save_n_checkpoints: 2
       log_scalars_period: {value: 1, unit: iteration}
       log_images_period: {value: 1, unit: epoch}
-      input: lf
-      prediction: pred
-      target: ls
+      input: *ipt
+      prediction: *pred
+      target: *tgt
       voxel_losses: []
 
     validate:
@@ -48,21 +51,21 @@ stages:
         log_scalars_period: {value: 1, unit: iteration}
         log_images_period: {value: 1, unit: epoch}
         input: lf
-        prediction: pred
-        target: ls
+        prediction: *pred
+        target: *tgt
         voxel_losses: []
 
       score_metric: -WeightedSmoothL1Loss
       period: {value: 1, unit: epoch}
       patience: 5
-      batch_transforms: &eval_batch_transforms [Cast: {apply_to: [ls, lf], dtype: *precision, device: cuda}]
+      batch_transforms: &eval_batch_transforms [Cast: {apply_to: [*ipt, *tgt], dtype: *precision, device: cuda}]
       data:
         - batch_size: &eval_batch_size 2
           interpolation_order: *interpolation_order
           sample_transforms: &eval_transforms
-            - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
-            - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
-            - ChannelFromLightField: {apply_to: lf, nnum: *nnum}
+            - Normalize01: {apply_to: *ipt, min_percentile: 5.0, max_percentile: 99.8}
+            - Normalize01: {apply_to: *tgt, min_percentile: 5.0, max_percentile: 99.99}
+            - ChannelFromLightField: {apply_to: *ipt, nnum: *nnum}
 
           datasets:
             fish2_20191209_dynamic.t0454c2: {indices: 10535-10537}
@@ -70,7 +73,7 @@ stages:
     criterion:
       name: WeightedSmoothL1Loss
       kwargs: {threshold: 0.8, initial_weight: .05, apply_below_threshold: true, decay_by: .8, every_nth_epoch: 1}
-      tensor_names: {input: pred, target: ls}
+      tensor_names: {input: *pred, target: *tgt}
 
     optimizer:
       name: Adam
@@ -81,21 +84,21 @@ stages:
       drop_last: false
 
     batch_transforms:
-      - RandomRotate90: {apply_to: [lf, ls]}
-      - ChannelFromLightField: {apply_to: lf, nnum: *nnum}
-      - Cast: {apply_to: [ls, lf], dtype: *precision, device: cuda}
+      - RandomRotate90: {apply_to: [*ipt, *tgt]}
+      - ChannelFromLightField: {apply_to: *ipt, nnum: *nnum}
+      - Cast: {apply_to: [*ipt, *tgt], dtype: *precision, device: cuda}
 
     data:
       - batch_size: 2
         interpolation_order: *interpolation_order
         sample_transforms:
-          - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
-          - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
-          - AdditiveGaussianNoise: {apply_to: lf, sigma: 0.1}
-          - AdditiveGaussianNoise: {apply_to: ls, sigma: 0.05}
-          - RandomIntensityScale: {apply_to: [lf, ls], factor_min: .8, factor_max: 1.2}  # todo: try indep. scaling
-          - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -1}
-          - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -2}
+          - Normalize01: {apply_to: *ipt, min_percentile: 5.0, max_percentile: 99.8}
+          - Normalize01: {apply_to: *tgt, min_percentile: 5.0, max_percentile: 99.99}
+          - AdditiveGaussianNoise: {apply_to: *ipt, sigma: 0.1}
+          - AdditiveGaussianNoise: {apply_to: *tgt, sigma: 0.05}
+          - RandomIntensityScale: {apply_to: [*ipt, *tgt], factor_min: .8, factor_max: 1.2}  # todo: try indep. scaling
+          - RandomlyFlipAxis: {apply_to: [*ipt, *tgt], axis: -1}
+          - RandomlyFlipAxis: {apply_to: [*ipt, *tgt], axis: -2}
 
         datasets:
           fish2_20191209_dynamic.t0454c2: {indices: 30-31}

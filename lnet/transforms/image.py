@@ -25,7 +25,7 @@ class EdgeCrop(Transform):
 
     def apply_to_tensor(self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: Optional[dict]):
         crop = self.crop_fn(tensor.shape[2:])
-        return tensor[(slice(None),) + tuple(slice(c, -c) for c in crop)]
+        return tensor[(slice(None), slice(None)) + tuple(slice(c, -c) for c in crop)]
 
 
 class RandomlyFlipAxis(Transform):

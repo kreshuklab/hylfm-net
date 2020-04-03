@@ -318,7 +318,9 @@ class Stage:
                         metric = metric_getter(initialized_metrics=initialized_metrics, kwargs=kwargs)
                     else:
                         postfix = kwargs.get("postfix", "-for-metric")
-                        criterion = lnet.criteria.CriterionWrapper(criterion_class=criterion_class, **kwargs)
+                        criterion = lnet.criteria.CriterionWrapper(
+                            criterion_class=criterion_class, postfix=postfix, **kwargs
+                        )
                         criterion.eval()
                         metric = ignite.metrics.Average(lambda tensors: tensors[criterion_class.__name__ + postfix])
             else:
