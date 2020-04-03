@@ -1,4 +1,4 @@
-precision: float
+precision: &precision float
 nnum: &nnum 19
 z_out: &z_out 49
 model:
@@ -55,13 +55,14 @@ stages:
       score_metric: -WeightedSmoothL1Loss
       period: {value: 1, unit: epoch}
       patience: 5
+      batch_transforms: &eval_batch_transforms [Cast: {apply_to: [ls, lf], dtype: *precision, device: cuda}]
       data:
         - batch_size: &eval_batch_size 2
           interpolation_order: *interpolation_order
-          transforms: &eval_transforms
-            - {name: Normalize01, kwargs: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}}
-            - {name: Normalize01, kwargs: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}}
-            - {name: ChannelFromLightField, kwargs: {apply_to: lf, nnum: *nnum}}
+          sample_transforms: &eval_transforms
+            - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+            - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
+            - ChannelFromLightField: {apply_to: lf, nnum: *nnum}
 
           datasets:
             fish2_20191209_dynamic.t0454c2: {indices: 10535-10537}
@@ -79,19 +80,23 @@ stages:
       base: RandomSampler
       drop_last: false
 
+    batch_transforms:
+      - RandomRotate90: {apply_to: [lf, ls]}
+      - ChannelFromLightField: {apply_to: lf, nnum: *nnum}
+      - Cast: {apply_to: [ls, lf], dtype: *precision, device: cuda}
+
     data:
       - batch_size: 2
         interpolation_order: *interpolation_order
-        transforms:
-          - {name: Normalize01, kwargs: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}}
-          - {name: Normalize01, kwargs: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}}
-          - {name: AdditiveGaussianNoise, kwargs: {apply_to: lf, sigma: 0.1}}
-          - {name: AdditiveGaussianNoise, kwargs: {apply_to: ls, sigma: 0.05}}
-          - {name: RandomIntensityScale, kwargs: {apply_to: [lf, ls], factor_min: .8, factor_max: 1.2}}  # todo: try indep. scaling
-          - {name: RandomRotate90, kwargs: {apply_to: [lf, ls]}}
-          - {name: RandomlyFlipAxis, kwargs: {apply_to: [lf, ls], axis: -1}}
-          - {name: RandomlyFlipAxis, kwargs: {apply_to: [lf, ls], axis: -2}}
-          - {name: ChannelFromLightField, kwargs: {apply_to: lf, nnum: *nnum}}
+        sample_transforms:
+          - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+          - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
+          - AdditiveGaussianNoise: {apply_to: lf, sigma: 0.1}
+          - AdditiveGaussianNoise: {apply_to: ls, sigma: 0.05}
+          - RandomIntensityScale: {apply_to: [lf, ls], factor_min: .8, factor_max: 1.2}  # todo: try indep. scaling
+          - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -1}
+          - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -2}
+
         datasets:
           fish2_20191209_dynamic.t0454c2: {indices: 30-31}
 
@@ -99,9 +104,10 @@ stages:
     metrics: *metrics
     log: *eval_log
     outputs_to_save: null
+    batch_transforms: *eval_batch_transforms
     data:
       - batch_size: *eval_batch_size
         interpolation_order: *interpolation_order
-        transforms: *eval_transforms
+        sample_transforms: *eval_transforms
         datasets:
           fish2_20191209_dynamic.t0454c2: {indices: 10750-10752}

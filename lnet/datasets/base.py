@@ -1,5 +1,4 @@
 import logging
-import os
 import threading
 import time
 import typing
@@ -483,25 +482,32 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
         return idx
 
 
-def collate_fn(samples: List[typing.OrderedDict[str, Any]]):
-    assert len(samples) > 0
-    batch = OrderedDict()
-    for b in zip(*[s.items() for s in samples]):
-        keys, values = zip(*b)
-        k0 = keys[0]
-        v0 = values[0]
-        assert all(k0 == k for k in keys[1:])
-        assert all(type(v0) is type(v) for v in values[1:])
-        if isinstance(v0, numpy.ndarray):
-            values = numpy.concatenate(values, axis=0)
-        elif isinstance(v0, torch.Tensor):
-            values = torch.cat(values, dim=0)
-        elif isinstance(v0, list):
-            assert all(len(v) == 1 for v in values)  # expect explicit batch dimension! (list of len 1 for all samples)
-            values = [vv for v in values for vv in v]
-        batch[k0] = values
+def get_collate_fn(batch_transform: Callable, dtype, device: torch.device):
+    def collate_fn(samples: List[typing.OrderedDict[str, Any]]):
+        assert len(samples) > 0
+        batch = OrderedDict()
+        for b in zip(*[s.items() for s in samples]):
+            tensor_names, tensor_batch = zip(*b)
+            name = tensor_names[0]
+            tensor0 = tensor_batch[0]
+            assert all(name == k for k in tensor_names[1:])
+            assert all(type(tensor0) is type(v) for v in tensor_batch[1:])
+            if isinstance(tensor0, numpy.ndarray):
+                tensor_batch = numpy.concatenate(tensor_batch, axis=0)
+            elif isinstance(tensor0, torch.Tensor):
+                raise NotImplementedError
+                tensor_batch = torch.cat(tensor_batch, dim=0)
+            elif isinstance(tensor0, list):
+                assert all(
+                    len(v) == 1 for v in tensor_batch
+                )  # expect explicit batch dimension! (list of len 1 for all samples)
+                tensor_batch = [vv for v in tensor_batch for vv in v]
 
-    return batch
+            batch[name] = tensor_batch
+
+        return batch_transform(batch)
+
+    return collate_fn
 
 
 class ConcatDataset(torch.utils.data.ConcatDataset):

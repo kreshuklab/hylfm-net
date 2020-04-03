@@ -17,7 +17,7 @@ class Settings:
     num_workers_train_data_loader: int = 0
     num_workers_validate_data_loader: int = 0
     num_workers_test_data_loader: int = 0
-    pin_memory: bool = True
+    pin_memory: bool = False
 
     max_workers_per_dataset = 8
     reserved_workers_per_dataset_for_getitem = 8

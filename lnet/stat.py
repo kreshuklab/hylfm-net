@@ -53,7 +53,7 @@ class DatasetStat:
         self.rlock = RLock()
         if path.exists():
             with path.open() as f:
-                loaded_data = yaml.load(f)
+                loaded_data = yaml.load(f, Loader=yaml.UnsafeLoader)
                 for as_default_dict in ["all_percentiles", "all_mean_std_by_percentile_range"]:
                     loaded_data[as_default_dict] = defaultdict(dict, loaded_data.pop(as_default_dict))
 

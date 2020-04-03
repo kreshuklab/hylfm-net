@@ -148,7 +148,8 @@ class A02(LnetModel):
         if self.final_activation is not None:
             x = self.final_activation(x)
 
-        return x
+        tensors["pred"] = x
+        return tensors
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
         s = max(1, 2 * sum(isinstance(res2d, str) and "u" in res2d for res2d in self.n_res2d)) * max(

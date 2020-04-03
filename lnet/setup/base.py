@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 import ignite
-import numpy
 import pbs3
 import torch.utils.data
 import yaml
@@ -26,7 +25,7 @@ import lnet.registration
 import lnet.transforms
 from lnet import settings
 from lnet.criteria import CriterionWrapper
-from lnet.datasets import ConcatDataset, N5ChunkAsSampleDataset, NamedDatasetInfo, collate_fn
+from lnet.datasets import ConcatDataset, N5ChunkAsSampleDataset, NamedDatasetInfo, get_collate_fn
 from lnet.metrics import get_output_transform
 from lnet.models import LnetModel
 from lnet.step import inference_step, training_step
@@ -122,7 +121,7 @@ class DatasetGroupSetup:
         batch_size: int,
         interpolation_order: int,
         datasets: Dict[str, Dict[str, Any]],
-        transforms: List[Dict[str, Any]],
+        sample_transforms: List[Dict[str, Dict[str, Any]]],
         setup: Setup,
         ls_affine_transform_class: Optional[str] = None,
     ):
@@ -133,12 +132,11 @@ class DatasetGroupSetup:
         self.ls_affine_transform_class = (
             None if ls_affine_transform_class is None else getattr(lnet.registration, ls_affine_transform_class)
         )
-        self.transforms: List[Transform] = [
-            getattr(lnet.transforms, trf["name"])(**trf["kwargs"]) for trf in transforms
+        sample_transform_instances: List[Transform] = [
+            getattr(lnet.transforms, name)(**kwargs) for trf in sample_transforms for name, kwargs in trf.items()
         ]
-        batch_transform_start = numpy.argmax([trf.randomly_changes_shape for trf in self.transforms])
-        self.sample_transform = ComposedTransform(*self.transforms[:batch_transform_start])
-        self.batch_transform = ComposedTransform(*self.transforms[batch_transform_start:])
+        assert not any([trf.randomly_changes_shape for trf in sample_transform_instances])
+        self.sample_transform = ComposedTransform(*sample_transform_instances)
         self._dataset: Optional[ConcatDataset] = None
         self.datasets: Dict[str, DatasetSetup] = {
             name: DatasetSetup(**kwargs, _group_config=self, name=name) for name, kwargs in datasets.items()
@@ -161,7 +159,7 @@ class DatasetGroupSetup:
     def dataset(self) -> ConcatDataset:
         if self._dataset is None:
             self._dataset = ConcatDataset(
-                [self.get_individual_dataset(name) for name in self.datasets.keys()], transform=self.batch_transform
+                [self.get_individual_dataset(name) for name in self.datasets.keys()], transform=None
             )
         return self._dataset
 
@@ -172,12 +170,10 @@ class DatasetSetup:
     indices: Union[str, int]
     _group_config: InitVar[DatasetGroupSetup]
     interpolation_order: Optional[int] = None
-    transform: ComposedTransform = field(init=False)
     info: NamedDatasetInfo = field(init=False)
 
     def __post_init__(self, _group_config: DatasetGroupSetup):
         self.interpolation_order = None if self.interpolation_order is None else _group_config.interpolation_order
-        self.transform = _group_config.sample_transform
         info_module_name, info_name = self.name.split(".")
         info_module = import_module("." + info_module_name, "lnet.datasets")
         self.info = getattr(info_module, info_name)
@@ -243,6 +239,7 @@ class Stage:
         sampler: Dict[str, Any],
         metrics: Dict[str, Any],
         log: Dict[str, Any],
+        batch_transforms: List[Dict[str, Dict[str, Any]]],
         setup: Setup,
         outputs_to_save: Optional[Sequence[str]] = tuple(),
     ):
@@ -252,6 +249,10 @@ class Stage:
         self._data_loader: Optional[torch.utils.data.DataLoader] = None
         self._engine: Optional[ignite.engine.Engine] = None
         self.setup = setup
+        batch_transform_instances: List[Transform] = [
+            getattr(lnet.transforms, name)(**kwargs) for trf in batch_transforms for name, kwargs in trf.items()
+        ]
+        self.batch_transform = ComposedTransform(*batch_transform_instances)
         self.data: DataSetup = DataSetup([DatasetGroupSetup(**d, setup=setup) for d in data])
         self.sampler: SamplerSetup = SamplerSetup(**sampler, _data_setup=self.data)
         self.log = self.log_class(stage=self, **log)
@@ -262,7 +263,9 @@ class Stage:
             self._data_loader = torch.utils.data.DataLoader(
                 dataset=self.data.dataset,
                 batch_sampler=self.sampler.batch_sampler,
-                collate_fn=collate_fn,
+                collate_fn=get_collate_fn(
+                    batch_transform=self.batch_transform, dtype=self.setup.dtype, device=self.setup.device
+                ),
                 num_workers=settings.num_workers_train_data_loader,
                 pin_memory=settings.pin_memory,
             )

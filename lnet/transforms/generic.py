@@ -19,16 +19,27 @@ class AddConstant(Transform):
 class Cast(Transform, DTypeMapping):
     """Casts inputs to a specified datatype."""
 
-    def __init__(self, dtype="float32", numpy_kwargs: Optional[Dict[str, Any]] = None, **super_kwargs):
+    def __init__(
+        self, dtype="float32", device: str = "cpu", numpy_kwargs: Optional[Dict[str, Any]] = None, **super_kwargs
+    ):
         super().__init__(**super_kwargs)
         self.dtype = self.DTYPE_MAPPING[dtype]
+        assert device in ("cpu", "cuda"), device
+        self.device = device
         self.numpy_kwargs = numpy_kwargs
 
     def apply_to_tensor(self, tensor: numpy.ndarray, *, name: str, idx: int, meta: List[dict]):
-        if isinstance(tensor, numpy.ndarray):
-            return tensor.astype(self.dtype, **self.numpy_kwargs)
+        if isinstance(tensor, torch.Tensor):
+            return tensor.to(dtype=getattr(torch, self.dtype), device=torch.device(self.device))
+        elif isinstance(tensor, numpy.ndarray):
+            if self.device == "cuda":
+                return torch.from_numpy(tensor).to(dtype=getattr(torch, self.dtype), device=torch.device(self.device))
+            elif self.device == "cpu":
+                return tensor.astype(self.dtype, **self.numpy_kwargs)
+            else:
+                raise NotImplementedError(self.device)
         else:
-            raise NotImplementedError
+            raise NotImplementedError(type(tensor))
 
 
 class Clip(Transform):

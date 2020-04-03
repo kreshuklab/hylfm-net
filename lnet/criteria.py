@@ -22,7 +22,7 @@ class CriterionWrapper(torch.nn.Module):
         self, tensor_names: typing.Dict[str, str], criterion_class: torch.nn.Module, postfix: str = "", **kwargs
     ):
         super().__init__()
-        self.input_kargs = tensor_names
+        self.tensor_names = tensor_names
         self.criterion = criterion_class(**kwargs)
         self.postfix = postfix
 

@@ -51,7 +51,7 @@ class RandomlyFlipAxis(Transform):
         tensor_idx: int,
         batch_idx: int,
         meta: dict,
-    ):
+    ) -> Union[numpy.ndarray, torch.Tensor]:
         key = self.meta_key_format.format(self.axis)
         if meta[key]:
             if isinstance(sample, numpy.ndarray):
@@ -60,6 +60,8 @@ class RandomlyFlipAxis(Transform):
                 return sample.flip([self.axis])
             else:
                 raise NotImplementedError
+
+        return sample
 
 
 class RandomIntensityScale(Transform):

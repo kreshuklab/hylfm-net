@@ -24,12 +24,12 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
     else:
         optimizer = None
 
-    tensors = OrderedDict(
-        [
-            (name, (tensor.to(device=setup.device) if isinstance(tensor, torch.Tensor) else tensor))
-            for name, tensor in tensors.items()
-        ]
-    )
+    # tensors = OrderedDict(
+    #     [
+    #         (name, (tensor.to(device=setup.device) if isinstance(tensor, torch.Tensor) else tensor))
+    #         for name, tensor in tensors.items()
+    #     ]
+    # )
     tensors = model(tensors)
 
     tensors = engine.state.criterion(tensors)
