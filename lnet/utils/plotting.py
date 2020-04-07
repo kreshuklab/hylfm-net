@@ -1,5 +1,6 @@
-from typing import Sequence, List, Iterable
+from typing import Iterable, List, Sequence
 
+import matplotlib.pyplot as plt
 import numpy
 from matplotlib import patches
 from mpl_toolkits.axes_grid1 import make_axes_locatable

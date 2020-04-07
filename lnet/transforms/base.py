@@ -14,9 +14,13 @@ except ImportError:
 class Transform:
     randomly_changes_shape: bool = False
 
-    def __init__(self, apply_to: Optional[Union[str, int, Sequence[Union[str, int]]]] = None):
+    def __init__(self, apply_to: Optional[Union[str, Sequence[str], typing.Dict[str, str]]] = None):
+        self.io_mapping = {}
         if isinstance(apply_to, (int, str)):
             self.apply_to = [str(apply_to)]
+        elif isinstance(apply_to, dict):
+            self.apply_to = [str(at) for at in apply_to]
+            self.io_mapping = apply_to
         elif apply_to is None:
             self.apply_to = None
         else:
@@ -63,12 +67,12 @@ class Transform:
 
     def apply(self, tensors: typing.OrderedDict[str, Any]) -> typing.OrderedDict[str, Any]:
         apply_to = tensors.keys() if self.apply_to is None else self.apply_to
-        return OrderedDict(
-            [
-                (n, self.apply_to_tensor(t, name=n, idx=i, meta=tensors["meta"])) if n in apply_to else (n, t)
-                for i, (n, t) in enumerate(tensors.items())
-            ]
-        )
+        ret = OrderedDict(tensors)
+        for i, (n, t) in enumerate(tensors.items()):
+            if n in apply_to:
+                ret[self.io_mapping.get(n, n)] = self.apply_to_tensor(t, name=n, idx=i, meta=tensors["meta"])
+
+        return ret
 
     def apply_to_tensor(self, tensor: Any, *, name: str, idx: int, meta: typing.List[dict]):
 

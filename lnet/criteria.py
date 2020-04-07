@@ -19,27 +19,37 @@ SmoothL1Loss = torch.nn.SmoothL1Loss
 
 class CriterionWrapper(torch.nn.Module):
     def __init__(
-        self, tensor_names: typing.Dict[str, str], criterion_class: torch.nn.Module, postfix: str = "", **kwargs
+        self,
+        tensor_names: typing.Dict[str, str],
+        criterion_class: torch.nn.Module,
+        postfix: str = "",
+        output_scalar: bool = False,
+        **kwargs,
     ):
         super().__init__()
         self.tensor_names = tensor_names
         self.criterion = criterion_class(**kwargs)
         self.postfix = postfix
+        self.output_scalar = output_scalar
 
     def forward(self, tensors: typing.OrderedDict[str, typing.Any]):
         out = self.criterion.forward(**{name: tensors[tensor_name] for name, tensor_name in self.tensor_names.items()})
+        loss_name = self.criterion.__class__.__name__ + self.postfix
+        assert loss_name not in tensors
         if isinstance(out, OrderedDict):
-            assert self.criterion.__class__.__name__ in out
-            for loss_name, loss_value in out.items():
-                loss_name += self.postfix
-                assert loss_name not in tensors
-                tensors[loss_name] = loss_value
+            for returned_loss_name, loss_value in out.items():
+                returned_loss_name += self.postfix
+                assert returned_loss_name not in tensors
+                tensors[returned_loss_name] = loss_value
+
+            assert loss_name in tensors
         else:
-            loss_name = self.criterion.__class__.__name__ + self.postfix
-            assert loss_name not in tensors
             tensors[loss_name] = out
 
-        return tensors
+        if self.output_scalar:
+            return tensors[loss_name]
+        else:
+            return tensors
 
 
 class WeightedL1Loss(torch.nn.L1Loss):

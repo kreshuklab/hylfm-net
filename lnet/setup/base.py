@@ -25,9 +25,16 @@ import lnet.registration
 import lnet.transforms
 from lnet import settings
 from lnet.criteria import CriterionWrapper
-from lnet.datasets import ConcatDataset, N5ChunkAsSampleDataset, NamedDatasetInfo, get_collate_fn
+from lnet.datasets import (
+    ConcatDataset,
+    N5ChunkAsSampleDataset,
+    N5ChunkAsSampleDatasetSubset,
+    NamedDatasetInfo,
+    get_collate_fn,
+)
 from lnet.metrics import get_output_transform
 from lnet.models import LnetModel
+from lnet.setup._utils import indice_string_to_list
 from lnet.step import inference_step, training_step
 from lnet.transforms.base import ComposedTransform, Transform
 from lnet.utils.batch_sampler import NoCrossBatchSampler
@@ -97,20 +104,36 @@ class LogSetup:
         log_scalars_period: Dict[str, Union[int, str]],
         log_images_period: Dict[str, Union[int, str]],
         stage: Stage,
-        backend: str = "TensorBoadEvalLogger",
+        backend: str = "MultiEvalLogger",
         **kwargs,
     ):
         self.log_scalars_period: Period = Period(**log_scalars_period)
         self.log_images_period: Period = Period(**log_images_period)
         self.stage = stage
-        self.backend = getattr(lnet.log, backend)(stage=self.stage, **kwargs)
+        self.backend: lnet.log.BaseLogger = getattr(lnet.log, backend)(stage=self.stage, **kwargs)
 
     def register_callbacks(self, engine: ignite.engine.Engine):
-        pass
+        if self.log_scalars_period.unit == PeriodUnit.epoch:
+            log_scalars_event = ignite.engine.Events.EPOCH_COMPLETED
+        elif self.log_scalars_period.unit == PeriodUnit.iteration:
+            log_scalars_event = ignite.engine.Events.ITERATION_COMPLETED
+        else:
+            raise NotImplementedError
+
+        engine.add_event_handler(log_scalars_event(every=self.log_scalars_period.value), self.backend.log_scalars)
+
+        if self.log_images_period.unit == PeriodUnit.epoch:
+            log_images_event = ignite.engine.Events.EPOCH_COMPLETED
+        elif self.log_images_period.unit == PeriodUnit.iteration:
+            log_images_event = ignite.engine.Events.ITERATION_COMPLETED
+        else:
+            raise NotImplementedError
+
+        engine.add_event_handler(log_images_event(every=self.log_images_period.value), self.backend.log_images)
 
 
 class TrainLogSetup(LogSetup):
-    def __init__(self, save_n_checkpoints: int = 1, backend: str = "TensorBoadTrainLogger", **super_kwargs):
+    def __init__(self, save_n_checkpoints: int = 1, backend: str = "MultiTrainLogger", **super_kwargs):
         super().__init__(backend=backend, **super_kwargs)
         self.save_n_checkpoints = save_n_checkpoints
 
@@ -144,7 +167,7 @@ class DatasetGroupSetup:
 
     def get_individual_dataset(self, name: str) -> N5ChunkAsSampleDataset:
         config = self.datasets[name]
-        return N5ChunkAsSampleDataset(
+        full_ds = N5ChunkAsSampleDataset(
             info=config.info,
             nnum=self.setup.nnum,
             z_out=self.setup.z_out,
@@ -154,6 +177,10 @@ class DatasetGroupSetup:
             transform=self.sample_transform,
             ls_affine_transform_class=self.ls_affine_transform_class,
         )
+        if config.indices is None:
+            return full_ds
+        else:
+            return N5ChunkAsSampleDatasetSubset(full_ds, config.indices)
 
     @property
     def dataset(self) -> ConcatDataset:
@@ -167,7 +194,7 @@ class DatasetGroupSetup:
 @dataclass
 class DatasetSetup:
     name: str
-    indices: Union[str, int]
+    indices: List[int]  # input: Union[str, int, List[int]]
     _group_config: InitVar[DatasetGroupSetup]
     interpolation_order: Optional[int] = None
     info: NamedDatasetInfo = field(init=False)
@@ -177,6 +204,10 @@ class DatasetSetup:
         info_module_name, info_name = self.name.split(".")
         info_module = import_module("." + info_module_name, "lnet.datasets")
         self.info = getattr(info_module, info_name)
+        if isinstance(self.indices, str):
+            self.indices = indice_string_to_list(self.indices)
+        elif isinstance(self.indices, int):
+            self.indices = [self.indices]
 
 
 class DataSetup:
@@ -198,6 +229,10 @@ class DataSetup:
     def shutdown(self):
         if self._dataset is not None:
             self._dataset.shutdown()
+            self._dataset = None
+
+    def __len__(self):
+        return len(self.dataset)
 
 
 @dataclass
@@ -225,9 +260,7 @@ class SamplerSetup:
 class Stage:
     step_function: Callable[[ignite.engine.Engine, typing.OrderedDict[str, Any]], typing.OrderedDict[str, Any]]
     max_epochs: int = 1
-    epoch_length: Optional[int] = None
     seed: Optional[int] = None
-
     log: LogSetup
     log_class: Type[LogSetup]
 
@@ -237,7 +270,7 @@ class Stage:
         name: str,
         data: List[Dict[str, Any]],
         sampler: Dict[str, Any],
-        metrics: Dict[str, Any],
+        metrics: Dict[str, Dict[str, Any]],
         log: Dict[str, Any],
         batch_transforms: List[Dict[str, Dict[str, Any]]],
         setup: Setup,
@@ -248,6 +281,7 @@ class Stage:
         self.metrics = metrics
         self._data_loader: Optional[torch.utils.data.DataLoader] = None
         self._engine: Optional[ignite.engine.Engine] = None
+        self._epoch_length: Optional[int] = None
         self.setup = setup
         batch_transform_instances: List[Transform] = [
             getattr(lnet.transforms, name)(**kwargs) for trf in batch_transforms for name, kwargs in trf.items()
@@ -256,6 +290,13 @@ class Stage:
         self.data: DataSetup = DataSetup([DatasetGroupSetup(**d, setup=setup) for d in data])
         self.sampler: SamplerSetup = SamplerSetup(**sampler, _data_setup=self.data)
         self.log = self.log_class(stage=self, **log)
+
+    @property
+    def epoch_length(self):
+        if self._epoch_length is None:
+            self._epoch_length = len(self.data)
+
+        return self._epoch_length
 
     @property
     def data_loader(self) -> torch.utils.data.DataLoader:
@@ -291,21 +332,19 @@ class Stage:
             msecs,
         )
 
-    def shutdown(self):
-        self.data.shutdown()
-
     def setup_engine(self, engine: ignite.engine.Engine):
         engine.add_event_handler(ignite.engine.Events.STARTED, self.start_engine)
         engine.add_event_handler(ignite.engine.Events.COMPLETED, self.log_compute_time)
 
         initialized_metrics = {}
         for metric_name, kwargs in self.metrics.items():
+            kwargs = dict(kwargs)
             metric_class = getattr(lnet.metrics, metric_name, None)
             if metric_class is None:
                 if (
                     isinstance(self, TrainStage)
                     and metric_name == self.criterion_setup.name
-                    and kwargs == self.criterion_setup.kwargs
+                    and {k: v for k, v in kwargs.items() if k != "tensor_names"} == self.criterion_setup.kwargs
                 ):
                     metric = ignite.metrics.Average(output_transform=lambda out: out[metric_name])
                 else:
@@ -317,12 +356,13 @@ class Stage:
 
                         metric = metric_getter(initialized_metrics=initialized_metrics, kwargs=kwargs)
                     else:
-                        postfix = kwargs.get("postfix", "-for-metric")
-                        criterion = lnet.criteria.CriterionWrapper(
-                            criterion_class=criterion_class, postfix=postfix, **kwargs
-                        )
+                        postfix = kwargs.pop("postfix", "-as-metric")
+                        metric_name += postfix
+                        tensor_names = kwargs.pop("tensor_names")
+                        criterion = criterion_class(**kwargs)
                         criterion.eval()
-                        metric = ignite.metrics.Average(lambda tensors: tensors[criterion_class.__name__ + postfix])
+                        arg_names = [tensor_names[an] for an in ("y_pred", "y", "kwargs") if an in tensor_names]
+                        metric = ignite.metrics.Loss(criterion, lambda tensors: [tensors[an] for an in arg_names])
             else:
                 try:
                     metric = metric_class(output_transform=get_output_transform(kwargs.pop("tensor_names")), **kwargs)
@@ -330,7 +370,12 @@ class Stage:
                     logger.error("Cannot init %s", metric_name)
                     raise
 
-            metric.attach(engine, metric.__name__)
+            metric.attach(engine, metric_name)
+
+            # def shutdown_data_setup(engine: ignite.engine.Engine, data_setup: DataSetup = self.data):
+            #     data_setup.shutdown()
+            #
+            # self._engine.add_event_handler(ignite.engine.Events.COMPLETED, shutdown_data_setup)
 
     @property
     def engine(self):
@@ -351,6 +396,8 @@ class Stage:
             data=self.data_loader, max_epochs=self.max_epochs, epoch_length=self.epoch_length, seed=self.seed
         )
 
+    def shutdown(self):
+        self.data.shutdown()
 
 class EvalStage(Stage):
     step_function = staticmethod(inference_step)
@@ -379,31 +426,9 @@ class ValidateStage(EvalStage):
         self.period = Period(**period)
         self.patience = patience
         self.train_stage = train_stage
-        assert score_metric in metrics or score_metric[1:] == train_stage.criterion_setup.name
+        assert score_metric in metrics or score_metric.startswith("-") and score_metric[1:] in metrics
         self.negate_score_metric = score_metric.startswith("-")
         self.score_metric = score_metric[int(self.negate_score_metric) :]
-
-    # def attach_handlers(self, engine: ignite.engine.Engine):
-    #     super().attach_handlers(engine)
-    #     loss_name = self.train_stage.criterion_setup.name + "-running"
-    #     if self.score_metric[1:] == loss_name:
-    #
-    #         def score_function(e: ignite.engine.Engine):
-    #             return -e.state.output[loss_name]
-    #
-    #     else:
-    #
-    #         def score_function(e: ignite.engine.Engine):
-    #             score = getattr(e.state, self.score_metric)
-    #             if self.negate_score_metric:
-    #                 score *= -1
-    #
-    #             return score
-    #
-    #     early_stopping = ignite.handlers.EarlyStopping(
-    #         patience=self.patience, score_function=score_function, trainer=self.train_stage.engine
-    #     )
-    #     engine.add_event_handler(ignite.engine.Events.COMPLETED, early_stopping)
 
 
 @dataclass
@@ -494,7 +519,10 @@ class TrainStage(Stage):
         @engine.on(event(every=self.validate.period.value))
         def validate(e: ignite.engine.Engine):
             validation_state = self.validate.run()
-            validation_score = getattr(validation_state, self.validate.score_metric)
+            validation_score = validation_state.metrics.get(self.validate.score_metric)
+            if self.validate.negate_score_metric:
+                validation_score *= -1
+
             e.state.validation_score = validation_score
             checkpointer(
                 e, {"model": e.state.model, "optimizer": e.state.optimizer, "criterion": e.state.criterion, "engine": e}

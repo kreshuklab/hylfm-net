@@ -53,7 +53,7 @@ def get_BeadPrecision(*, initialized_metrics: dict, kwargs: dict):
     class BeadPrecision(MetricsLambda):
         pass
 
-    return BeadPrecision(lambda p, r: p, initialized_metrics[BeadPrecisionRecall.__name__])
+    return BeadPrecision(lambda pr: pr[0], initialized_metrics[BeadPrecisionRecall.__name__])
 
 
 def get_BeadRecall(*, initialized_metrics: dict, kwargs: dict):
@@ -66,4 +66,4 @@ def get_BeadRecall(*, initialized_metrics: dict, kwargs: dict):
     class BeadRecall(MetricsLambda):
         pass
 
-    return BeadRecall(lambda p, r: r, initialized_metrics[BeadPrecisionRecall.__name__])
+    return BeadRecall(lambda pr: pr[1], initialized_metrics[BeadPrecisionRecall.__name__])

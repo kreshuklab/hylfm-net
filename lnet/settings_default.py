@@ -13,6 +13,7 @@ class Settings:
     experiment_configs_folder: str = "experiment_configs"
 
     data_roots: DataRoots = DataRoots()
+    wait_for_data: bool = False
 
     num_workers_train_data_loader: int = 0
     num_workers_validate_data_loader: int = 0
