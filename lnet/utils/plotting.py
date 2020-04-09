@@ -1,8 +1,9 @@
-from typing import Iterable, List, Sequence
+from typing import Dict, Iterable, Sequence
 
 import matplotlib.pyplot as plt
 import numpy
 from matplotlib import patches
+from matplotlib.backends.backend_agg import FigureCanvas
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from lnet.utils.turbo_colormap import turbo_colormap
@@ -34,45 +35,28 @@ class ColorSelection:
         return self.colors[item % len(self.colors)]
 
 
-def get_batch_figure(*, ipt_batch: numpy.ndarray, pred_batch: numpy.ndarray, tgt_batch: numpy.ndarray, voxel_losses: List[numpy.ndarray], boxes: Iterable[Box] = tuple()):
-    if len(tgt_batch.shape) == 1:
-        tgt_batch = [None] * ipt_batch.shape[0]
-    else:
-        assert ipt_batch.shape[0] == tgt_batch.shape[0], (ipt_batch.shape, tgt_batch.shape)
-        assert len(tgt_batch.shape) in (4, 5), tgt_batch.shape
-        assert tgt_batch.shape[1] == 1, tgt_batch.shape
+def get_batch_figure(*, tensors: Dict[str, numpy.ndarray], return_array: bool = False):
+    ncols = len(tensors)
+    nrows = tensors[list(tensors.keys())[0]].shape[0]
 
-    has_aux = False  # hasattr(output, "aux_tgt")
-    if has_aux:
-        raise NotImplementedError
-        # aux_tgt_batch = numpy.stack([yy.cpu().numpy() for yy in output.aux_tgt])
-        # aux_pred_batch = numpy.stack([yy.detach().cpu().numpy() for yy in output.aux_pred])
-        # assert ipt_batch.shape[0] == aux_tgt_batch.shape[0], (ipt_batch.shape, aux_tgt_batch.shape)
-        # assert len(aux_tgt_batch.shape) == 5, aux_tgt_batch.shape
-        # assert aux_tgt_batch.shape[1] == 1, aux_tgt_batch.shape
-    else:
-        aux_tgt_batch = None
-        aux_pred_batch = None
-
-    ncols = 5 + 2 * int(has_aux) + len(voxel_losses)
-
-    nrows = ipt_batch.shape[0]
     fig, ax = plt.subplots(ncols=ncols, nrows=nrows, squeeze=False, figsize=(ncols * 3, nrows * 3))
+    if return_array:
+        canvas = FigureCanvas(fig)
+    else:
+        canvas = None
 
-    def make_subplot(
-        ax_list, title: str, img, boxes: Iterable[Box] = tuple(), side_view=None, with_colorbar=True
-    ):
-        global col
-        ax = ax_list[col]
+    def make_subplot(ax, title: str, img, boxes: Iterable[Box] = tuple(), side_view=None, with_colorbar=True):
+        assert len(img.shape) == 2, img.shape
         if title:
             ax.set_title(title)
 
         if side_view is not None:
+            assert len(side_view.shape) == 2, img.shape
             img = numpy.concatenate(
                 [
                     img,
-                    numpy.full(shape=(img.shape[0], 1), fill_value=side_view.max()),
-                    numpy.repeat(side_view, 3, axis=1),
+                    numpy.full(shape=(img.shape[0], 5), fill_value=max(img.max(), side_view.max())),
+                    numpy.repeat(side_view, max(1, (img.shape[1] / side_view.shape[1]) // 3), axis=1),
                 ],
                 axis=1,
             )
@@ -93,59 +77,30 @@ def get_batch_figure(*, ipt_batch: numpy.ndarray, pred_batch: numpy.ndarray, tgt
             fig.colorbar(im, cax=cax)
             # ax.set_title(f"min-{img.min():.2f}-max-{img.max():.2f}")  # taking too much space!
 
-        col += 1
+    for c, (name, tensor) in enumerate(tensors.items()):
+        assert tensor.shape[0] == nrows, name
+        for r, t in enumerate(tensor):
+            t = numpy.squeeze(t)
+            if len(t.shape) == 2:
+                img = t
+                side_view = None
+            elif len(t.shape) == 3:
+                img = t.max(axis=0)
+                side_view = t.max(axis=2).T
+            else:
+                raise NotImplementedError(t.shape)
+                # side_view = vl.max(axis=0).max(axis=2).T
 
-    global col
-    for i, (ib, tb, pb) in enumerate(zip(ipt_batch, tgt_batch, pred_batch)):
-        if tb is not None and len(tb.shape) == 4:
-            assert tb.shape[0] == 1
-            tb = tb[0]
-
-        if len(pb.shape) == 4:
-            assert pb.shape[0] == 1
-            pb = pb[0]
-
-        col = 0
-        make_subplot(ax[i], "", ib[0])
-        make_subplot(ax[i], "prediction", pb.max(axis=0), boxes=boxes, side_view=pb.max(axis=2).T)
-        if tb is not None:
-            make_subplot(ax[i], "target", tb.max(axis=0), boxes=boxes, side_view=tb.max(axis=2).T)
-            tb_abs = numpy.abs(tb) + 0.1
-            pb_abs = numpy.abs(pb) + 0.1
-            rel_diff = numpy.max([tb_abs / pb_abs, pb_abs / tb_abs], axis=0)
-            abs_diff = numpy.abs(pb - tb)
-            make_subplot(ax[i], "rel diff", rel_diff.max(axis=0), side_view=rel_diff.max(axis=2).T)
-            make_subplot(ax[i], "abs_diff", abs_diff.max(axis=0), side_view=abs_diff.max(axis=2).T)
-
-    if has_aux:
-        col_so_far = col
-        for i, (atb, apb) in enumerate(zip(aux_tgt_batch, aux_pred_batch)):
-            if len(atb.shape) == 4:
-                assert atb.shape[0] == 1
-                atb = atb[0]
-
-            if len(apb.shape) == 4:
-                assert apb.shape[0] == 1
-                apb = apb[0]
-
-            col = col_so_far
-            make_subplot(ax[i], "aux tgt", atb.max(axis=0), boxes=boxes)
-            make_subplot(ax[i], "aux pred", apb.max(axis=0), boxes=boxes)
-
-    col_so_far = col
-    for loss_nr, vl_batch in enumerate(voxel_losses):
-        for i, vl in enumerate(vl_batch):
-            if len(vl.shape) ==  3:
-                vl = vl[None, ...]
-            col = col_so_far
-            make_subplot(
-                ax[i],
-                f"voxel loss {loss_nr}",
-                vl.max(axis=0).max(axis=0),
-                boxes=boxes,
-                side_view=vl.max(axis=0).max(axis=2).T,
-            )
+            make_subplot(ax[r, c], name, img, side_view=side_view)
 
     fig.subplots_adjust(hspace=0, wspace=0, bottom=0, top=1, left=0, right=1)
     fig.tight_layout()
-    return fig
+    if return_array:
+        # Force a draw so we can grab the pixel buffer
+        canvas.draw()
+        # grab the pixel buffer and dump it into a numpy array
+        fig_array = numpy.array(canvas.renderer.buffer_rgba())
+
+        return fig_array
+    else:
+        return fig

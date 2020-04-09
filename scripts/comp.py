@@ -60,9 +60,9 @@ if __name__ == "__main__":
         print("batch size", tm_config["eval"]["batch_size"])
 
         if prediction_only:
-            tm_config["eval"]["transforms"] = [
+            tm_config["eval"]["transformations"] = [
                 trf
-                for trf in tm_config["eval"]["transforms"]
+                for trf in tm_config["eval"]["transformations"]
                 if not isinstance(trf, dict) or trf.get("kwargs", {}).get("apply_to", 0) != 1
             ]
 

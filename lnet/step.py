@@ -1,21 +1,20 @@
 from __future__ import annotations
+
 import typing
-from collections import OrderedDict
 from time import perf_counter
 
 import ignite.engine
 import torch
 
 if typing.TYPE_CHECKING:
-    from lnet.setup import Setup
+    from lnet.setup.base import EvalStage, TrainStage
 
 
 def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.Any], train: bool):
     start = perf_counter()
 
-    setup: Setup = engine.state.stage.setup
-    model = setup.model
-
+    stage: typing.Union[EvalStage, TrainStage] = engine.state.stage
+    model: torch.nn.Module = engine.state.model
 
     model.train(train)
     if train:
@@ -34,7 +33,7 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
 
     if train:
         tensors = engine.state.criterion(tensors)
-        loss = tensors[engine.state.criterion_name]
+        loss = tensors[stage.criterion_setup.name]
         loss.backward()
         optimizer.step()
 

@@ -4,7 +4,7 @@ import numpy
 import torch
 from scipy.special import expit
 
-from lnet.transforms.base import DTypeMapping, Transform
+from lnet.transformations.base import DTypeMapping, Transform
 
 
 class AddConstant(Transform):
@@ -26,7 +26,7 @@ class Cast(Transform, DTypeMapping):
         self.dtype = self.DTYPE_MAPPING[dtype]
         assert device in ("cpu", "cuda"), device
         self.device = device
-        self.numpy_kwargs = numpy_kwargs
+        self.numpy_kwargs = numpy_kwargs or {}
 
     def apply_to_tensor(self, tensor: numpy.ndarray, *, name: str, idx: int, meta: List[dict]):
         if isinstance(tensor, torch.Tensor):

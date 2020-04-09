@@ -20,7 +20,7 @@ from lnet.engine import EvalEngine, TrainEngine, TunedEngine
 from lnet.metrics import BEAD_PRECISION_RECALL, LOSS_NAME
 from lnet.output import AuxOutput, Output
 from lnet.old_step_functions import inference_step, training_step
-from lnet.transforms.light_field import LightFieldFromChannel
+from lnet.transformations.light_field import LightFieldFromChannel
 from lnet.utils.plotting import Box, turbo_colormap_data
 
 

@@ -2,7 +2,7 @@ from typing import Optional, Tuple
 
 import numpy
 
-from lnet.transforms.base import Transform
+from lnet.transformations.base import Transform
 
 
 class Normalize01(Transform):
@@ -39,7 +39,7 @@ class Normalize01(Transform):
             p for p, m in [(self.min_percentile, self.min), (self.max_percentile, self.max)] if m is None
         ]
         if percentiles2compute:
-            min_max = meta["stat"].get_percentiles(name=tensor_name, percentiles=percentiles2compute)
+            min_max = meta[tensor_name]["stat"].get_percentiles(name=tensor_name, percentiles=percentiles2compute)
         else:
             min_max = []
 

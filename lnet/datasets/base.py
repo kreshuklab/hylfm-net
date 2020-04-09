@@ -1,24 +1,25 @@
 import logging
+import re
 import threading
-import time
 import typing
-import warnings
 from collections import OrderedDict
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
-from dataclasses import asdict
-from hashlib import sha224 as hash
+from hashlib import sha224 as hash_algorithm
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
+import h5py
 import numpy
 import torch.utils.data
+import yaml
 import z5py
+from imageio import imread
 from scipy.ndimage import zoom
-from tifffile import imread
 
+import lnet
 from lnet import settings
-from lnet.datasets.utils import get_image_paths, split_off_glob
+from lnet.datasets.utils import get_paths_and_numbers
 from lnet.registration import (
     BDVTransform,
     Heart_tightCrop_Transform,
@@ -28,6 +29,7 @@ from lnet.registration import (
     wholeFOV_Transform,
 )
 from lnet.stat import DatasetStat
+from lnet.transformations.base import ComposedTransform
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,27 @@ class PathOfInterest:
     def __init__(self, *points: Tuple[int, int, int, int], sigma: int = 1):
         self.points = points
         self.sigma = sigma
+
+
+class TensorInfo:
+    def __init__(
+        self,
+        name: str,
+        root: str,
+        location: str,
+        transforms: List[Dict[str, Any]],
+        meta: Optional[dict] = None,
+        **kwargs,
+    ):
+        assert isinstance(name, str)
+        self.name = name
+        self.transforms = transforms
+        self.meta: dict = meta or {}
+        self.kwargs = kwargs
+        self.description = yaml.safe_dump(
+            {"name": name, "root": root, "location": location, "transformations": transforms, "meta": meta, "kwargs": kwargs}
+        )
+        self.location: Path = getattr(settings.data_roots, root) / location
 
 
 class NamedDatasetInfo:
@@ -157,281 +180,186 @@ def resize(
         return zoom(arr, [sout / sin for sin, sout in zip(arr.shape, output_shape)], order=order)
 
 
-class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
-    paths: Tuple[List[str], ...]
-    z_out: Optional[int]
-
-    data_file: z5py.File
-
-    executor: Optional[ThreadPoolExecutor] = None
-
-    futures: Optional[Dict[int, Future]] = None
-    submit_lock = threading.Lock()
-
-    def __init__(
-        self,
-        *,
-        info: NamedDatasetInfo,
-        nnum: int,
-        z_out: int,
-        interpolation_order: int,
-        data_cache_path: Path,
-        get_model_scaling: Callable[[Tuple[int, int]], Tuple[float, float]],
-        transform: Optional[Callable] = None,
-        ls_affine_transform_class: Optional[BDVTransform] = None,
-    ):
-
-        assert data_cache_path.exists(), data_cache_path.absolute()
+class DatasetFromInfo(torch.utils.data.Dataset):
+    def __init__(self, *, info: TensorInfo):
         super().__init__()
-
+        self.tensor_name = info.name
         self.description = info.description
-        x_folder = info.x_path
-        y_folder = info.y_path
-        self.info = info
-
-        if "*" in str(x_folder):
-            x_folder, x_glob = split_off_glob(x_folder)
-            logger.info("split x_folder into %s and %s", x_folder, x_glob)
-        elif x_folder.exists():
-            x_glob = "*.tif"
-        else:
-            raise NotImplementedError
-
-        assert x_folder.exists(), x_folder.absolute()
-        x_img_name = next(x_folder.glob(x_glob)).as_posix()
-        if info.x_shape is None:
-            original_x_shape: Tuple[int, int] = imread(x_img_name)[info.x_roi].shape
-            logger.info("determined x shape of %s to be %s", x_img_name, original_x_shape)
-        else:
-            original_x_shape = info.x_shape
-
-        self.z_out = z_out
-        x_shape = (1,) + original_x_shape
-
-        if info.z_slices is None and info.dynamic_z_slice_mod is not None:
-            z_crop = info.DefaultAffineTransform.lf2ls_crop[0]
-            z_min = z_crop[1]
-            z_max = info.dynamic_z_slice_mod - z_crop[0] - 1
-            z_dim = info.dynamic_z_slice_mod - z_crop[1] - z_crop[0]
-        else:
-            z_crop = None
-            z_min = None
-            z_max = None
-            z_dim = None
-
-        self.z_dim = z_dim
-        self.z_min = z_min
-
-        if y_folder is None:
-            self.with_target = False
-            y_shape = None
-            y_glob = None
-        else:
-            self.with_target = True
-            if "*" in y_folder.as_posix():
-                y_folder, y_glob = split_off_glob(y_folder)
-                logger.info("split y_folder into %s and %s", y_folder, y_glob)
-            elif y_folder.exists():
-                y_glob = "*.tif"
-            else:
-                raise NotImplementedError
-
-            assert y_folder.exists(), y_folder.absolute()
-            try:
-                img_name = next(y_folder.glob(y_glob)).as_posix()
-            except StopIteration:
-                logger.error(y_folder.absolute())
-                raise
-
-            if info.y_shape is None:
-                original_y_shape = imread(img_name)[info.y_roi].shape
-                logger.info("determined y shape of %s to be %s", img_name, original_y_shape)
-                assert original_y_shape[1:] == original_x_shape, (original_y_shape[1:], original_x_shape)
-            elif info.z_slices is not None or info.dynamic_z_slice_mod is not None:
-                original_y_shape = info.y_shape[1:]
-            else:
-                original_y_shape = info.y_shape
-
-            model_scaling = get_model_scaling(original_x_shape)
-            scaling = (model_scaling[0] / nnum, model_scaling[1] / nnum)
-
-            y_dims_12 = tuple(int(oxs * sc) for oxs, sc in zip(original_x_shape, scaling))
-            if len(original_y_shape) == 2:
-                # dynamic z slices to original size
-                if info.y_shape is None:
-                    raise NotImplementedError
-                else:
-                    y_dim_0 = info.y_shape[0]
-
-                y_shape = y_dims_12
-            else:
-                y_dim_0 = self.z_out
-                y_shape = (y_dim_0,) + y_dims_12
-
-            if ls_affine_transform_class is not None:
-                assert info.y_shape is not None, "when working with transforms the output shape needs to be given"
-
-                self.ls_affine_transform = ls_affine_transform_class(
-                    order=interpolation_order, output_shape=(y_dim_0,) + y_dims_12
-                )
-            else:
-                self.ls_affine_transform = None
-
-            y_shape = (1,) + y_shape  # add channel dim
-
-        self.shapes = [x_shape]
-        if y_shape is not None:
-            self.shapes.append(y_shape)
-
-        self.interpolation_order = interpolation_order
-        for root in asdict(settings.data_roots).values():
-            if root in x_folder.parents:
-                x_folder_relative = x_folder.relative_to(root)
-                break
-        else:
-            raise NotImplementedError((x_folder, settings.data_roots))
-
-        for root in asdict(settings.data_roots).values():
-            if root in y_folder.parents:
-                y_folder_relative = y_folder.relative_to(root)
-                break
-        else:
-            raise NotImplementedError((y_folder, settings.data_roots))
-
-        shapestr = (
-            f"interpolation_order: {interpolation_order}\n"
-            f"x_roi: {info.x_roi}\ny_roi: {info.y_roi}\n"
-            f"x_shape: {x_shape}\ny_shape: {y_shape}\n"
-            f"x_folder: {x_folder_relative.as_posix()}\ny_folder: {y_folder_relative.as_posix()}"
+        self.transform = lnet.transformations.ComposedTransform(
+            *[getattr(lnet.transformations, name)(**kwargs) for trf in info.transforms for name, kwargs in trf.items()]
         )
-        if ls_affine_transform_class is not None:
-            shapestr += f"\nls_affine_transform: {ls_affine_transform_class.__name__}"
 
-        data_file_name = data_cache_path / f"{self.description}_{hash(shapestr.encode()).hexdigest()}.n5"
-        data_file_name.with_suffix(".txt").write_text(shapestr)
+    def update_meta(self, meta: dict) -> dict:
+        return meta
 
-        logger.info("data_file_name %s", data_file_name)
+    def shutdown(self):
+        pass
 
-        self.tmp_data_file_name = data_file_name.with_suffix(".tmp.n5")
-        self.part_data_file_name = data_file_name.with_suffix(".part.n5")
 
-        if self.tmp_data_file_name.exists():
-            existing_tmp_data_file_name = self.tmp_data_file_name
-            self.tmp_data_file_name = None
-            for attempt in range(100):
-                if existing_tmp_data_file_name.exists():
-                    warnings.warn(f"waiting for data (found {existing_tmp_data_file_name})")
-                    time.sleep(300)
-                else:
-                    self.tmp_data_file_name = existing_tmp_data_file_name
-                    break
-            else:
-                raise FileExistsError(self.tmp_data_file_name)
+class TiffDataset(DatasetFromInfo):
+    def __init__(self, *, info: TensorInfo):
+        given_kwargs = dict(info.kwargs)
+        info.kwargs = {
+            "in_batches_of": given_kwargs.pop("in_batches_of", 1),
+            "insert_singleton_axes_at": given_kwargs.pop("insert_singleton_axes_at", []),
+        }
+        assert not given_kwargs, given_kwargs
+        super().__init__(info=info)
+        paths, numbers = get_paths_and_numbers(info.location)
+        self.paths = paths
+        self.numbers = numbers
 
-        assert not self.tmp_data_file_name.exists()
+        self.in_batches_of: int = info.kwargs["in_batches_of"]
+        self.insert_singleton_axes_at: List[int] = info.kwargs["insert_singleton_axes_at"]
 
-        self.tensor_names = ["lf"]
-        if self.with_target:
-            self.tensor_names.append("ls")
+    def __len__(self):
+        return len(self.paths)
 
-        if data_file_name.exists():
-            self.tmp_data_file_name = None
-            self.data_file = z5py.File(path=data_file_name.as_posix(), mode="r", use_zarr_format=False)
-            self._len = self.data_file[self.tensor_names[0]].shape[0]
-            self.ready = lambda idx: True
+    def __getitem__(self, idx: int) -> typing.OrderedDict[str, Union[numpy.ndarray, list]]:
+        path_idx = idx // self.in_batches_of
+        idx %= self.in_batches_of
+        img_path = self.paths[path_idx]
+        img: numpy.ndarray = imread(img_path)
+        for axis in self.insert_singleton_axes_at:
+            img = numpy.expand_dims(img, axis=axis)
+
+        return self.transform(OrderedDict(**{self.tensor_name: img[idx : idx + 1]}))
+
+
+class H5Dataset(DatasetFromInfo):
+    @staticmethod
+    def get_ds_resolver(pattern: str, results_to: List[str]) -> Callable[[str], None]:
+        def ds_resolver(name: str):
+            if re.match(pattern, name):
+                results_to.append(name)
+
+        return ds_resolver
+
+    def __init__(self, *, info: TensorInfo):
+        given_kwargs = dict(info.kwargs)
+        info.kwargs = {
+            "in_batches_of": given_kwargs.pop("in_batches_of", 1),
+            "insert_singleton_axes_at": given_kwargs.pop("insert_singleton_axes_at", []),
+        }
+        assert not given_kwargs, given_kwargs
+        super().__init__(info=info)
+        h5_ext = ".h5"
+        assert h5_ext in info.location.as_posix(), info.location.as_posix()
+        file_path_glob, within_pattern = info.location.as_posix().split(h5_ext)
+        within_pattern = within_pattern.strip("/")
+        file_path_glob += h5_ext
+        paths, numbers = get_paths_and_numbers(Path(file_path_glob))
+        self.numbers = numbers
+        self.h5files = [h5py.File(p, mode="r") for p in paths]
+        self.within_paths = []
+        for hf in self.h5files:
+            root_group = hf["/"]
+            within = []
+            root_group.visit(self.get_ds_resolver(within_pattern, within))
+            self.within_paths.append(sorted(within))
+
+        assert all(self.within_paths), self.within_paths
+        self.in_batches_of: int = info.kwargs["in_batches_of"]
+        self.insert_singleton_axes_at: List[int] = info.kwargs["insert_singleton_axes_at"]
+        self._shutdown = False
+
+    def __len__(self):
+        return len(self.h5files)
+
+    def __getitem__(self, idx: int) -> typing.OrderedDict[str, Union[numpy.ndarray, list]]:
+        assert not self._shutdown
+        path_idx = idx // self.in_batches_of
+        idx %= self.in_batches_of
+        hf = self.h5files[path_idx]
+        withins = self.within_paths[path_idx]
+        h5ds = hf[withins[idx]]
+        img: numpy.ndarray = h5ds[:]
+        for axis in self.insert_singleton_axes_at:
+            img = numpy.expand_dims(img, axis=axis)
+
+        return self.transform(OrderedDict(**{self.tensor_name: img[idx : idx + 1]}))
+
+    def shutdown(self):
+        print("h5 shutdown!")
+        self._shutdown = True
+        [hf.close() for hf in self.h5files]
+
+
+def get_dataset_from_info(info: TensorInfo) -> DatasetFromInfo:
+    if str(info.location).endswith(".tif"):
+        return TiffDataset(info=info)
+    elif ".h5" in str(info.location):
+        return H5Dataset(info=info)
+    else:
+        raise NotImplementedError
+
+
+class N5CachedDataset(torch.utils.data.Dataset):
+    def __init__(self, dataset: DatasetFromInfo):
+        super().__init__()
+        self.dataset = dataset
+        data_cache_path = settings.data_roots.lnet / "data"
+        assert data_cache_path.exists(), data_cache_path.absolute()
+        description = dataset.description
+
+        data_file_path = data_cache_path / f"{hash_algorithm(description.encode()).hexdigest()}.n5"
+        data_file_path.with_suffix(".txt").write_text(description)
+
+        logger.info("cache %s to %s", dataset.tensor_name, data_file_path)
+        self.tensor_name = tensor_name = dataset.tensor_name
+
+        self.data_file = data_file = z5py.File(path=str(data_file_path), mode="a", use_zarr_format=False)
+        shape = data_file[tensor_name].shape if tensor_name in data_file else None
+
+        self.submit_lock = threading.Lock()
+        if shape is None:
+            self._len = _len = len(dataset)
+            sample = dataset[0]
+            tensor = sample[tensor_name]
+            tensor_shape = tuple(tensor.shape)
+            assert tensor_shape[0] == 1, tensor_shape  # expected explicit batch dimension
+            shape = (_len,) + tensor_shape[1:]
+            data_file.create_dataset(tensor_name, shape=shape, chunks=tensor_shape, dtype=tensor.dtype)
         else:
-            self.paths = get_image_paths(
-                x_folder,
-                x_glob,
-                y_folder,
-                y_glob,
-                z_crop=z_crop,
-                z_min=z_min,
-                z_max=z_max,
-                z_dim=z_dim,
-                dynamic_z_slice_mod=info.dynamic_z_slice_mod,
-            )
-            self._len = len(self.paths[0])
-            assert len(self) >= 1, "corrupt existing datasets file?"
-            logger.info("datasets length: %s  x shape: %s  y shape: %s", len(self), x_shape, y_shape)
+            self._len = _len = shape[0]
 
-            if self.part_data_file_name.exists():
-                self.part_data_file_name.rename(self.tmp_data_file_name)
+        self.futures = {}
+        self.executor = ThreadPoolExecutor(max_workers=settings.max_workers_per_dataset)
 
-            data_file = z5py.File(path=str(self.tmp_data_file_name), mode="a", use_zarr_format=False)
+        worker_nr = 0
+        self.nr_background_workers = (
+            settings.max_workers_per_dataset - settings.reserved_workers_per_dataset_for_getitem
+        )
+        idx = 0
+        while (
+            worker_nr < settings.max_workers_per_dataset - settings.reserved_workers_per_dataset_for_getitem
+            and idx < len(self)
+        ):
+            fut = self.submit(idx)
+            if isinstance(fut, Future):
+                fut.add_done_callback(self.background_worker_callback)
+                idx += 1
+                worker_nr += 1
+            else:
+                idx += 1
 
-            self.n5datasets = OrderedDict()
-
-            for idx, name in enumerate(self.tensor_names):
-                if name in data_file:
-                    self.n5datasets[name] = data_file[name]
-                else:
-                    self.n5datasets[name] = data_file.create_dataset(
-                        name, shape=(len(self),) + self.shapes[idx], chunks=(1,) + self.shapes[idx], dtype=numpy.float32
-                    )
-
-            self.futures = {}
-            self.executor = ThreadPoolExecutor(max_workers=settings.max_workers_per_dataset)
-
-            worker_nr = 0
-            self.nr_background_workers = (
-                settings.max_workers_per_dataset - settings.reserved_workers_per_dataset_for_getitem
-            )
-            idx = 0
-            while (
-                worker_nr < settings.max_workers_per_dataset - settings.reserved_workers_per_dataset_for_getitem
-                and idx < len(self)
-            ):
-                fut = self.submit(idx)
-                if isinstance(fut, Future):
-                    fut.add_done_callback(self.background_worker_callback)
-                    idx += 1
-                    worker_nr += 1
-                else:
-                    idx += 1
-
-        stat_path = Path(data_file_name.as_posix().replace(".n5", "_stat.yml"))
-
-        self.transform = transform
-        self.stat = DatasetStat(path=stat_path, dataset=self)
+        self.stat = DatasetStat(path=data_file_path.with_suffix(".stat.yml"), dataset=self)
 
     def __len__(self):
         return self._len
 
-    def get_wo_transform(self, idx: int) -> typing.OrderedDict[str, Union[numpy.ndarray, list]]:
+    def update_meta(self, meta: dict) -> dict:
+        meta = self.dataset.update_meta(meta)
+        tensor_meta = meta.get(self.tensor_name, {})
+        assert "stat" not in tensor_meta
+        tensor_meta["stat"] = self.stat
+        meta[self.tensor_name] = tensor_meta
+        return meta
+
+    def __getitem__(self, idx) -> typing.OrderedDict[str, numpy.ndarray]:
         idx = int(idx)
-        fut = self.submit(idx)
-        if isinstance(fut, Future):
-            fut = fut.result()
-
-        assert isinstance(fut, int) and fut == idx
-        sample = OrderedDict([(name, self.n5datasets[name][idx][None, ...]) for name in self.tensor_names])
-
-        if self.info.z_slices is not None:
-            neg_z_slice = self.info.z_slices[idx % len(self.info.z_slices)]
-        elif self.info.dynamic_z_slice_mod is not None:
-            neg_z_slice = self.z_min + (idx % self.z_dim) + 1
-        else:
-            neg_z_slice = None
-
-        z_slice = None if neg_z_slice is None else self.info.dynamic_z_slice_mod - neg_z_slice
-        sample["meta"] = [{"stat": self.stat, "idx": idx, "z_slice": z_slice}]
-
-        logger.debug("apply transform %s", self.transform)
-
-        return sample
-
-    def __getitem__(self, idx) -> typing.OrderedDict[str, Union[numpy.ndarray, list]]:
-        sample = self.get_wo_transform(idx)
-        if self.transform is not None:
-            sample = self.transform(sample)
-
-        return OrderedDict(
-            [
-                (key, numpy.ascontiguousarray(item)) if isinstance(item, numpy.ndarray) else (key, item)
-                for key, item in sample.items()
-            ]
-        )
+        self.submit(idx).result()
+        return OrderedDict(**{self.tensor_name: self.data_file[self.tensor_name][idx : idx + 1]})
 
     def shutdown(self):
         if self.futures:
@@ -441,8 +369,7 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
         if self.executor is not None:
             self.executor.shutdown()
 
-        if self.tmp_data_file_name is not None:
-            self.tmp_data_file_name.rename(self.part_data_file_name)
+        self.dataset.shutdown()
 
     def background_worker_callback(self, fut: Future):
         idx = fut.result()
@@ -453,8 +380,9 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
                 break
 
     def ready(self, idx: int) -> bool:
-        chunk_idx = tuple([idx] + [0] * (len(self.shapes[0]) - 1))
-        return self.n5datasets[self.tensor_names[0]].chunk_exists(chunk_idx)
+        n5ds = self.data_file[self.tensor_name]
+        chunk_idx = tuple([idx] + [0] * (len(n5ds.shape) - 1))
+        return n5ds.chunk_exists(chunk_idx)
 
     def submit(self, idx: int) -> Union[int, Future]:
         with self.submit_lock:
@@ -470,19 +398,53 @@ class N5ChunkAsSampleDataset(torch.utils.data.Dataset):
             return fut
 
     def process(self, idx: int) -> int:
-        for t, name in enumerate(self.tensor_names):
-            img = imread(self.paths[t][idx])[None, ...]
-            if name == "ls" and self.ls_affine_transform is not None:
-                img = self.ls_affine_transform(img)
-
-            img = resize(arr=img, output_shape=self.shapes[t], roi=self.info.rois[t], order=self.interpolation_order)
-            assert img.shape == self.shapes[t], (img.shape, self.shapes[t])
-            self.n5datasets[name][idx, ...] = img
+        self.data_file[self.tensor_name][idx, ...] = self.dataset[idx][self.tensor_name]
 
         return idx
 
 
-def get_collate_fn(batch_transform: Callable, dtype, device: torch.device):
+class N5CachedDatasetSubset(torch.utils.data.Subset):
+    dataset: N5CachedDataset
+
+    def shutdown(self):
+        self.dataset.shutdown()
+
+
+class ZipDataset(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        datasets: Dict[str, torch.utils.data.Dataset],
+        transform: Callable[[typing.OrderedDict], typing.OrderedDict] = lambda x: x,
+    ):
+        super().__init__()
+        datasets = OrderedDict(**datasets)
+        assert len(datasets) > 0
+        self._len = len(list(datasets.values())[0])
+        assert all(len(ds) == self._len for ds in datasets.values())
+        self.datasets = datasets
+        self.transform = transform
+
+    def __len__(self):
+        return self._len
+
+    def __getitem__(self, idx: int) -> typing.OrderedDict[str, Any]:
+        meta = {"idx": idx}
+        tensors = OrderedDict()
+        for name, ds in self.datasets.items():
+            if hasattr(ds, "update_meta"):
+                meta = ds.update_meta(meta)
+            tensors[name] = ds[idx][name]
+
+        tensors["meta"] = [meta]
+        return self.transform(tensors)
+
+    def shutdown(self):
+        for ds in self.datasets:
+            if hasattr(ds, "shutdown"):
+                ds.shutdown()
+
+
+def get_collate_fn(batch_transformation: Callable):
     def collate_fn(samples: List[typing.OrderedDict[str, Any]]):
         assert len(samples) > 0
         batch = OrderedDict()
@@ -493,25 +455,27 @@ def get_collate_fn(batch_transform: Callable, dtype, device: torch.device):
             assert all(name == k for k in tensor_names[1:])
             assert all(type(tensor0) is type(v) for v in tensor_batch[1:])
             if isinstance(tensor0, numpy.ndarray):
-                tensor_batch = numpy.concatenate(tensor_batch, axis=0)
+                tensor_batch = numpy.ascontiguousarray(numpy.concatenate(tensor_batch, axis=0))
             elif isinstance(tensor0, torch.Tensor):
                 raise NotImplementedError
-                tensor_batch = torch.cat(tensor_batch, dim=0)
+                # tensor_batch = torch.cat(tensor_batch, dim=0)
             elif isinstance(tensor0, list):
                 assert all(
                     len(v) == 1 for v in tensor_batch
                 )  # expect explicit batch dimension! (list of len 1 for all samples)
                 tensor_batch = [vv for v in tensor_batch for vv in v]
+            else:
+                raise NotImplementedError(type(tensor0))
 
             batch[name] = tensor_batch
 
-        return batch_transform(batch)
+        return batch_transformation(batch)
 
     return collate_fn
 
 
 class ConcatDataset(torch.utils.data.ConcatDataset):
-    def __init__(self, datasets: List[N5ChunkAsSampleDataset], transform: Optional[Callable] = None):
+    def __init__(self, datasets: List[torch.utils.data.ConcatDataset], transform: Optional[Callable] = None):
         self.transform = transform
         super().__init__(datasets=datasets)
 

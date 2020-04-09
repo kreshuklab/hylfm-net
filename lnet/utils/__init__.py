@@ -1,4 +1,16 @@
 from concurrent.futures import Future
+from enum import Enum
+
+
+class PeriodUnit(Enum):
+    epoch = "epoch"
+    iteration = "iteration"
+
+
+class Period:
+    def __init__(self, value: int, unit: str):
+        self.value = value
+        self.unit = PeriodUnit(unit)
 
 
 class DummyPool:

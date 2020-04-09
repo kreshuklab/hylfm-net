@@ -1,0 +1,127 @@
+precision: &precision float
+nnum: &nnum 19
+z_out: &z_out 49
+model:
+  name: Dummy
+  kwargs:
+#    affine_transform_classes:
+#      361,67,77: Heart_tightCrop_Transform
+#      361,77,67: Heart_tightCrop_Transform
+#      361,66,77: Heart_tightCrop_Transform
+#      361,77,66: Heart_tightCrop_Transform
+    interpolation_order: &interpol 2
+#    n_res2d: [16, 16, u, 8, 8]
+#    inplanes_3d: 4
+#    n_res3d: [[4, 2], [1]]
+#    final_activation: null
+#    nnum: *nnum
+#    z_out: *z_out
+#    input_name: lfc
+#    prediction_name: pred
+#    target_name: ls
+#  checkpoint: /g/kreshuk/beuttenm/repos/lnet/logs/fish/fdyn1_a02/20-02-21_08-54-55/models/v0_model_4.pth
+
+toolbox:
+  metrics: &metrics {}
+#    MSSSIM: {tensor_names: {y_pred: pred, y: ls}, window_size: 11, size_average: true, val_range: null, normalize: false}
+#    SSIM: {tensor_names: {y_pred: pred, y: ls}, window_size: 11, window: null, size_average: true, full: false, val_range: null}
+#    NRMSE: {tensor_names: {y_pred: pred, y: ls}}
+#    PSNR: {tensor_names: {y_pred: pred, y: ls}, data_range: null}
+#    BeadPrecision: {tensor_names: {y_pred: pred, y: ls}, dist_threshold: &beadPR 5.0}
+#    BeadRecall: {tensor_names: {y_pred: pred, y: ls}, dist_threshold: *beadPR}
+#    SmoothL1Loss: {tensor_names: {y_pred: pred, y: ls}}
+#    MSELoss: {tensor_names: {y_pred: pred, y: ls}}
+
+  eval_log: &eval_log
+    TqdmLogger:
+      scalars_every: {value: 1, unit: iteration}
+      tensors_every: {value: 1, unit: epoch}
+    TensorBoardLogger:
+        scalars_every: {value: 1, unit: iteration}
+        tensors_every: {value: 1, unit: epoch}
+    FileLogger:
+      scalars_every: {value: 1, unit: iteration}
+      tensors_every: {value: 1, unit: iteration}
+      tensor_names: {lr, ls}
+
+#    tensors: {lf: {}, lfn: {}, lfc: {}, pred: {}, ls: {}, lsn: {}}
+  eval_batch_transformations: &eval_batch_trfs [Cast: {apply_to: [lr, ls], dtype: *precision, device: cpu}]
+  eval_batch_size: &eval_batch_size 2
+  eval_sample_transforms: &eval_sample_transforms
+    - Normalize01: {apply_to: ls, min_percentile: 0, max_percentile: 100}
+    - Normalize01: {apply_to: lr, min_percentile: 0, max_percentile: 100}
+#    - Normalize01: {apply_to: {lf: lfn}, min_percentile: 5.0, max_percentile: 99.8}
+#    - Normalize01: {apply_to: {ls: lsn}, min_percentile: 5.0, max_percentile: 99.99}
+#    - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
+
+stages:
+#- train:
+#    max_num_epochs: 1
+#
+#    metrics: *metrics
+#
+#    log:
+#      save_n_checkpoints: 2
+#      log_scalars_period: {value: 1, unit: iteration}
+#      log_images_period: {value: 1, unit: epoch}
+#      tensors: [lf, pred, ls]
+#
+#
+#    criterion:
+#      name: WeightedSmoothL1Loss
+#      kwargs: {threshold: 0.8, initial_weight: .05, apply_below_threshold: true, decay_by: .8, every_nth_epoch: 1}
+#      tensor_names: {input: pred, target: ls}
+#
+#    optimizer:
+#      name: Adam
+#      kwargs: {lr: 4.0e-4, eps: 1.0e-8}
+#
+#    sampler:
+#      base: RandomSampler
+#      drop_last: false
+#
+#    batch_transformations:
+#      - RandomRotate90: {apply_to: [lf, ls]}
+#      - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
+#      - Cast: {apply_to: [lfc, ls], dtype: *precision, device: cuda}
+#
+#    data:
+#      - batch_size: 1
+#        interpolation_order: *interpol
+#        sample_transforms:
+#          - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+#          - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
+#          - AdditiveGaussianNoise: {apply_to: lf, sigma: 0.1}
+#          - AdditiveGaussianNoise: {apply_to: ls, sigma: 0.05}
+#          - RandomIntensityScale: {apply_to: [lf, ls], factor_min: .8, factor_max: 1.2}  # todo: try indep. scaling
+#          - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -1}
+#          - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -2}
+#
+#        datasets:
+#          - {tensors: {lf: gcamp.ref0_stacked_lf, ls: gcamp.ref0_stacked_ls_slices}, interpolation_order: *interpol, indices: 0}
+#
+#    validate:
+#      metrics: *metrics
+#      log: *eval_log
+#
+#      score_metric: -SmoothL1Loss
+#      period: {value: 1, unit: epoch}
+#      patience: 5
+#      batch_transformations: *eval_batch_trfs
+#      data:
+#        - batch_size: *eval_batch_size
+#          interpolation_order: *interpol
+#          sample_transforms: *eval_sample_transforms
+#          datasets:
+#            - {tensors: {lf: gcamp.ref0_stacked_lf, ls: gcamp.ref0_stacked_ls_slices}, interpolation_order: *interpol, indices: 0}
+- test:
+    metrics: *metrics
+    log: *eval_log
+    batch_transformations: *eval_batch_trfs
+    data:
+      - batch_size: *eval_batch_size
+        interpolation_order: *interpol
+        sample_transforms: *eval_sample_transforms
+        datasets:
+          - {tensors: {lr: gcamp.ref0_lr, ls: gcamp.ref0_ls}, interpolation_order: *interpol, indices: 0}
+#          - {tensors: {lf: gcamp.ref0_lf, lr: gcamp.ref0_lr, ls: gcamp.ref0_ls}, interpolation_order: *interpol, indices: 0}

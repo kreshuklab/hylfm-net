@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
+import time
 import typing
 from collections import OrderedDict
 from concurrent.futures.thread import ThreadPoolExecutor
+from pathlib import Path
 
 import numpy
 import torch
@@ -14,66 +16,57 @@ from tifffile import imsave
 from tqdm import tqdm
 
 from lnet import settings
-from lnet.transforms import LightFieldFromChannel
+from lnet.utils import PeriodUnit, Period
 from lnet.utils.plotting import get_batch_figure
 
 if typing.TYPE_CHECKING:
     from lnet.setup import Stage
-    from lnet.setup.base import EvalStage, TrainStage
 
 logger = logging.getLogger(__name__)
 
 
-def save_output(engine: Engine):
-    tensors: typing.OrderedDict[str, typing.Any] = engine.state.output
-    assert isinstance(tensors, OrderedDict)
-
-    stage: Stage = engine.state.stage
-    tensors_to_save = stage.outputs_to_save
-    if tensors_to_save is None:
-        tensors_to_save = list(tensors.keys())
-
-    def save_tensor(name: str, tensor: typing.Any, meta: dict):
-        save_to = stage.log_path / "output" / str(meta["idx"])
-        save_to.mkdir(parents=True, exist_ok=True)
-        if isinstance(tensor, torch.Tensor):
-            tensor = tensor.detach().cpu().numpy()
-
-        save_to = save_to / name
-        if isinstance(tensor, numpy.ndarray):
-            try:
-                imsave(str(save_to.with_suffix(".tif")), tensor, compress=2)
-            except Exception as e:
-                logger.error(e, exc_info=True)
-                imsave(str(save_to.with_suffix(".tif")), tensor, compress=2, bigtiff=True)
-
-        elif isinstance(tensor, dict):
-            with save_to.with_suffix(".yml").open("w") as f:
-                yaml.dump(tensor, f)
-        else:
-            raise NotImplementedError(type(tensor))
-
-    with ThreadPoolExecutor(max_workers=settings.max_workers_save_output) as executor:
-        for tensor_name in tensors_to_save:
-            for tensor, meta in zip(tensors[tensor_name], tensors["meta"]):
-                executor.submit(save_tensor, tensor_name, tensor, meta)
-
-
 class BaseLogger:
-    def __init__(self, *, stage: Stage, input: str, prediction: str, target: str, voxel_losses: typing.List[str]):
+    def __init__(self, *, stage: Stage, tensor_names: typing.Optional[typing.Set[str]]):
         self.stage = stage
-        self.input = input
-        self.prediction = prediction
-        self.target = target
-        self.voxel_losses = voxel_losses
-        self._writer = None
-        self.lightfield_from_channel = LightFieldFromChannel(nnum=stage.setup.nnum)
+        self.tensor_names = tensor_names
 
     def log_scalars(self, engine: Engine) -> None:
         pass
 
-    def log_images(self, engine: Engine) -> None:
+    def get_tensor_names(self, engine: Engine) -> typing.Set[str]:
+        if self.tensor_names is None:
+            tensors: typing.OrderedDict[str, typing.Any] = engine.state.output
+            assert isinstance(tensors, OrderedDict)
+            tensor_names = {tn for tn in tensors.keys() if tn != "meta"}
+        else:
+            tensor_names = self.tensor_names
+
+        return tensor_names
+
+    def log_tensors(self, engine: Engine) -> None:
         pass
+
+    def shutdown(self) -> None:
+        pass
+
+    def register_callbacks(self, engine: Engine, scalars_every: Period, tensors_every: Period) -> None:
+        if scalars_every.unit == PeriodUnit.epoch:
+            event = Events.EPOCH_COMPLETED
+        elif scalars_every.unit == PeriodUnit.iteration:
+            event = Events.ITERATION_COMPLETED
+        else:
+            raise NotImplementedError
+
+        engine.add_event_handler(event(every=scalars_every.value), self.log_scalars)
+
+        if tensors_every.unit == PeriodUnit.epoch:
+            event = Events.EPOCH_COMPLETED
+        elif tensors_every.unit == PeriodUnit.iteration:
+            event = Events.ITERATION_COMPLETED
+        else:
+            raise NotImplementedError
+
+        engine.add_event_handler(event(every=tensors_every.value), self.log_tensors)
 
 
 class TqdmLogger(BaseLogger):
@@ -84,9 +77,10 @@ class TqdmLogger(BaseLogger):
     @property
     def pbar(self):
         if self._pbar is None:
-            self._pbar = tqdm(
-                self.stage.epoch_length, dynamic_ncols=True, unit="epoch", unit_divisor=self.stage.epoch_length
-            )
+            self._pbar = tqdm(self.stage.epoch_length)
+            # self._pbar = tqdm(
+            #     self.stage.epoch_length, dynamic_ncols=True, unit="epoch", unit_divisor=self.stage.epoch_length
+            # )
             # assert len(self._pbar) == self.stage.epoch_length
             # if not self._is_registered:
             #     self._is_registered = True
@@ -108,11 +102,9 @@ class TqdmLogger(BaseLogger):
         self._last_it = it
         self.pbar.update(its_passed)
 
-
-# for i in range(10):
-#     sleep(0.1)
-#     pbar.update(10)
-# pbar.close()
+    def shutdown(self) -> None:
+        self.pbar.close()
+        super().shutdown()
 
 
 class FileLogger(BaseLogger):
@@ -124,8 +116,40 @@ class FileLogger(BaseLogger):
     def log_scalars(self, engine: Engine):
         [self._log_metric(engine, name) for name in engine.state.metrics]
 
+    def log_tensors(self, engine: Engine):
+        tensor_names = self.get_tensor_names(engine)
+        tensors: typing.OrderedDict[str, typing.Any] = engine.state.output
 
-class TensorBoadLogger(BaseLogger):
+        with ThreadPoolExecutor(max_workers=settings.max_workers_file_logger) as executor:
+            for tn in tensor_names:
+                for tensor, meta in zip(tensors[tn], tensors["meta"]):
+                    executor.submit(self._save_tensor, tn, tensor, meta, self.stage.log_path)
+
+    @staticmethod
+    def _save_tensor(name: str, tensor: typing.Any, meta: dict, log_path: Path):
+        save_to = log_path / "output" / str(meta["idx"])
+        save_to.mkdir(parents=True, exist_ok=True)
+        if isinstance(tensor, torch.Tensor):
+            tensor = tensor.detach().cpu().numpy()
+
+        save_to = save_to / name
+        if isinstance(tensor, numpy.ndarray):
+            try:
+                imsave(str(save_to.with_suffix(".tif")), tensor, compress=2)
+            except Exception as e:
+                logger.error(e, exc_info=True)
+                imsave(str(save_to.with_suffix(".tif")), tensor, compress=2, bigtiff=True)
+
+        elif isinstance(tensor, dict):
+            with save_to.with_suffix(".yml").open("w") as f:
+                yaml.dump(tensor, f)
+        else:
+            raise NotImplementedError(type(tensor))
+
+
+class TensorBoardLogger(BaseLogger):
+    _writer = None
+
     @property
     def writer(self):
         if self._writer is None:
@@ -134,38 +158,34 @@ class TensorBoadLogger(BaseLogger):
         return self._writer
 
     def log_scalars(self, engine: Engine):
+        super().log_scalars(engine)
         iteration = engine.state.iteration
         for k, v in engine.state.metrics.items():
             self.writer.add_scalar(tag=f"{self.stage.name}/{k}", scalar_value=v, global_step=iteration)
 
-    def log_images(self, engine: Engine):
+    def log_tensors(self, engine: Engine):
+        tensor_names = self.get_tensor_names(engine)
         iteration = engine.state.iteration
         output = engine.state.output
 
+        tensors = {
+            tn: output[tn].detach().cpu().numpy() if isinstance(output[tn], torch.Tensor) else output[tn]
+            for tn in tensor_names
+        }
 
-        ipt_batch = output[self.input]
-        if isinstance(ipt_batch, torch.Tensor):
-            ipt_batch = ipt_batch.cpu().numpy()
-
-        pred_batch = output[self.prediction].detach().cpu().numpy()
-        tgt_batch = output[self.target].cpu().numpy()
-        voxel_losses = [output[vl].detach().cpu().numpy() for vl in self.voxel_losses]
-
-        fig = get_batch_figure(
-            ipt_batch=ipt_batch, pred_batch=pred_batch, tgt_batch=tgt_batch, voxel_losses=voxel_losses
-        )
+        fig = get_batch_figure(tensors=tensors, return_array=False)
+        # fig_array = get_batch_figure(tensors=tensors, return_array=True)
 
         self.writer.add_figure(tag=f"{self.stage.name}/batch", figure=fig, global_step=iteration)
+        # self.writer.add_image(tag=f"{self.stage.name}/batch", img_tensor=fig_array, global_step=iteration, dataformats="HWC")
+        # self.writer.add_image(tag=f"{self.stage.name}/batch", img_tensor=fig_array[..., :3].astype("float") / 255, global_step=iteration, dataformats="HWC")
 
+    def shutdown(self):
+        if self._writer is not None:
+            time.sleep(0.1)  # make sure everything is written
+            self._writer.close()
 
-class TensorBoadEvalLogger(TensorBoadLogger):
-    def __init__(self, *, stage: EvalStage, **super_kwargs):
-        super().__init__(stage=stage, **super_kwargs)
-
-
-class TensorBoadTrainLogger(TensorBoadLogger):
-    def __init__(self, *, stage: TrainStage, **super_kwargs):
-        super().__init__(stage=stage, **super_kwargs)
+        super().shutdown()
 
 
 class MultiLogger(BaseLogger):
@@ -176,19 +196,8 @@ class MultiLogger(BaseLogger):
     def log_scalars(self, engine: Engine) -> None:
         [lgr.log_scalars(engine=engine) for lgr in self.loggers]
 
-    def log_images(self, engine: Engine) -> None:
-        [lgr.log_images(engine=engine) for lgr in self.loggers]
+    def log_tensors(self, engine: Engine) -> None:
+        [lgr.log_tensors(engine=engine) for lgr in self.loggers]
 
-
-class MultiEvalLogger(MultiLogger):
-    def __init__(self, **super_kwargs):
-        super().__init__(
-            loggers=[TqdmLogger.__name__, FileLogger.__name__, TensorBoadEvalLogger.__name__], **super_kwargs
-        )
-
-
-class MultiTrainLogger(MultiLogger):
-    def __init__(self, **super_kwargs):
-        super().__init__(
-            loggers=[TqdmLogger.__name__, FileLogger.__name__, TensorBoadTrainLogger.__name__], **super_kwargs
-        )
+    def shutdown(self) -> None:
+        [lgr.shutdown() for lgr in self.loggers]

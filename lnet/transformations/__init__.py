@@ -1,3 +1,5 @@
+from .affine import AffineTransformation
+from .base import ComposedTransform, TransformLike
 from .generic import Cast, Clip
 from .image import EdgeCrop, RandomIntensityScale, RandomRotate90, RandomlyFlipAxis
 from .light_field import ChannelFromLightField, LightFieldFromChannel

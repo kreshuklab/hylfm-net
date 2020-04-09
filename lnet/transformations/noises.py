@@ -2,7 +2,7 @@ from typing import Optional, Tuple
 
 import numpy
 
-from lnet.transforms.base import Transform
+from lnet.transformations.base import Transform
 
 
 class AdditiveGaussianNoise(Transform):

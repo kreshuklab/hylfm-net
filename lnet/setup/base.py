@@ -4,9 +4,8 @@ import logging
 import shutil
 import subprocess
 import typing
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
 from importlib import import_module
 from inspect import signature
 from pathlib import Path
@@ -22,51 +21,32 @@ import lnet.log
 import lnet.metrics
 import lnet.optimizers
 import lnet.registration
-import lnet.transforms
+import lnet.transformations
 from lnet import settings
 from lnet.criteria import CriterionWrapper
-from lnet.datasets import (
-    ConcatDataset,
-    N5ChunkAsSampleDataset,
-    N5ChunkAsSampleDatasetSubset,
-    NamedDatasetInfo,
-    get_collate_fn,
-)
+from lnet.datasets import ConcatDataset, N5CachedDataset, N5CachedDatasetSubset, get_collate_fn
+from lnet.datasets.base import ZipDataset, get_dataset_from_info
 from lnet.metrics import get_output_transform
 from lnet.models import LnetModel
 from lnet.setup._utils import indice_string_to_list
 from lnet.step import inference_step, training_step
-from lnet.transforms.base import ComposedTransform, Transform
+from lnet.transformations.base import ComposedTransform, Transform
+from lnet.utils import Period, PeriodUnit
 from lnet.utils.batch_sampler import NoCrossBatchSampler
 
 logger = logging.getLogger(__name__)
 
 
-class PeriodUnit(Enum):
-    epoch = "epoch"
-    iteration = "iteration"
-
-
-@dataclass
-class Period:
-    value: int
-    unit: str
-
-    def __post_init__(self):
-        self.unit: PeriodUnit = PeriodUnit(self.unit)
-
-
-@dataclass
 class ModelSetup:
-    name: str
-    kwargs: Dict[str, Any]
-    checkpoint: Optional[str] = None
-    partial_weights: bool = False
-
-    def __post_init__(self):
-        self.checkpoint: Optional[Path] = None if self.checkpoint is None else Path(self.checkpoint)
+    def __init__(
+        self, name: str, kwargs: Dict[str, Any], checkpoint: Optional[str] = None, partial_weights: bool = False
+    ):
+        self.name = name
+        self.kwargs = kwargs
+        self.checkpoint = None if checkpoint is None else Path(checkpoint)
         if self.checkpoint is not None:
             assert self.checkpoint.exists()
+        self.partial_weights = partial_weights
 
     def get_model(self, device: torch.device, dtype: torch.dtype) -> LnetModel:
         model_module = import_module("." + self.name.lower(), "lnet.models")
@@ -97,44 +77,42 @@ class ModelSetup:
         return model
 
 
-class LogSetup:
+class PerLoggerSetup:
     def __init__(
         self,
-        *,
-        log_scalars_period: Dict[str, Union[int, str]],
-        log_images_period: Dict[str, Union[int, str]],
+        name: str,
         stage: Stage,
-        backend: str = "MultiEvalLogger",
-        **kwargs,
+        scalars_every: Dict[str, Union[int, str]],
+        tensors_every: Dict[str, Union[int, str]],
+        tensor_names: Optional[typing.Set[str]] = None,
     ):
-        self.log_scalars_period: Period = Period(**log_scalars_period)
-        self.log_images_period: Period = Period(**log_images_period)
-        self.stage = stage
-        self.backend: lnet.log.BaseLogger = getattr(lnet.log, backend)(stage=self.stage, **kwargs)
+        self.backend: lnet.log.BaseLogger = getattr(lnet.log, name)(stage=stage, tensor_names=tensor_names)
+        self.scalars_every = Period(**scalars_every)
+        self.tensors_every = Period(**tensors_every)
 
     def register_callbacks(self, engine: ignite.engine.Engine):
-        if self.log_scalars_period.unit == PeriodUnit.epoch:
-            log_scalars_event = ignite.engine.Events.EPOCH_COMPLETED
-        elif self.log_scalars_period.unit == PeriodUnit.iteration:
-            log_scalars_event = ignite.engine.Events.ITERATION_COMPLETED
-        else:
-            raise NotImplementedError
+        self.backend.register_callbacks(
+            engine=engine, scalars_every=self.scalars_every, tensors_every=self.tensors_every
+        )
 
-        engine.add_event_handler(log_scalars_event(every=self.log_scalars_period.value), self.backend.log_scalars)
+    def shutdown(self):
+        self.backend.shutdown()
 
-        if self.log_images_period.unit == PeriodUnit.epoch:
-            log_images_event = ignite.engine.Events.EPOCH_COMPLETED
-        elif self.log_images_period.unit == PeriodUnit.iteration:
-            log_images_event = ignite.engine.Events.ITERATION_COMPLETED
-        else:
-            raise NotImplementedError
 
-        engine.add_event_handler(log_images_event(every=self.log_images_period.value), self.backend.log_images)
+class LogSetup:
+    def __init__(self, *, stage: Stage, **loggers: dict):
+        self.loggers = {name: PerLoggerSetup(name=name, stage=stage, **lgr) for name, lgr in loggers.items()}
+
+    def register_callbacks(self, engine: ignite.engine.Engine):
+        [lgr.register_callbacks(engine) for lgr in self.loggers.values()]
+
+    def shutdown(self):
+        [lgr.shutdown() for lgr in self.loggers.values()]
 
 
 class TrainLogSetup(LogSetup):
-    def __init__(self, save_n_checkpoints: int = 1, backend: str = "MultiTrainLogger", **super_kwargs):
-        super().__init__(backend=backend, **super_kwargs)
+    def __init__(self, save_n_checkpoints: int = 1, **super_kwargs):
+        super().__init__(**super_kwargs)
         self.save_n_checkpoints = save_n_checkpoints
 
 
@@ -143,71 +121,65 @@ class DatasetGroupSetup:
         self,
         batch_size: int,
         interpolation_order: int,
-        datasets: Dict[str, Dict[str, Any]],
+        datasets: List[Dict[str, Any]],
         sample_transforms: List[Dict[str, Dict[str, Any]]],
-        setup: Setup,
         ls_affine_transform_class: Optional[str] = None,
     ):
         self.batch_size = batch_size
         self.interpolation_order = interpolation_order
-        self.setup = setup
 
         self.ls_affine_transform_class = (
             None if ls_affine_transform_class is None else getattr(lnet.registration, ls_affine_transform_class)
         )
         sample_transform_instances: List[Transform] = [
-            getattr(lnet.transforms, name)(**kwargs) for trf in sample_transforms for name, kwargs in trf.items()
+            getattr(lnet.transformations, name)(**kwargs) for trf in sample_transforms for name, kwargs in trf.items()
         ]
         assert not any([trf.randomly_changes_shape for trf in sample_transform_instances])
         self.sample_transform = ComposedTransform(*sample_transform_instances)
         self._dataset: Optional[ConcatDataset] = None
-        self.datasets: Dict[str, DatasetSetup] = {
-            name: DatasetSetup(**kwargs, _group_config=self, name=name) for name, kwargs in datasets.items()
-        }
+        self.dataset_setups: List[DatasetSetup] = [DatasetSetup(**kwargs) for kwargs in datasets]
 
-    def get_individual_dataset(self, name: str) -> N5ChunkAsSampleDataset:
-        config = self.datasets[name]
-        full_ds = N5ChunkAsSampleDataset(
-            info=config.info,
-            nnum=self.setup.nnum,
-            z_out=self.setup.z_out,
-            interpolation_order=self.interpolation_order,
-            data_cache_path=self.setup.data_cache_path,
-            get_model_scaling=self.setup.model.get_scaling,
+    def get_individual_dataset(self, dss: DatasetSetup) -> torch.utils.data.Dataset:
+        ds = ZipDataset(
+            {name: N5CachedDataset(get_dataset_from_info(dsinfo)) for name, dsinfo in dss.infos.items()},
             transform=self.sample_transform,
-            ls_affine_transform_class=self.ls_affine_transform_class,
         )
-        if config.indices is None:
-            return full_ds
+
+        if dss.indices is None:
+            return ds
         else:
-            return N5ChunkAsSampleDatasetSubset(full_ds, config.indices)
+            return N5CachedDatasetSubset(ds, dss.indices)
 
     @property
     def dataset(self) -> ConcatDataset:
         if self._dataset is None:
             self._dataset = ConcatDataset(
-                [self.get_individual_dataset(name) for name in self.datasets.keys()], transform=None
+                [self.get_individual_dataset(dss) for dss in self.dataset_setups], transform=None
             )
         return self._dataset
 
 
-@dataclass
 class DatasetSetup:
-    name: str
-    indices: List[int]  # input: Union[str, int, List[int]]
-    _group_config: InitVar[DatasetGroupSetup]
-    interpolation_order: Optional[int] = None
-    info: NamedDatasetInfo = field(init=False)
+    def __init__(
+        self, *, tensors: Dict[str, str], interpolation_order: int, indices: Optional[Union[str, int, List[int]]] = None
+    ):
+        self.infos = {}
+        for name, info_name in tensors.items():
+            info_module_name, info_name = info_name.split(".")
+            info_module = import_module("." + info_module_name, "lnet.datasets")
+            self.infos[name] = getattr(info_module, info_name)
 
-    def __post_init__(self, _group_config: DatasetGroupSetup):
-        self.interpolation_order = None if self.interpolation_order is None else _group_config.interpolation_order
-        info_module_name, info_name = self.name.split(".")
-        info_module = import_module("." + info_module_name, "lnet.datasets")
-        self.info = getattr(info_module, info_name)
-        if isinstance(self.indices, str):
-            self.indices = indice_string_to_list(self.indices)
-        elif isinstance(self.indices, int):
-            self.indices = [self.indices]
+        if isinstance(indices, list):
+            assert all(isinstance(i, int) for i in indices)
+            self.indices = indices
+        elif isinstance(indices, int):
+            self.indices = [indices]
+        elif isinstance(indices, str):
+            self.indices = indice_string_to_list(indices)
+        else:
+            raise NotImplementedError(indices)
+
+        self.interpolation_order = interpolation_order
 
 
 class DataSetup:
@@ -272,22 +244,24 @@ class Stage:
         sampler: Dict[str, Any],
         metrics: Dict[str, Dict[str, Any]],
         log: Dict[str, Any],
-        batch_transforms: List[Dict[str, Dict[str, Any]]],
-        setup: Setup,
-        outputs_to_save: Optional[Sequence[str]] = tuple(),
+        batch_transformations: List[Dict[str, Dict[str, Any]]],
+        model: LnetModel,
+        log_path: Path,
+        tensors_to_save: Optional[Sequence[str]] = tuple(),
     ):
         self.name = name
-        self.outputs_to_save = outputs_to_save
+        self.tensors_to_save = tensors_to_save
         self.metrics = metrics
         self._data_loader: Optional[torch.utils.data.DataLoader] = None
         self._engine: Optional[ignite.engine.Engine] = None
         self._epoch_length: Optional[int] = None
-        self.setup = setup
-        batch_transform_instances: List[Transform] = [
-            getattr(lnet.transforms, name)(**kwargs) for trf in batch_transforms for name, kwargs in trf.items()
+        self.model = model
+        self.log_path = log_path / name
+        batch_transformation_instances: List[Transform] = [
+            getattr(lnet.transformations, name)(**kwargs) for trf in batch_transformations for name, kwargs in trf.items()
         ]
-        self.batch_transform = ComposedTransform(*batch_transform_instances)
-        self.data: DataSetup = DataSetup([DatasetGroupSetup(**d, setup=setup) for d in data])
+        self.batch_transformation = ComposedTransform(*batch_transformation_instances)
+        self.data: DataSetup = DataSetup([DatasetGroupSetup(**d) for d in data])
         self.sampler: SamplerSetup = SamplerSetup(**sampler, _data_setup=self.data)
         self.log = self.log_class(stage=self, **log)
 
@@ -304,9 +278,7 @@ class Stage:
             self._data_loader = torch.utils.data.DataLoader(
                 dataset=self.data.dataset,
                 batch_sampler=self.sampler.batch_sampler,
-                collate_fn=get_collate_fn(
-                    batch_transform=self.batch_transform, dtype=self.setup.dtype, device=self.setup.device
-                ),
+                collate_fn=get_collate_fn(batch_transformation=self.batch_transformation),
                 num_workers=settings.num_workers_train_data_loader,
                 pin_memory=settings.pin_memory,
             )
@@ -316,6 +288,7 @@ class Stage:
     def start_engine(self, engine: ignite.engine.Engine):
         engine.state.compute_time = 0.0
         engine.state.stage = self
+        engine.state.model = self.model
 
     def log_compute_time(self, engine: ignite.engine.Engine):
         mins, secs = divmod(engine.state.compute_time / max(1, engine.state.iteration), 60)
@@ -356,7 +329,7 @@ class Stage:
 
                         metric = metric_getter(initialized_metrics=initialized_metrics, kwargs=kwargs)
                     else:
-                        postfix = kwargs.pop("postfix", "-as-metric")
+                        postfix = kwargs.pop("postfix", "")
                         metric_name += postfix
                         tensor_names = kwargs.pop("tensor_names")
                         criterion = criterion_class(**kwargs)
@@ -387,17 +360,15 @@ class Stage:
 
         return self._engine
 
-    @property
-    def log_path(self) -> Path:
-        return self.setup.log_path / self.name
-
     def run(self):
         return self.engine.run(
             data=self.data_loader, max_epochs=self.max_epochs, epoch_length=self.epoch_length, seed=self.seed
         )
 
     def shutdown(self):
+        self.log.shutdown()
         self.data.shutdown()
+
 
 class EvalStage(Stage):
     step_function = staticmethod(inference_step)
@@ -437,9 +408,11 @@ class CriterionSetup:
     kwargs: Dict[str, Any]
     _class: Type[torch.nn.Module] = field(init=False)
     tensor_names: Dict[str, str]
+    postfix: str = ""
 
     def __post_init__(self):
         self._class = getattr(lnet.criteria, self.name)
+        self.name += self.postfix
         assert "engine" not in self.kwargs
         assert "tensor_names" not in self.kwargs
 
@@ -449,7 +422,9 @@ class CriterionSetup:
         if "engine" in sig.parameters:
             kwargs["engine"] = engine
 
-        return CriterionWrapper(tensor_names=self.tensor_names, criterion_class=self._class, **kwargs)
+        return CriterionWrapper(
+            tensor_names=self.tensor_names, criterion_class=self._class, postfix=self.postfix, **kwargs
+        )
 
 
 @dataclass
@@ -482,26 +457,20 @@ class TrainStage(Stage):
         validate: Dict[str, Any],
         criterion: Dict[str, Dict[str, Any]],
         optimizer: Dict[str, Dict[str, Any]],
-        setup: Setup,
+        model: Callable,
+        log_path: Path,
         **super_kwargs,
     ):
-        super().__init__(setup=setup, **super_kwargs)
+        super().__init__(log_path=log_path, model=model, **super_kwargs)
         self.max_num_epochs = max_num_epochs
         self.criterion_setup = CriterionSetup(**criterion)
         self.optimizer_setup = OptimizerSetup(**optimizer)
-        self.validate = ValidateStage(name="validate", setup=setup, train_stage=self, **validate)
+        self.validate = ValidateStage(name="validate", train_stage=self, model=model, log_path=log_path, **validate)
 
     def setup_engine(self, engine: ignite.engine.Engine):
         super().setup_engine(engine)
         running_loss = ignite.metrics.RunningAverage(output_transform=lambda out: out[self.criterion_setup.name])
         running_loss.attach(engine, f"{self.criterion_setup.name}-running")
-
-        if self.validate.period.unit == PeriodUnit.epoch:
-            event = ignite.engine.Events.EPOCH_COMPLETED
-        elif self.validate.period.unit == PeriodUnit.iteration:
-            event = ignite.engine.Events.ITERATION_COMPLETED
-        else:
-            raise NotImplementedError
 
         checkpointer = ignite.handlers.ModelCheckpoint(
             (self.log_path / "checkpoints").as_posix(),
@@ -515,6 +484,13 @@ class TrainStage(Stage):
         early_stopper = ignite.handlers.EarlyStopping(
             patience=self.validate.patience, score_function=lambda e: e.state.validation_score, trainer=self.engine
         )
+
+        if self.validate.period.unit == PeriodUnit.epoch:
+            event = ignite.engine.Events.EPOCH_COMPLETED
+        elif self.validate.period.unit == PeriodUnit.iteration:
+            event = ignite.engine.Events.ITERATION_COMPLETED
+        else:
+            raise NotImplementedError
 
         @engine.on(event(every=self.validate.period.value))
         def validate(e: ignite.engine.Engine):
@@ -534,7 +510,9 @@ class TrainStage(Stage):
             best_score, best_checkpoint = checkpointer._saved[-1]
             assert best_score == max([item.priority for item in checkpointer._saved])
             model: torch.nn.Module = e.state.model
-            model.load_state_dict(state_dict=torch.load(best_checkpoint["model"]))
+            model.load_state_dict(
+                state_dict=torch.load(Path(checkpointer.save_handler.dirname) / best_checkpoint)["model"]
+            )
 
     def start_engine(self, engine: ignite.engine.Engine):
         super().start_engine(engine)
@@ -560,15 +538,15 @@ class Setup:
         stages: List[Dict[str, Any]],
         data_cache_path: Optional[str] = None,
         log_path: Optional[str] = None,
+        toolbox: Optional[dict] = None,
     ):
         self.dtype: torch.dtype = getattr(torch, precision)
         assert isinstance(self.dtype, torch.dtype)
         self.nnum = nnum
         self.z_out = z_out
         self.config_path = config_path
-        self._data_cache_path = None if data_cache_path is None else Path(data_cache_path)
-        self._log_path = None if log_path is None else Path(log_path)
-        self._model: Optional[LnetModel] = None
+        self.data_cache_path = self.get_data_cache_path() if data_cache_path is None else Path(data_cache_path)
+        self.log_path = self.get_log_path() if log_path is None else Path(log_path)
         if isinstance(device, int) or "cuda" in device:
             cuda_device_count = torch.cuda.device_count()
             if cuda_device_count == 0:
@@ -577,13 +555,14 @@ class Setup:
                 raise RuntimeError("too many CUDA devices available! (limit to one)")
 
         self.device = torch.device(device)
-        self.model_config = ModelSetup(**model)
+        self.model_setup = ModelSetup(**model)
+        self.model: LnetModel = self.model_setup.get_model(device=self.device, dtype=self.dtype)
         self.stages = [
             {
                 (
-                    TrainStage(**kwargs, name=name, setup=self)
+                    TrainStage(**kwargs, name=name, model=self.model, log_path=self.log_path)
                     if "optimizer" in kwargs
-                    else EvalStage(**kwargs, name=name, setup=self)
+                    else EvalStage(**kwargs, name=name, model=self.model, log_path=self.log_path)
                 )
                 for name, kwargs in stage.items()
             }
@@ -597,43 +576,30 @@ class Setup:
 
         return cls(**config, config_path=yaml_path)
 
-    @property
-    def data_cache_path(self) -> Path:
-        if self._data_cache_path is None:
-            self._data_cache_path = Path(__file__).parent / "../../data"
-            self._data_cache_path.mkdir(exist_ok=True)
+    def get_data_cache_path(self) -> Path:
+        data_cache_path = Path(__file__).parent / "../../data"
+        data_cache_path.mkdir(exist_ok=True)
 
-        return self._data_cache_path
+        return data_cache_path
 
-    @property
-    def log_path(self) -> Path:
-        if self._log_path is None:
-            try:
-                commit_hash = pbs3.git("rev-parse", "--verify", "HEAD").stdout
-            except pbs3.CommandNotFound:
-                commit_hash = subprocess.run(
-                    ["git", "rev-parse", "--verify", "HEAD"], capture_output=True, text=True
-                ).stdout
+    def get_log_path(self) -> Path:
+        log_sub_dir: List[str] = self.config_path.with_suffix("").resolve().as_posix().split("/experiment_configs/")
+        assert len(log_sub_dir) == 2, log_sub_dir
+        log_sub_dir: str = log_sub_dir[1]
+        log_path = Path(__file__).parent / "../../logs" / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
+        logger.info("log_path: %s", log_path)
+        log_path.mkdir(parents=True, exist_ok=False)
 
-            log_sub_dir: List[str] = self.config_path.with_suffix("").resolve().as_posix().split("/experiment_configs/")
-            assert len(log_sub_dir) == 2, log_sub_dir
-            log_sub_dir: str = log_sub_dir[1]
-            self._log_path = (
-                Path(__file__).parent / "../../logs" / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
-            )
-            logger.info("log_path: %s", self._log_path)
-            self._log_path.mkdir(parents=True, exist_ok=False)
-            (self._log_path / "full_commit_hash.txt").write_text(commit_hash)
-            shutil.copy(self.config_path.as_posix(), (self._log_path / "config.yaml").as_posix())
+        # try:
+        #     commit_hash = pbs3.git("rev-parse", "--verify", "HEAD").stdout
+        # except pbs3.CommandNotFound:
+        #     commit_hash = subprocess.run(
+        #         ["git", "rev-parse", "--verify", "HEAD"], capture_output=True, text=True
+        #     ).stdout
+        # (log_path / "full_commit_hash.txt").write_text(commit_hash)
+        shutil.copy(self.config_path.as_posix(), (log_path / "config.yaml").as_posix())
 
-        return self._log_path
-
-    @property
-    def model(self) -> LnetModel:
-        if self._model is None:
-            self._model = self.model_config.get_model(device=self.device, dtype=self.dtype)
-
-        return self._model
+        return log_path
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
         return self.model.get_scaling(ipt_shape)

@@ -3,7 +3,7 @@ from typing import Callable, List, Optional, Tuple, Union
 import numpy
 import torch
 
-from lnet.transforms.base import Transform
+from lnet.transformations.base import Transform
 
 
 class EdgeCrop(Transform):

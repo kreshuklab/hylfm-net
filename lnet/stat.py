@@ -15,7 +15,7 @@ from lnet import settings
 
 if TYPE_CHECKING:
     from numpy.lib.npyio import NpzFile
-    from lnet.datasets import N5ChunkAsSampleDataset
+    import torch.utils.data
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class DatasetStat:
     def __init__(
         self,
         path: Path,
-        dataset: N5ChunkAsSampleDataset,
+        dataset: torch.utils.data.Dataset,
         percentiles: Optional[Dict[str, Set[float]]] = None,
         means: Optional[Dict[str, Set[Tuple[float, float]]]] = None,
     ):
@@ -97,7 +97,7 @@ class DatasetStat:
     def compute_requested(self):
         with self.rlock:
             n = len(self.dataset)
-            sample = self.dataset.get_wo_transform(0)
+            sample = self.dataset[0]
             nbins = numpy.iinfo(numpy.uint16).max // 5
             hist_min = 0.0
             hist_max = numpy.iinfo(numpy.uint16).max
@@ -117,7 +117,7 @@ class DatasetStat:
 
                 def compute_hist(i: int):
                     ret = {}
-                    for name, tensor in self.dataset.get_wo_transform(i).items():
+                    for name, tensor in self.dataset[i].items():
                         if isinstance(tensor, numpy.ndarray):
                             ret[name] = numpy.histogram(tensor, bins=nbins, range=(hist_min, hist_max))[0]
 
@@ -149,7 +149,7 @@ class DatasetStat:
                 i: int, ranges: DefaultDict[str, Set[Tuple[float, float]]]
             ) -> Tuple[int, DefaultDict[str, Dict[Tuple[float, float], Tuple[float, float]]]]:
                 ret = defaultdict(dict)
-                for name, data in enumerate(self.dataset.get_wo_transform(i)):
+                for name, data in enumerate(self.dataset[i]):
                     for range_ in ranges[name]:
                         lower, upper = range_
                         if lower is not None or upper is not None:

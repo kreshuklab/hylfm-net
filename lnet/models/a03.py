@@ -5,6 +5,7 @@ from typing import Callable, Dict, Optional, Sequence, Tuple
 
 import torch.nn
 import torch.nn as nn
+import typing
 from inferno.extensions.initializers import Constant, Initialization
 
 from lnet import registration
@@ -21,7 +22,6 @@ class A03(LnetModel):
         nnum: int,
         affine_transform_classes: Dict[str, str],
         interpolation_order: int,
-        grid_sampling_scale: Tuple[float, float, float] = (1.0, 1.0, 1.0),
         final_activation: Optional[str] = None,
         n_res2d: Sequence[int] = (976, 976, "u", 488, 488, "u", 244, 244),
         inplanes_3d: int = 7,
@@ -31,8 +31,6 @@ class A03(LnetModel):
         assert interpolation_order in [0, 2]
         # assert len(n_res3d) >= 1, n_res3d
         super().__init__()
-        self.grid_sampling_scale = grid_sampling_scale
-        assert int(z_out * self.grid_sampling_scale[0]) == z_out * self.grid_sampling_scale[0]
         self.n_res2d = n_res2d
         n_res2d = [nnum ** 2] + list(n_res2d)
         self.n_res3d = n_res3d
@@ -108,7 +106,7 @@ class A03(LnetModel):
 
         self.affine_transforms = {
             in_shape_for_at: getattr(registration, at_class)(
-                order=interpolation_order, trf_out_zoom=grid_sampling_scale
+                order=interpolation_order, trf_out_zoom=(1.0, 1.0, 1.0), forward="lf2ls"
             )
             for in_shape_for_at, at_class in affine_transform_classes.items()
         }
@@ -124,7 +122,9 @@ class A03(LnetModel):
         else:
             self.final_activation = None
 
-    def forward(self, x, z_slices: Optional[Sequence[int]] = None):
+    def forward(self, tensors: typing.OrderedDict[str, typing.Any]):
+        tensors = self.transform(tensors)
+        x = tensors[self.input_name]
         in_shape = ",".join(str(s) for s in x.shape[1:])
         x = self.res2d(x)
         x = self.conv2d(x)
@@ -132,19 +132,22 @@ class A03(LnetModel):
         x = self.res3d(x)
         x = self.conv3d(x)
 
-        if z_slices is None:
+        z_slices = [m["z_slice"] for m in tensors["meta"] if m["z_slice"] is not None]
+        if z_slices:
+            assert len(z_slices) == len(x)
             out_shape = tuple(int(s * g) for s, g in zip(x.shape[2:], self.grid_sampling_scale))
+            affine_trf_name = tensors["meta"][0]["affine_transform_name"]
+            assert all
+            x = self.affine_transforms[affine_trf_name](x, output_shape=out_shape, z_slices=z_slices)
         else:
             z_dim = int(self.z_dims[in_shape] * self.grid_sampling_scale[0])
             out_shape = (z_dim,) + tuple(int(s * g) for s, g in zip(x.shape[3:], self.grid_sampling_scale[1:]))
 
-        if self.affine_transforms:
-            x = self.affine_transforms[in_shape](x, output_shape=out_shape, z_slices=z_slices)
-
         if self.final_activation is not None:
             x = self.final_activation(x)
 
-        return x
+        tensors[self.prediction_name] = x
+        return tensors
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
         s = max(1, 2 * sum(isinstance(res2d, str) and "u" in res2d for res2d in self.n_res2d)) * max(
@@ -178,9 +181,9 @@ def try_static(backprop: bool = True):
     import yaml
 
     import matplotlib.pyplot as plt
-    from lnet.config.data import DataConfig, DataCategory
+    from config.config import DataConfig, DataCategory
 
-    from lnet.config import ModelConfig
+    from config.config import ModelConfig
 
     model_config = ModelConfig.load(
         A03.__name__,
@@ -277,9 +280,9 @@ def try_dynamic():
     import yaml
 
     import matplotlib.pyplot as plt
-    from lnet.config.data import DataConfig, DataCategory
+    from config.config import DataConfig, DataCategory
 
-    from lnet.config import ModelConfig
+    from config.config import ModelConfig
 
     model_config = ModelConfig.load(
         A03.__name__,

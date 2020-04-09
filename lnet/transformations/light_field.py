@@ -1,4 +1,4 @@
-from lnet.transforms.base import Transform
+from lnet.transformations.base import Transform
 
 
 class ChannelFromLightField(Transform):
