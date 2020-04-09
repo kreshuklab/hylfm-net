@@ -53,13 +53,13 @@ class Collector:
         model_name = []
         z_out = []
         for sp in self.spec_paths:
+            with sp.open() as f:
+                config = yaml.safe_load(f)
             try:
-                with sp.open() as f:
-                    config = yaml.safe_load(f)
-
-                model_name.append(config["model"]["name"])
-                z_out.append(config["model"]["z_out"])
+                model_name.append(config.get("model", {}).get("name", None))
+                z_out.append(config.get("model", {}).get("z_out", None))
             except Exception:
+                logger.error(config)
                 logger.error(sp)
                 raise
 
