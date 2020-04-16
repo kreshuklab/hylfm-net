@@ -168,10 +168,12 @@ class TensorBoardLogger(BaseLogger):
         iteration = engine.state.iteration
         output = engine.state.output
 
-        tensors = {
-            tn: output[tn].detach().cpu().numpy() if isinstance(output[tn], torch.Tensor) else output[tn]
-            for tn in tensor_names
-        }
+        tensors = OrderedDict(
+            [
+                (tn, output[tn].detach().cpu().numpy()) if isinstance(output[tn], torch.Tensor) else (tn, output[tn])
+                for tn in tensor_names
+            ]
+        )
 
         fig = get_batch_figure(tensors=tensors, return_array=False)
         # fig_array = get_batch_figure(tensors=tensors, return_array=True)

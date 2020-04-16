@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, Sequence
+from typing import Dict, Iterable, Sequence, OrderedDict
 
 import matplotlib.pyplot as plt
 import numpy
@@ -35,7 +35,7 @@ class ColorSelection:
         return self.colors[item % len(self.colors)]
 
 
-def get_batch_figure(*, tensors: Dict[str, numpy.ndarray], return_array: bool = False):
+def get_batch_figure(*, tensors: OrderedDict[str, numpy.ndarray], return_array: bool = False):
     ncols = len(tensors)
     nrows = tensors[list(tensors.keys())[0]].shape[0]
 

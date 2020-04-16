@@ -1,17 +1,38 @@
 from .base import TensorInfo
 
 ref0_lf = TensorInfo(
-    "lf", "lnet", "ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/*Cam_Right.tif", transforms=[], meta={}, insert_singleton_axes_at=[0, 0]
+    name="lf",
+    root="lnet",
+    location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/*Cam_Right.tif",
+    transforms=[],
+    meta={},
+    insert_singleton_axes_at=[0, 0],
 )
 ref0_sample_ls_slice = TensorInfo(
-    "ls_slice", "lnet", "ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/*Cam_Left.tif", transforms=[], meta={}, insert_singleton_axes_at=[0, 0]
+    name="ls",
+    root="lnet",
+    location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/*Cam_Left.tif",
+    transforms=[],
+    meta={},
+    insert_singleton_axes_at=[0, 0],
+    in_batches_of=241,
 )
 
 ref0_lr = TensorInfo(
-    "lr", "lnet", "ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/Gcamp_dataset.h5/t[0-9]+/s00/0/cells", transforms=[], meta={}, insert_singleton_axes_at=[0, 0]
+    name="lr",
+    root="lnet",
+    location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/Gcamp_dataset.h5/t[0-9]+/s00/0/cells",
+    transforms=[],
+    meta={},
+    insert_singleton_axes_at=[0, 0],
 )
 ref0_ls = TensorInfo(
-    "ls", "lnet", "ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/Gcamp_dataset.h5/t[0-9]+/s01/0/cells", transforms=[], meta={}, insert_singleton_axes_at=[0, 0]
+    name="ls",
+    root="lnet",
+    location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/Gcamp_dataset.h5/t[0-9]+/s01/0/cells",
+    transforms=[],
+    meta={},
+    insert_singleton_axes_at=[0, 0],
 )
 
 

@@ -1,31 +1,34 @@
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy
 import torch
+from scipy.ndimage import zoom
 
 from lnet.transformations.base import Transform
 
 
-class EdgeCrop(Transform):
-    """Crop evenly from both edges of the last m axes for nD tensors with n >= m."""
-
+class Crop(Transform):
     def __init__(
         self,
-        crop: Optional[Tuple[int, ...]] = None,
-        crop_fn: Optional[Callable[[Tuple[int, ...]], Tuple[int, ...]]] = None,
+        crop: Optional[Tuple[Tuple[int, int], ...]] = None,
+        crop_fn: Optional[Callable[[Tuple[int, ...]], Tuple[Tuple[int, int], ...]]] = None,
         **super_kwargs,
     ):
         super().__init__(**super_kwargs)
         if crop is not None and crop_fn is not None:
             raise ValueError("exclusive arguments: `crop` and `crop_fn`")
         elif crop_fn is None:
+            assert all(len(c) == 2 for c in crop)
             self.crop_fn = lambda _: crop
         else:
             self.crop_fn = crop_fn
 
-    def apply_to_tensor(self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: Optional[dict]):
+    def apply_to_tensor(
+        self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: Optional[dict]
+    ) -> Union[numpy.ndarray, torch.Tensor]:
         crop = self.crop_fn(tensor.shape[2:])
-        return tensor[(slice(None), slice(None)) + tuple(slice(c, -c) for c in crop)]
+        assert len(tensor.shape) - 1 == len(crop), (tensor.shape, crop)
+        return tensor[(slice(None),) + tuple(slice(c[0], c[1] or None) for c in crop)]
 
 
 class RandomlyFlipAxis(Transform):
@@ -117,3 +120,31 @@ class RandomRotate90(Transform):
         meta: dict,
     ):
         return numpy.rot90(sample, k=meta[self.meta_key], axes=self.sample_axes)
+
+
+class Resize(Transform):
+    def __init__(self, shape: Sequence[Union[int, float]], order: int, **super_kwargs):
+        super().__init__(**super_kwargs)
+        self.shape = shape
+        assert 0 <= order <= 5, order
+        self.order = order
+
+    def apply_to_sample(
+        self,
+        sample: Union[numpy.ndarray, torch.Tensor],
+        *,
+        tensor_name: str,
+        tensor_idx: int,
+        batch_idx: int,
+        meta: dict,
+    ):
+
+        tmeta = meta.get(tensor_name, {})
+        assert "shape_before_resize" not in tmeta
+        tmeta["shape_before_resize"] = sample.shape
+        meta[tensor_name] = tmeta
+
+        assert len(sample.shape) == len(self.shape), (sample.shape, self.shape)
+
+        zoom_factors = [sout if isinstance(sout, float) else sout / sin for sin, sout in zip(sample.shape, self.shape)]
+        return zoom(sample, zoom_factors, order=self.order)

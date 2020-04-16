@@ -7,27 +7,18 @@ from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
 from hashlib import sha224 as hash_algorithm
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import h5py
+import imageio
 import numpy
 import torch.utils.data
 import yaml
 import z5py
-from imageio import imread
-from scipy.ndimage import zoom
 
 import lnet
 from lnet import settings
 from lnet.datasets.utils import get_paths_and_numbers
-from lnet.registration import (
-    BDVTransform,
-    Heart_tightCrop_Transform,
-    fast_cropped_6ms_Transform,
-    fast_cropped_8ms_Transform,
-    staticHeartFOV_Transform,
-    wholeFOV_Transform,
-)
 from lnet.stat import DatasetStat
 from lnet.transformations.base import ComposedTransform
 
@@ -46,141 +37,44 @@ class PathOfInterest:
 class TensorInfo:
     def __init__(
         self,
+        *,
         name: str,
         root: str,
         location: str,
         transforms: List[Dict[str, Any]],
+        in_batches_of: int = 1,
+        insert_singleton_axes_at: Sequence[int] = tuple(),
+        z_slice: Optional[Union[str, int]] = None,
         meta: Optional[dict] = None,
         **kwargs,
     ):
         assert isinstance(name, str)
         self.name = name
         self.transforms = transforms
+        self.in_batches_of = in_batches_of
+        self.insert_singleton_axes_at = insert_singleton_axes_at
+        self.z_slice = z_slice
         self.meta: dict = meta or {}
         self.kwargs = kwargs
         self.description = yaml.safe_dump(
-            {"name": name, "root": root, "location": location, "transformations": transforms, "meta": meta, "kwargs": kwargs}
+            {
+                "name": name,
+                "root": root,
+                "location": location,
+                "transformations": transforms,
+                "in_batches_of": in_batches_of,
+                "insert_singleton_axes_at": insert_singleton_axes_at,
+                "z_slice": z_slice,
+                "meta": meta,
+                "kwargs": kwargs,
+            }
         )
         self.location: Path = getattr(settings.data_roots, root) / location
 
 
-class NamedDatasetInfo:
-    x_path: Path
-    y_path: Path
-    paths: List[Path]
-    x_roi: Tuple[slice, slice, slice]
-    y_roi: Tuple[slice, slice, slice, slice]
-    rois: List[Tuple[slice, ...]]
-    # stat: Optional[DatasetStat]
-    interesting_paths: Optional[List[PathOfInterest]]
-
-    description: str = ""
-    common_path: Path = Path("/")
-
-    def __init__(
-        self,
-        path: Union[str, Path],
-        x_dir: str,
-        y_dir: Optional[str] = None,
-        description="",
-        x_roi: Optional[Tuple[slice, slice]] = None,
-        y_roi: Optional[Tuple[slice, slice, slice]] = None,
-        # stat: Optional[DatasetStat] = None,
-        interesting_paths: Optional[List[PathOfInterest]] = None,
-        length: Optional[int] = None,
-        x_shape: Optional[Tuple[int, int]] = None,
-        y_shape: Optional[Tuple[int, int, int]] = None,
-        AffineTransform: Optional[Union[str, Type[BDVTransform]]] = None,
-        z_slices: Optional[Sequence[int]] = None,
-        dynamic_z_slice_mod: Optional[int] = None,
-    ):
-        if z_slices is not None:
-            assert AffineTransform is not None
-
-        self.x_path = self.common_path / path / x_dir
-        self.y_path = None if y_dir is None else self.common_path / path / y_dir
-
-        self.description = description or self.description
-
-        if isinstance(AffineTransform, str):
-            if AffineTransform == "from_x_path":
-                posix_path = self.x_path.as_posix()
-                indicators_and_AffineTransforms = {
-                    "fast_cropped_6ms": fast_cropped_6ms_Transform,
-                    "fast_cropped_8ms": fast_cropped_8ms_Transform,
-                    "Heart_tightCrop": Heart_tightCrop_Transform,
-                    "staticHeartFOV": staticHeartFOV_Transform,
-                    "wholeFOV": wholeFOV_Transform,
-                }
-                for tag, TransformClass in indicators_and_AffineTransforms.items():
-                    if tag in posix_path:
-                        assert AffineTransform == "from_x_path"  # make sure tag is found only once
-                        AffineTransform = TransformClass
-
-            else:
-                raise NotImplementedError(AffineTransform)
-
-        self.DefaultAffineTransform = AffineTransform
-        if AffineTransform is not None:
-            x_shape = x_shape or AffineTransform.lf_shape[1:]
-
-            auto_y_shape = tuple(
-                y - y_crop[0] - y_crop[1] for y_crop, y in zip(AffineTransform.lf2ls_crop, AffineTransform.ls_shape)
-            )
-            auto_y_roi = tuple(
-                slice(y_crop[0], y - y_crop[1])
-                for y_crop, y in zip(AffineTransform.lf2ls_crop, AffineTransform.ls_shape)
-            )
-            if z_slices is not None or dynamic_z_slice_mod is not None:
-                # auto_y_shape = auto_y_shape[1:]
-                auto_y_roi = auto_y_roi[1:]
-
-            y_shape = y_shape or auto_y_shape
-            y_roi = y_roi or auto_y_roi
-
-            if z_slices is not None or dynamic_z_slice_mod is not None:
-                assert len(y_shape) == 3
-                assert len(y_roi) == 2
-
-        self.x_roi = (slice(None), slice(None), slice(None)) if x_roi is None else (slice(None),) + x_roi
-        self.y_roi = (slice(None), slice(None), slice(None), slice(None)) if y_roi is None else (slice(None),) + y_roi
-
-        self.interesting_paths = interesting_paths
-        self.length = length
-
-        self.x_shape = x_shape
-        self.y_shape = y_shape
-
-        self.z_slices = z_slices
-        self.dynamic_z_slice_mod = dynamic_z_slice_mod
-
-        self.paths = [self.x_path]
-        self.rois = [self.x_roi]
-        self.shapes = [self.x_shape]
-        if self.y_path is not None:
-            self.paths.append(self.y_path)
-            self.rois.append(self.y_roi)
-            self.shapes.append(self.y_shape)
-
-
-def resize(
-    arr: numpy.ndarray, output_shape: Tuple[int, ...], roi: Optional[Tuple[slice, ...]] = None, order: int = 1
-) -> numpy.ndarray:
-    assert 0 <= order <= 5, order
-    if roi is not None:
-        assert len(arr.shape) == len(roi)
-        arr = arr[roi]
-
-    assert len(arr.shape) == len(output_shape), (arr.shape, output_shape)
-    assert all([sin >= sout for sin, sout in zip(arr.shape, output_shape)]), (arr.shape, output_shape)
-
-    if arr.shape == output_shape:
-        return arr
-    else:
-        return zoom(arr, [sout / sin for sin, sout in zip(arr.shape, output_shape)], order=order)
-
-
 class DatasetFromInfo(torch.utils.data.Dataset):
+    get_z_slice: Callable[[int], Optional[int]]
+
     def __init__(self, *, info: TensorInfo):
         super().__init__()
         self.tensor_name = info.name
@@ -189,7 +83,29 @@ class DatasetFromInfo(torch.utils.data.Dataset):
             *[getattr(lnet.transformations, name)(**kwargs) for trf in info.transforms for name, kwargs in trf.items()]
         )
 
+        self.in_batches_of = info.in_batches_of
+        self.insert_singleton_axes_at = info.insert_singleton_axes_at
+
+        if info.z_slice is None:
+            self.get_z_slice = lambda idx: None
+        elif isinstance(info.z_slice, int):
+            self.get_z_slice = lambda idx: info.z_slice
+        elif isinstance(info.z_slice, str):
+            if info.z_slice.startswith("idx%"):
+                zmod = int(info.z_slice[4:])
+                self.get_z_slice = lambda idx: idx % zmod
+            else:
+                raise NotImplementedError(info.z_slice)
+        else:
+            raise NotImplementedError(info.z_slice)
+
     def update_meta(self, meta: dict) -> dict:
+        has_z_slice = meta.get("z_slice", None)
+        z_slice = self.get_z_slice(meta["idx"])
+        if z_slice is not None:
+            assert has_z_slice is None or has_z_slice == z_slice
+            meta["z_slice"] = z_slice
+
         return meta
 
     def shutdown(self):
@@ -198,19 +114,11 @@ class DatasetFromInfo(torch.utils.data.Dataset):
 
 class TiffDataset(DatasetFromInfo):
     def __init__(self, *, info: TensorInfo):
-        given_kwargs = dict(info.kwargs)
-        info.kwargs = {
-            "in_batches_of": given_kwargs.pop("in_batches_of", 1),
-            "insert_singleton_axes_at": given_kwargs.pop("insert_singleton_axes_at", []),
-        }
-        assert not given_kwargs, given_kwargs
+        assert not info.kwargs, info.kwargs
         super().__init__(info=info)
         paths, numbers = get_paths_and_numbers(info.location)
         self.paths = paths
         self.numbers = numbers
-
-        self.in_batches_of: int = info.kwargs["in_batches_of"]
-        self.insert_singleton_axes_at: List[int] = info.kwargs["insert_singleton_axes_at"]
 
     def __len__(self):
         return len(self.paths)
@@ -219,7 +127,7 @@ class TiffDataset(DatasetFromInfo):
         path_idx = idx // self.in_batches_of
         idx %= self.in_batches_of
         img_path = self.paths[path_idx]
-        img: numpy.ndarray = imread(img_path)
+        img: numpy.ndarray = imageio.volread(img_path)
         for axis in self.insert_singleton_axes_at:
             img = numpy.expand_dims(img, axis=axis)
 
@@ -236,12 +144,7 @@ class H5Dataset(DatasetFromInfo):
         return ds_resolver
 
     def __init__(self, *, info: TensorInfo):
-        given_kwargs = dict(info.kwargs)
-        info.kwargs = {
-            "in_batches_of": given_kwargs.pop("in_batches_of", 1),
-            "insert_singleton_axes_at": given_kwargs.pop("insert_singleton_axes_at", []),
-        }
-        assert not given_kwargs, given_kwargs
+        assert not info.kwargs, info.kwargs
         super().__init__(info=info)
         h5_ext = ".h5"
         assert h5_ext in info.location.as_posix(), info.location.as_posix()
@@ -259,8 +162,6 @@ class H5Dataset(DatasetFromInfo):
             self.within_paths.append(sorted(within))
 
         assert all(self.within_paths), self.within_paths
-        self.in_batches_of: int = info.kwargs["in_batches_of"]
-        self.insert_singleton_axes_at: List[int] = info.kwargs["insert_singleton_axes_at"]
         self._shutdown = False
 
     def __len__(self):
@@ -414,7 +315,7 @@ class ZipDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         datasets: Dict[str, torch.utils.data.Dataset],
-        transform: Callable[[typing.OrderedDict], typing.OrderedDict] = lambda x: x,
+        transformation: Callable[[typing.OrderedDict], typing.OrderedDict] = lambda x: x,
     ):
         super().__init__()
         datasets = OrderedDict(**datasets)
@@ -422,26 +323,53 @@ class ZipDataset(torch.utils.data.Dataset):
         self._len = len(list(datasets.values())[0])
         assert all(len(ds) == self._len for ds in datasets.values())
         self.datasets = datasets
-        self.transform = transform
+        self.transformation = transformation
 
     def __len__(self):
         return self._len
 
-    def __getitem__(self, idx: int) -> typing.OrderedDict[str, Any]:
+    def get_meta(self, idx: int) -> dict:
         meta = {"idx": idx}
-        tensors = OrderedDict()
         for name, ds in self.datasets.items():
             if hasattr(ds, "update_meta"):
                 meta = ds.update_meta(meta)
+
+        return meta
+
+    def __getitem__(self, idx: int) -> typing.OrderedDict[str, Any]:
+        tensors = OrderedDict()
+        for name, ds in self.datasets.items():
             tensors[name] = ds[idx][name]
 
-        tensors["meta"] = [meta]
-        return self.transform(tensors)
+        tensors["meta"] = [self.get_meta(idx)]
+        return self.transformation(tensors)
 
     def shutdown(self):
         for ds in self.datasets:
             if hasattr(ds, "shutdown"):
                 ds.shutdown()
+
+
+class ZipSubset(torch.utils.data.Subset):
+    dataset: ZipDataset
+
+    def __init__(self, dataset: ZipDataset, indices: Sequence[int], z_crop: Optional[Tuple[int, int]] = None):
+        max_idx = max(indices)
+        if z_crop is None:
+            assert max_idx < len(dataset), (max_idx, len(dataset))
+        else:
+            not_cropped_indices = [
+                idx
+                for idx in range(len(dataset))
+                if z_crop[0] <= dataset.get_meta(idx).get("z_slice", z_crop[0]) < z_crop[1]
+            ]
+            assert max_idx < len(not_cropped_indices), (max_idx, len(not_cropped_indices))
+            indices = numpy.asarray(not_cropped_indices)[numpy.asarray(indices)]
+
+        super().__init__(dataset=dataset, indices=indices)
+
+    def shutdown(self):
+        self.dataset.shutdown()
 
 
 def get_collate_fn(batch_transformation: Callable):
