@@ -14,8 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 class M16(LnetModel):
-    def __init__(self, z_out: int, nnum: int, final_activation: Optional[str] = None):
+    def __init__(
+        self, *, input_name: str, prediction_name: str, z_out: int, nnum: int, final_activation: Optional[str] = None
+    ):
         super().__init__()
+        self.input_name = input_name
+        self.prediction_name = prediction_name
         inplanes = nnum ** 2
         z_valid_cut = 10
         z_out += z_valid_cut
@@ -64,7 +68,8 @@ class M16(LnetModel):
         else:
             self.final_activation = None
 
-    def forward(self, x):
+    def forward(self, tensors):
+        x = tensors[self.input_name]
         # logger.warning("m12 forward")
         # print(x.shape)
         x = self.res2d_1(x)
@@ -92,8 +97,8 @@ class M16(LnetModel):
         if self.final_activation is not None:
             out = self.final_activation(out)
 
-        # print('out', out.shape)
-        return out
+        tensors[self.prediction_name] = out
+        return tensors
 
     @classmethod
     def get_scaling(cls, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
@@ -104,6 +109,4 @@ class M16(LnetModel):
         return 13, 13
 
     def get_output_shape(self, ipt_shape: Tuple[int, int]):
-        return tuple(
-            [i * sc - 2 * sr for i, sc, sr in zip(ipt_shape, self.get_scaling(), self.get_shrinkage())]
-        )
+        return tuple([i * sc - 2 * sr for i, sc, sr in zip(ipt_shape, self.get_scaling(), self.get_shrinkage())])

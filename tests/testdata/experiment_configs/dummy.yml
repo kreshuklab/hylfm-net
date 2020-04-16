@@ -68,7 +68,7 @@ stages:
             - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
 
           datasets:
-            fish2_20191209_dynamic.t0454c2: {indices: 10535-10537}
+            fish2_20191209_dynamic.t0454c2: {indices: 10535-10536}
 
     criterion:
       name: WeightedSmoothL1Loss

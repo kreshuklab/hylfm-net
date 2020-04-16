@@ -30,6 +30,7 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
     #     ]
     # )
     tensors = model(tensors)
+    tensors = engine.state.batch_postprocessing(tensors)
 
     if train:
         tensors = engine.state.criterion(tensors)

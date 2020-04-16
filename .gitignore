@@ -1,4 +1,7 @@
+tex
+
 data/
+ref_data/
 logs/
 lnet/experiment_configs
 lnet/settings.py

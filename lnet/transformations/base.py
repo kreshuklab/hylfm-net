@@ -74,7 +74,7 @@ class Transform:
 
         return ret
 
-    def apply_to_tensor(self, tensor: Any, *, name: str, idx: int, meta: typing.List[dict]):
+    def apply_to_tensor(self, tensor: Any, *, name: str, idx: int, meta: typing.List[dict]) -> Union[numpy.ndarray, torch.Tensor]:
 
         if isinstance(tensor, numpy.ndarray):
             return numpy.stack(
@@ -94,7 +94,7 @@ class Transform:
         tensor_idx: int,
         batch_idx: int,
         meta: dict,
-    ):
+    ) -> Union[numpy.ndarray, torch.Tensor]:
         raise NotImplementedError
 
 
