@@ -21,8 +21,8 @@ class Settings:
     num_workers_test_data_loader: int = 0
     pin_memory: bool = False
 
-    max_workers_per_dataset = 8
-    reserved_workers_per_dataset_for_getitem = 8
+    max_workers_per_dataset: int = 8
+    reserved_workers_per_dataset_for_getitem: int = 8
     max_workers_file_logger: int = 16
     max_workers_for_stat_per_ds: int = 16
 

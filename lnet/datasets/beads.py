@@ -4,16 +4,14 @@ b01mu_0_lf = TensorInfo(
     name="lf",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.20.28_withSimultIllum/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
-    transforms=[],
-    # in_batches_of = 1,
+    skip_indices = [0],  # registered ls has shape (828, 931, 1406) whereas all others have shape (838, 931, 1406)
     insert_singleton_axes_at=[0, 0],
 )
 b01mu_0_ls = TensorInfo(
     name="ls",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.20.28_withSimultIllum/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
-    transforms=[],
-    # in_batches_of = 1,
+    skip_indices = [0],  # registered ls has shape (828, 931, 1406) whereas all others have shape (838, 931, 1406)
     insert_singleton_axes_at=[0, 0],
 )
 

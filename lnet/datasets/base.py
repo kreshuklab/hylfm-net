@@ -41,19 +41,24 @@ class TensorInfo:
         name: str,
         root: str,
         location: str,
-        transforms: List[Dict[str, Any]],
+        transforms: Sequence[Dict[str, Any]] = tuple(),
         in_batches_of: int = 1,
         insert_singleton_axes_at: Sequence[int] = tuple(),
         z_slice: Optional[Union[str, int]] = None,
+        skip_indices: Sequence[int] = tuple(),
         meta: Optional[dict] = None,
         **kwargs,
     ):
+        if z_slice is not None and skip_indices:
+            raise NotImplementedError("skip indices with z_slice")
+        
         assert isinstance(name, str)
         self.name = name
         self.transforms = transforms
         self.in_batches_of = in_batches_of
         self.insert_singleton_axes_at = insert_singleton_axes_at
         self.z_slice = z_slice
+        self.skip_indices = skip_indices
         self.meta: dict = meta or {}
         self.kwargs = kwargs
         self.description = yaml.safe_dump(
@@ -61,10 +66,11 @@ class TensorInfo:
                 "name": name,
                 "root": root,
                 "location": location,
-                "transformations": transforms,
+                "transformations": list(transforms),
                 "in_batches_of": in_batches_of,
                 "insert_singleton_axes_at": insert_singleton_axes_at,
                 "z_slice": z_slice,
+                "skip_indices": list(skip_indices),
                 "meta": meta,
                 "kwargs": kwargs,
             }
@@ -117,7 +123,7 @@ class TiffDataset(DatasetFromInfo):
         assert not info.kwargs, info.kwargs
         super().__init__(info=info)
         paths, numbers = get_paths_and_numbers(info.location)
-        self.paths = paths
+        self.paths = [p for i, p in enumerate(paths) if i not in info.skip_indices]
         self.numbers = numbers
 
     def __len__(self):
@@ -144,7 +150,11 @@ class H5Dataset(DatasetFromInfo):
         return ds_resolver
 
     def __init__(self, *, info: TensorInfo):
-        assert not info.kwargs, info.kwargs
+        if info.skip_indices:
+            raise NotImplementedError("skip_indices")
+
+        if info.kwargs:
+            raise NotImplementedError(info.kwargs)
         super().__init__(info=info)
         h5_ext = ".h5"
         assert h5_ext in info.location.as_posix(), info.location.as_posix()
