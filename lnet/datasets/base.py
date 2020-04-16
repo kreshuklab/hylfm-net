@@ -13,6 +13,7 @@ import h5py
 import imageio
 import numpy
 import torch.utils.data
+import warnings
 import yaml
 import z5py
 
@@ -41,7 +42,7 @@ class TensorInfo:
         name: str,
         root: str,
         location: str,
-        transforms: Sequence[Dict[str, Any]] = tuple(),
+        transformations: Sequence[Dict[str, Any]] = tuple(),
         in_batches_of: int = 1,
         insert_singleton_axes_at: Sequence[int] = tuple(),
         z_slice: Optional[Union[str, int]] = None,
@@ -53,31 +54,55 @@ class TensorInfo:
             raise NotImplementedError("skip indices with z_slice")
         
         assert isinstance(name, str)
+        assert isinstance(root, str)
+        assert isinstance(location, str)
+        assert isinstance(in_batches_of, int)
         self.name = name
-        self.transforms = transforms
+        self.root = root
+        self.transformations = list(transformations)
         self.in_batches_of = in_batches_of
         self.insert_singleton_axes_at = insert_singleton_axes_at
         self.z_slice = z_slice
         self.skip_indices = skip_indices
         self.meta: dict = meta or {}
         self.kwargs = kwargs
-        self.description = yaml.safe_dump(
+        self.location = location
+        self.path: Path = getattr(settings.data_roots, root) / location
+
+    @property
+    def transformations(self) -> List[Dict[str, Any]]:
+        return self.__transformations
+    
+    @transformations.setter
+    def transformations(self, trfs):
+        assert isinstance(trfs, list)
+        trfs = [{name: kwargs for name, kwargs in trf.items() if self.name in kwargs["apply_to"]} for trf in trfs]
+        discarded_trfs = [{name: kwargs for name, kwargs in trf.items() if self.name not in kwargs["apply_to"]} for trf in trfs]
+        for dtrf in discarded_trfs:
+            for name, kwargs in dtrf:
+                warnings.warn(f"discarded trf {name} for tensor {self.name} (apply_to: {kwargs['apply_to']})")
+
+        assert not any([getattr(lnet.transformations, name).randomly_changes_shape for trf in trfs for name in trf])
+        self.__transformations = trfs
+
+    @property
+    def description(self): 
+        return yaml.safe_dump(
             {
-                "name": name,
-                "root": root,
-                "location": location,
-                "transformations": list(transforms),
-                "in_batches_of": in_batches_of,
-                "insert_singleton_axes_at": insert_singleton_axes_at,
-                "z_slice": z_slice,
-                "skip_indices": list(skip_indices),
-                "meta": meta,
-                "kwargs": kwargs,
+                "name": self.name,
+                "root": self.root,
+                "location": self.location,
+                "transformations": self.transformations,
+                "in_batches_of": self.in_batches_of,
+                "insert_singleton_axes_at": self.insert_singleton_axes_at,
+                "z_slice": self.z_slice,
+                "skip_indices": list(self.skip_indices),
+                "meta": self.meta,
+                "kwargs": self.kwargs,
             }
         )
-        self.location: Path = getattr(settings.data_roots, root) / location
 
-
+    
 class DatasetFromInfo(torch.utils.data.Dataset):
     get_z_slice: Callable[[int], Optional[int]]
 
@@ -86,7 +111,7 @@ class DatasetFromInfo(torch.utils.data.Dataset):
         self.tensor_name = info.name
         self.description = info.description
         self.transform = lnet.transformations.ComposedTransform(
-            *[getattr(lnet.transformations, name)(**kwargs) for trf in info.transforms for name, kwargs in trf.items()]
+            *[getattr(lnet.transformations, name)(**kwargs) for trf in info.transformations for name, kwargs in trf.items()]
         )
 
         self.in_batches_of = info.in_batches_of
@@ -122,7 +147,7 @@ class TiffDataset(DatasetFromInfo):
     def __init__(self, *, info: TensorInfo):
         assert not info.kwargs, info.kwargs
         super().__init__(info=info)
-        paths, numbers = get_paths_and_numbers(info.location)
+        paths, numbers = get_paths_and_numbers(info.path)
         self.paths = [p for i, p in enumerate(paths) if i not in info.skip_indices]
         self.numbers = numbers
 
@@ -191,7 +216,6 @@ class H5Dataset(DatasetFromInfo):
         return self.transform(OrderedDict(**{self.tensor_name: img[idx : idx + 1]}))
 
     def shutdown(self):
-        print("h5 shutdown!")
         self._shutdown = True
         [hf.close() for hf in self.h5files]
 

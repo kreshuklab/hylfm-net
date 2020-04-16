@@ -123,7 +123,7 @@ class DatasetGroupSetup:
         batch_size: int,
         interpolation_order: int,
         datasets: List[Dict[str, Any]],
-        sample_transforms: List[Dict[str, Dict[str, Any]]],
+        sample_preprocessing: List[Dict[str, Dict[str, Any]]],
         ls_affine_transform_class: Optional[str] = None,
     ):
         self.batch_size = batch_size
@@ -132,18 +132,17 @@ class DatasetGroupSetup:
         self.ls_affine_transform_class = (
             None if ls_affine_transform_class is None else getattr(lnet.registration, ls_affine_transform_class)
         )
-        sample_transform_instances: List[Transform] = [
-            getattr(lnet.transformations, name)(**kwargs) for trf in sample_transforms for name, kwargs in trf.items()
+        sample_prepr_trf_instances: List[Transform] = [
+            getattr(lnet.transformations, name)(**kwargs) for trf in sample_preprocessing for name, kwargs in trf.items()
         ]
-        assert not any([trf.randomly_changes_shape for trf in sample_transform_instances])
-        self.sample_transform = ComposedTransform(*sample_transform_instances)
+        self.sample_preprocessing = ComposedTransform(*sample_prepr_trf_instances)
         self._dataset: Optional[ConcatDataset] = None
         self.dataset_setups: List[DatasetSetup] = [DatasetSetup(**kwargs) for kwargs in datasets]
 
     def get_individual_dataset(self, dss: DatasetSetup) -> torch.utils.data.Dataset:
         ds = ZipDataset(
             {name: N5CachedDataset(get_dataset_from_info(dsinfo)) for name, dsinfo in dss.infos.items()},
-            transformation=self.sample_transform,
+            transformation=self.sample_preprocessing,
         )
 
         if dss.indices is None:
@@ -168,16 +167,20 @@ class DatasetSetup:
         interpolation_order: int,
         indices: Optional[Union[str, int, List[int]]] = None,
         z_crop: Optional[Tuple[int, int]] = None,
+        sample_transformations: Sequence[Dict[str, Dict[str, Any]]] = tuple(),
     ):
         self.infos = {}
         for name, info_name in tensors.items():
             if isinstance(info_name, str):
                 info_module_name, info_name = info_name.split(".")
                 info_module = import_module("." + info_module_name, "lnet.datasets")
-                self.infos[name] = getattr(info_module, info_name)
+                info = getattr(info_module, info_name)
             elif isinstance(info_name, dict):
-                self.infos[name] = TensorInfo(**info_name)
+                info = TensorInfo(**info_name)
 
+            info.transformations += list(sample_transformations)
+            self.infos[name] = info
+                
         self.interpolation_order = interpolation_order
 
         if isinstance(indices, list):

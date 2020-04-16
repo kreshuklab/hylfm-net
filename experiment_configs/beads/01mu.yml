@@ -30,15 +30,16 @@ toolbox: # defines yaml placeholders
       tensor_names: {lf, ls}
 
   eval_batch_size: &eval_batch_size 2
-  eval_sample_transforms: &eval_sample_transforms
+  eval_sample_trfs: &eval_sample_trfs
+    - Crop: {apply_to: ls, crop: *ls_crop}
+    - Resize: {apply_to: ls, shape: [1.0, *z_out, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947, ], order: 2}  # 0.21052631578947368421052631578947‬=4/19
+  eval_sample_prepr: &eval_sample_prepr
     - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
     - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
     - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
-    - Crop: {apply_to: ls, crop: *ls_crop}
-    - Resize: {apply_to: ls, shape: [1.0, *z_out, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947, ], order: 2}  # 0.21052631578947368421052631578947‬=4/19
-  eval_batch_preprocessing: &eval_batch_preprocessing
+  eval_batch_prepr: &eval_batch_prepr
     - Cast: {apply_to: [lfc, ls], dtype: *precision, device: cuda}
-  eval_batch_postprocessing: &eval_batch_postprocessing []
+  eval_batch_postpr: &eval_batch_postpr []
 
 model:
   name: M16
@@ -54,10 +55,11 @@ stages:
 - test:
     metrics: *metrics
     log: *eval_log
-    batch_preprocessing: *eval_batch_preprocessing
-    batch_postprocessing: *eval_batch_postprocessing
+    batch_preprocessing: *eval_batch_prepr
+    batch_postprocessing: *eval_batch_postpr
     data:
       - batch_size: *eval_batch_size
         interpolation_order: *interpol
+        sample_preprocessing: *eval_sample_prepr
         datasets:
-          - {tensors: {lf: beads.b01mu_0_lf, ls: beads.b01mu_0_ls}, interpolation_order: *interpol, sample_transforms: *eval_sample_transforms, indices: 0}
+          - {tensors: {lf: beads.b01mu_0_lf, ls: beads.b01mu_0_ls}, interpolation_order: *interpol, sample_transformations: *eval_sample_trfs, indices: 0}
