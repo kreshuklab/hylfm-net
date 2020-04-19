@@ -43,10 +43,10 @@ class Cast(Transform, DTypeMapping):
                 dtype=getattr(torch, self.dtype), device=torch.device(self.device), non_blocking=self.non_blocking
             )
         elif isinstance(tensor, numpy.ndarray):
-            assert not self.non_blocking, "'non_blocking' not supported for numpy.ndarray"
             if self.device == "cuda":
                 return torch.from_numpy(tensor).to(dtype=getattr(torch, self.dtype), device=torch.device(self.device))
             elif self.device == "cpu":
+                assert not self.non_blocking, "'non_blocking' not supported for numpy.ndarray"
                 return tensor.astype(self.dtype, **self.numpy_kwargs)
             else:
                 raise NotImplementedError(self.device)

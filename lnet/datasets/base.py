@@ -1,6 +1,5 @@
 import logging
 import re
-import threading
 import typing
 from collections import OrderedDict
 from concurrent.futures import Future
@@ -245,6 +244,8 @@ def get_dataset_from_info(info: TensorInfo) -> DatasetFromInfo:
 
 
 N5CachedDataset_submit_lock = torch.multiprocessing.Lock()
+N5CachedDataset_executor = None
+N5CachedDataset_executor_user_count = 0
 
 
 class N5CachedDataset(torch.utils.data.Dataset):
@@ -276,7 +277,11 @@ class N5CachedDataset(torch.utils.data.Dataset):
             self._len = _len = shape[0]
 
         self.futures = {}
-        self.executor = ThreadPoolExecutor(max_workers=settings.max_workers_per_dataset)
+        global N5CachedDataset_executor, N5CachedDataset_executor_user_count
+        N5CachedDataset_executor_user_count += 1
+        if N5CachedDataset_executor is None:
+            assert N5CachedDataset_executor_user_count == 1
+            N5CachedDataset_executor = ThreadPoolExecutor(max_workers=settings.max_workers_per_dataset)
 
         worker_nr = 0
         self.nr_background_workers = (
@@ -318,8 +323,11 @@ class N5CachedDataset(torch.utils.data.Dataset):
             for fut in self.futures.values():
                 fut.cancel()
 
-        if self.executor is not None:
-            self.executor.shutdown()
+        global N5CachedDataset_executor, N5CachedDataset_executor_user_count
+        N5CachedDataset_executor_user_count -= 1
+        if N5CachedDataset_executor_user_count == 0:
+            N5CachedDataset_executor.shutdown()
+            N5CachedDataset_executor = None
 
         self.dataset.shutdown()
 
@@ -344,7 +352,7 @@ class N5CachedDataset(torch.utils.data.Dataset):
             with N5CachedDataset_submit_lock:
                 fut = self.futures.get(idx, None)
                 if fut is None:
-                    fut = self.executor.submit(self.process, idx)
+                    fut = N5CachedDataset_executor.submit(self.process, idx)
                     self.futures[idx] = fut
 
         return fut
