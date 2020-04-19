@@ -1,10 +1,14 @@
 from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy
+import logging
 import torch
 from scipy.ndimage import zoom
 
 from lnet.transformations.base import Transform
+
+
+logger = logging.getLogger(__name__)
 
 
 class Crop(Transform):
@@ -28,7 +32,9 @@ class Crop(Transform):
     ) -> Union[numpy.ndarray, torch.Tensor]:
         crop = self.crop_fn(tensor.shape[2:])
         assert len(tensor.shape) - 1 == len(crop), (tensor.shape, crop)
-        return tensor[(slice(None),) + tuple(slice(c[0], c[1] or None) for c in crop)]
+        out = tensor[(slice(None),) + tuple(slice(c[0], c[1] or None) for c in crop)]
+        logger.info("Crop tensor: %s %s by %s to %s", name, tensor.shape, crop, out.shape)
+        return out
 
 
 class RandomlyFlipAxis(Transform):
@@ -147,4 +153,6 @@ class Resize(Transform):
         assert len(sample.shape) == len(self.shape), (sample.shape, self.shape)
 
         zoom_factors = [sout if isinstance(sout, float) else sout / sin for sin, sout in zip(sample.shape, self.shape)]
-        return zoom(sample, zoom_factors, order=self.order)
+        out = zoom(sample, zoom_factors, order=self.order)
+        logger.info("Resize sample: %s %s by %s to %s", tensor_name, sample.shape, zoom_factors, out.shape)
+        return out

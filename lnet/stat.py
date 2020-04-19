@@ -5,7 +5,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from threading import RLock
+from pytorch.multiprocessing import RLock
 from typing import DefaultDict, Dict, List, Optional, Sequence, Set, TYPE_CHECKING, Tuple
 
 import numpy

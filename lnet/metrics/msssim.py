@@ -24,9 +24,11 @@ class MSSSIM(ignite.metrics.Metric):
 
     def update(self, output):
         pred, tgt = output
+        logger.info("update with pred %s, tgt %s", pred.shape, tgt.shape)
         n = tgt.shape[0]
         pred_z_as_batch = pred.transpose(1, 2).flatten(end_dim=-4) if len(pred.shape) == 5 else pred
         tgt_z_as_batch = tgt.transpose(1, 2).flatten(end_dim=-4) if len(tgt.shape) == 5 else tgt
+        logger.info(" z as batch pred %s, tgt %s", pred_z_as_batch.shape, tgt_z_as_batch.shape)
         value = (
             msssim(
                 pred_z_as_batch,
@@ -66,6 +68,7 @@ class SSIM(ignite.metrics.Metric):
 
     def update(self, output):
         y_pred, y = output
+        logger.info("update with pred %s, tgt %s", y_pred.shape, y.shape)
         n = y.shape[0]
         self._sum += (
             ssim(

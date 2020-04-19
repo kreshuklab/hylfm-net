@@ -611,7 +611,8 @@ class Setup:
         log_sub_dir: List[str] = self.config_path.with_suffix("").resolve().as_posix().split("/experiment_configs/")
         assert len(log_sub_dir) == 2, log_sub_dir
         log_sub_dir: str = log_sub_dir[1]
-        log_path = Path(__file__).parent / "../../logs" / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
+        log_path = settings.log_path / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
+
         logger.info("log_path: %s", log_path)
         log_path.mkdir(parents=True, exist_ok=False)
 

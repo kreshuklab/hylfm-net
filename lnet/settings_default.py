@@ -11,6 +11,7 @@ class DataRoots:
 
 @dataclass
 class Settings:
+    log_path: Path = Path("C:/repos/lnet/logs")
     experiment_configs_folder: str = "experiment_configs"
 
     data_roots: DataRoots = DataRoots()

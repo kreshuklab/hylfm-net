@@ -1,0 +1,59 @@
+precision: &precision float
+nnum: &nnum 19
+z_out: &z_out 51
+
+toolbox: # defines yaml placeholders
+  interpol: &interpol 2
+#  lf_crop: &lf_crop [[0, 0], [0, 0], [0, 0]]
+#   shrinkage: &shrinkage [[0, 0], [0, 0], [13, -13], [13, -13]]
+  ls_roi: &ls_roi [[0, 0], [35, -35], [0, 0], [0, 0]]
+  metrics: &metrics
+    MSSSIM: {tensor_names: {y_pred: lr, y: ls}, window_size: 11, size_average: true, val_range: null, normalize: false}
+    SSIM: {tensor_names: {y_pred: lr, y: ls}, window_size: 11, window: null, size_average: true, full: false, val_range: null}
+    NRMSE: {tensor_names: {y_pred: lr, y: ls}}
+    PSNR: {tensor_names: {y_pred: lr, y: ls}, data_range: null}
+    BeadPrecision: {tensor_names: {y_pred: lr, y: ls}, dist_threshold: &beadPR 5.0}
+    BeadRecall: {tensor_names: {y_pred: lr, y: ls}, dist_threshold: *beadPR}
+    SmoothL1Loss: {tensor_names: {y_pred: lr, y: ls}}
+    MSELoss: {tensor_names: {y_pred: lr, y: ls}}
+
+  eval_log: &eval_log
+    TqdmLogger:
+      scalars_every: {value: 1, unit: iteration}
+      tensors_every: {value: 1, unit: epoch}
+    TensorBoardLogger:
+        scalars_every: {value: 1, unit: iteration}
+        tensors_every: {value: 1, unit: epoch}
+    FileLogger:
+      scalars_every: {value: 1, unit: iteration}
+      tensors_every: {value: 1, unit: iteration}
+      tensor_names: {lr, ls}
+
+  eval_batch_size: &eval_batch_size 2
+  eval_sample_trfs: &eval_sample_trfs
+    - Resize: {apply_to: lr, shape: [1.0, 121, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895, ], order: 2}  # 0.42105263157894736842105263157895‬=8/19
+    - Resize: {apply_to: ls, shape: [1.0, 121, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895, ], order: 2}  # 0.42105263157894736842105263157895‬=8/19
+  eval_sample_prepr: &eval_sample_prepr
+    - Crop: {apply_to: [lr, ls], crop: *ls_roi}
+    - Normalize01: {apply_to: lr, min_percentile: 5.0, max_percentile: 99.8}
+    - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
+  eval_batch_prepr: &eval_batch_prepr
+    - Cast: {apply_to: [lr, ls], dtype: *precision, device: cuda}
+  eval_batch_postpr: &eval_batch_postpr []
+
+model:
+  name: Dummy
+  kwargs: {}
+
+stages:
+- test:
+    metrics: *metrics
+    log: *eval_log
+    batch_preprocessing: *eval_batch_prepr
+    batch_postprocessing: *eval_batch_postpr
+    data:
+      - batch_size: *eval_batch_size
+        interpolation_order: *interpol
+        sample_preprocessing: *eval_sample_prepr
+        datasets:
+          - {tensors: {lr: beads.b01highc_0_lr, ls: beads.b01highc_0_ls}, interpolation_order: *interpol, sample_transformations: *eval_sample_trfs, indices: 0}
