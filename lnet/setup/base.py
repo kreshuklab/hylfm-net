@@ -260,6 +260,7 @@ class Stage:
         metrics: Dict[str, Dict[str, Any]],
         log: Dict[str, Any],
         batch_preprocessing: List[Dict[str, Dict[str, Any]]],
+        batch_preprocessing_in_step: List[Dict[str, Dict[str, Any]]],
         batch_postprocessing: List[Dict[str, Dict[str, Any]]],
         model: LnetModel,
         log_path: Path,
@@ -277,6 +278,10 @@ class Stage:
             getattr(lnet.transformations, name)(**kwargs) for trf in batch_preprocessing for name, kwargs in trf.items()
         ]
         self.batch_preprocessing = ComposedTransform(*batch_preprocessing_instances)
+        batch_preprocessing_in_step_instances: List[Transform] = [
+            getattr(lnet.transformations, name)(**kwargs) for trf in batch_preprocessing_in_step for name, kwargs in trf.items()
+        ]
+        self.batch_preprocessing_in_step = ComposedTransform(*batch_preprocessing_in_step_instances)
         batch_postprocessing_instances: List[Transform] = [
             getattr(lnet.transformations, name)(**kwargs)
             for trf in batch_postprocessing

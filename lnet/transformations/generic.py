@@ -20,18 +20,30 @@ class Cast(Transform, DTypeMapping):
     """Casts inputs to a specified datatype."""
 
     def __init__(
-        self, dtype="float32", device: str = "cpu", numpy_kwargs: Optional[Dict[str, Any]] = None, **super_kwargs
+        self,
+        dtype: str,
+        device: str,
+        numpy_kwargs: Optional[Dict[str, Any]] = None,
+        non_blocking: bool = False,
+        **super_kwargs,
     ):
+        assert device in ("cpu", "cuda"), device
+        if device == "cpu" and numpy_kwargs:
+            raise ValueError(f"got numpy kwargs {numpy_kwargs}, but device != 'cpu'")
+
         super().__init__(**super_kwargs)
         self.dtype = self.DTYPE_MAPPING[dtype]
-        assert device in ("cpu", "cuda"), device
         self.device = device
         self.numpy_kwargs = numpy_kwargs or {}
+        self.non_blocking = non_blocking
 
     def apply_to_tensor(self, tensor: numpy.ndarray, *, name: str, idx: int, meta: List[dict]):
         if isinstance(tensor, torch.Tensor):
-            return tensor.to(dtype=getattr(torch, self.dtype), device=torch.device(self.device))
+            return tensor.to(
+                dtype=getattr(torch, self.dtype), device=torch.device(self.device), non_blocking=self.non_blocking
+            )
         elif isinstance(tensor, numpy.ndarray):
+            assert not self.non_blocking, "'non_blocking' not supported for numpy.ndarray"
             if self.device == "cuda":
                 return torch.from_numpy(tensor).to(dtype=getattr(torch, self.dtype), device=torch.device(self.device))
             elif self.device == "cpu":

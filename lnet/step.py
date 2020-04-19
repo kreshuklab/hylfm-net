@@ -11,11 +11,11 @@ if typing.TYPE_CHECKING:
 
 
 def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.Any], train: bool):
-    start = perf_counter()
-
     stage: typing.Union[EvalStage, TrainStage] = engine.state.stage
     model: torch.nn.Module = engine.state.model
 
+    tensors = stage.batch_preprocessing_in_step(tensors)
+    start = perf_counter()
     model.train(train)
     if train:
         optimizer = engine.state.optimizer

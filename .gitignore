@@ -9,6 +9,8 @@ lnet/settings.py
 notebooks/**/*.svg
 notebooks/**/*.npy
 notebooks/**/*.tif
+notebooks/**/*.pgf
+notebooks/**/*.ps
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
