@@ -5,7 +5,7 @@ z_out: &z_out 51
 toolbox: # defines yaml placeholders
   interpol: &interpol 2
 #  lf_crop: &lf_crop [[0, 0], [0, 0], [0, 0]]
-  ls_roi: &ls_roi [[0, 0], [35, -35], [0, 0], [0, 0]]
+  ls_roi: &ls_roi [[0, 0], [35, -35], [8, -8], [8, -8]]
   metrics: &metrics
     MSSSIM: {tensor_names: {y_pred: pred, y: ls}, window_size: 11, size_average: true, val_range: null, normalize: false}
     SSIM: {tensor_names: {y_pred: pred, y: ls}, window_size: 11, window: null, size_average: true, full: false, val_range: null}
@@ -29,7 +29,7 @@ toolbox: # defines yaml placeholders
       tensor_names: {lf, ls, pred}
 
   eval_batch_size: &eval_batch_size 2
-  eval_sample_trfs: &eval_sample_trfs
+  sample_trfs: &sample_trfs
     - Resize: {apply_to: ls, shape: [1.0, *z_out, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947, ], order: 2}  # 0.21052631578947368421052631578947‬=4/19
   eval_sample_prepr: &eval_sample_prepr
     - Crop: {apply_to: ls, crop: *ls_roi}
@@ -39,28 +39,88 @@ toolbox: # defines yaml placeholders
   eval_batch_prepr: &eval_batch_prepr []
   batch_prepr_in_step: &batch_prepr_in_step
     - Cast: {apply_to: [lfc, ls], dtype: *precision, device: cuda, non_blocking: true}
-  eval_batch_postpr: &eval_batch_postpr []
+  batch_postpr: &batch_postpr []
 
 model:
-  name: M16
+  name: A04
   kwargs:
     input_name: lfc
     prediction_name: pred
     nnum: *nnum
     z_out: *z_out
-    final_activation: null
-  checkpoint: [GKRESHUK, beuttenm/repos/llnet/logs/beads/1-4-11/5/19-12-12_13-38-28/models/v0_model_295.pth]
+  checkpoint:
 
 stages:
-- test:
-    metrics: *metrics
-    log: *eval_log
-    batch_preprocessing: *eval_batch_prepr
-    batch_preprocessing_in_step: *batch_prepr_in_step
-    batch_postprocessing: *eval_batch_postpr
-    data:
-      - batch_size: *eval_batch_size
-        interpolation_order: *interpol
-        sample_preprocessing: *eval_sample_prepr
-        datasets:
-          - {tensors: {lf: beads.b01highc_0_lf, ls: beads.b01highc_0_ls}, interpolation_order: *interpol, sample_transformations: *eval_sample_trfs}
+  - train:
+      max_num_epochs: 1
+      metrics: *metrics
+      log:
+        TqdmLogger:
+          scalars_every: {value: 1, unit: iteration}
+          tensors_every: {value: 1, unit: epoch}
+        TensorBoardLogger:
+          scalars_every: {value: 1, unit: iteration}
+          tensors_every: {value: 1, unit: epoch}
+
+      criterion:
+        name: WeightedSmoothL1Loss
+        kwargs: {threshold: 0.8, initial_weight: .05, apply_below_threshold: true, decay_by: .8, every_nth_epoch: 1}
+        tensor_names: {input: pred, target: ls}
+
+      optimizer:
+        name: Adam
+        kwargs: {lr: 4.0e-4, eps: 1.0e-8}
+
+      sampler:
+        base: RandomSampler
+        drop_last: false
+
+      batch_preprocessing: *eval_batch_prepr
+      batch_preprocessing_in_step: *batch_prepr_in_step
+      batch_postprocessing: *batch_postpr
+
+      data:
+        - batch_size: 1
+          interpolation_order: *interpol
+          sample_preprocessing:
+            - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+            - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
+            - AdditiveGaussianNoise: {apply_to: lf, sigma: 0.1}
+            - AdditiveGaussianNoise: {apply_to: ls, sigma: 0.05}
+            - RandomIntensityScale: {apply_to: [lf, ls], factor_min: .8, factor_max: 1.2}
+            - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -1}
+            - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -2}
+            - RandomRotate90: {apply_to: [lf, ls]}
+            - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
+
+          datasets:
+            - {tensors: {lf: beads.b01highc_2_lf, ls: beads.b01highc_2_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+
+      validate:
+        metrics: *metrics
+        log: *eval_log
+        score_metric: -SmoothL1Loss
+        period: {value: 1, unit: epoch}
+        patience: 5
+        batch_preprocessing: *eval_batch_prepr
+        batch_preprocessing_in_step: *batch_prepr_in_step
+        batch_postprocessing: *batch_postpr
+        data:
+          - batch_size: *eval_batch_size
+            interpolation_order: *interpol
+            sample_preprocessing: *eval_sample_prepr
+            datasets:
+              - {tensors: {lf: beads.b01highc_0_lf, ls: beads.b01highc_0_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+
+  - test:
+      metrics: *metrics
+      log: *eval_log
+      batch_preprocessing: *eval_batch_prepr
+      batch_preprocessing_in_step: *batch_prepr_in_step
+      batch_postprocessing: *batch_postpr
+      data:
+        - batch_size: *eval_batch_size
+          interpolation_order: *interpol
+          sample_preprocessing: *eval_sample_prepr
+          datasets:
+            - {tensors: {lf: beads.b01highc_1_lf, ls: beads.b01highc_1_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}

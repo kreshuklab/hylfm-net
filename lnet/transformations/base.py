@@ -103,7 +103,7 @@ class TransformLike(Protocol):
         pass
 
 
-class ComposedTransform(Transform):
+class ComposedTransformation(Transform):
     def __init__(self, *transforms: TransformLike, **super_kwargs):
         assert all([callable(transform) for transform in transforms])
         super().__init__(**super_kwargs)

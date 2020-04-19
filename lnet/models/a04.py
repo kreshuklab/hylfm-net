@@ -114,13 +114,7 @@ class A04(LnetModel):
             self.final_activation = None
 
     def forward(self, tensors: typing.OrderedDict[str, typing.Any]):
-        tensors = self.transform(tensors)
         x = tensors[self.input_name]
-        pmeta = tensors["meta"].get(self.prediction_name, {})
-        pmeta["shrinkage"] = self.get_shrinkage(x.shape[2:])
-        pmeta["scaling"] = self.get_scaling(x.shape[2:])
-        tensors["meta"][self.self.prediction_name] = pmeta
-
         x = self.res2d(x)
         x = self.conv2d(x)
         x = self.c2z(x)
@@ -159,10 +153,9 @@ def try_static(backprop: bool = True):
     from torch.utils.data import DataLoader
     import matplotlib.pyplot as plt
 
-    from lnet.datasets import get_dataset_from_info, ZipDataset
+    from lnet.datasets import get_dataset_from_info, ZipDataset, N5CachedDataset
     from lnet.datasets.gcamp import ref0_lf, ref0_ls
-    from lnet.datasets import N5CachedDataset
-    from lnet.transformations import Normalize01
+    from lnet.transformations import Normalize01, ComposedTransformation, ChannelFromLightField, Cast, Crop
 
     m = A04(input_name="lf", prediction_name="pred", z_out=51, nnum=19)
     # n_res2d: [976, 488, u, 244, 244, u, 122, 122]
@@ -198,8 +191,13 @@ def try_static(backprop: bool = True):
             )
         )
     )
-    normalize = Normalize01(apply_to=["lf", "ls"], min_percentile=0, max_percentile=100)
-    ds = ZipDataset({"lf": lfds, "ls": lsds}, transformation=normalize)
+    trf = ComposedTransformation(
+        Crop(apply_to="ls", crop=[[0, 0], [35, -35], [8, -8], [8, -8]]),
+        Normalize01(apply_to=["lf", "ls"], min_percentile=0, max_percentile=100),
+        ChannelFromLightField(apply_to="lf", nnum=19),
+        Cast(apply_to=["lf", "ls"], dtype="float32", device="cuda"),
+    )
+    ds = ZipDataset({"lf": lfds, "ls": lsds}, transformation=trf)
     loader = DataLoader(ds, batch_size=1, collate_fn=get_collate_fn(lambda t: t))
 
     device = torch.device("cuda")
@@ -217,7 +215,7 @@ def try_static(backprop: bool = True):
     print("get_output_shape()", m.get_output_shape(ipt.shape[2:]))
     print("ipt", ipt.shape, "tgt", tgt.shape)
     out_sample = m(sample)
-    out = out_sample["out"]
+    out = out_sample["pred"]
     if backprop:
         loss_fn = torch.nn.MSELoss()
         loss = loss_fn(out, tgt)
@@ -236,15 +234,15 @@ def try_static(backprop: bool = True):
     plt.title("tgt")
     plt.show()
 
-    print("out", out.shape)
+    print("pred", out.shape)
     plt.imshow(out[0, 0].detach().cpu().numpy().max(axis=0))
-    plt.title("out")
+    plt.title("pred")
     plt.show()
     plt.imshow(out[0, 0].detach().cpu().numpy().max(axis=1))
-    plt.title("out")
+    plt.title("pred")
     plt.show()
     plt.imshow(out[0, 0].detach().cpu().numpy().max(axis=2))
-    plt.title("out")
+    plt.title("pred")
     plt.show()
 
     print("done")

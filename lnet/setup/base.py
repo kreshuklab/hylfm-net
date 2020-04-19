@@ -26,7 +26,7 @@ from lnet.datasets.base import TensorInfo
 from lnet.models import LnetModel
 from lnet.setup._utils import indice_string_to_list
 from lnet.step import inference_step, training_step
-from lnet.transformations import ComposedTransform, Transform
+from lnet.transformations import ComposedTransformation, Transform
 from lnet.utils import Period, PeriodUnit
 from lnet.utils.batch_sampler import NoCrossBatchSampler
 
@@ -135,7 +135,7 @@ class DatasetGroupSetup:
         sample_prepr_trf_instances: List[Transform] = [
             getattr(lnet.transformations, name)(**kwargs) for trf in sample_preprocessing for name, kwargs in trf.items()
         ]
-        self.sample_preprocessing = ComposedTransform(*sample_prepr_trf_instances)
+        self.sample_preprocessing = ComposedTransformation(*sample_prepr_trf_instances)
         self._dataset: Optional[ConcatDataset] = None
         self.dataset_setups: List[DatasetSetup] = [DatasetSetup(**kwargs) for kwargs in datasets]
 
@@ -190,6 +190,8 @@ class DatasetSetup:
             self.indices = [indices]
         elif isinstance(indices, str):
             self.indices = indice_string_to_list(indices)
+        elif indices is None:
+            self.indices = None
         else:
             raise NotImplementedError(indices)
 
@@ -277,17 +279,17 @@ class Stage:
         batch_preprocessing_instances: List[Transform] = [
             getattr(lnet.transformations, name)(**kwargs) for trf in batch_preprocessing for name, kwargs in trf.items()
         ]
-        self.batch_preprocessing = ComposedTransform(*batch_preprocessing_instances)
+        self.batch_preprocessing = ComposedTransformation(*batch_preprocessing_instances)
         batch_preprocessing_in_step_instances: List[Transform] = [
             getattr(lnet.transformations, name)(**kwargs) for trf in batch_preprocessing_in_step for name, kwargs in trf.items()
         ]
-        self.batch_preprocessing_in_step = ComposedTransform(*batch_preprocessing_in_step_instances)
+        self.batch_preprocessing_in_step = ComposedTransformation(*batch_preprocessing_in_step_instances)
         batch_postprocessing_instances: List[Transform] = [
             getattr(lnet.transformations, name)(**kwargs)
             for trf in batch_postprocessing
             for name, kwargs in trf.items()
         ]
-        self.batch_postprocessing = ComposedTransform(*batch_postprocessing_instances)
+        self.batch_postprocessing = ComposedTransformation(*batch_postprocessing_instances)
         self.data: DataSetup = DataSetup([DatasetGroupSetup(**d) for d in data])
         self.sampler: SamplerSetup = SamplerSetup(**sampler, _data_setup=self.data)
         self.log = self.log_class(stage=self, **log)
@@ -473,7 +475,7 @@ class OptimizerSetup:
         if "engine" in sig.parameters:
             kwargs["engine"] = engine
 
-        return self._class(engine.state.stage.setup.model.parameters(), **kwargs)
+        return self._class(engine.state.model.parameters(), **kwargs)
 
 
 class TrainStage(Stage):

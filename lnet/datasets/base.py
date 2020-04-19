@@ -21,7 +21,7 @@ import lnet
 from lnet import settings
 from lnet.datasets.utils import get_paths_and_numbers
 from lnet.stat import DatasetStat
-from lnet.transformations.base import ComposedTransform
+from lnet.transformations.base import ComposedTransformation
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +112,7 @@ class DatasetFromInfo(torch.utils.data.Dataset):
         super().__init__()
         self.tensor_name = info.name
         self.description = info.description
-        self.transform = lnet.transformations.ComposedTransform(
+        self.transform = lnet.transformations.ComposedTransformation(
             *[
                 getattr(lnet.transformations, name)(**kwargs)
                 for trf in info.transformations
@@ -444,8 +444,7 @@ def get_collate_fn(batch_transformation: Callable):
             if isinstance(tensor0, numpy.ndarray):
                 tensor_batch = numpy.ascontiguousarray(numpy.concatenate(tensor_batch, axis=0))
             elif isinstance(tensor0, torch.Tensor):
-                raise NotImplementedError
-                # tensor_batch = torch.cat(tensor_batch, dim=0)
+                tensor_batch = torch.cat(tensor_batch, dim=0)
             elif isinstance(tensor0, list):
                 assert all(
                     len(v) == 1 for v in tensor_batch
