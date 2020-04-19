@@ -13,6 +13,7 @@ import h5py
 import imageio
 import numpy
 import torch.utils.data
+import torch.multiprocessing
 import warnings
 import yaml
 import z5py
@@ -52,7 +53,7 @@ class TensorInfo:
     ):
         if z_slice is not None and skip_indices:
             raise NotImplementedError("skip indices with z_slice")
-        
+
         assert isinstance(name, str)
         assert isinstance(root, str)
         assert isinstance(location, str)
@@ -72,12 +73,14 @@ class TensorInfo:
     @property
     def transformations(self) -> List[Dict[str, Any]]:
         return self.__transformations
-    
+
     @transformations.setter
     def transformations(self, trfs):
         assert isinstance(trfs, list)
         trfs = [{name: kwargs for name, kwargs in trf.items() if self.name in kwargs["apply_to"]} for trf in trfs]
-        discarded_trfs = [{name: kwargs for name, kwargs in trf.items() if self.name not in kwargs["apply_to"]} for trf in trfs]
+        discarded_trfs = [
+            {name: kwargs for name, kwargs in trf.items() if self.name not in kwargs["apply_to"]} for trf in trfs
+        ]
         for dtrf in discarded_trfs:
             for name, kwargs in dtrf:
                 warnings.warn(f"discarded trf {name} for tensor {self.name} (apply_to: {kwargs['apply_to']})")
@@ -86,7 +89,7 @@ class TensorInfo:
         self.__transformations = trfs
 
     @property
-    def description(self): 
+    def description(self):
         return yaml.safe_dump(
             {
                 "name": self.name,
@@ -102,7 +105,7 @@ class TensorInfo:
             }
         )
 
-    
+
 class DatasetFromInfo(torch.utils.data.Dataset):
     get_z_slice: Callable[[int], Optional[int]]
 
@@ -111,7 +114,11 @@ class DatasetFromInfo(torch.utils.data.Dataset):
         self.tensor_name = info.name
         self.description = info.description
         self.transform = lnet.transformations.ComposedTransform(
-            *[getattr(lnet.transformations, name)(**kwargs) for trf in info.transformations for name, kwargs in trf.items()]
+            *[
+                getattr(lnet.transformations, name)(**kwargs)
+                for trf in info.transformations
+                for name, kwargs in trf.items()
+            ]
         )
 
         self.in_batches_of = info.in_batches_of
@@ -137,7 +144,7 @@ class DatasetFromInfo(torch.utils.data.Dataset):
             return self.z_slice
         else:
             return idx % self._z_slice_mod
-    
+
     def update_meta(self, meta: dict) -> dict:
         has_z_slice = meta.get("z_slice", None)
         z_slice = self.get_z_slice(meta["idx"])
@@ -237,6 +244,9 @@ def get_dataset_from_info(info: TensorInfo) -> DatasetFromInfo:
         raise NotImplementedError
 
 
+N5CachedDataset_submit_lock = torch.multiprocessing.Lock()
+
+
 class N5CachedDataset(torch.utils.data.Dataset):
     def __init__(self, dataset: DatasetFromInfo):
         super().__init__()
@@ -254,7 +264,6 @@ class N5CachedDataset(torch.utils.data.Dataset):
         self.data_file = data_file = z5py.File(path=str(data_file_path), mode="a", use_zarr_format=False)
         shape = data_file[tensor_name].shape if tensor_name in data_file else None
 
-        self.submit_lock = threading.Lock()
         if shape is None:
             self._len = _len = len(dataset)
             sample = dataset[0]
@@ -328,17 +337,17 @@ class N5CachedDataset(torch.utils.data.Dataset):
         return n5ds.chunk_exists(chunk_idx)
 
     def submit(self, idx: int) -> Union[int, Future]:
-        with self.submit_lock:
-            if self.ready(idx):
-                fut = Future()
-                fut.set_result(idx)
-            else:
+        if self.ready(idx):
+            fut = Future()
+            fut.set_result(idx)
+        else:
+            with N5CachedDataset_submit_lock:
                 fut = self.futures.get(idx, None)
                 if fut is None:
                     fut = self.executor.submit(self.process, idx)
                     self.futures[idx] = fut
 
-            return fut
+        return fut
 
     def process(self, idx: int) -> int:
         self.data_file[self.tensor_name][idx, ...] = self.dataset[idx][self.tensor_name]

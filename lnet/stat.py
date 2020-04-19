@@ -38,6 +38,7 @@ class RequestedDatasetStat:
 
 DatasetStat_rlock = RLock()
 
+
 class DatasetStat:
     computed: ComputedDatasetStat
     requested: RequestedDatasetStat
