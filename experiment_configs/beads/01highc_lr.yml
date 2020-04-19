@@ -37,8 +37,9 @@ toolbox: # defines yaml placeholders
     - Crop: {apply_to: [lr, ls], crop: *ls_roi}
     - Normalize01: {apply_to: lr, min_percentile: 5.0, max_percentile: 99.8}
     - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
-  eval_batch_prepr: &eval_batch_prepr
-    - Cast: {apply_to: [lr, ls], dtype: *precision, device: cuda}
+  eval_batch_prepr: &eval_batch_prepr []
+  batch_prepr_in_step: &batch_prepr_in_step
+    - Cast: {apply_to: [lr, ls], dtype: *precision, device: cuda, non_blocking: true}
   eval_batch_postpr: &eval_batch_postpr []
 
 model:
@@ -50,6 +51,7 @@ stages:
     metrics: *metrics
     log: *eval_log
     batch_preprocessing: *eval_batch_prepr
+    batch_preprocessing_in_step: *batch_prepr_in_step
     batch_postprocessing: *eval_batch_postpr
     data:
       - batch_size: *eval_batch_size

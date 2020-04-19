@@ -37,9 +37,9 @@ toolbox: # defines yaml placeholders
     - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
     - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
   eval_batch_prepr: &eval_batch_prepr []
-  eval_batch_postpr: &eval_batch_postpr []
   batch_prepr_in_step: &batch_prepr_in_step
     - Cast: {apply_to: [lfc, ls], dtype: *precision, device: cuda, non_blocking: true}
+  eval_batch_postpr: &eval_batch_postpr []
 
 model:
   name: M16

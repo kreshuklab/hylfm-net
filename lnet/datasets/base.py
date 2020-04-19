@@ -117,19 +117,27 @@ class DatasetFromInfo(torch.utils.data.Dataset):
         self.in_batches_of = info.in_batches_of
         self.insert_singleton_axes_at = info.insert_singleton_axes_at
 
+        self._z_slice_mod: Optional[int] = None
         if info.z_slice is None:
-            self.get_z_slice = lambda idx: None
+            self._z_slice = None
         elif isinstance(info.z_slice, int):
-            self.get_z_slice = lambda idx: info.z_slice
+            self._z_slice = info.z_slice
         elif isinstance(info.z_slice, str):
             if info.z_slice.startswith("idx%"):
-                zmod = int(info.z_slice[4:])
-                self.get_z_slice = lambda idx: idx % zmod
+                self._z_slice_mod = int(info.z_slice[4:])
             else:
                 raise NotImplementedError(info.z_slice)
         else:
             raise NotImplementedError(info.z_slice)
 
+    def get_z_slice(self, idx: int) -> int:
+        if self._z_slice is None:
+            return None
+        elif self._z_slice_mod is None:
+            return self.z_slice
+        else:
+            return idx % self._z_slice_mod
+    
     def update_meta(self, meta: dict) -> dict:
         has_z_slice = meta.get("z_slice", None)
         z_slice = self.get_z_slice(meta["idx"])
