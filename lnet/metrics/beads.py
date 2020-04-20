@@ -23,21 +23,22 @@ class BeadPrecisionRecall(Metric):
             tgt_idx, pred_idx, fme = match_beads(
                 tgt.detach().cpu().numpy(), pred.detach().cpu().numpy(), dist_threshold=self.dist_threshold
             )
-            self.found_missing_extra += fme
         except Exception as e:
-            logger.exception(e)
+            logger.info(e)
+        else:
+            self.found_missing_extra += fme
 
     def compute(self):
         try:
             precision = numpy.asarray([f / (f + e) for f, m, e in self.found_missing_extra]).mean()
         except Exception as e:
-            logger.exception(e)
+            logger.info(e)
             precision = numpy.nan
 
         try:
             recall = numpy.asarray([f / (f + m) for f, m, e in self.found_missing_extra]).mean()
         except Exception as e:
-            logger.exception(e)
+            logger.info(e)
             recall = numpy.nan
 
         return precision, recall

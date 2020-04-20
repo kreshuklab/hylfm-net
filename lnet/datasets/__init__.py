@@ -1,9 +1,8 @@
 from .base import (
     ConcatDataset,
-    N5CachedDataset,
-    N5CachedDatasetSubset,
+    N5CachedDatasetFromInfo,
+    N5CachedDatasetFromInfoSubset,
     get_collate_fn,
     ZipDataset,
-    ZipSubset,
     get_dataset_from_info,
 )

@@ -21,8 +21,8 @@ import lnet.optimizers
 import lnet.registration
 import lnet.transformations
 from lnet import settings
-from lnet.datasets import ConcatDataset, N5CachedDataset, ZipDataset, ZipSubset, get_collate_fn, get_dataset_from_info
-from lnet.datasets.base import TensorInfo
+from lnet.datasets import ConcatDataset, N5CachedDatasetFromInfo, ZipDataset, get_collate_fn, get_dataset_from_info
+from lnet.datasets.base import TensorInfo, N5CachedDatasetFromInfoSubset
 from lnet.models import LnetModel
 from lnet.setup._utils import indice_string_to_list
 from lnet.step import inference_step, training_step
@@ -124,14 +124,11 @@ class DatasetGroupSetup:
         interpolation_order: int,
         datasets: List[Dict[str, Any]],
         sample_preprocessing: List[Dict[str, Dict[str, Any]]],
-        ls_affine_transform_class: Optional[str] = None,
+        filters: Sequence[Tuple[str, Dict[str, Any]]] = tuple(),
     ):
         self.batch_size = batch_size
         self.interpolation_order = interpolation_order
 
-        self.ls_affine_transform_class = (
-            None if ls_affine_transform_class is None else getattr(lnet.registration, ls_affine_transform_class)
-        )
         sample_prepr_trf_instances: List[Transform] = [
             getattr(lnet.transformations, name)(**kwargs)
             for trf in sample_preprocessing
@@ -139,18 +136,21 @@ class DatasetGroupSetup:
         ]
         self.sample_preprocessing = ComposedTransformation(*sample_prepr_trf_instances)
         self._dataset: Optional[ConcatDataset] = None
+        self.filters = list(filters)
         self.dataset_setups: List[DatasetSetup] = [DatasetSetup(**kwargs) for kwargs in datasets]
 
     def get_individual_dataset(self, dss: DatasetSetup) -> torch.utils.data.Dataset:
-        ds = ZipDataset(
-            {name: N5CachedDataset(get_dataset_from_info(dsinfo)) for name, dsinfo in dss.infos.items()},
+        return ZipDataset(
+            {
+                name: N5CachedDatasetFromInfoSubset(
+                    N5CachedDatasetFromInfo(get_dataset_from_info(dsinfo)),
+                    indices=dss.indices,
+                    filters=self.filters + dss.filters,
+                )
+                for name, dsinfo in dss.infos.items()
+            },
             transformation=self.sample_preprocessing,
         )
-
-        if dss.indices is None:
-            return ds
-        else:
-            return ZipSubset(ds, dss.indices, dss.z_crop)
 
     @property
     def dataset(self) -> ConcatDataset:
@@ -168,9 +168,10 @@ class DatasetSetup:
         tensors: Dict[str, Union[str, dict]],
         interpolation_order: int,
         indices: Optional[Union[str, int, List[int]]] = None,
-        z_crop: Optional[Tuple[int, int]] = None,
+        filters: Sequence[Tuple[str, Dict[str, Any]]] = tuple(),
         sample_transformations: Sequence[Dict[str, Dict[str, Any]]] = tuple(),
     ):
+        self.filters = list(filters)
         expected_tensor_names = set(kwargs["apply_to"] for strf in sample_transformations for kwargs in strf.values())
         assert all(
             [isinstance(etn, str) for etn in expected_tensor_names]
@@ -210,9 +211,6 @@ class DatasetSetup:
             self.indices = None
         else:
             raise NotImplementedError(indices)
-
-        assert z_crop is None or len(z_crop) == 2
-        self.z_crop = z_crop
 
 
 class DataSetup:
@@ -357,7 +355,7 @@ class Stage:
         engine.add_event_handler(ignite.engine.Events.STARTED, self.start_engine)
         engine.add_event_handler(ignite.engine.Events.COMPLETED, self.log_compute_time)
 
-        initialized_metrics = {}
+        metric_instances = {}
         for metric_name, kwargs in self.metrics.items():
             kwargs = dict(kwargs)
             metric_class = getattr(lnet.metrics, metric_name, None)
@@ -375,7 +373,7 @@ class Stage:
                         if metric_getter is None:
                             raise ValueError(f"{metric_name} is not a valid metric name")
 
-                        metric = metric_getter(initialized_metrics=initialized_metrics, kwargs=kwargs)
+                        metric = metric_getter(initialized_metrics=metric_instances, kwargs=kwargs)
                     else:
                         postfix = kwargs.pop("postfix", "")
                         metric_name += postfix
@@ -393,12 +391,10 @@ class Stage:
                     logger.error("Cannot init %s", metric_name)
                     raise
 
+            metric_instances[metric_name] = metric
             metric.attach(engine, metric_name)
 
-            # def shutdown_data_setup(engine: ignite.engine.Engine, data_setup: DataSetup = self.data):
-            #     data_setup.shutdown()
-            #
-            # self._engine.add_event_handler(ignite.engine.Events.COMPLETED, shutdown_data_setup)
+        self.metric_instances = metric_instances
 
     @property
     def engine(self):

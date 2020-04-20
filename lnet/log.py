@@ -25,13 +25,24 @@ if typing.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def log_exception(func):
+    def wrap(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            logger.error(e, exc_info=True)
+
+    return wrap
+
+
 class BaseLogger:
     def __init__(self, *, stage: Stage, tensor_names: typing.Optional[typing.Set[str]]):
         self.stage = stage
         self.tensor_names = tensor_names
 
     def log_scalars(self, engine: Engine) -> None:
-        pass
+        for name, metric in self.stage.metric_instances.items():
+            metric.completed(engine=engine, name=name)
 
     def get_tensor_names(self, engine: Engine) -> typing.Set[str]:
         if self.tensor_names is None:
@@ -97,6 +108,7 @@ class TqdmLogger(BaseLogger):
         return self._pbar
 
     def log_scalars(self, engine: Engine) -> None:
+        super().log_scalars(engine)
         it = engine.state.iteration
         its_passed = it - self._last_it
         self._last_it = it
@@ -113,10 +125,14 @@ class FileLogger(BaseLogger):
         with metric_log_file.open(mode="a") as file:
             file.write(f"{engine.state.iteration}\t{engine.state.metrics[name]}\n")
 
+    @log_exception
     def log_scalars(self, engine: Engine):
+        super().log_scalars(engine)
         [self._log_metric(engine, name) for name in engine.state.metrics]
 
+    @log_exception
     def log_tensors(self, engine: Engine):
+        super().log_tensors(engine)
         tensor_names = self.get_tensor_names(engine)
         tensors: typing.OrderedDict[str, typing.Any] = engine.state.output
 
@@ -153,17 +169,20 @@ class TensorBoardLogger(BaseLogger):
     @property
     def writer(self):
         if self._writer is None:
-            self._writer = torch.utils.tensorboard.SummaryWriter(str(self.stage.log_path))
+            self._writer = torch.utils.tensorboard.SummaryWriter(str(self.stage.log_path.parent))
 
         return self._writer
 
+    @log_exception
     def log_scalars(self, engine: Engine):
         super().log_scalars(engine)
         iteration = engine.state.iteration
         for k, v in engine.state.metrics.items():
             self.writer.add_scalar(tag=f"{self.stage.name}/{k}", scalar_value=v, global_step=iteration)
 
+    @log_exception
     def log_tensors(self, engine: Engine):
+        super().log_tensors(engine)
         tensor_names = self.get_tensor_names(engine)
         iteration = engine.state.iteration
         output = engine.state.output

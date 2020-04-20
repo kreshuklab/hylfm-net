@@ -11,7 +11,8 @@ class DataRoots:
 
 @dataclass
 class Settings:
-    log_path: Path = Path("C:/repos/lnet/logs")
+    log_path: Path
+    cache_path: Path
     experiment_configs_folder: str = "experiment_configs"
 
     data_roots: DataRoots = DataRoots()
@@ -29,5 +30,5 @@ class Settings:
 
     def __post_init__(self):
         assert self.reserved_workers_per_dataset_for_getitem <= self.max_workers_per_dataset
+        assert self.cache_path.exists(), self.cache_path.absolute()
 
-default_settings = Settings()

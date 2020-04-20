@@ -10,7 +10,6 @@ from inferno.extensions.initializers import Constant, Initialization
 
 from lnet.datasets import get_collate_fn
 from lnet.datasets.base import TensorInfo
-from lnet.datasets.beads import b01highc_0_ls
 from lnet.models.base import LnetModel
 from lnet.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
 
@@ -153,7 +152,7 @@ def try_static(backprop: bool = True):
     from torch.utils.data import DataLoader
     import matplotlib.pyplot as plt
 
-    from lnet.datasets import get_dataset_from_info, ZipDataset, N5CachedDataset
+    from lnet.datasets import get_dataset_from_info, ZipDataset, N5CachedDatasetFromInfo
     from lnet.datasets.gcamp import ref0_lf, ref0_ls
     from lnet.transformations import Normalize01, ComposedTransformation, ChannelFromLightField, Cast, Crop
 
@@ -162,7 +161,7 @@ def try_static(backprop: bool = True):
     # inplanes_3d: 7
     # n_res3d: [[7, 7], [7], [1]]
 
-    lfds = N5CachedDataset(
+    lfds = N5CachedDatasetFromInfo(
         get_dataset_from_info(
             TensorInfo(
                 name="lf",
@@ -172,7 +171,7 @@ def try_static(backprop: bool = True):
             )
         )
     )
-    lsds = N5CachedDataset(
+    lsds = N5CachedDatasetFromInfo(
         get_dataset_from_info(
             TensorInfo(
                 name="ls",
@@ -254,7 +253,7 @@ def try_dynamic():
     from torch.utils.data import DataLoader
     from lnet.datasets import get_dataset_from_info, ZipDataset
     from lnet.datasets.gcamp import ref0_lf, ref0_ls
-    from lnet.datasets import N5CachedDataset
+    from lnet.datasets import N5CachedDatasetFromInfo
     from lnet.transformations import Normalize01
 
     m = A04(input_name="lf", prediction_name="pred", z_out=49, nnum=19)

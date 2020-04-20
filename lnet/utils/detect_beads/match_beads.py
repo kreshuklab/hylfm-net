@@ -44,8 +44,9 @@ def match_beads_from_pos(
         valid_dist = valid_dist[valid_dist_mask]
         nfound = valid_dist.shape[0]
         logger.debug("valid matches: %s", nfound)
-        logger.debug("max dist: %s", numpy.max(valid_dist))
-        logger.debug("avg dist: %s", numpy.mean(valid_dist))
+        if nfound:
+            logger.debug("max dist: %s", numpy.max(valid_dist))
+            logger.debug("avg dist: %s", numpy.mean(valid_dist))
 
         # plt.figure()
         # plt.hist(valid_dist, bins=dist_threshold, range=(0, dist_threshold))

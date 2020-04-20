@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import logging
 import re
 import typing
 from collections import OrderedDict
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
+from functools import partial
 from hashlib import sha224 as hash_algorithm
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -11,13 +14,13 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import h5py
 import imageio
 import numpy
-import torch.utils.data
 import torch.multiprocessing
-import warnings
+import torch.utils.data
 import yaml
 import z5py
 
 import lnet
+import lnet.datasets.filters
 from lnet import settings
 from lnet.datasets.utils import get_paths_and_numbers
 from lnet.stat import DatasetStat
@@ -119,8 +122,9 @@ class DatasetFromInfo(torch.utils.data.Dataset):
         self.insert_singleton_axes_at = info.insert_singleton_axes_at
 
         self._z_slice_mod: Optional[int] = None
+        self._z_slice: Optional[int] = None
         if info.z_slice is None:
-            self._z_slice = None
+            pass
         elif isinstance(info.z_slice, int):
             self._z_slice = info.z_slice
         elif isinstance(info.z_slice, str):
@@ -131,11 +135,11 @@ class DatasetFromInfo(torch.utils.data.Dataset):
         else:
             raise NotImplementedError(info.z_slice)
 
-    def get_z_slice(self, idx: int) -> int:
+    def get_z_slice(self, idx: int) -> Optional[int]:
         if self._z_slice is None:
             return None
         elif self._z_slice_mod is None:
-            return self.z_slice
+            return self._z_slice
         else:
             return idx % self._z_slice_mod
 
@@ -243,33 +247,45 @@ N5CachedDataset_executor = None
 N5CachedDataset_executor_user_count = 0
 
 
-class N5CachedDataset(torch.utils.data.Dataset):
-    def __init__(self, dataset: DatasetFromInfo):
-        super().__init__()
+class DatasetFromInfoExtender(torch.utils.data.Dataset):
+    def __init__(self, dataset: Union[N5CachedDatasetFromInfo, DatasetFromInfo]):
+        assert isinstance(dataset, (DatasetFromInfo, N5CachedDatasetFromInfo)), type(dataset)
         self.dataset = dataset
-        data_cache_path = settings.data_roots.lnet / "data"
-        assert data_cache_path.exists(), data_cache_path.absolute()
-        description = dataset.description
 
-        data_file_path = data_cache_path / f"{hash_algorithm(description.encode()).hexdigest()}.n5"
+    def update_meta(self, meta: dict) -> dict:
+        meta = self.dataset.update_meta(meta)
+        return meta
+
+    def shutdown(self):
+        self.dataset.shutdown()
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        return self.dataset[idx]
+
+
+class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
+    def __init__(self, dataset: DatasetFromInfo):
+        super().__init__(dataset=dataset)
+        description = dataset.description
+        data_file_path = settings.cache_path / f"{hash_algorithm(description.encode()).hexdigest()}.n5"
         data_file_path.with_suffix(".txt").write_text(description)
 
         logger.info("cache %s to %s", dataset.tensor_name, data_file_path)
-        self.tensor_name = tensor_name = dataset.tensor_name
-
+        tensor_name = self.dataset.tensor_name
         self.data_file = data_file = z5py.File(path=str(data_file_path), mode="a", use_zarr_format=False)
         shape = data_file[tensor_name].shape if tensor_name in data_file else None
 
         if shape is None:
-            self._len = _len = len(dataset)
+            _len = len(dataset)
             sample = dataset[0]
             tensor = sample[tensor_name]
             tensor_shape = tuple(tensor.shape)
             assert tensor_shape[0] == 1, tensor_shape  # expected explicit batch dimension
             shape = (_len,) + tensor_shape[1:]
             data_file.create_dataset(tensor_name, shape=shape, chunks=tensor_shape, dtype=tensor.dtype)
-        else:
-            self._len = _len = shape[0]
 
         self.futures = {}
         global N5CachedDataset_executor, N5CachedDataset_executor_user_count
@@ -297,21 +313,18 @@ class N5CachedDataset(torch.utils.data.Dataset):
 
         self.stat = DatasetStat(path=data_file_path.with_suffix(".stat.yml"), dataset=self)
 
-    def __len__(self):
-        return self._len
-
     def update_meta(self, meta: dict) -> dict:
-        meta = self.dataset.update_meta(meta)
-        tensor_meta = meta.get(self.tensor_name, {})
+        meta = super().update_meta(meta)
+        tensor_meta = meta.get(self.dataset.tensor_name, {})
         assert "stat" not in tensor_meta
         tensor_meta["stat"] = self.stat
-        meta[self.tensor_name] = tensor_meta
+        meta[self.dataset.tensor_name] = tensor_meta
         return meta
 
     def __getitem__(self, idx) -> typing.OrderedDict[str, numpy.ndarray]:
         idx = int(idx)
         self.submit(idx).result()
-        return OrderedDict(**{self.tensor_name: self.data_file[self.tensor_name][idx : idx + 1]})
+        return OrderedDict(**{self.dataset.tensor_name: self.data_file[self.dataset.tensor_name][idx : idx + 1]})
 
     def shutdown(self):
         if self.futures:
@@ -324,7 +337,7 @@ class N5CachedDataset(torch.utils.data.Dataset):
             N5CachedDataset_executor.shutdown()
             N5CachedDataset_executor = None
 
-        self.dataset.shutdown()
+        super().shutdown()
 
     def background_worker_callback(self, fut: Future):
         idx = fut.result()
@@ -335,7 +348,7 @@ class N5CachedDataset(torch.utils.data.Dataset):
                 break
 
     def ready(self, idx: int) -> bool:
-        n5ds = self.data_file[self.tensor_name]
+        n5ds = self.data_file[self.dataset.tensor_name]
         chunk_idx = tuple([idx] + [0] * (len(n5ds.shape) - 1))
         return n5ds.chunk_exists(chunk_idx)
 
@@ -353,29 +366,89 @@ class N5CachedDataset(torch.utils.data.Dataset):
         return fut
 
     def process(self, idx: int) -> int:
-        self.data_file[self.tensor_name][idx, ...] = self.dataset[idx][self.tensor_name]
+        self.data_file[self.dataset.tensor_name][idx, ...] = self.dataset[idx][self.dataset.tensor_name]
 
         return idx
 
 
-class N5CachedDatasetSubset(torch.utils.data.Subset):
-    dataset: N5CachedDataset
+class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
+    dataset: N5CachedDatasetFromInfo
+
+    def __init__(
+        self, dataset: N5CachedDatasetFromInfo, indices: Sequence[int], filters: Sequence[Tuple[str, Dict[str, Any]]]
+    ):
+        super().__init__(dataset=dataset)
+        assert isinstance(dataset, N5CachedDatasetFromInfo)
+        description = (
+            dataset.dataset.description
+            + "\n"
+            + yaml.safe_dump({"indices": list(indices), "filters": [list(fil) for fil in filters]})
+        )
+        mask_file_path = settings.cache_path / f"{hash_algorithm(description.encode()).hexdigest()}.index_mask.npy"
+        mask_description_file_path = mask_file_path.with_suffix(".txt")
+        if not mask_description_file_path.exists():
+            mask_description_file_path.write_text(description)
+
+        if mask_file_path.exists():
+            mask: numpy.ndarray = numpy.load(str(mask_file_path))
+        else:
+            mask = numpy.zeros(len(dataset), dtype=bool)
+            mask[numpy.asarray(indices)] = True
+            filters = [
+                partial(getattr(lnet.datasets.filters, name), dataset=dataset, **kwargs) for name, kwargs in filters
+            ]
+
+            def apply_filters_to_mask(idx: int) -> None:
+                if any([not fil(idx=idx) for fil in filters]):
+                    mask[idx] = False
+
+            with ThreadPoolExecutor(max_workers=settings.max_workers_per_dataset) as executor:
+                for idx in indices:
+                    executor.submit(apply_filters_to_mask, idx)
+
+            numpy.save(str(mask_file_path), mask)
+
+        self.mask = mask
 
     def shutdown(self):
         self.dataset.shutdown()
 
+    @property
+    def mask(self):
+        return self.__mask
+
+    @mask.setter
+    def mask(self, new_mask):
+        self.indices = numpy.arange(len(self.dataset))[new_mask]
+        self.__mask = new_mask
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        return self.dataset[self.indices[idx]]
+
 
 class ZipDataset(torch.utils.data.Dataset):
+    """Zip N5CachedDatasetSubsets and adapt them by joining indice masks """
+
     def __init__(
         self,
-        datasets: Dict[str, torch.utils.data.Dataset],
+        datasets: Dict[str, N5CachedDatasetFromInfoSubset],
         transformation: Callable[[typing.OrderedDict], typing.OrderedDict] = lambda x: x,
     ):
         super().__init__()
         datasets = OrderedDict(**datasets)
         assert len(datasets) > 0
-        self._len = len(list(datasets.values())[0])
-        assert all(len(ds) == self._len for ds in datasets.values())
+        base_len = len(list(datasets.values())[0].dataset)
+        assert all(len(ds.dataset) == base_len for ds in datasets.values())
+        joined_mask = numpy.logical_and.reduce(numpy.stack([ds.mask for ds in datasets.values()]))
+        for ds in datasets.values():
+            ds.mask = joined_mask
+
+        _len = len(list(datasets.values())[0])
+        assert all(len(ds) == _len for ds in datasets.values())
+        self._len = _len
         self.datasets = datasets
         self.transformation = transformation
 
@@ -385,8 +458,7 @@ class ZipDataset(torch.utils.data.Dataset):
     def get_meta(self, idx: int) -> dict:
         meta = {"idx": idx}
         for name, ds in self.datasets.items():
-            if hasattr(ds, "update_meta"):
-                meta = ds.update_meta(meta)
+            meta = ds.update_meta(meta)
 
         return meta
 
@@ -402,28 +474,6 @@ class ZipDataset(torch.utils.data.Dataset):
         for ds in self.datasets:
             if hasattr(ds, "shutdown"):
                 ds.shutdown()
-
-
-class ZipSubset(torch.utils.data.Subset):
-    dataset: ZipDataset
-
-    def __init__(self, dataset: ZipDataset, indices: Sequence[int], z_crop: Optional[Tuple[int, int]] = None):
-        max_idx = max(indices)
-        if z_crop is None:
-            assert max_idx < len(dataset), (max_idx, len(dataset))
-        else:
-            not_cropped_indices = [
-                idx
-                for idx in range(len(dataset))
-                if z_crop[0] <= dataset.get_meta(idx).get("z_slice", z_crop[0]) < z_crop[1]
-            ]
-            assert max_idx < len(not_cropped_indices), (max_idx, len(not_cropped_indices))
-            indices = numpy.asarray(not_cropped_indices)[numpy.asarray(indices)]
-
-        super().__init__(dataset=dataset, indices=indices)
-
-    def shutdown(self):
-        self.dataset.shutdown()
 
 
 def get_collate_fn(batch_transformation: Callable):
