@@ -30,7 +30,7 @@ toolbox: # defines yaml placeholders
 
   eval_batch_size: &eval_batch_size 2
   sample_trfs: &sample_trfs
-    - Resize: {apply_to: ls, shape: [1.0, *z_out, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947, ], order: 2}  # 0.21052631578947368421052631578947‬=4/19
+    - Resize: {apply_to: ls, shape: [1.0, *z_out, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895, ], order: 2}  # 0.42105263157894736842105263157895‬=8/19
   eval_sample_prepr: &eval_sample_prepr
     - Crop: {apply_to: ls, crop: *ls_roi}
     - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
@@ -83,6 +83,7 @@ stages:
         - batch_size: 1
           interpolation_order: *interpol
           sample_preprocessing:
+            - Crop: {apply_to: ls, crop: *ls_roi}
             - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
             - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
             - AdditiveGaussianNoise: {apply_to: lf, sigma: 0.1}

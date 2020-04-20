@@ -33,7 +33,7 @@ class Crop(Transform):
         crop = self.crop_fn(tensor.shape[2:])
         assert len(tensor.shape) - 1 == len(crop), (tensor.shape, crop)
         out = tensor[(slice(None),) + tuple(slice(c[0], c[1] or None) for c in crop)]
-        logger.debug("Crop tensor: %s %s by %s to %s", name, tensor.shape, crop, out.shape)
+        logger.info("Crop tensor: %s %s by %s to %s", name, tensor.shape, crop, out.shape)
         return out
 
 
@@ -154,5 +154,5 @@ class Resize(Transform):
 
         zoom_factors = [sout if isinstance(sout, float) else sout / sin for sin, sout in zip(sample.shape, self.shape)]
         out = zoom(sample, zoom_factors, order=self.order)
-        logger.debug("Resize sample: %s %s by %s to %s", tensor_name, sample.shape, zoom_factors, out.shape)
+        logger.info("Resize sample: %s %s by %s to %s", tensor_name, sample.shape, zoom_factors, out.shape)
         return out
