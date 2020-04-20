@@ -375,15 +375,16 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
     dataset: N5CachedDatasetFromInfo
 
     def __init__(
-        self, dataset: N5CachedDatasetFromInfo, indices: Sequence[int], filters: Sequence[Tuple[str, Dict[str, Any]]]
+        self, dataset: N5CachedDatasetFromInfo, indices: Optional[Sequence[int]], filters: Sequence[Tuple[str, Dict[str, Any]]]
     ):
         super().__init__(dataset=dataset)
         assert isinstance(dataset, N5CachedDatasetFromInfo)
         description = (
             dataset.dataset.description
             + "\n"
-            + yaml.safe_dump({"indices": list(indices), "filters": [list(fil) for fil in filters]})
+            + yaml.safe_dump({"indices": None if indices is None else list(indices), "filters": [list(fil) for fil in filters]})
         )
+        indices = numpy.arange(len(dataset)) if indices is None else indices
         mask_file_path = settings.cache_path / f"{hash_algorithm(description.encode()).hexdigest()}.index_mask.npy"
         mask_description_file_path = mask_file_path.with_suffix(".txt")
         if not mask_description_file_path.exists():
