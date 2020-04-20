@@ -157,7 +157,7 @@ def try_static(backprop: bool = True):
     from lnet.datasets.gcamp import ref0_lf, ref0_ls
     from lnet.transformations import Normalize01, ComposedTransformation, ChannelFromLightField, Cast, Crop
 
-    m = A04(input_name="lf", prediction_name="pred", z_out=51, nnum=19)
+    m = A04(input_name="lf", prediction_name="pred", z_out=51, nnum=19, n_res2d=(488, 488, "u", 244, 244))
     # n_res2d: [976, 488, u, 244, 244, u, 122, 122]
     # inplanes_3d: 7
     # n_res3d: [[7, 7], [7], [1]]
@@ -183,7 +183,7 @@ def try_static(backprop: bool = True):
                     {
                         "Resize": {
                             "apply_to": "ls",
-                            "shape": [1.0, 121, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
+                            "shape": [1.0, 121, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947],
                             "order": 2,
                         }
                     }

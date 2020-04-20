@@ -24,11 +24,11 @@ class MSSSIM(ignite.metrics.Metric):
 
     def update(self, output):
         pred, tgt = output
-        logger.info("update with pred %s, tgt %s", pred.shape, tgt.shape)
+        logger.debug("update with pred %s, tgt %s", pred.shape, tgt.shape)
         n = tgt.shape[0]
         pred_z_as_batch = pred.transpose(1, 2).flatten(end_dim=-4) if len(pred.shape) == 5 else pred
         tgt_z_as_batch = tgt.transpose(1, 2).flatten(end_dim=-4) if len(tgt.shape) == 5 else tgt
-        logger.info(" z as batch pred %s, tgt %s", pred_z_as_batch.shape, tgt_z_as_batch.shape)
+        logger.debug(" z as batch pred %s, tgt %s", pred_z_as_batch.shape, tgt_z_as_batch.shape)
         value = (
             msssim(
                 pred_z_as_batch,
@@ -68,7 +68,7 @@ class SSIM(ignite.metrics.Metric):
 
     def update(self, output):
         y_pred, y = output
-        logger.info("update with pred %s, tgt %s", y_pred.shape, y.shape)
+        logger.debug("update with pred %s, tgt %s", y_pred.shape, y.shape)
         n = y.shape[0]
         self._sum += (
             ssim(
@@ -144,3 +144,32 @@ class SSIM_SkImage(ignite.metrics.Metric):
         if self._num_examples == 0:
             raise NotComputableError("SSIM_SKImage must have at least one example before it can be computed.")
         return self._sum / self._num_examples
+
+
+# def msssim_skimage(img1, img2, window_size=11, size_average=True, val_range=None, normalize=False):
+#     device = img1.device
+#     weights = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
+#     levels = len(weights)
+#     mssim = []
+#     mcs = []
+#     for _ in range(levels):
+#         sim, cs = ssim(img1, img2, window_size=window_size, size_average=size_average, full=True, val_range=val_range)
+#         mssim.append(sim)
+#         mcs.append(cs)
+#
+#         img1 = F.avg_pool2d(img1, (2, 2))
+#         img2 = F.avg_pool2d(img2, (2, 2))
+#
+#     mssim = torch.stack(mssim)
+#     mcs = torch.stack(mcs)
+#
+#     # Normalize (to avoid NaNs during training unstable models, not compliant with original definition)
+#     if normalize:
+#         mssim = (mssim + 1) / 2
+#         mcs = (mcs + 1) / 2
+#
+#     pow1 = mcs ** weights
+#     pow2 = mssim ** weights
+#     # From Matlab implementation https://ece.uwaterloo.ca/~z70wang/research/iwssim/
+#     output = torch.prod(pow1[:-1] * pow2[-1])
+#     return output
