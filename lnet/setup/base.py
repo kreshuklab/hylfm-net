@@ -83,13 +83,13 @@ class PerLoggerSetup:
         self,
         name: str,
         stage: Stage,
-        scalars_every: Dict[str, Union[int, str]],
-        tensors_every: Dict[str, Union[int, str]],
-        tensor_names: Optional[typing.Set[str]] = None,
+        scalars_every: Optional[Dict[str, Union[int, str]]] = None,
+        tensors_every: Optional[Dict[str, Union[int, str]]]= None,
+        tensor_names: Optional[Sequence[str]] = None,
     ):
         self.backend: lnet.log.BaseLogger = getattr(lnet.log, name)(stage=stage, tensor_names=tensor_names)
-        self.scalars_every = Period(**scalars_every)
-        self.tensors_every = Period(**tensors_every)
+        self.scalars_every = None if scalars_every is None else Period(**scalars_every)
+        self.tensors_every = None if tensors_every is None else Period(**tensors_every)
 
     def register_callbacks(self, engine: ignite.engine.Engine):
         self.backend.register_callbacks(

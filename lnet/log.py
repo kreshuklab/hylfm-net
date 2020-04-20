@@ -36,19 +36,20 @@ def log_exception(func):
 
 
 class BaseLogger:
-    def __init__(self, *, stage: Stage, tensor_names: typing.Optional[typing.Set[str]]):
+    def __init__(self, *, stage: Stage, tensor_names: typing.Optional[typing.Sequence[str]]):
         self.stage = stage
         self.tensor_names = tensor_names
 
     def log_scalars(self, engine: Engine) -> None:
         for name, metric in self.stage.metric_instances.items():
-            metric.completed(engine=engine, name=name)
+            if name in self.stage.metrics:
+                metric.completed(engine=engine, name=name)
 
-    def get_tensor_names(self, engine: Engine) -> typing.Set[str]:
+    def get_tensor_names(self, engine: Engine) -> typing.Sequence[str]:
         if self.tensor_names is None:
             tensors: typing.OrderedDict[str, typing.Any] = engine.state.output
             assert isinstance(tensors, OrderedDict)
-            tensor_names = {tn for tn in tensors.keys() if tn != "meta"}
+            tensor_names = [tn for tn in tensors if tn != "meta"]
         else:
             tensor_names = self.tensor_names
 
@@ -60,24 +61,31 @@ class BaseLogger:
     def shutdown(self) -> None:
         pass
 
-    def register_callbacks(self, engine: Engine, scalars_every: Period, tensors_every: Period) -> None:
-        if scalars_every.unit == PeriodUnit.epoch:
-            event = Events.EPOCH_COMPLETED
-        elif scalars_every.unit == PeriodUnit.iteration:
-            event = Events.ITERATION_COMPLETED
-        else:
-            raise NotImplementedError
+    def register_callbacks(
+        self,
+        engine: Engine,
+        scalars_every: typing.Optional[Period] = None,
+        tensors_every: typing.Optional[Period] = None,
+    ) -> None:
+        if scalars_every is not None:
+            if scalars_every.unit == PeriodUnit.epoch:
+                event = Events.EPOCH_COMPLETED
+            elif scalars_every.unit == PeriodUnit.iteration:
+                event = Events.ITERATION_COMPLETED
+            else:
+                raise NotImplementedError
 
-        engine.add_event_handler(event(every=scalars_every.value), self.log_scalars)
+            engine.add_event_handler(event(every=scalars_every.value), self.log_scalars)
 
-        if tensors_every.unit == PeriodUnit.epoch:
-            event = Events.EPOCH_COMPLETED
-        elif tensors_every.unit == PeriodUnit.iteration:
-            event = Events.ITERATION_COMPLETED
-        else:
-            raise NotImplementedError
+        if tensors_every is not None:
+            if tensors_every.unit == PeriodUnit.epoch:
+                event = Events.EPOCH_COMPLETED
+            elif tensors_every.unit == PeriodUnit.iteration:
+                event = Events.ITERATION_COMPLETED
+            else:
+                raise NotImplementedError
 
-        engine.add_event_handler(event(every=tensors_every.value), self.log_tensors)
+            engine.add_event_handler(event(every=tensors_every.value), self.log_tensors)
 
 
 class TqdmLogger(BaseLogger):

@@ -19,14 +19,14 @@ toolbox: # defines yaml placeholders
   eval_log: &eval_log
     TqdmLogger:
       scalars_every: {value: 1, unit: iteration}
-      tensors_every: {value: 1, unit: epoch}
     TensorBoardLogger:
-        scalars_every: {value: 1, unit: iteration}
-        tensors_every: {value: 1, unit: epoch}
+      scalars_every: {value: 1, unit: iteration}
+      tensors_every: {value: 1, unit: epoch}
+      tensor_names: [lf, pred, ls]
     FileLogger:
       scalars_every: {value: 1, unit: iteration}
       tensors_every: {value: 1, unit: iteration}
-      tensor_names: {lf, ls, pred}
+      tensor_names: [lf, pred, ls]
 
   eval_batch_size: &eval_batch_size 1
   sample_trfs: &sample_trfs
@@ -58,10 +58,10 @@ stages:
       log:
         TqdmLogger:
           scalars_every: {value: 1, unit: iteration}
-          tensors_every: {value: 1, unit: epoch}
         TensorBoardLogger:
           scalars_every: {value: 1, unit: iteration}
           tensors_every: {value: 1, unit: epoch}
+          tensor_names: [lf, pred, ls]
 
       criterion:
         name: WeightedSmoothL1Loss
