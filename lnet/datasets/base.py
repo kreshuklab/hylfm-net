@@ -76,15 +76,10 @@ class TensorInfo:
     @transformations.setter
     def transformations(self, trfs):
         assert isinstance(trfs, list)
-        trfs = [{name: kwargs for name, kwargs in trf.items() if self.name in kwargs["apply_to"]} for trf in trfs]
-        discarded_trfs = [
-            {name: kwargs for name, kwargs in trf.items() if self.name not in kwargs["apply_to"]} for trf in trfs
-        ]
-        for dtrf in discarded_trfs:
-            for name, kwargs in dtrf:
-                warnings.warn(f"discarded trf {name} for tensor {self.name} (apply_to: {kwargs['apply_to']})")
+        for trf in trfs:
+            for kwargs in trf.values():
+                assert kwargs["apply_to"] == self.name, trf
 
-        assert not any([getattr(lnet.transformations, name).randomly_changes_shape for trf in trfs for name in trf])
         self.__transformations = trfs
 
     @property

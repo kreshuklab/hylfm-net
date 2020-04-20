@@ -133,7 +133,9 @@ class DatasetGroupSetup:
             None if ls_affine_transform_class is None else getattr(lnet.registration, ls_affine_transform_class)
         )
         sample_prepr_trf_instances: List[Transform] = [
-            getattr(lnet.transformations, name)(**kwargs) for trf in sample_preprocessing for name, kwargs in trf.items()
+            getattr(lnet.transformations, name)(**kwargs)
+            for trf in sample_preprocessing
+            for name, kwargs in trf.items()
         ]
         self.sample_preprocessing = ComposedTransformation(*sample_prepr_trf_instances)
         self._dataset: Optional[ConcatDataset] = None
@@ -169,7 +171,16 @@ class DatasetSetup:
         z_crop: Optional[Tuple[int, int]] = None,
         sample_transformations: Sequence[Dict[str, Dict[str, Any]]] = tuple(),
     ):
+        expected_tensor_names = set(kwargs["apply_to"] for strf in sample_transformations for kwargs in strf.values())
+        assert all(
+            [isinstance(etn, str) for etn in expected_tensor_names]
+        ), f"sample transformations have to be applied to individual tensors, but got: {sample_transformations}"
         self.infos = {}
+        found_tensor_names = set(tensors.keys())
+        if not expected_tensor_names.issubset(found_tensor_names):
+            raise ValueError(
+                f"Cannot apply transformations to unspecified tensors: {expected_tensor_names - found_tensor_names}"
+            )
         for name, info_name in tensors.items():
             if isinstance(info_name, str):
                 info_module_name, info_name = info_name.split(".")
@@ -177,10 +188,15 @@ class DatasetSetup:
                 info = getattr(info_module, info_name)
             elif isinstance(info_name, dict):
                 info = TensorInfo(**info_name)
+            else:
+                raise TypeError(info_name)
 
-            info.transformations += list(sample_transformations)
+            trfs_for_name = [
+                trf for trf in sample_transformations if any([kwargs["apply_to"] == name for kwargs in trf.values()])
+            ]
+            info.transformations += trfs_for_name
             self.infos[name] = info
-                
+
         self.interpolation_order = interpolation_order
 
         if isinstance(indices, list):
@@ -281,7 +297,9 @@ class Stage:
         ]
         self.batch_preprocessing = ComposedTransformation(*batch_preprocessing_instances)
         batch_preprocessing_in_step_instances: List[Transform] = [
-            getattr(lnet.transformations, name)(**kwargs) for trf in batch_preprocessing_in_step for name, kwargs in trf.items()
+            getattr(lnet.transformations, name)(**kwargs)
+            for trf in batch_preprocessing_in_step
+            for name, kwargs in trf.items()
         ]
         self.batch_preprocessing_in_step = ComposedTransformation(*batch_preprocessing_in_step_instances)
         batch_postprocessing_instances: List[Transform] = [

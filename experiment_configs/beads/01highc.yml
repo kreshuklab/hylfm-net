@@ -30,7 +30,8 @@ toolbox: # defines yaml placeholders
 
   eval_batch_size: &eval_batch_size 2
   sample_trfs: &sample_trfs
-    - Resize: {apply_to: ls, shape: [1.0, *z_out, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895, ], order: 2}  # 0.42105263157894736842105263157895‬=8/19
+    - Resize: {apply_to: ls, shape: [1.0, 121, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895, ], order: 2}  # 0.42105263157894736842105263157895‬=8/19
+    - Assert: {apply_to: ls, expected_tensor_shape: [null, 1, 121, null, null]}
   eval_sample_prepr: &eval_sample_prepr
     - Crop: {apply_to: ls, crop: *ls_roi}
     - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
@@ -52,7 +53,7 @@ model:
 
 stages:
   - train:
-      max_num_epochs: 1
+      max_num_epochs: 500
       metrics: *metrics
       log:
         TqdmLogger:
@@ -75,7 +76,9 @@ stages:
         base: RandomSampler
         drop_last: false
 
-      batch_preprocessing: *eval_batch_prepr
+      batch_preprocessing:
+        - RandomRotate90: {apply_to: [lf, ls]}
+        - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
       batch_preprocessing_in_step: *batch_prepr_in_step
       batch_postprocessing: *batch_postpr
 
@@ -91,8 +94,6 @@ stages:
             - RandomIntensityScale: {apply_to: [lf, ls], factor_min: .8, factor_max: 1.2}
             - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -1}
             - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -2}
-            - RandomRotate90: {apply_to: [lf, ls]}
-            - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
 
           datasets:
             - {tensors: {lf: beads.b01highc_2_lf, ls: beads.b01highc_2_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}

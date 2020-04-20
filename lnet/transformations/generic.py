@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import numpy
 import torch
+import typing
 from scipy.special import expit
 
 from lnet.transformations.base import DTypeMapping, Transform
@@ -77,3 +78,20 @@ class Sigmoid(Transform):
             return tensor.sigmoid()
         else:
             raise NotImplementedError(type(tensor))
+
+
+class Assert(Transform):
+    def __init__(self, expected_tensor_shape: typing.Sequence[Optional[int]], **super_kwargs):
+        super().__init__(**super_kwargs)
+        self.expected_shape = expected_tensor_shape
+
+    def apply_to_tensor(self, tensor: Any, *, name: str, idx: int, meta: typing.List[dict]) -> Union[numpy.ndarray, torch.Tensor]:
+        shape_is = tuple(tensor.shape)
+        for si, s in zip(shape_is, self.expected_shape):
+            if s is None:
+                continue
+            elif si != s:
+                raise ValueError(f"expected shape {self.expected_shape}, but found {shape_is}")
+
+        return tensor
+

@@ -1,6 +1,6 @@
 from .affine import AffineTransformation
 from .base import ComposedTransformation, Transform, TransformLike
-from .generic import Cast, Clip
+from .generic import Assert, Cast, Clip
 from .image import Crop, RandomIntensityScale, RandomRotate90, RandomlyFlipAxis, Resize
 from .light_field import ChannelFromLightField, LightFieldFromChannel
 from .noises import AdditiveGaussianNoise
