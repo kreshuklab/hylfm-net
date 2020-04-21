@@ -499,7 +499,7 @@ class TrainStage(Stage):
 
     def __init__(
         self,
-        max_num_epochs: int,
+        max_epochs: int,
         validate: Dict[str, Any],
         criterion: Dict[str, Dict[str, Any]],
         optimizer: Dict[str, Dict[str, Any]],
@@ -508,7 +508,7 @@ class TrainStage(Stage):
         **super_kwargs,
     ):
         super().__init__(log_path=log_path, model=model, **super_kwargs)
-        self.max_num_epochs = max_num_epochs
+        self.max_epochs = max_epochs
         self.criterion_setup = CriterionSetup(**criterion)
         self.optimizer_setup = OptimizerSetup(**optimizer)
         self.validate = ValidateStage(name="validate", train_stage=self, model=model, log_path=log_path, **validate)
