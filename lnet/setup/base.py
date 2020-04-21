@@ -84,7 +84,7 @@ class PerLoggerSetup:
         name: str,
         stage: Stage,
         scalars_every: Optional[Dict[str, Union[int, str]]] = None,
-        tensors_every: Optional[Dict[str, Union[int, str]]]= None,
+        tensors_every: Optional[Dict[str, Union[int, str]]] = None,
         tensor_names: Optional[Sequence[str]] = None,
     ):
         self.backend: lnet.log.BaseLogger = getattr(lnet.log, name)(stage=stage, tensor_names=tensor_names)
@@ -651,18 +651,14 @@ class Setup:
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
         return self.model.get_scaling(ipt_shape)
 
-    def run(self) -> typing.List[typing.Set]:
-        states = []
+    def run(self) -> None:
         try:
             for parallel_stages in self.stages:
-                states.append(set())
                 for stage in parallel_stages:
                     logger.info("starting stage: %s", stage.name)
-                    states[-1].add(stage.run())
+                    stage.run()
         finally:
             self.shutdown()
-
-        return states
 
     def shutdown(self):
         [stage.shutdown() for parallel_stages in self.stages for stage in parallel_stages]
