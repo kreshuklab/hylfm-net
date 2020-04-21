@@ -3,6 +3,7 @@ from typing import Dict, Callable
 
 import ignite.metrics
 import numpy
+import torch
 from ignite.exceptions import NotComputableError
 from pytorch_msssim import msssim, ssim
 from skimage.measure import compare_ssim
@@ -25,6 +26,12 @@ class MSSSIM(ignite.metrics.Metric):
     def update(self, output):
         pred, tgt = output
         logger.debug("update with pred %s, tgt %s", pred.shape, tgt.shape)
+        if isinstance(pred, numpy.ndarray):
+            pred = torch.from_numpy(pred)
+
+        if isinstance(tgt, numpy.ndarray):
+            tgt = torch.from_numpy(tgt)
+
         n = tgt.shape[0]
         pred_z_as_batch = pred.transpose(1, 2).flatten(end_dim=-4) if len(pred.shape) == 5 else pred
         tgt_z_as_batch = tgt.transpose(1, 2).flatten(end_dim=-4) if len(tgt.shape) == 5 else tgt
@@ -125,6 +132,12 @@ class SSIM_SkImage(ignite.metrics.Metric):
 
     def update(self, output):
         y_pred, y = output
+        if isinstance(y_pred, numpy.ndarray):
+            y_pred = torch.from_numpy(y_pred)
+
+        if isinstance(y, numpy.ndarray):
+            y = torch.from_numpy(y)
+
         n = y.shape[0]
         self._sum += (
             ssim_skimage(

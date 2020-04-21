@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import typing
+from collections import OrderedDict
 from time import perf_counter
 
 import ignite.engine
@@ -39,7 +40,12 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
         optimizer.step()
 
     engine.state.compute_time += perf_counter() - start
-    return tensors
+    return OrderedDict(
+        [
+            (name, tensor.detach().to(device=torch.device("cpu"), non_blocking=True)) if isinstance(tensor, torch.Tensor) else (name, tensor)
+            for name, tensor in tensors.items()
+        ]
+    )
 
 
 def training_step(engine: ignite.engine.Engine, tensors: typing.OrderedDict) -> typing.OrderedDict:
