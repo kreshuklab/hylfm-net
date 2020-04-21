@@ -207,13 +207,25 @@ class TensorBoardLogger(BaseLogger):
             raise NotImplementedError(self.scalar_event)
 
         for k, v in engine.state.metrics.items():
-            self.writer.add_scalar(tag=f"{self.stage.name}[{unit}]/{k}", scalar_value=v, global_step=step)
+            self.writer.add_scalar(tag=f"{self.stage.name}-{unit}/{k}", scalar_value=v, global_step=step)
 
     @log_exception
     def log_tensors(self, engine: Engine):
         super().log_tensors(engine)
+        if self.tensor_event == Events.ITERATION_COMPLETED:
+            step = engine.state.iteration
+            unit = "it"
+        elif self.tensor_event == Events.EPOCH_COMPLETED:
+            step = engine.state.iteration // engine.state.epoch_length
+            assert (
+                engine.state.iteration // engine.state.epoch_length
+                == engine.state.iteration / engine.state.epoch_length
+            )
+            unit = "ep"
+        else:
+            raise NotImplementedError(self.tensor_event)
+
         tensor_names = self.get_tensor_names(engine)
-        iteration = engine.state.iteration
         output = engine.state.output
 
         tensors = OrderedDict(
@@ -226,7 +238,7 @@ class TensorBoardLogger(BaseLogger):
         fig = get_batch_figure(tensors=tensors, return_array=False)
         # fig_array = get_batch_figure(tensors=tensors, return_array=True)
 
-        self.writer.add_figure(tag=f"{self.stage.name}/batch", figure=fig, global_step=iteration)
+        self.writer.add_figure(tag=f"{self.stage.name}-{unit}/batch", figure=fig, global_step=step)
         # self.writer.add_image(tag=f"{self.stage.name}/batch", img_tensor=fig_array, global_step=iteration, dataformats="HWC")
         # self.writer.add_image(tag=f"{self.stage.name}/batch", img_tensor=fig_array[..., :3].astype("float") / 255, global_step=iteration, dataformats="HWC")
 
