@@ -21,6 +21,7 @@ from lnet.utils.plotting import get_batch_figure
 
 if typing.TYPE_CHECKING:
     from lnet.setup import Stage
+    from lnet.setup.base import ValidateStage
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +41,27 @@ class BaseLogger:
         self.stage = stage
         self.tensor_names = tensor_names
 
-    def log_scalars(self, engine: Engine) -> None:
+    def get_unit_and_step(self, engine: Engine, event: Events):
+        if event == Events.ITERATION_COMPLETED:
+            step = engine.state.iteration + self.stage.run_count * self.stage.max_epochs * engine.state.epoch_length
+            unit = "it"
+        elif event == Events.EPOCH_COMPLETED:
+            step = engine.state.epoch + self.stage.run_count * self.stage.max_epochs
+            unit = "ep"
+        else:
+            raise NotImplementedError(event)
+
+        return unit, step
+
+    def log_scalars(self, engine: Engine) -> typing.Tuple[str, int]:
         for name, metric in self.stage.metric_instances.items():
             if name in self.stage.metrics:
                 metric.completed(engine=engine, name=name)
+
+        return self.get_unit_and_step(engine, self.scalar_event)
+
+    def log_tensors(self, engine: Engine) -> typing.Tuple[str, int]:
+        return self.get_unit_and_step(engine, self.tensor_event)
 
     def get_tensor_names(self, engine: Engine) -> typing.Sequence[str]:
         if self.tensor_names is None:
@@ -54,9 +72,6 @@ class BaseLogger:
             tensor_names = self.tensor_names
 
         return tensor_names
-
-    def log_tensors(self, engine: Engine) -> None:
-        pass
 
     def shutdown(self) -> None:
         pass
@@ -125,8 +140,7 @@ class TqdmLogger(BaseLogger):
 
     def reset_progress(self, engine: Engine) -> None:
         self.pbar.reset()
-        epoch = engine.state.iteration // engine.state.epoch_length
-        self.set_epoch(epoch)
+        self.set_epoch(engine.state.epoch)
 
     def set_epoch(self, epoch: int):
         self.pbar.set_description(f"epoch {epoch}")
@@ -137,30 +151,38 @@ class TqdmLogger(BaseLogger):
 
 
 class FileLogger(BaseLogger):
-    def _log_metric(self, engine: Engine, name: str):
+    def _log_metric(self, engine: Engine, name: str, unit: str, step: int):
         metric_log_file = self.stage.log_path / f"{name}.txt"
         with metric_log_file.open(mode="a") as file:
-            file.write(f"{engine.state.iteration}\t{engine.state.metrics[name]}\n")
+            file.write(f"{unit}\t{step}\t{engine.state.metrics[name]}\n")
 
     @log_exception
     def log_scalars(self, engine: Engine):
-        super().log_scalars(engine)
-        [self._log_metric(engine, name) for name in engine.state.metrics]
+        unit, step = super().log_scalars(engine)
+        [self._log_metric(engine, name, unit, step) for name in engine.state.metrics]
+        return unit, step
 
     @log_exception
     def log_tensors(self, engine: Engine):
-        super().log_tensors(engine)
+        unit, step = super().log_tensors(engine)
         tensor_names = self.get_tensor_names(engine)
         tensors: typing.OrderedDict[str, typing.Any] = engine.state.output
 
         with ThreadPoolExecutor(max_workers=settings.max_workers_file_logger) as executor:
             for tn in tensor_names:
                 for tensor, meta in zip(tensors[tn], tensors["meta"]):
-                    executor.submit(self._save_tensor, tn, tensor, meta, self.stage.log_path)
+                    executor.submit(
+                        self._save_tensor,
+                        tn,
+                        tensor,
+                        meta,
+                        self.stage.log_path / f"run{self.stage.run_count}" / str(meta["idx"]),
+                    )
+
+        return unit, step
 
     @staticmethod
-    def _save_tensor(name: str, tensor: typing.Any, meta: dict, log_path: Path):
-        save_to = log_path / "output" / str(meta["idx"])
+    def _save_tensor(name: str, tensor: typing.Any, save_to: Path):
         save_to.mkdir(parents=True, exist_ok=True)
         if isinstance(tensor, torch.Tensor):
             tensor = tensor.detach().cpu().numpy()
@@ -192,38 +214,15 @@ class TensorBoardLogger(BaseLogger):
 
     @log_exception
     def log_scalars(self, engine: Engine):
-        super().log_scalars(engine)
-        if self.scalar_event == Events.ITERATION_COMPLETED:
-            step = engine.state.iteration
-            unit = "it"
-        elif self.scalar_event == Events.EPOCH_COMPLETED:
-            step = engine.state.iteration // engine.state.epoch_length
-            assert (
-                engine.state.iteration // engine.state.epoch_length
-                == engine.state.iteration / engine.state.epoch_length
-            )
-            unit = "ep"
-        else:
-            raise NotImplementedError(self.scalar_event)
-
+        unit, step = super().log_scalars(engine)
         for k, v in engine.state.metrics.items():
             self.writer.add_scalar(tag=f"{self.stage.name}-{unit}/{k}", scalar_value=v, global_step=step)
 
+        return unit, step
+
     @log_exception
     def log_tensors(self, engine: Engine):
-        super().log_tensors(engine)
-        if self.tensor_event == Events.ITERATION_COMPLETED:
-            step = engine.state.iteration
-            unit = "it"
-        elif self.tensor_event == Events.EPOCH_COMPLETED:
-            step = engine.state.iteration // engine.state.epoch_length
-            assert (
-                engine.state.iteration // engine.state.epoch_length
-                == engine.state.iteration / engine.state.epoch_length
-            )
-            unit = "ep"
-        else:
-            raise NotImplementedError(self.tensor_event)
+        unit, step = super().log_tensors(engine)
 
         tensor_names = self.get_tensor_names(engine)
         output = engine.state.output
@@ -241,6 +240,7 @@ class TensorBoardLogger(BaseLogger):
         self.writer.add_figure(tag=f"{self.stage.name}-{unit}/batch", figure=fig, global_step=step)
         # self.writer.add_image(tag=f"{self.stage.name}/batch", img_tensor=fig_array, global_step=iteration, dataformats="HWC")
         # self.writer.add_image(tag=f"{self.stage.name}/batch", img_tensor=fig_array[..., :3].astype("float") / 255, global_step=iteration, dataformats="HWC")
+        return unit, step
 
     def shutdown(self):
         if self._writer is not None:

@@ -105,12 +105,12 @@ class A04(LnetModel):
         init = partial(Initialization, weight_initializer=init_fn_conv3d, bias_initializer=Constant(0.0))
         self.conv3d = ValidConv3D(res3d_out_channels, 1, (1, 1, 1), initialization=init)
 
-        if final_activation == "sigmoid":
-            self.final_activation = torch.nn.Sigmoid()
-        elif final_activation is not None:
-            raise NotImplementedError(final_activation)
-        else:
+        if final_activation is None:
             self.final_activation = None
+        elif final_activation == "Sigmoid":
+            self.final_activation = torch.nn.Sigmoid()
+        else:
+            raise NotImplementedError(final_activation)
 
     def forward(self, tensors: typing.OrderedDict[str, typing.Any]):
         x = tensors[self.input_name]

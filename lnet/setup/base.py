@@ -309,6 +309,7 @@ class Stage:
         self.data: DataSetup = DataSetup([DatasetGroupSetup(**d) for d in data])
         self.sampler: SamplerSetup = SamplerSetup(**sampler, _data_setup=self.data)
         self.log = self.log_class(stage=self, **log)
+        self.run_count = 0
 
     @property
     def epoch_length(self):
@@ -407,9 +408,11 @@ class Stage:
         return self._engine
 
     def run(self):
-        return self.engine.run(
+        state = self.engine.run(
             data=self.data_loader, max_epochs=self.max_epochs, epoch_length=self.epoch_length, seed=self.seed
         )
+        self.run_count += 1
+        return state
 
     def shutdown(self):
         self.log.shutdown()
