@@ -69,58 +69,67 @@ class BaseLogger:
     ) -> None:
         if scalars_every is not None:
             if scalars_every.unit == PeriodUnit.epoch:
-                event = Events.EPOCH_COMPLETED
+                self.scalar_event = Events.EPOCH_COMPLETED
             elif scalars_every.unit == PeriodUnit.iteration:
-                event = Events.ITERATION_COMPLETED
+                self.scalar_event = Events.ITERATION_COMPLETED
             else:
                 raise NotImplementedError
 
-            engine.add_event_handler(event(every=scalars_every.value), self.log_scalars)
+            engine.add_event_handler(self.scalar_event(every=scalars_every.value), self.log_scalars)
 
         if tensors_every is not None:
             if tensors_every.unit == PeriodUnit.epoch:
-                event = Events.EPOCH_COMPLETED
+                self.tensor_event = Events.EPOCH_COMPLETED
             elif tensors_every.unit == PeriodUnit.iteration:
-                event = Events.ITERATION_COMPLETED
+                self.tensor_event = Events.ITERATION_COMPLETED
             else:
                 raise NotImplementedError
 
-            engine.add_event_handler(event(every=tensors_every.value), self.log_tensors)
+            engine.add_event_handler(self.tensor_event(every=tensors_every.value), self.log_tensors)
 
 
 class TqdmLogger(BaseLogger):
     _pbar = None
-    # _is_registered: bool = False
     _last_it: int = 0
 
     @property
     def pbar(self):
         if self._pbar is None:
-            self._pbar = tqdm(self.stage.epoch_length)
-            # self._pbar = tqdm(
-            #     self.stage.epoch_length, dynamic_ncols=True, unit="epoch", unit_divisor=self.stage.epoch_length
-            # )
-            # assert len(self._pbar) == self.stage.epoch_length
-            # if not self._is_registered:
-            #     self._is_registered = True
-            #     def reset_pbar(engine: Engine, pbar=self._pbar):
-            #         pbar.reset()
-            #
-            #     self.stage.engine.add_event_handler(Events.EPOCH_COMPLETED, reset_pbar)
-            #
-            #     def close_pbar(engine: Engine, pbar=self._pbar):
-            #         pbar.close()
-            #
-            #     self.stage.engine.add_event_handler(Events.EPOCH_COMPLETED, close_pbar)
+            self._pbar = tqdm(total=self.stage.epoch_length)
+            self.set_epoch(0)
 
         return self._pbar
 
-    def log_scalars(self, engine: Engine) -> None:
-        super().log_scalars(engine)
+    def register_callbacks(
+        self,
+        engine: Engine,
+        scalars_every: typing.Optional[Period] = None,
+        tensors_every: typing.Optional[Period] = None,
+    ) -> None:
+        if scalars_every is None:
+            scalars_every = Period(value=1, unit="iteration")
+
+        if scalars_every.unit == PeriodUnit.iteration:
+            self.update_event = Events.ITERATION_COMPLETED
+        else:
+            raise NotImplementedError
+
+        engine.add_event_handler(self.update_event(every=scalars_every.value), self.update_progress)
+        engine.add_event_handler(Events.EPOCH_COMPLETED, self.reset_progress)
+
+    def update_progress(self, engine: Engine) -> None:
         it = engine.state.iteration
         its_passed = it - self._last_it
         self._last_it = it
         self.pbar.update(its_passed)
+
+    def reset_progress(self, engine: Engine) -> None:
+        self.pbar.reset()
+        epoch = engine.state.iteration // engine.state.epoch_length
+        self.set_epoch(epoch)
+
+    def set_epoch(self, epoch: int):
+        self.pbar.set_description(f"epoch {epoch}")
 
     def shutdown(self) -> None:
         self.pbar.close()
@@ -184,9 +193,21 @@ class TensorBoardLogger(BaseLogger):
     @log_exception
     def log_scalars(self, engine: Engine):
         super().log_scalars(engine)
-        iteration = engine.state.iteration
+        if self.scalar_event == Events.ITERATION_COMPLETED:
+            step = engine.state.iteration
+            unit = "it"
+        elif self.scalar_event == Events.EPOCH_COMPLETED:
+            step = engine.state.iteration // engine.state.epoch_length
+            assert (
+                engine.state.iteration // engine.state.epoch_length
+                == engine.state.iteration / engine.state.epoch_length
+            )
+            unit = "ep"
+        else:
+            raise NotImplementedError(self.scalar_event)
+
         for k, v in engine.state.metrics.items():
-            self.writer.add_scalar(tag=f"{self.stage.name}/{k}", scalar_value=v, global_step=iteration)
+            self.writer.add_scalar(tag=f"{self.stage.name}[{unit}]/{k}", scalar_value=v, global_step=step)
 
     @log_exception
     def log_tensors(self, engine: Engine):
