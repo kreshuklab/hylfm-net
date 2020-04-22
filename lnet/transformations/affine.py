@@ -1,12 +1,9 @@
-import warnings
 from typing import Any, List, Optional, OrderedDict, Sequence, Tuple, Union
 
 import numpy
 import torch.nn.functional
 import torch.nn.functional
 from scipy.ndimage import affine_transform
-
-from lnet.utils.affine import inv_scipy_form2torch_form_2d, inv_scipy_form2torch_form_3d
 
 
 def scipy_form2torch_theta(scipy_form, ipt_shape, out_shape) -> torch.Tensor:
@@ -77,9 +74,9 @@ def bdv_trafo_to_affine_matrix(trafo):
         raise NotImplementedError(trafo)
 
 
-
 class AffineTransformation(torch.nn.Module):
     mode_from_order = {0: "nearest", 2: "bilinear"}
+    scipy_padding_mode = {"zeros": "constant", "border": "nearest"}
 
     def __init__(
         self,
@@ -87,28 +84,33 @@ class AffineTransformation(torch.nn.Module):
         apply_to: str,
         target_to_compare_to: str,
         order: int,
-        input_shape: Sequence[int],
-        bdv_affine_transformations: List[List[float]],  # Fiij's big data viewer affine transformations: each affine transformation as a list of 12 floats.
+        ref_input_shape: Sequence[int],
+        bdv_affine_transformations: List[
+            List[float]
+        ],  # Fiij's big data viewer affine transformations: each affine transformation as a list of 12 floats.
         # affine_matrices: List[List[float]],
-        output_shape: Sequence[int],
+        ref_output_shape: Sequence[int],
+        ref_crop_in: Optional[Tuple[Tuple[int, int], ...]] = None,
+        ref_crop_out: Optional[Tuple[Tuple[int, int], ...]] = None,
         inverted: bool = False,
-        crop_out: Optional[Tuple[Tuple[int, int], ...]] = None,
-        crop_in: Optional[Tuple[Tuple[int, int], ...]] = None,
+        padding_mode: str = "border",
     ):
-        if len(input_shape) not in (2, 3):
+        if len(ref_input_shape) not in (2, 3):
             raise NotImplementedError
 
-        if len(output_shape) not in (2, 3):
+        if len(ref_output_shape) not in (2, 3):
             raise NotImplementedError
 
         super().__init__()
         self.apply_to = apply_to
         self.target_to_compare_to = target_to_compare_to
-        self.input_shape = input_shape
-        self.output_shape = output_shape
+        self.input_shape = ref_input_shape
+        self.output_shape = ref_output_shape
 
         self.mode = self.mode_from_order[order]
+        self.padding_mode = padding_mode
 
+        assert len(bdv_affine_transformations) >= 1
         trf_matrices = [bdv_trafo_to_affine_matrix(m) for m in bdv_affine_transformations]
         trf_matrix = trf_matrices[0]
         for m in trf_matrices[1:]:
@@ -117,51 +119,61 @@ class AffineTransformation(torch.nn.Module):
         self.affine_grids = {}
 
         self.forward = self.inverted if inverted else self._forward
-        if crop_out is None:
+
+        if ref_crop_in is None:
+            ref_crop_in = tuple([(0, 0) for _ in range(len(ref_input_shape))])
+        elif len(ref_crop_in) == len(ref_input_shape) + 1:
+            assert ref_crop_in[0][0] == 0 and ref_crop_in[0][1] == 0, ref_crop_in
+            ref_crop_in = ref_crop_in[1:]
+
+        self.cropped_input_shape = tuple(
+            [c[1] - c[0] if c[1] > 0 else ins - c[0] + c[1] for ins, c in zip(self.input_shape, ref_crop_in)]
+        )
+
+        crop_shift_in = numpy.eye(len(ref_input_shape) + 1, dtype=trf_matrix.dtype)
+        crop_shift_in[:-1, -1] = [-c[0] for c in ref_crop_in]
+        trf_matrix = crop_shift_in.dot(trf_matrix)
+
+        if ref_crop_out is None:
             self.order = 0
             ones_out = self._impl(
-                numpy.ones((1, 1) + self.input_shape, dtype=numpy.uint8),
-                matrix=numpy.linalg.inv(trf_matrix),
-                trf_in_shape=self.input_shape,
-                trf_out_shape=self.output_shape,
+                ipt=numpy.ones((1, 1) + self.input_shape, dtype=numpy.uint8),
+                matrix=trf_matrix,
+                trf_in_shape=tuple(self.cropped_input_shape),
+                trf_out_shape=tuple(self.output_shape),
+                order=0,
             )[0, 0]
+            ones_out = ones_out.astype(bool)
             dims = []
-            if len(ones_out.shape) == 3:
-                dims.append(ones_out.max(1).max(1))
-                ones_out_2d = ones_out.max(0)
-                dims.append(ones_out_2d.max(1))
-                dims.append(ones_out_2d.max(0))
-            else:
+            roi_method = "max"
+            if roi_method == "tight":
                 raise NotImplementedError
+            elif roi_method == "max":
+                if len(ones_out.shape) == 3:
+                    dims.append(ones_out.max(1).max(1))
+                    ones_out_2d = ones_out.max(0)
+                    dims.append(ones_out_2d.max(1))
+                    dims.append(ones_out_2d.max(0))
+                else:
+                    raise NotImplementedError
+                ref_crop_out = [(numpy.argmax(dim), -numpy.argmax(dim[::-1])) for dim in dims]
+            else:
+                raise NotImplementedError(roi_method)
 
-            crop_out = [(numpy.argmax(dim), -numpy.argmax(dim[::-1])) for dim in dims]
-            print("determined crop_out:", crop_out)
-        elif len(crop_out) == len(output_shape) + 1:
-            assert crop_out[0][0] == 0 and crop_out[0][1] == 0, crop_out
-            crop_out = crop_out[1:]
+            print("determined crop_out:", ref_crop_out)
+        elif len(ref_crop_out) == len(ref_output_shape) + 1:
+            assert ref_crop_out[0][0] == 0 and ref_crop_out[0][1] == 0, ref_crop_out
+            ref_crop_out = ref_crop_out[1:]
 
-        if crop_in is None:
-            crop_in = tuple([(0, 0) for _ in range(len(input_shape))])
-        elif len(crop_in) == len(input_shape) + 1:
-            assert crop_in[0][0] == 0 and crop_in[0][1] == 0, crop_in
-            crop_in = crop_in[1:]
-
-        self.z_offset = crop_out[0][0]
+        self.z_offset = ref_crop_out[0][0]
         self.cropped_output_shape = tuple(
-            [c[1] - c[0] if c[1] > 0 else outs - c[0] + c[1] for outs, c in zip(self.output_shape, crop_out)]
-        )
-        self.cropped_input_shape = tuple(
-            [c[1] - c[0] if c[1] > 0 else ins - c[0] + c[1] for ins, c in zip(self.input_shape, crop_in)]
+            [c[1] - c[0] if c[1] > 0 else outs - c[0] + c[1] for outs, c in zip(self.output_shape, ref_crop_out)]
         )
 
+        crop_shift_out = numpy.eye(len(ref_output_shape) + 1, dtype=trf_matrix.dtype)
+        crop_shift_out[:-1, -1] = [c[0] for c in ref_crop_out]
+        self.trf_matrix = trf_matrix.dot(crop_shift_out)
         self.order = order
-        crop_shift_in = numpy.eye(len(input_shape) + 1, dtype=trf_matrix.dtype)
-        crop_shift_in[:-1, -1] = [-c[0] for c in crop_in]
-        crop_shift_out = numpy.eye(len(output_shape) + 1, dtype=trf_matrix.dtype)
-        crop_shift_out[:-1, -1] = [c[0] for c in crop_out]
-        self.trf_matrix = crop_shift_in.dot(trf_matrix.dot(crop_shift_out))
-
-    #         self.inv_trf_matrix = numpy.linalg.inv(self.trf_matrix)
 
     @staticmethod
     def get_affine_grid(scipy_form, ipt_shape, out_shape):
@@ -179,6 +191,7 @@ class AffineTransformation(torch.nn.Module):
         matrix: numpy.ndarray,
         trf_in_shape: Tuple[int, ...],
         trf_out_shape: Tuple[int, ...],
+        order: int,
         output_sampling_shape: Optional[Tuple[int, ...]] = None,
         z_slices: Optional[Sequence[int]] = None,
     ) -> Union[numpy.ndarray, torch.Tensor]:
@@ -193,29 +206,35 @@ class AffineTransformation(torch.nn.Module):
 
         if trf_in_shape != ipt.shape[2:]:
             in_scaling = [ipts / trf_in for ipts, trf_in in zip(ipt.shape[2:], trf_in_shape)] + [1.0]
-            print("ipt.shape -> trf_in_shape", in_scaling)
+            print("ipt.shape -> trf_in_shape", ipt.shape[2:], trf_in_shape, in_scaling)
             matrix = numpy.diag(in_scaling).dot(matrix)
 
         if trf_out_shape != output_sampling_shape:
             out_scaling = [trf_out / outs for trf_out, outs in zip(trf_out_shape, output_sampling_shape)] + [1.0]
-            print("trf_out_shape -> output_sampling", out_scaling)
+            print("trf_out_shape -> output_sampling", trf_out_shape, output_sampling_shape, out_scaling)
             matrix = matrix.dot(numpy.diag(out_scaling))
 
         if isinstance(ipt, numpy.ndarray):
             assert len(ipt.shape) in [4, 5], ipt.shape
-            return numpy.stack(
+            ret = numpy.stack(
                 [
                     numpy.stack(
                         [
-                            affine_transform(ipt_woc, matrix, output_shape=output_sampling_shape, order=self.order)
+                            affine_transform(ipt_woc, matrix, output_shape=output_sampling_shape, order=order, mode=self.scipy_padding_mode[self.padding_mode])
                             for ipt_woc in ipt_wc
                         ]
                     )
                     for ipt_wc in ipt
                 ]
             )
+            if z_slices is None or all([zs is None for zs in z_slices]):
+                return ret
+            else:
+                return numpy.stack(
+                    [b[:, zs - self.z_offset : zs + 1 - self.z_offset] for b, zs in zip(ret, z_slices)]
+                )
         elif isinstance(ipt, torch.Tensor):
-            on_cuda = False
+            on_cuda = ipt.is_cuda
             ipt_was_cuda = ipt.is_cuda
             if on_cuda != ipt.is_cuda:
                 if on_cuda:
@@ -238,19 +257,17 @@ class AffineTransformation(torch.nn.Module):
                 assert all([zs is not None for zs in z_slices]), z_slices
                 assert len(z_slices) == ipt.shape[0], (z_slices, ipt.shape)
                 assert all(self.z_offset <= z_slice for z_slice in z_slices), (self.z_offset, z_slices)
+                assert affine_grid.shape[0] == 1
                 affine_grid = torch.cat(
                     [
-                        self.affine_torch_grid[:, z_slice - self.z_offset : z_slice + 1 - self.z_offset]
+                        affine_grid[:, z_slice - self.z_offset : z_slice + 1 - self.z_offset]
                         for z_slice in z_slices
                     ]
                 )
 
             ret = torch.nn.functional.grid_sample(
-                ipt, affine_grid, align_corners=False, mode=self.mode, padding_mode="zeros"  # "border"
+                ipt, affine_grid, align_corners=False, mode=self.mode, padding_mode=self.padding_mode
             )
-            if not (z_slices is None or all([zs is None for zs in z_slices])):
-                assert ret.shape[2] == 1, ret.shape
-                ret = ret[:, :, 0]
 
             if on_cuda == ipt_was_cuda:
                 return ret
@@ -270,40 +287,130 @@ class AffineTransformation(torch.nn.Module):
             ipt, matrix=self.trf_matrix, trf_in_shape=self.output_shape, trf_out_shape=self.input_shape, **kwargs
         )
 
-    def _forward(self, img_shape, tensors: OrderedDict[str, Any]) -> OrderedDict[str, Any]:
-        #         for meta in tensors["meta"]:
-        #             tmeta = meta[self.target_to_compare_to]
-        #             assert tmeta["shape_before_resize"][1:] == self.cropped_output_shape, (
-        #                 tmeta["shape_before_resize"],
-        #                 self.cropped_output_shape,
-        #             )
-
-        #         output_sampling_shape = (
-        #             None  # sample output as trf output and select z_slice (for 2d target) ...
-        #             if len(tensors[self.target_to_compare_to].shape) == 4
-        #             else tuple(tensors[self.target_to_compare_to].shape[2:])  # ...or resample output to compare to volumetric target
-        #         )
+    def _forward(self, tensors: OrderedDict[str, Any]) -> OrderedDict[str, Any]:
+        z_slices = [m.get(self.target_to_compare_to, {}).get("z_slice", None) for m in tensors["meta"]]
+        if any([zs is not None for zs in z_slices]):
+            assert all([zs is not None for zs in z_slices])
+            output_sampling_shape = None  # as self.cropped_output_shape
+        else:
+            output_sampling_shape = tensors[self.target_to_compare_to].shape[2:]
+            assert len(output_sampling_shape) == 3, output_sampling_shape
+            if output_sampling_shape[0] == 1:
+                # single z_slice:
+                output_sampling_shape = (self.cropped_output_shape[0],) + output_sampling_shape[1:]
+            #     (
+            #     None  # sample output as trf output and select z_slice (for 2d target) ...
+            #     if len(tensors[self.target_to_compare_to].shape) == 4
+            #     else tuple(
+            #         tensors[self.target_to_compare_to].shape[2:]
+            #     )  # ...or resample output to compare to volumetric target
+            # )
         tensors[self.apply_to] = self._impl(
             ipt=tensors[self.apply_to],
             matrix=self.trf_matrix,
             trf_in_shape=self.cropped_input_shape,
             trf_out_shape=self.cropped_output_shape,
-            #             output_sampling_shape=(84, 133, 162),
-            #             output_sampling_shape=(100, 200),
-            output_sampling_shape=(100, 200, 300),
-            z_slices=[m.get("z_slice", None) for m in tensors["meta"]],
+            order=self.order,
+            output_sampling_shape=output_sampling_shape,
+            z_slices=z_slices,
         )
         return tensors
 
 
-if __name__ == "__main__":
+def static():
+    from torch.utils.data import DataLoader
+    import matplotlib.pyplot as plt
+
+    from lnet.datasets import (
+        get_dataset_from_info,
+        ZipDataset,
+        N5CachedDatasetFromInfo,
+        get_collate_fn,
+        N5CachedDatasetFromInfoSubset,
+    )
+    from lnet.datasets.gcamp import ref0_lr, ref0_ls
+    from lnet.transformations import ComposedTransformation, Cast, Crop
+
+    ref0_lr.transformations += [
+        {
+            "Resize": {
+                "apply_to": "lr",
+                "shape": [1.0, 1.0, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947],
+                "order": 2,
+            }  # 4/19=0.21052631578947368421052631578947; 8/19=0.42105263157894736842105263157895
+        }
+    ]
+    ref0_ls.transformations += [
+        {
+            "Resize": {
+                "apply_to": "ls",
+                "shape": [1.0, 1.0, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947],
+                "order": 2,
+            }  # 4/19=0.21052631578947368421052631578947; 8/19=0.42105263157894736842105263157895
+        }
+    ]
+    lrds = N5CachedDatasetFromInfoSubset(
+        N5CachedDatasetFromInfo(get_dataset_from_info(ref0_lr)), indices=[0], filters=[]
+    )
+    lsds = N5CachedDatasetFromInfoSubset(
+        N5CachedDatasetFromInfo(get_dataset_from_info(ref0_ls)), indices=[0], filters=[]
+    )
+    trf = ComposedTransformation(
+        Crop(apply_to="lr", crop=((0, None), (12, -12), (28, 236), (68, 336))),
+        # Crop(apply_to="ls", crop=((0, None), (60, -60), (0, None), (0, None))),
+        Crop(apply_to="ls", crop=((0, None), (60, -60), (32, -72), (92, -20))),
+        Cast(apply_to={"lr": "lr_torch", "ls": "ls_torch"}, dtype="float32", device="cuda"),
+    )
+    ds = ZipDataset({"lr": lrds, "ls": lsds}, transformation=trf)
+    loader = DataLoader(ds, batch_size=1, collate_fn=get_collate_fn(lambda t: t))
+
+    assert torch.cuda.device_count() == 1, torch.cuda.device_count()
+    sample = next(iter(loader))
+    lr = sample["lr"]
+    print("lr", lr.shape)
+    ls = sample["ls"]
+    print("ls", ls.shape)
     # trf = AffineTransformation(apply_to="lr", target_to_compare_to="ls", order=0, input_shape=(838, 1330, 1615), output_shape=(241, 1501, 1801), matrices=[[0.98048,0.004709,0.098297,-111.7542,7.6415e-05,0.97546,0.0030523,-20.1143,0.014629,8.2964e-06,-3.9928,846.8515]], crop_in=[(5, -5), (10, -10), (10, -10)], crop_out=[(3, -22), (20, -117), (87, -41)])
-    trf = AffineTransformation(
+    # ref_crop_in = ((208 + 0, -208-14), (133, 1121), (323, 1596))  # 323, 133, 1273, 988
+    # ref_crop_in = ((208-11, -208+49), (133-20, 1121), (323, 1596))  # 323, 133, 1273, 988
+    ref_crop_in = ((208-56, -208-15), (133, 1121), (323, 1596))  # 323, 133, 1273, 988
+    # ref_crop_out = ((60 + 0, -60-19), (152, -323), (418, -57))
+    # ref_crop_out = ((60, -60), (0, 0), (0, 0))
+    # ref_crop_out = ((60, -60), (157, -332-7), (421+10, -67-15))
+    ref_crop_out = ((60, -60), (152, -342), (437, -95))
+    # ref_crop_out = None
+    # trf_torch = AffineTransformation(
+    #     apply_to="lr_torch",
+    #     target_to_compare_to="ls_torch",
+    #     order=0,
+    #     ref_input_shape=(838, 1330, 1615),
+    #     ref_output_shape=(241, 1501, 1801),
+    #     bdv_affine_transformations=[
+    #         [
+    #             0.98048,
+    #             0.004709,
+    #             0.098297,
+    #             -111.7542,
+    #             7.6415e-05,
+    #             0.97546,
+    #             0.0030523,
+    #             -20.1143,
+    #             0.014629,
+    #             8.2964e-06,
+    #             -3.9928,
+    #             846.8515,
+    #         ]
+    #     ],
+    #     ref_crop_in=ref_crop_in,
+    #     ref_crop_out=ref_crop_out,
+    # )
+    #
+    trf_numpy = AffineTransformation(
         apply_to="lr",
         target_to_compare_to="ls",
         order=0,
-        input_shape=(838, 1330, 1615),
-        output_shape=(241, 1501, 1801),
+        ref_input_shape=(838, 1330, 1615),
+        ref_output_shape=(241, 1501, 1801),
         bdv_affine_transformations=[
             [
                 0.98048,
@@ -320,6 +427,219 @@ if __name__ == "__main__":
                 846.8515,
             ]
         ],
-        crop_in=((0, 0), (0, 0), (0, 0)),
-        crop_out=((0, 0), (0, 0), (0, 0)),
+        ref_crop_in=ref_crop_in,
+        ref_crop_out=ref_crop_out,
+        padding_mode="zeros",
     )
+
+    one_sample = {"lr": numpy.ones((1, 1, 100, 100, 100)), "ls": sample["ls"], "meta": [{}]}
+    one_sample = trf_numpy(one_sample)
+    ones = one_sample["lr"][0, 0]
+    fig, ax = plt.subplots(ncols=3, figsize=(30, 10))
+    plt.title("ls")
+    for i in range(3):
+        img = ones.max(i)
+        ax[i].imshow(img)
+
+    plt.show()
+    return
+
+    sample = trf_numpy(sample)
+    sample = trf_torch(sample)
+    out = sample["lr"][0, 0]
+    out_torch = sample["lr_torch"][0, 0].cpu().numpy()
+    ls = sample["ls"][0, 0]
+    print("ls, lr_numpy, lr_torch", ls.shape, out.shape, out_torch.shape)
+
+    fig, ax = plt.subplots(ncols=3, figsize=(30, 10))
+    plt.title("ls")
+    for i in range(3):
+        img = ls.max(i)
+        ax[i].imshow(img)
+
+    plt.show()
+
+    fig, ax = plt.subplots(ncols=3, figsize=(30, 10))
+    plt.title("numpy")
+    for i in range(3):
+        img = out.max(i)
+        ax[i].imshow(img)
+
+    plt.show()
+
+    fig, ax = plt.subplots(ncols=3, figsize=(30, 10))
+    plt.title("torch")
+    for i in range(3):
+        img = out_torch.max(i)
+        ax[i].imshow(img)
+
+    plt.show()
+
+    fig, ax = plt.subplots(ncols=3, figsize=(30, 10))
+    plt.title("numpy vs torch")
+    for i in range(3):
+        out_img = out.max(i)
+        out_torch_img = out_torch.max(i)
+        img = numpy.zeros_like(out_img)
+        img[::2, ::2] = out_img[::2, ::2]
+        img[1::2, 1::2] = out_img[1::2, 1::2]
+        img[::2, 1::2] = -out_torch_img[::2, 1::2]
+        img[1::2, ::2] = -out_torch_img[1::2, ::2]
+        ax[i].imshow(img)
+
+    plt.show()
+
+
+def dynamic():
+    from torch.utils.data import DataLoader
+    import matplotlib.pyplot as plt
+
+    from lnet.datasets import (
+        get_dataset_from_info,
+        ZipDataset,
+        N5CachedDatasetFromInfo,
+        get_collate_fn,
+        N5CachedDatasetFromInfoSubset,
+    )
+    from lnet.datasets.gcamp import ref0_lr, ref0_sample_ls_slice
+    from lnet.transformations import ComposedTransformation, Cast, Crop, Assert
+
+    ref0_lr.transformations += [
+        {
+            "Resize": {
+                "apply_to": "lr",
+                "shape": [1.0, 1.0, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947],
+                "order": 2,
+            }  # 4/19=0.21052631578947368421052631578947; 8/19=0.42105263157894736842105263157895
+        }
+    ]
+    ref0_sample_ls_slice.transformations += [
+        {"Assert": {"apply_to": "ls", "expected_tensor_shape": [1, 1, 1, None, None]}},
+        {
+            "Resize": {
+                "apply_to": "ls",
+                "shape": [1.0, 1.0, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947],
+                "order": 2,
+            }  # 4/19=0.21052631578947368421052631578947; 8/19=0.42105263157894736842105263157895
+        },
+    ]
+    lrds = N5CachedDatasetFromInfoSubset(
+        N5CachedDatasetFromInfo(get_dataset_from_info(ref0_lr)), indices=[0], filters=[]
+    )
+    lsds = N5CachedDatasetFromInfoSubset(
+        N5CachedDatasetFromInfo(get_dataset_from_info(ref0_sample_ls_slice)), indices=[110], filters=[]
+    )
+    trf = ComposedTransformation(
+        Assert(apply_to="ls", expected_tensor_shape=(1, 1, 1, None, None)),
+        Assert(apply_to="lr", expected_tensor_shape=(1, 1, None, None, None)),
+        Crop(apply_to="lr", crop=((0, None), (0, None), (28, 236), (68, 336))),
+        Crop(apply_to="ls", crop=((0, None), (0, None), (0, None), (0, None))),
+        Crop(apply_to="ls", crop=((0, None), (0, None), (32, -68), (88, -12))),
+        Cast(apply_to={"lr": "lr_torch", "ls": "ls_torch"}, dtype="float32", device="cuda"),
+    )
+    ds = ZipDataset({"lr": lrds, "ls": lsds}, transformation=trf, join_dataset_masks=False)
+    loader = DataLoader(ds, batch_size=1, collate_fn=get_collate_fn(lambda t: t))
+    assert torch.cuda.device_count() == 1, torch.cuda.device_count()
+
+    sample = next(iter(loader))
+    lr = sample["lr"]
+    print("lr", lr.shape)
+    ls = sample["ls"]
+    print("ls", ls.shape)
+    # trf = AffineTransformation(apply_to="lr", target_to_compare_to="ls", order=0, input_shape=(838, 1330, 1615), output_shape=(241, 1501, 1801), matrices=[[0.98048,0.004709,0.098297,-111.7542,7.6415e-05,0.97546,0.0030523,-20.1143,0.014629,8.2964e-06,-3.9928,846.8515]], crop_in=[(5, -5), (10, -10), (10, -10)], crop_out=[(3, -22), (20, -117), (87, -41)])
+    ref_crop_in = ((-17 + 208, +76 - 208), (133, 1121), (323, 1596))  # 323, 133, 1273, 988
+    ref_crop_out = ((0 + 60, - 0 - 60), (152, -323), (418, -57))
+    # ref_crop_out = ((0, 0), (0, 0), (0, 0))
+    trf_torch = AffineTransformation(
+        apply_to="lr_torch",
+        target_to_compare_to="ls_torch",
+        order=0,
+        ref_input_shape=(838, 1330, 1615),
+        ref_output_shape=(241, 1501, 1801),
+        bdv_affine_transformations=[
+            [
+                0.98048,
+                0.004709,
+                0.098297,
+                -111.7542,
+                7.6415e-05,
+                0.97546,
+                0.0030523,
+                -20.1143,
+                0.014629,
+                8.2964e-06,
+                -3.9928,
+                846.8515,
+            ]
+        ],
+        ref_crop_in=ref_crop_in,
+        ref_crop_out=ref_crop_out,
+    )
+
+    trf_numpy = AffineTransformation(
+        apply_to="lr",
+        target_to_compare_to="ls",
+        order=0,
+        ref_input_shape=(838, 1330, 1615),
+        ref_output_shape=(241, 1501, 1801),
+        bdv_affine_transformations=[
+            [
+                0.98048,
+                0.004709,
+                0.098297,
+                -111.7542,
+                7.6415e-05,
+                0.97546,
+                0.0030523,
+                -20.1143,
+                0.014629,
+                8.2964e-06,
+                -3.9928,
+                846.8515,
+            ]
+        ],
+        ref_crop_in=ref_crop_in,
+        ref_crop_out=ref_crop_out,
+    )
+
+    sample = trf_numpy(sample)
+    sample = trf_torch(sample)
+    out = sample["lr"][0, 0]
+    assert out.shape[0] == 1, out.shape
+    out = out[0]
+    out_torch = sample["lr_torch"][0, 0].cpu().numpy()
+    assert out_torch.shape[0] == 1, out_torch.shape
+    out_torch = out_torch[0]
+    ls = sample["ls"][0, 0]
+    assert ls.shape[0] == 1, ls.shape
+    ls = ls[0]
+    print("ls, lr_numpy, lr_torch", ls.shape, out.shape, out_torch.shape)
+
+    plt.figure(figsize=(30, 10))
+    plt.imshow(ls)
+    plt.title("ls")
+    plt.show()
+
+    plt.figure(figsize=(30, 10))
+    plt.imshow(out)
+    plt.title("numpy")
+    plt.show()
+
+    plt.figure(figsize=(30, 10))
+    plt.imshow(out_torch)
+    plt.title("torch")
+    plt.show()
+
+    plt.figure(figsize=(30, 10))
+    img = numpy.zeros_like(out)
+    img[::2, ::2] = out[::2, ::2]
+    img[1::2, 1::2] = out[1::2, 1::2]
+    img[::2, 1::2] = -out_torch[::2, 1::2]
+    img[1::2, ::2] = -out_torch[1::2, ::2]
+    plt.imshow(img)
+    plt.title("numpy vs torch")
+    plt.show()
+
+
+if __name__ == "__main__":
+    static()

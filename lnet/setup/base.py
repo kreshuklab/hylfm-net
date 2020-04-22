@@ -18,7 +18,6 @@ import lnet.criteria
 import lnet.log
 import lnet.metrics
 import lnet.optimizers
-import lnet.registration
 import lnet.transformations
 from lnet import settings
 from lnet.datasets import ConcatDataset, N5CachedDatasetFromInfo, ZipDataset, get_collate_fn, get_dataset_from_info

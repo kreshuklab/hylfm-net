@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 class Crop(Transform):
     def __init__(
         self,
-        crop: Optional[Tuple[Tuple[int, int], ...]] = None,
-        crop_fn: Optional[Callable[[Tuple[int, ...]], Tuple[Tuple[int, int], ...]]] = None,
+        crop: Optional[Tuple[Tuple[int, Optional[int]], ...]] = None,
+        crop_fn: Optional[Callable[[Tuple[int, ...]], Tuple[Tuple[int, Optional[int]], ...]]] = None,
         **super_kwargs,
     ):
         super().__init__(**super_kwargs)
@@ -32,8 +32,8 @@ class Crop(Transform):
     ) -> Union[numpy.ndarray, torch.Tensor]:
         crop = self.crop_fn(tensor.shape[2:])
         assert len(tensor.shape) - 1 == len(crop), (tensor.shape, crop)
-        out = tensor[(slice(None),) + tuple(slice(c[0], c[1] or None) for c in crop)]
-        logger.debug("Crop tensor: %s %s by %s to %s", name, tensor.shape, crop, out.shape)
+        out = tensor[(slice(None),) + tuple(slice(c[0], c[1]) for c in crop)]
+        logger.warning("Crop tensor: %s %s by %s to %s", name, tensor.shape, crop, out.shape)
         return out
 
 

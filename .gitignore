@@ -5,6 +5,7 @@ ref_data/
 logs/
 lnet/experiment_configs
 lnet/settings.py
+slurm_out/
 
 notebooks/**/*.svg
 notebooks/**/*.npy

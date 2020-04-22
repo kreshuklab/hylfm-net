@@ -51,6 +51,7 @@ class TensorInfo:
         z_slice: Optional[Union[str, int]] = None,
         skip_indices: Sequence[int] = tuple(),
         meta: Optional[dict] = None,
+        repeat: int = 1,
         **kwargs,
     ):
         if z_slice is not None and skip_indices:
@@ -68,6 +69,7 @@ class TensorInfo:
         self.z_slice = z_slice
         self.skip_indices = skip_indices
         self.meta: dict = meta or {}
+        self.repeat = repeat
         self.kwargs = kwargs
         self.location = location
         self.path: Path = getattr(settings.data_roots, root) / location
@@ -94,7 +96,6 @@ class TensorInfo:
                 "location": self.location,
                 "transformations": self.transformations,
                 "in_batches_of": self.in_batches_of,
-                "insert_singleton_axes_at": self.insert_singleton_axes_at,
                 "z_slice": self.z_slice,
                 "skip_indices": list(self.skip_indices),
                 "meta": self.meta,
@@ -109,6 +110,7 @@ class DatasetFromInfo(torch.utils.data.Dataset):
     def __init__(self, *, info: TensorInfo):
         super().__init__()
         self.tensor_name = info.name
+        self.info = info
         self.description = info.description
         self.transform = lnet.transformations.ComposedTransformation(
             *[
@@ -137,18 +139,24 @@ class DatasetFromInfo(torch.utils.data.Dataset):
 
     def get_z_slice(self, idx: int) -> Optional[int]:
         if self._z_slice is None:
-            return None
-        elif self._z_slice_mod is None:
-            return self._z_slice
+            if self._z_slice_mod is None:
+                return None
+            else:
+                return idx % self._z_slice_mod
         else:
-            return idx % self._z_slice_mod
+            if self._z_slice_mod is None:
+                return self._z_slice
+            else:
+                raise NotImplementedError("_z_slice and _z_slice_mod?!?")
 
     def update_meta(self, meta: dict) -> dict:
-        has_z_slice = meta.get("z_slice", None)
-        z_slice = self.get_z_slice(meta["idx"])
+        tmeta = meta.get(self.tensor_name, {})
+        has_z_slice = tmeta.get("z_slice", None)
+        z_slice = self.get_z_slice(tmeta["idx"])
         if z_slice is not None:
             assert has_z_slice is None or has_z_slice == z_slice
-            meta["z_slice"] = z_slice
+            tmeta["z_slice"] = z_slice
+            meta[self.tensor_name] = tmeta
 
         return meta
 
@@ -165,17 +173,17 @@ class TiffDataset(DatasetFromInfo):
         self.numbers = numbers
 
     def __len__(self):
-        return len(self.paths)
+        return len(self.paths) * self.in_batches_of
 
     def __getitem__(self, idx: int) -> typing.OrderedDict[str, Union[numpy.ndarray, list]]:
         path_idx = idx // self.in_batches_of
         idx %= self.in_batches_of
         img_path = self.paths[path_idx]
-        img: numpy.ndarray = imageio.volread(img_path)
+        img: numpy.ndarray = imageio.volread(img_path)[idx : idx + 1]
         for axis in self.insert_singleton_axes_at:
             img = numpy.expand_dims(img, axis=axis)
 
-        return self.transform(OrderedDict(**{self.tensor_name: img[idx : idx + 1]}))
+        return self.transform(OrderedDict(**{self.tensor_name: img}))
 
 
 class H5Dataset(DatasetFromInfo):
@@ -195,8 +203,8 @@ class H5Dataset(DatasetFromInfo):
             raise NotImplementedError(info.kwargs)
         super().__init__(info=info)
         h5_ext = ".h5"
-        assert h5_ext in info.location.as_posix(), info.location.as_posix()
-        file_path_glob, within_pattern = info.location.as_posix().split(h5_ext)
+        assert h5_ext in info.path.as_posix(), info.path.as_posix()
+        file_path_glob, within_pattern = info.path.as_posix().split(h5_ext)
         within_pattern = within_pattern.strip("/")
         file_path_glob += h5_ext
         paths, numbers = get_paths_and_numbers(Path(file_path_glob))
@@ -213,7 +221,7 @@ class H5Dataset(DatasetFromInfo):
         self._shutdown = False
 
     def __len__(self):
-        return len(self.h5files)
+        return len(self.h5files) * self.in_batches_of
 
     def __getitem__(self, idx: int) -> typing.OrderedDict[str, Union[numpy.ndarray, list]]:
         assert not self._shutdown
@@ -234,9 +242,9 @@ class H5Dataset(DatasetFromInfo):
 
 
 def get_dataset_from_info(info: TensorInfo) -> DatasetFromInfo:
-    if str(info.location).endswith(".tif"):
+    if info.location.endswith(".tif"):
         return TiffDataset(info=info)
-    elif ".h5" in str(info.location):
+    elif ".h5" in info.location:
         return H5Dataset(info=info)
     else:
         raise NotImplementedError
@@ -253,8 +261,7 @@ class DatasetFromInfoExtender(torch.utils.data.Dataset):
         self.dataset = dataset
 
     def update_meta(self, meta: dict) -> dict:
-        meta = self.dataset.update_meta(meta)
-        return meta
+        return self.dataset.update_meta(meta)
 
     def shutdown(self):
         self.dataset.shutdown()
@@ -269,6 +276,7 @@ class DatasetFromInfoExtender(torch.utils.data.Dataset):
 class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
     def __init__(self, dataset: DatasetFromInfo):
         super().__init__(dataset=dataset)
+        self.repeat = dataset.info.repeat
         description = dataset.description
         data_file_path = settings.cache_path / f"{hash_algorithm(description.encode()).hexdigest()}.n5"
         data_file_path.with_suffix(".txt").write_text(description)
@@ -314,17 +322,20 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
         self.stat = DatasetStat(path=data_file_path.with_suffix(".stat.yml"), dataset=self)
 
     def update_meta(self, meta: dict) -> dict:
-        meta = super().update_meta(meta)
-        tensor_meta = meta.get(self.dataset.tensor_name, {})
+        tensor_meta = meta[self.dataset.tensor_name]
         assert "stat" not in tensor_meta
         tensor_meta["stat"] = self.stat
         meta[self.dataset.tensor_name] = tensor_meta
-        return meta
+        return super().update_meta(meta)
 
     def __getitem__(self, idx) -> typing.OrderedDict[str, numpy.ndarray]:
         idx = int(idx)
+        idx //= self.repeat
         self.submit(idx).result()
         return OrderedDict(**{self.dataset.tensor_name: self.data_file[self.dataset.tensor_name][idx : idx + 1]})
+
+    def __len__(self):
+        return len(self.dataset) * self.repeat
 
     def shutdown(self):
         if self.futures:
@@ -375,14 +386,23 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
     dataset: N5CachedDatasetFromInfo
 
     def __init__(
-        self, dataset: N5CachedDatasetFromInfo, indices: Optional[Sequence[int]], filters: Sequence[Tuple[str, Dict[str, Any]]]
+        self,
+        dataset: N5CachedDatasetFromInfo,
+        indices: Optional[Sequence[int]],
+        filters: Sequence[Tuple[str, Dict[str, Any]]],
     ):
         super().__init__(dataset=dataset)
         assert isinstance(dataset, N5CachedDatasetFromInfo)
         description = (
             dataset.dataset.description
             + "\n"
-            + yaml.safe_dump({"indices": None if indices is None else list(indices), "filters": [list(fil) for fil in filters]})
+            + yaml.safe_dump(
+                {
+                    "indices": None if indices is None else list(indices),
+                    "filters": [list(fil) for fil in filters],
+                    "repeat": dataset.repeat,
+                }
+            )
         )
         indices = numpy.arange(len(dataset)) if indices is None else indices
         mask_file_path = settings.cache_path / f"{hash_algorithm(description.encode()).hexdigest()}.index_mask.npy"
@@ -429,6 +449,20 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
     def __getitem__(self, idx):
         return self.dataset[self.indices[idx]]
 
+    def update_meta(self, meta: dict) -> dict:
+        common_idx = meta.get("idx", None)
+        if common_idx is not None:
+            idx = self.indices[common_idx]
+            tmeta = meta.get(self.dataset.dataset.tensor_name, {})
+            idx_is = tmeta.get("idx", None)
+            if idx_is is None:
+                tmeta["idx"] = idx
+                meta[self.dataset.dataset.tensor_name] = tmeta
+            else:
+                assert idx_is == idx, f"expected existing idx to be equal to {idx} or none, but got {idx_is}"
+
+        return super().update_meta(meta)
+
 
 class ZipDataset(torch.utils.data.Dataset):
     """Zip N5CachedDatasetSubsets and adapt them by joining indice masks """
@@ -437,15 +471,19 @@ class ZipDataset(torch.utils.data.Dataset):
         self,
         datasets: Dict[str, N5CachedDatasetFromInfoSubset],
         transformation: Callable[[typing.OrderedDict], typing.OrderedDict] = lambda x: x,
+        join_dataset_masks: bool = True,
     ):
         super().__init__()
         datasets = OrderedDict(**datasets)
         assert len(datasets) > 0
-        base_len = len(list(datasets.values())[0].dataset)
-        assert all(len(ds.dataset) == base_len for ds in datasets.values())
-        joined_mask = numpy.logical_and.reduce(numpy.stack([ds.mask for ds in datasets.values()]))
-        for ds in datasets.values():
-            ds.mask = joined_mask
+        if join_dataset_masks:
+            base_len = len(list(datasets.values())[0].dataset)
+            assert all([len(ds.dataset) == base_len for ds in datasets.values()]), [
+                len(ds.dataset) for ds in datasets.values()
+            ]
+            joined_mask = numpy.logical_and.reduce(numpy.stack([ds.mask for ds in datasets.values()]))
+            for ds in datasets.values():
+                ds.mask = joined_mask
 
         _len = len(list(datasets.values())[0])
         assert all(len(ds) == _len for ds in datasets.values())

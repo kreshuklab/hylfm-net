@@ -40,12 +40,20 @@ class Cast(Transform, DTypeMapping):
 
     def apply_to_tensor(self, tensor: numpy.ndarray, *, name: str, idx: int, meta: List[dict]):
         if isinstance(tensor, torch.Tensor):
-            return tensor.to(
-                dtype=getattr(torch, self.dtype), device=torch.device(self.device), non_blocking=self.non_blocking
-            )
+            if self.device == "numpy":
+                return tensor.detach().cpu().numpy().astype(self.dtype)
+            else:
+                return tensor.to(
+                    dtype=getattr(torch, self.dtype), device=torch.device(self.device), non_blocking=self.non_blocking
+                )
         elif isinstance(tensor, numpy.ndarray):
-            if self.device == "cuda":
-                return torch.from_numpy(tensor).to(dtype=getattr(torch, self.dtype), device=torch.device(self.device))
+            if self.device == "numpy":
+                assert not self.non_blocking, "'non_blocking' not supported for numpy.ndarray"
+                return tensor.astype(self.dtype)
+            elif self.device == "cuda":
+                return torch.from_numpy(tensor.astype(dtype=self.dtype)).to(
+                    dtype=getattr(torch, self.dtype), device=torch.device(self.device)
+                )
             elif self.device == "cpu":
                 assert not self.non_blocking, "'non_blocking' not supported for numpy.ndarray"
                 return tensor.astype(self.dtype, **self.numpy_kwargs)
@@ -85,7 +93,9 @@ class Assert(Transform):
         super().__init__(**super_kwargs)
         self.expected_shape = expected_tensor_shape
 
-    def apply_to_tensor(self, tensor: Any, *, name: str, idx: int, meta: typing.List[dict]) -> Union[numpy.ndarray, torch.Tensor]:
+    def apply_to_tensor(
+        self, tensor: Any, *, name: str, idx: int, meta: typing.List[dict]
+    ) -> Union[numpy.ndarray, torch.Tensor]:
         shape_is = tuple(tensor.shape)
         for si, s in zip(shape_is, self.expected_shape):
             if s is None:
@@ -94,4 +104,3 @@ class Assert(Transform):
                 raise ValueError(f"expected shape {self.expected_shape}, but found {shape_is}")
 
         return tensor
-

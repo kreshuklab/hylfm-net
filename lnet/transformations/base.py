@@ -1,4 +1,5 @@
 import typing
+import warnings
 from collections import OrderedDict
 from typing import Any, Optional, Sequence, Union
 
@@ -68,13 +69,30 @@ class Transform:
     def apply(self, tensors: typing.OrderedDict[str, Any]) -> typing.OrderedDict[str, Any]:
         apply_to = tensors.keys() if self.apply_to is None else self.apply_to
         ret = OrderedDict(tensors)
+        metas: typing.List[dict] = tensors["meta"]
         for i, (n, t) in enumerate(tensors.items()):
+            tmetas = [m.get(n, {}) for m in metas]
+            out_name = self.io_mapping.get(n, n)
+            for meta, tmeta in zip(metas, tmetas):
+                if out_name == n:
+                    meta[out_name] = tmeta
+                else:
+                    existing_out_meta = meta.get(out_name, {})
+                    if existing_out_meta:
+                        warnings.warn(
+                            f"overwriting existing tensor meta {existing_out_meta} for {out_name} with {tmeta}"
+                        )
+
+                    meta[out_name] = dict(tmeta)
+
             if n in apply_to:
-                ret[self.io_mapping.get(n, n)] = self.apply_to_tensor(t, name=n, idx=i, meta=tensors["meta"])
+                ret[out_name] = self.apply_to_tensor(t, name=n, idx=i, meta=tensors["meta"])
 
         return ret
 
-    def apply_to_tensor(self, tensor: Any, *, name: str, idx: int, meta: typing.List[dict]) -> Union[numpy.ndarray, torch.Tensor]:
+    def apply_to_tensor(
+        self, tensor: Any, *, name: str, idx: int, meta: typing.List[dict]
+    ) -> Union[numpy.ndarray, torch.Tensor]:
 
         if isinstance(tensor, numpy.ndarray):
             return numpy.stack(

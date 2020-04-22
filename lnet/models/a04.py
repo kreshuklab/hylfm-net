@@ -8,8 +8,6 @@ import torch.nn
 import torch.nn as nn
 from inferno.extensions.initializers import Constant, Initialization
 
-from lnet.datasets import get_collate_fn
-from lnet.datasets.base import TensorInfo
 from lnet.models.base import LnetModel
 from lnet.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
 
@@ -152,8 +150,8 @@ def try_static(backprop: bool = True):
     from torch.utils.data import DataLoader
     import matplotlib.pyplot as plt
 
-    from lnet.datasets import get_dataset_from_info, ZipDataset, N5CachedDatasetFromInfo
-    from lnet.datasets.gcamp import ref0_lf, ref0_ls
+    from lnet.datasets.base import TensorInfo
+    from lnet.datasets import get_dataset_from_info, ZipDataset, N5CachedDatasetFromInfo, get_collate_fn
     from lnet.transformations import Normalize01, ComposedTransformation, ChannelFromLightField, Cast, Crop
 
     m = A04(input_name="lf", prediction_name="pred", z_out=51, nnum=19, n_res2d=(488, 488, "u", 244, 244))

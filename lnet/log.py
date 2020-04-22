@@ -12,7 +12,7 @@ import torch
 import torch.utils.tensorboard
 import yaml
 from ignite.engine import Engine, Events
-from tifffile import imsave
+from imageio import volwrite
 from tqdm import tqdm
 
 from lnet import settings
@@ -21,7 +21,6 @@ from lnet.utils.plotting import get_batch_figure
 
 if typing.TYPE_CHECKING:
     from lnet.setup import Stage
-    from lnet.setup.base import ValidateStage
 
 logger = logging.getLogger(__name__)
 
@@ -194,10 +193,10 @@ class FileLogger(BaseLogger):
         save_to = save_to / name
         if isinstance(tensor, numpy.ndarray):
             try:
-                imsave(str(save_to.with_suffix(".tif")), tensor, compress=2)
+                volwrite(str(save_to.with_suffix(".tif")), tensor, compress=2)
             except Exception as e:
                 logger.error(e, exc_info=True)
-                imsave(str(save_to.with_suffix(".tif")), tensor, compress=2, bigtiff=True)
+                volwrite(str(save_to.with_suffix(".tif")), tensor, compress=2, bigtiff=True)
 
         elif isinstance(tensor, dict):
             with save_to.with_suffix(".yml").open("w") as f:
