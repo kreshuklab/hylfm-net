@@ -1,0 +1,79 @@
+13:17:06 lnet.setup.base INFO log_path: /g/kreshuk/LF_computed/lnet/logs/beads/01highc/20-04-22_13-17-06
+13:17:15 lnet.setup.base INFO starting stage: train
+13:17:15 lnet.datasets.utils INFO split data location into /g/hufnagel/LF/LenseLeNet_Microscope/20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_0_channel_0 and TP_*/RC_rectified/Cam_Right_1_rectified.tif
+13:17:15 lnet.datasets.utils INFO found numbers ['1'] in glob_exp TP_*/RC_rectified/Cam_Right_1_rectified.tif
+13:17:15 lnet.datasets.utils INFO found number tuples [(0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,), (8,), (9,), (10,), (11,), (12,), (13,), (14,), (15,), (16,), (17,), (18,), (19,), (20,), (21,), (22,), (23,), (24,), (25,), (26,), (27,), (28,), (29,), (30,), (31,), (32,), (33,), (34,), (35,), (36,), (37,), (38,), (39,), (40,), (41,), (42,), (43,), (44,), (45,), (46,), (47,), (48,), (49,), (50,), (51,), (52,), (53,), (54,), (55,), (56,), (57,), (58,), (59,), (60,), (61,), (62,), (63,), (64,), (65,), (66,), (67,), (68,), (69,), (70,), (71,), (72,), (73,), (74,), (75,), (76,), (77,), (78,), (79,), (80,), (81,), (82,), (83,), (84,), (85,), (86,), (87,), (88,), (89,), (90,), (91,), (92,), (93,), (94,), (95,), (96,), (97,), (98,), (99,), (100,), (101,), (102,), (103,), (104,), (105,), (106,), (107,), (108,), (109,), (110,), (111,), (112,), (113,), (114,), (115,), (116,), (117,), (118,), (119,), (120,), (121,), (122,), (123,), (124,), (125,), (126,), (127,), (128,), (129,), (130,), (131,), (132,), (133,), (134,), (135,), (136,)] in folder /g/hufnagel/LF/LenseLeNet_Microscope/20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_0_channel_0
+13:17:15 lnet.datasets.base INFO cache lf to /g/kreshuk/beuttenm/repos/lnet/data/19f4031ad1853968403b3b976d6784adf5425e532b0111169e0b3412.n5
+13:17:15 lnet.datasets.utils INFO split data location into /g/hufnagel/LF/LenseLeNet_Microscope/20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_1_channel_1 and TP_*/LC/Cam_Left_registered.tif
+13:17:15 lnet.datasets.utils INFO found numbers [] in glob_exp TP_*/LC/Cam_Left_registered.tif
+13:17:15 lnet.datasets.utils INFO found number tuples [(0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,), (8,), (9,), (10,), (11,), (12,), (13,), (14,), (15,), (16,), (17,), (18,), (19,), (20,), (21,), (22,), (23,), (24,), (25,), (26,), (27,), (28,), (29,), (30,), (31,), (32,), (33,), (34,), (35,), (36,), (37,), (38,), (39,), (40,), (41,), (42,), (43,), (44,), (45,), (46,), (47,), (48,), (49,), (50,), (51,), (52,), (53,), (54,), (55,), (56,), (57,), (58,), (59,), (60,), (61,), (62,), (63,), (64,), (65,), (66,), (67,), (68,), (69,), (70,), (71,), (72,), (73,), (74,), (75,), (76,), (77,), (78,), (79,), (80,), (81,), (82,), (83,), (84,), (85,), (86,), (87,), (88,), (89,), (90,), (91,), (92,), (93,), (94,), (95,), (96,), (97,), (98,), (99,), (100,), (101,), (102,), (103,), (104,), (105,), (106,), (107,), (108,), (109,), (110,), (111,), (112,), (113,), (114,), (115,), (116,), (117,), (118,), (119,), (120,), (121,), (122,), (123,), (124,), (125,), (126,), (127,), (128,), (129,), (130,), (131,), (132,), (133,), (134,), (135,), (136,)] in folder /g/hufnagel/LF/LenseLeNet_Microscope/20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_1_channel_1
+13:17:15 lnet.datasets.base INFO cache ls to /g/kreshuk/beuttenm/repos/lnet/data/fb61f78cb0b2ccb4da32499b888066d4f4102d820e08fa52587291e3.n5
+13:17:16 ignite.engine.engine.Engine INFO Engine run starting with max_epochs=500.
+13:53:36 ignite.engine.engine.Engine INFO Epoch[1] Complete. Time taken: 00:36:20
+13:53:36 lnet.datasets.utils INFO split data location into /g/hufnagel/LF/LenseLeNet_Microscope/20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02/stack_0_channel_0 and TP_*/RC_rectified/Cam_Right_1_rectified.tif
+13:53:36 lnet.datasets.utils INFO found numbers ['1'] in glob_exp TP_*/RC_rectified/Cam_Right_1_rectified.tif
+13:53:36 lnet.datasets.utils INFO found number tuples [(0,), (1,), (2,), (3,)] in folder /g/hufnagel/LF/LenseLeNet_Microscope/20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02/stack_0_channel_0
+13:53:36 lnet.datasets.base INFO cache lf to /g/kreshuk/beuttenm/repos/lnet/data/103b57105d438703a4836767a7ce629590d45abb92c0e4bae625e774.n5
+13:53:36 lnet.datasets.utils INFO split data location into /g/hufnagel/LF/LenseLeNet_Microscope/20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02/stack_1_channel_1 and TP_*/LC/Cam_Left_registered.tif
+13:53:36 lnet.datasets.utils INFO found numbers [] in glob_exp TP_*/LC/Cam_Left_registered.tif
+13:53:36 lnet.datasets.utils INFO found number tuples [(0,), (1,), (2,), (3,)] in folder /g/hufnagel/LF/LenseLeNet_Microscope/20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02/stack_1_channel_1
+13:53:36 lnet.datasets.base INFO cache ls to /g/kreshuk/beuttenm/repos/lnet/data/6db4bcbcae977f5c6569d4fc51eb76b7216ebe921ad5c22d7bd6da76.n5
+13:53:36 ignite.engine.engine.Engine INFO Engine run starting with max_epochs=1.
+13:54:34 ignite.engine.engine.Engine INFO Epoch[1] Complete. Time taken: 00:00:57
+13:54:35 ignite.engine.engine.Engine INFO validate run on 4 mini-batches completed in 0.01 s with avg compute time 00:00:00:002
+13:54:35 ignite.engine.engine.Engine INFO Engine run complete. Time taken 00:00:58
+14:27:29 ignite.engine.engine.Engine INFO Epoch[2] Complete. Time taken: 00:32:52
+14:27:29 ignite.engine.engine.Engine INFO Engine run starting with max_epochs=1.
+14:28:25 ignite.engine.engine.Engine INFO Epoch[1] Complete. Time taken: 00:00:56
+14:28:26 ignite.engine.engine.Engine INFO validate run on 4 mini-batches completed in 0.01 s with avg compute time 00:00:00:002
+14:28:26 ignite.engine.engine.Engine INFO Engine run complete. Time taken 00:00:57
+15:01:26 ignite.engine.engine.Engine INFO Epoch[3] Complete. Time taken: 00:32:58
+15:01:26 ignite.engine.engine.Engine INFO Engine run starting with max_epochs=1.
+15:02:28 ignite.engine.engine.Engine INFO Epoch[1] Complete. Time taken: 00:01:02
+15:02:28 ignite.engine.engine.Engine INFO validate run on 4 mini-batches completed in 0.02 s with avg compute time 00:00:00:003
+15:02:28 ignite.engine.engine.Engine INFO Engine run complete. Time taken 00:01:02
+15:36:05 ignite.engine.engine.Engine INFO Epoch[4] Complete. Time taken: 00:33:36
+15:36:05 ignite.engine.engine.Engine INFO Engine run starting with max_epochs=1.
+15:37:20 ignite.engine.engine.Engine INFO Epoch[1] Complete. Time taken: 00:01:14
+15:37:21 ignite.engine.engine.Engine INFO validate run on 4 mini-batches completed in 0.01 s with avg compute time 00:00:00:003
+15:37:21 ignite.engine.engine.Engine INFO Engine run complete. Time taken 00:01:15
+16:11:38 ignite.engine.engine.Engine INFO Epoch[5] Complete. Time taken: 00:34:16
+16:11:38 ignite.engine.engine.Engine INFO Engine run starting with max_epochs=1.
+16:12:52 ignite.engine.engine.Engine INFO Epoch[1] Complete. Time taken: 00:01:14
+16:12:52 ignite.engine.engine.Engine INFO validate run on 4 mini-batches completed in 0.01 s with avg compute time 00:00:00:003
+16:12:52 ignite.engine.engine.Engine INFO Engine run complete. Time taken 00:01:14
+16:47:26 ignite.engine.engine.Engine INFO Epoch[6] Complete. Time taken: 00:34:33
+16:47:26 ignite.engine.engine.Engine INFO Engine run starting with max_epochs=1.
+16:48:36 ignite.engine.engine.Engine INFO Epoch[1] Complete. Time taken: 00:01:10
+16:48:37 ignite.engine.engine.Engine INFO validate run on 4 mini-batches completed in 0.01 s with avg compute time 00:00:00:003
+16:48:37 ignite.engine.engine.Engine INFO Engine run complete. Time taken 00:01:10
+17:23:01 ignite.engine.engine.Engine INFO Epoch[7] Complete. Time taken: 00:34:23
+17:23:01 ignite.engine.engine.Engine INFO Engine run starting with max_epochs=1.
+17:24:17 ignite.engine.engine.Engine INFO Epoch[1] Complete. Time taken: 00:01:15
+17:24:17 ignite.engine.engine.Engine INFO validate run on 4 mini-batches completed in 0.01 s with avg compute time 00:00:00:003
+17:24:17 ignite.engine.engine.Engine INFO Engine run complete. Time taken 00:01:16
+17:58:31 ignite.engine.engine.Engine INFO Epoch[8] Complete. Time taken: 00:34:12
+17:58:31 ignite.engine.engine.Engine INFO Engine run starting with max_epochs=1.
+17:59:42 ignite.engine.engine.Engine INFO Epoch[1] Complete. Time taken: 00:01:11
+17:59:43 ignite.engine.engine.Engine INFO validate run on 4 mini-batches completed in 0.01 s with avg compute time 00:00:00:003
+17:59:43 ignite.engine.engine.Engine INFO Engine run complete. Time taken 00:01:12
+18:33:31 ignite.engine.engine.Engine INFO Epoch[9] Complete. Time taken: 00:33:46
+18:33:31 ignite.engine.engine.Engine INFO Engine run starting with max_epochs=1.
+18:34:41 ignite.engine.engine.Engine INFO Epoch[1] Complete. Time taken: 00:01:09
+18:34:41 ignite.engine.engine.Engine INFO validate run on 4 mini-batches completed in 0.01 s with avg compute time 00:00:00:003
+18:34:41 ignite.engine.engine.Engine INFO Engine run complete. Time taken 00:01:09
+19:07:58 ignite.engine.engine.Engine INFO Epoch[10] Complete. Time taken: 00:33:15
+19:07:58 ignite.engine.engine.Engine INFO Engine run starting with max_epochs=1.
+19:08:59 ignite.engine.engine.Engine INFO Epoch[1] Complete. Time taken: 00:01:01
+19:09:00 ignite.engine.engine.Engine INFO validate run on 4 mini-batches completed in 0.01 s with avg compute time 00:00:00:002
+19:09:00 ignite.engine.engine.Engine INFO Engine run complete. Time taken 00:01:01
+19:42:09 ignite.engine.engine.Engine INFO Epoch[11] Complete. Time taken: 00:33:08
+19:42:09 ignite.engine.engine.Engine INFO Engine run starting with max_epochs=1.
+19:43:09 ignite.engine.engine.Engine INFO Epoch[1] Complete. Time taken: 00:01:00
+19:43:09 ignite.engine.engine.Engine INFO validate run on 4 mini-batches completed in 0.01 s with avg compute time 00:00:00:002
+19:43:09 ignite.engine.engine.Engine INFO Engine run complete. Time taken 00:01:00
+20:16:34 ignite.engine.engine.Engine INFO Epoch[12] Complete. Time taken: 00:33:22
+20:16:34 ignite.engine.engine.Engine INFO Engine run starting with max_epochs=1.
+20:17:39 ignite.engine.engine.Engine INFO Epoch[1] Complete. Time taken: 00:01:04
+20:17:39 ignite.engine.engine.Engine INFO validate run on 4 mini-batches completed in 0.01 s with avg compute time 00:00:00:003
+20:17:39 ignite.engine.engine.Engine INFO Engine run complete. Time taken 00:01:05

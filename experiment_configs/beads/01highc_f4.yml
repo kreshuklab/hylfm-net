@@ -16,19 +16,7 @@ toolbox: # defines yaml placeholders
     SmoothL1Loss: {tensor_names: {y_pred: pred, y: ls}}
     MSELoss: {tensor_names: {y_pred: pred, y: ls}}
 
-  eval_log: &eval_log
-    TqdmLogger:
-      scalars_every: {value: 1, unit: iteration}
-    TensorBoardLogger:
-      scalars_every: {value: 1, unit: iteration}
-      tensors_every: {value: 1, unit: epoch}
-      tensor_names: [lf, pred, ls]
-    FileLogger:
-      scalars_every: {value: 1, unit: iteration}
-      tensors_every: {value: 1, unit: iteration}
-      tensor_names: [lf, pred, ls]
-
-  eval_batch_size: &eval_batch_size 2
+  eval_batch_size: &eval_batch_size 1
   sample_trfs: &sample_trfs
     - Resize: {apply_to: ls, shape: [1.0, 121, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947], order: 2}  # 0.42105263157894736842105263157895‬=8/19
     - Assert: {apply_to: ls, expected_tensor_shape: [null, 1, 121, null, null]}
@@ -54,24 +42,23 @@ model:
 
 stages:
   - train:
-      max_num_epochs: 500
-      metrics: *metrics
+      max_epochs: 500
+      metrics: {}
       log:
-        TqdmLogger:
-          scalars_every: {value: 1, unit: iteration}
+        TqdmLogger: {}
         TensorBoardLogger:
-          scalars_every: {value: 1, unit: iteration}
+          scalars_every: {value: 10, unit: iteration}
           tensors_every: {value: 1, unit: epoch}
           tensor_names: [lf, pred, ls]
 
       criterion:
-        name: WeightedSmoothL1Loss
-        kwargs: {threshold: 0.8, initial_weight: .05, apply_below_threshold: true, decay_by: .8, every_nth_epoch: 1}
+        name: MSELoss
+        kwargs: {reduction: mean}
         tensor_names: {input: pred, target: ls}
 
       optimizer:
         name: Adam
-        kwargs: {lr: 4.0e-4, eps: 1.0e-8}
+        kwargs: {lr: 2.0e-4, eps: 1.0e-8}
 
       sampler:
         base: RandomSampler
@@ -101,7 +88,12 @@ stages:
 
       validate:
         metrics: *metrics
-        log: *eval_log
+        log:
+          TqdmLogger: {}
+          TensorBoardLogger:
+            scalars_every: {value: 1, unit: epoch}
+            tensors_every: {value: 1, unit: epoch}
+            tensor_names: [lf, pred, ls]
         score_metric: -SmoothL1Loss
         period: {value: 1, unit: epoch}
         patience: 5
@@ -117,7 +109,16 @@ stages:
 
   - test:
       metrics: *metrics
-      log: *eval_log
+      log:
+        TqdmLogger: {}
+        TensorBoardLogger:
+          scalars_every: {value: 1, unit: epoch}
+          tensors_every: {value: 1, unit: epoch}
+          tensor_names: [lf, pred, ls]
+        FileLogger:
+          scalars_every: {value: 1, unit: epoch}
+          tensors_every: {value: 1, unit: iteration}
+          tensor_names: [lf, pred, ls]
       batch_preprocessing: *eval_batch_prepr
       batch_preprocessing_in_step: *batch_prepr_in_step
       batch_postprocessing: *batch_postpr

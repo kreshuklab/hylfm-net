@@ -4,7 +4,7 @@ import logging
 import time
 import typing
 from collections import OrderedDict
-from concurrent.futures.thread import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import numpy
@@ -169,15 +169,19 @@ class FileLogger(BaseLogger):
         tensors: typing.OrderedDict[str, typing.Any] = engine.state.output
 
         with ThreadPoolExecutor(max_workers=settings.max_workers_file_logger) as executor:
+            futs = []
             for tn in tensor_names:
                 for tensor, meta in zip(tensors[tn], tensors["meta"]):
-                    executor.submit(
+                    futs.append(executor.submit(
                         self._save_tensor,
                         tn,
                         tensor,
-                        meta,
                         self.stage.log_path / f"run{self.stage.run_count}" / str(meta["idx"]),
-                    )
+                    ))
+            for fut in as_completed(futs):
+                e = fut.exception()
+                if e is not None:
+                    logger.error(e, exc_info=True)
 
         return unit, step
 
