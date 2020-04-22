@@ -7,7 +7,7 @@ class DataRoots:
     GHUFNAGELLFLenseLeNet_Microscope: Path = Path("H:/")
     GKRESHUK: Path = Path("K:/")
     lnet: Path = Path("C:/repos/lnet")
-
+    logs: Path = Path("K:/LF_computed/lnet/logs")
 
 @dataclass
 class Settings:
