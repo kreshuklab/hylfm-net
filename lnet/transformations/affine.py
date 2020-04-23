@@ -1,9 +1,12 @@
+import logging
 from typing import Any, List, Optional, OrderedDict, Sequence, Tuple, Union
 
 import numpy
 import torch.nn.functional
 import torch.nn.functional
 from scipy.ndimage import affine_transform
+
+logger = logging.getLogger(__name__)
 
 
 def scipy_form2torch_theta(scipy_form, ipt_shape, out_shape) -> torch.Tensor:
@@ -160,7 +163,7 @@ class AffineTransformation(torch.nn.Module):
             else:
                 raise NotImplementedError(roi_method)
 
-            print("determined crop_out:", ref_crop_out)
+            logger.info("determined crop_out: %s", ref_crop_out)
         elif len(ref_crop_out) == len(ref_output_shape) + 1:
             assert ref_crop_out[0][0] == 0 and ref_crop_out[0][1] == 0, ref_crop_out
             ref_crop_out = ref_crop_out[1:]
@@ -195,10 +198,10 @@ class AffineTransformation(torch.nn.Module):
         output_sampling_shape: Optional[Tuple[int, ...]] = None,
         z_slices: Optional[Sequence[int]] = None,
     ) -> Union[numpy.ndarray, torch.Tensor]:
-        print("ipt shape", ipt.shape)
-        print("trf in shape", trf_in_shape)
-        print("trf out shape", trf_out_shape)
-        print("out sampling shape", output_sampling_shape)
+        logger.debug("ipt shape %s", ipt.shape)
+        logger.debug("trf in shape %s", trf_in_shape)
+        logger.debug("trf out shape %s", trf_out_shape)
+        logger.debug("out sampling shape %s", output_sampling_shape)
         if output_sampling_shape is None:
             output_sampling_shape = trf_out_shape
         elif z_slices is not None and any([zs is not None for zs in z_slices]):
@@ -210,12 +213,12 @@ class AffineTransformation(torch.nn.Module):
 
         if trf_in_shape != ipt.shape[2:]:
             in_scaling = [ipts / trf_in for ipts, trf_in in zip(ipt.shape[2:], trf_in_shape)] + [1.0]
-            print("ipt.shape -> trf_in_shape", ipt.shape[2:], trf_in_shape, in_scaling)
+            logger.debug("ipt.shape -> trf_in_shape %s %s %s", ipt.shape[2:], trf_in_shape, in_scaling)
             matrix = numpy.diag(in_scaling).dot(matrix)
 
         if trf_out_shape != output_sampling_shape:
             out_scaling = [trf_out / outs for trf_out, outs in zip(trf_out_shape, output_sampling_shape)] + [1.0]
-            print("trf_out_shape -> output_sampling", trf_out_shape, output_sampling_shape, out_scaling)
+            logger.debug("trf_out_shape -> output_sampling %s %s %s", trf_out_shape, output_sampling_shape, out_scaling)
             matrix = matrix.dot(numpy.diag(out_scaling))
 
         if isinstance(ipt, numpy.ndarray):

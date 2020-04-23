@@ -95,7 +95,7 @@ stages:
             - RandomIntensityScale: {apply_to: [lf, ls], factor_min: .8, factor_max: 1.2}
             - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -1}
             - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -2}
-
+          filters: [[z_range, {z_min: *ls_z_min, z_max: *ls_z_max}]]
           datasets:
             - {tensors: {lf: gcamp.g200311_085233_lf, ls: gcamp.g200311_085233_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
 
@@ -117,6 +117,7 @@ stages:
           - batch_size: *eval_batch_size
             interpolation_order: *interpol
             sample_preprocessing: *eval_sample_prepr
+            filters: [[z_range, {z_min: *ls_z_min, z_max: *ls_z_max}]]
             datasets:
               - {tensors: {lf: gcamp.g200311_090800_lf, ls: gcamp.g200311_090800_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-5}
 
