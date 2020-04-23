@@ -42,7 +42,7 @@ ref0_ls = TensorInfo(
     location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/Gcamp_dataset.h5/t[0-9]+/s01/0/cells",
     transformations=[],
     meta={},
-    insert_singleton_axes_at=[0, 0],
+    insert_singleton_axes_at=[0, 0, 0],
 )
 
 g200311_085233_lf = TensorInfo(
@@ -60,7 +60,7 @@ g200311_085233_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_08.52.33/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/LC/Cam_Left_*.tif",
     transformations=[],
     meta={},
-    insert_singleton_axes_at=[0, 0],
+    insert_singleton_axes_at=[0, 0, 0],
     z_slice="idx%241",
     # length=31*241,
 )
@@ -80,7 +80,7 @@ g200311_090800_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_09.08.00/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/LC/Cam_Left_*.tif",
     transformations=[],
     meta={},
-    insert_singleton_axes_at=[0, 0],
+    insert_singleton_axes_at=[0, 0, 0],
     z_slice="idx%241"
     # length=15*241,
 )
@@ -102,7 +102,7 @@ g200311_083021_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_09.08.00/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/LC/Cam_Left_*.tif",
     transformations=[],
     meta={},
-    insert_singleton_axes_at=[0, 0],
+    insert_singleton_axes_at=[0, 0, 0],
     z_slice="60+idx%121"
     # length=8*121,
 )
@@ -122,7 +122,7 @@ g200311_083419_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_08.34.19/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/LC/Cam_Left_*.tif",
     transformations=[],
     meta={},
-    insert_singleton_axes_at=[0, 0],
+    insert_singleton_axes_at=[0, 0, 0],
     z_slice="60+idx%121"
     # length=8*121,
 )
@@ -142,7 +142,7 @@ g200311_083658_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_08.36.58/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/LC/Cam_Left_*.tif",
     transformations=[],
     meta={},
-    insert_singleton_axes_at=[0, 0],
+    insert_singleton_axes_at=[0, 0, 0],
     z_slice="60+idx%121"
     # length=8*121,
 )
@@ -162,7 +162,7 @@ g200311_083931_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_08.39.31/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/LC/Cam_Left_*.tif",
     transformations=[],
     meta={},
-    insert_singleton_axes_at=[0, 0],
+    insert_singleton_axes_at=[0, 0, 0],
     z_slice="60+idx%121"
     # length=8*121,
 )
@@ -182,7 +182,7 @@ g200311_084207_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_08.42.07/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/LC/Cam_Left_*.tif",
     transformations=[],
     meta={},
-    insert_singleton_axes_at=[0, 0],
+    insert_singleton_axes_at=[0, 0, 0],
     z_slice="60+idx%121"
     # length=8*121,
 )
@@ -202,7 +202,7 @@ g200311_084450_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_08.44.50/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/LC/Cam_Left_*.tif",
     transformations=[],
     meta={},
-    insert_singleton_axes_at=[0, 0],
+    insert_singleton_axes_at=[0, 0, 0],
     z_slice="60+idx%121"
     # length=8*121,
 )
@@ -222,7 +222,7 @@ g200311_084729_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_08.47.29/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/LC/Cam_Left_*.tif",
     transformations=[],
     meta={},
-    insert_singleton_axes_at=[0, 0],
+    insert_singleton_axes_at=[0, 0, 0],
     z_slice="60+idx%121"
     # length=8*121,
 )

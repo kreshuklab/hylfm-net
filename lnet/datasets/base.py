@@ -149,10 +149,10 @@ class DatasetFromInfo(torch.utils.data.Dataset):
             if self._z_slice_mod is None:
                 return None
             else:
-                return idx % self._z_slice_mod
+                return self._z_offset + (idx % self._z_slice_mod)
         else:
             if self._z_slice_mod is None:
-                return self._z_slice
+                return self._z_offset + self._z_slice
             else:
                 raise NotImplementedError("_z_slice and _z_slice_mod?!?")
 
@@ -186,7 +186,10 @@ class TiffDataset(DatasetFromInfo):
         path_idx = idx // self.in_batches_of
         idx %= self.in_batches_of
         img_path = self.paths[path_idx]
-        img: numpy.ndarray = imageio.volread(img_path)[idx : idx + 1]
+        img: numpy.ndarray = imageio.volread(img_path)
+        if self.in_batches_of > 1:
+            img = img[idx : idx + 1]
+
         for axis in self.insert_singleton_axes_at:
             img = numpy.expand_dims(img, axis=axis)
 
@@ -238,10 +241,13 @@ class H5Dataset(DatasetFromInfo):
         withins = self.within_paths[path_idx]
         h5ds = hf[withins[idx]]
         img: numpy.ndarray = h5ds[:]
+        if self.in_batches_of > 1:
+            img = img[idx : idx + 1]
+
         for axis in self.insert_singleton_axes_at:
             img = numpy.expand_dims(img, axis=axis)
 
-        return self.transform(OrderedDict(**{self.tensor_name: img[idx : idx + 1]}))
+        return self.transform(OrderedDict(**{self.tensor_name: img}))
 
     def shutdown(self):
         self._shutdown = True
@@ -285,7 +291,7 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
         super().__init__(dataset=dataset)
         self.repeat = dataset.info.repeat
         description = dataset.description
-        data_file_path = settings.cache_path / f"{hash_algorithm(description.encode()).hexdigest()}.n5"
+        data_file_path = settings.cache_path / f"{dataset.tensor_name}_{hash_algorithm(description.encode()).hexdigest()}.n5"
         data_file_path.with_suffix(".txt").write_text(description)
 
         logger.info("cache %s to %s", dataset.tensor_name, data_file_path)
