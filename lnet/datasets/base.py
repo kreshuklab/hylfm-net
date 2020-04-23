@@ -291,7 +291,9 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
         super().__init__(dataset=dataset)
         self.repeat = dataset.info.repeat
         description = dataset.description
-        data_file_path = settings.cache_path / f"{dataset.tensor_name}_{hash_algorithm(description.encode()).hexdigest()}.n5"
+        data_file_path = (
+            settings.cache_path / f"{dataset.tensor_name}_{hash_algorithm(description.encode()).hexdigest()}.n5"
+        )
         data_file_path.with_suffix(".txt").write_text(description)
 
         logger.info("cache %s to %s", dataset.tensor_name, data_file_path)
@@ -345,7 +347,9 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
         idx = int(idx)
         idx //= self.repeat
         self.submit(idx).result()
-        return OrderedDict(**{self.dataset.tensor_name: self.data_file[self.dataset.tensor_name][idx : idx + 1]})
+        z5dataset = self.data_file[self.dataset.tensor_name]
+        assert idx < z5dataset.shape[0], z5dataset.shape
+        return OrderedDict([(self.dataset.tensor_name, z5dataset[idx : idx + 1])])
 
     def __len__(self):
         return len(self.dataset) * self.repeat
@@ -417,6 +421,7 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
                 }
             )
         )
+        self.description = description
         indices = numpy.arange(len(dataset)) if indices is None else indices
         mask_file_path = settings.cache_path / f"{hash_algorithm(description.encode()).hexdigest()}.index_mask.npy"
         mask_description_file_path = mask_file_path.with_suffix(".txt")
@@ -482,18 +487,19 @@ class ZipDataset(torch.utils.data.Dataset):
 
     def __init__(
         self,
-        datasets: Dict[str, N5CachedDatasetFromInfoSubset],
+        datasets: typing.OrderedDict[str, N5CachedDatasetFromInfoSubset],
         transformation: Callable[[typing.OrderedDict], typing.OrderedDict] = lambda x: x,
         join_dataset_masks: bool = True,
     ):
         super().__init__()
-        datasets = OrderedDict(**datasets)
+        datasets: typing.OrderedDict[str, N5CachedDatasetFromInfoSubset] = OrderedDict(**datasets)
         assert len(datasets) > 0
         if join_dataset_masks:
             base_len = len(list(datasets.values())[0].dataset)
-            assert all([len(ds.dataset) == base_len for ds in datasets.values()]), [
-                len(ds.dataset) for ds in datasets.values()
-            ]
+            assert all([len(ds.dataset) == base_len for ds in datasets.values()]), (
+                [len(ds.dataset) for ds in datasets.values()],
+                [ds.description for ds in datasets.values()],
+            )
             joined_mask = numpy.logical_and.reduce(numpy.stack([ds.mask for ds in datasets.values()]))
             for ds in datasets.values():
                 ds.mask = joined_mask

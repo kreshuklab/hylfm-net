@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import shutil
 import typing
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
 from importlib import import_module
@@ -140,14 +141,19 @@ class DatasetGroupSetup:
 
     def get_individual_dataset(self, dss: DatasetSetup) -> torch.utils.data.Dataset:
         return ZipDataset(
-            {
-                name: N5CachedDatasetFromInfoSubset(
-                    N5CachedDatasetFromInfo(get_dataset_from_info(dsinfo)),
-                    indices=dss.indices,
-                    filters=self.filters + dss.filters,
-                )
-                for name, dsinfo in dss.infos.items()
-            },
+            OrderedDict(
+                [
+                    (
+                        name,
+                        N5CachedDatasetFromInfoSubset(
+                            N5CachedDatasetFromInfo(get_dataset_from_info(dsinfo)),
+                            indices=dss.indices,
+                            filters=self.filters + dss.filters,
+                        ),
+                    )
+                    for name, dsinfo in dss.infos.items()
+                ]
+            ),
             transformation=self.sample_preprocessing,
         )
 
@@ -175,7 +181,7 @@ class DatasetSetup:
         assert all(
             [isinstance(etn, str) for etn in expected_tensor_names]
         ), f"sample transformations have to be applied to individual tensors, but got: {sample_transformations}"
-        self.infos = {}
+        self.infos = OrderedDict()
         found_tensor_names = set(tensors.keys())
         if not expected_tensor_names.issubset(found_tensor_names):
             raise ValueError(
