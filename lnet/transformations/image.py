@@ -33,7 +33,7 @@ class Crop(Transform):
         crop = self.crop_fn(tensor.shape[2:])
         assert len(tensor.shape) - 1 == len(crop), (tensor.shape, crop)
         out = tensor[(slice(None),) + tuple(slice(c[0], c[1]) for c in crop)]
-        logger.warning("Crop tensor: %s %s by %s to %s", name, tensor.shape, crop, out.shape)
+        logger.debug("Crop tensor: %s %s by %s to %s", name, tensor.shape, crop, out.shape)
         return out
 
 
