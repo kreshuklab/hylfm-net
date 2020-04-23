@@ -8,6 +8,7 @@ import torch.nn
 import torch.nn as nn
 from inferno.extensions.initializers import Constant, Initialization
 
+from lnet.datasets import N5CachedDatasetFromInfoSubset
 from lnet.models.base import LnetModel
 from lnet.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
 
@@ -154,42 +155,59 @@ def try_static(backprop: bool = True):
     from lnet.datasets import get_dataset_from_info, ZipDataset, N5CachedDatasetFromInfo, get_collate_fn
     from lnet.transformations import Normalize01, ComposedTransformation, ChannelFromLightField, Cast, Crop
 
-    m = A04(input_name="lf", prediction_name="pred", z_out=51, nnum=19, n_res2d=(488, 488, "u", 244, 244))
+    # m = A04(input_name="lf", prediction_name="pred", z_out=51, nnum=19, n_res2d=(488, 488, "u", 244, 244))
+    m = A04(
+        input_name="lf",
+        prediction_name="pred",
+        z_out=51,
+        nnum=19,
+        n_res2d=(488, 488, "u", 244, 244),
+        n_res3d=[[7], [7], [7]],
+    )
     # n_res2d: [976, 488, u, 244, 244, u, 122, 122]
     # inplanes_3d: 7
     # n_res3d: [[7, 7], [7], [1]]
 
-    lfds = N5CachedDatasetFromInfo(
-        get_dataset_from_info(
-            TensorInfo(
-                name="lf",
-                root="GHUFNAGELLFLenseLeNet_Microscope",
-                location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
-                insert_singleton_axes_at=[0, 0],
+    lfds = N5CachedDatasetFromInfoSubset(
+        N5CachedDatasetFromInfo(
+            get_dataset_from_info(
+                TensorInfo(
+                    name="lf",
+                    root="GHUFNAGELLFLenseLeNet_Microscope",
+                    location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+                    insert_singleton_axes_at=[0, 0],
+                )
             )
         )
     )
-    lsds = N5CachedDatasetFromInfo(
-        get_dataset_from_info(
-            TensorInfo(
-                name="ls",
-                root="GHUFNAGELLFLenseLeNet_Microscope",
-                location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
-                insert_singleton_axes_at=[0, 0],
-                transformations=[
-                    {
-                        "Resize": {
-                            "apply_to": "ls",
-                            "shape": [1.0, 121, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947],
-                            "order": 2,
+    lsds = N5CachedDatasetFromInfoSubset(
+        N5CachedDatasetFromInfo(
+            get_dataset_from_info(
+                TensorInfo(
+                    name="ls",
+                    root="GHUFNAGELLFLenseLeNet_Microscope",
+                    location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+                    insert_singleton_axes_at=[0, 0],
+                    transformations=[
+                        {
+                            "Resize": {
+                                "apply_to": "ls",
+                                "shape": [
+                                    1.0,
+                                    121,
+                                    0.21052631578947368421052631578947,
+                                    0.21052631578947368421052631578947,
+                                ],
+                                "order": 2,
+                            }
                         }
-                    }
-                ],
+                    ],
+                )
             )
         )
     )
     trf = ComposedTransformation(
-        Crop(apply_to="ls", crop=[[0, 0], [35, -35], [8, -8], [8, -8]]),
+        Crop(apply_to="ls", crop=[[0, 0], [35, -35], [6, -6], [6, -6]]),
         Normalize01(apply_to=["lf", "ls"], min_percentile=0, max_percentile=100),
         ChannelFromLightField(apply_to="lf", nnum=19),
         Cast(apply_to=["lf", "ls"], dtype="float32", device="cuda"),

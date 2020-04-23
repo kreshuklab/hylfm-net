@@ -249,6 +249,7 @@ class SamplerSetup:
     def batch_sampler(self) -> NoCrossBatchSampler:
         if self._batch_sampler is None:
             base_sampler = getattr(torch.utils.data, self.base)
+            assert len(self._data_setup.dataset)
             self._batch_sampler = NoCrossBatchSampler(
                 concat_dataset=self._data_setup.dataset,
                 sampler_class=base_sampler,

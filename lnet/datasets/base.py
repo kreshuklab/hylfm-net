@@ -401,8 +401,8 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
     def __init__(
         self,
         dataset: N5CachedDatasetFromInfo,
-        indices: Optional[Sequence[int]],
-        filters: Sequence[Tuple[str, Dict[str, Any]]],
+        indices: Optional[Sequence[int]] = None,
+        filters: Sequence[Tuple[str, Dict[str, Any]]] = tuple(),
     ):
         super().__init__(dataset=dataset)
         assert isinstance(dataset, N5CachedDatasetFromInfo)
