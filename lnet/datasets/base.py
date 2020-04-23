@@ -125,13 +125,20 @@ class DatasetFromInfo(torch.utils.data.Dataset):
 
         self._z_slice_mod: Optional[int] = None
         self._z_slice: Optional[int] = None
+        self._z_offset = 0
         if info.z_slice is None:
             pass
         elif isinstance(info.z_slice, int):
             self._z_slice = info.z_slice
         elif isinstance(info.z_slice, str):
-            if info.z_slice.startswith("idx%"):
-                self._z_slice_mod = int(info.z_slice[4:])
+            if "+" in info.z_slice:
+                z_offset, z_slice_str = info.z_slice.split("+")
+                self._z_offset = int(z_offset)
+            else:
+                z_slice_str = info.z_slice
+
+            if z_slice_str.startswith("idx%"):
+                self._z_slice_mod = int(z_slice_str[4:])
             else:
                 raise NotImplementedError(info.z_slice)
         else:

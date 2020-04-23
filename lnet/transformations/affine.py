@@ -202,7 +202,11 @@ class AffineTransformation(torch.nn.Module):
         if output_sampling_shape is None:
             output_sampling_shape = trf_out_shape
         elif z_slices is not None and any([zs is not None for zs in z_slices]):
-            raise ValueError("exclusive args: z_slices, output_sampling_shape")
+            assert output_sampling_shape[0] > max(z_slices) - self.z_offset, (
+                output_sampling_shape,
+                z_slices,
+                self.z_offset,
+            )
 
         if trf_in_shape != ipt.shape[2:]:
             in_scaling = [ipts / trf_in for ipts, trf_in in zip(ipt.shape[2:], trf_in_shape)] + [1.0]
@@ -220,7 +224,13 @@ class AffineTransformation(torch.nn.Module):
                 [
                     numpy.stack(
                         [
-                            affine_transform(ipt_woc, matrix, output_shape=output_sampling_shape, order=order, mode=self.scipy_padding_mode[self.padding_mode])
+                            affine_transform(
+                                ipt_woc,
+                                matrix,
+                                output_shape=output_sampling_shape,
+                                order=order,
+                                mode=self.scipy_padding_mode[self.padding_mode],
+                            )
                             for ipt_woc in ipt_wc
                         ]
                     )
@@ -230,9 +240,7 @@ class AffineTransformation(torch.nn.Module):
             if z_slices is None or all([zs is None for zs in z_slices]):
                 return ret
             else:
-                return numpy.stack(
-                    [b[:, zs - self.z_offset : zs + 1 - self.z_offset] for b, zs in zip(ret, z_slices)]
-                )
+                return numpy.stack([b[:, zs - self.z_offset : zs + 1 - self.z_offset] for b, zs in zip(ret, z_slices)])
         elif isinstance(ipt, torch.Tensor):
             on_cuda = ipt.is_cuda
             ipt_was_cuda = ipt.is_cuda
@@ -259,10 +267,7 @@ class AffineTransformation(torch.nn.Module):
                 assert all(self.z_offset <= z_slice for z_slice in z_slices), (self.z_offset, z_slices)
                 assert affine_grid.shape[0] == 1
                 affine_grid = torch.cat(
-                    [
-                        affine_grid[:, z_slice - self.z_offset : z_slice + 1 - self.z_offset]
-                        for z_slice in z_slices
-                    ]
+                    [affine_grid[:, z_slice - self.z_offset : z_slice + 1 - self.z_offset] for z_slice in z_slices]
                 )
 
             ret = torch.nn.functional.grid_sample(
@@ -289,22 +294,12 @@ class AffineTransformation(torch.nn.Module):
 
     def _forward(self, tensors: OrderedDict[str, Any]) -> OrderedDict[str, Any]:
         z_slices = [m.get(self.target_to_compare_to, {}).get("z_slice", None) for m in tensors["meta"]]
-        if any([zs is not None for zs in z_slices]):
-            assert all([zs is not None for zs in z_slices])
-            output_sampling_shape = None  # as self.cropped_output_shape
-        else:
-            output_sampling_shape = tensors[self.target_to_compare_to].shape[2:]
-            assert len(output_sampling_shape) == 3, output_sampling_shape
-            if output_sampling_shape[0] == 1:
-                # single z_slice:
-                output_sampling_shape = (self.cropped_output_shape[0],) + output_sampling_shape[1:]
-            #     (
-            #     None  # sample output as trf output and select z_slice (for 2d target) ...
-            #     if len(tensors[self.target_to_compare_to].shape) == 4
-            #     else tuple(
-            #         tensors[self.target_to_compare_to].shape[2:]
-            #     )  # ...or resample output to compare to volumetric target
-            # )
+        output_sampling_shape = tensors[self.target_to_compare_to].shape[2:]
+        assert len(output_sampling_shape) == 3, output_sampling_shape
+        if output_sampling_shape[0] == 1:
+            # single z_slice:
+            output_sampling_shape = (self.cropped_output_shape[0],) + output_sampling_shape[1:]
+
         tensors[self.apply_to] = self._impl(
             ipt=tensors[self.apply_to],
             matrix=self.trf_matrix,
@@ -373,7 +368,7 @@ def static():
     # trf = AffineTransformation(apply_to="lr", target_to_compare_to="ls", order=0, input_shape=(838, 1330, 1615), output_shape=(241, 1501, 1801), matrices=[[0.98048,0.004709,0.098297,-111.7542,7.6415e-05,0.97546,0.0030523,-20.1143,0.014629,8.2964e-06,-3.9928,846.8515]], crop_in=[(5, -5), (10, -10), (10, -10)], crop_out=[(3, -22), (20, -117), (87, -41)])
     # ref_crop_in = ((208 + 0, -208-14), (133, 1121), (323, 1596))  # 323, 133, 1273, 988
     # ref_crop_in = ((208-11, -208+49), (133-20, 1121), (323, 1596))  # 323, 133, 1273, 988
-    ref_crop_in = ((208-56, -208-15), (133, 1121), (323, 1596))  # 323, 133, 1273, 988
+    ref_crop_in = ((208 - 56, -208 - 15), (133, 1121), (323, 1596))  # 323, 133, 1273, 988
     # ref_crop_out = ((60 + 0, -60-19), (152, -323), (418, -57))
     # ref_crop_out = ((60, -60), (0, 0), (0, 0))
     # ref_crop_out = ((60, -60), (157, -332-7), (421+10, -67-15))
@@ -548,7 +543,7 @@ def dynamic():
     print("ls", ls.shape)
     # trf = AffineTransformation(apply_to="lr", target_to_compare_to="ls", order=0, input_shape=(838, 1330, 1615), output_shape=(241, 1501, 1801), matrices=[[0.98048,0.004709,0.098297,-111.7542,7.6415e-05,0.97546,0.0030523,-20.1143,0.014629,8.2964e-06,-3.9928,846.8515]], crop_in=[(5, -5), (10, -10), (10, -10)], crop_out=[(3, -22), (20, -117), (87, -41)])
     ref_crop_in = ((-17 + 208, +76 - 208), (133, 1121), (323, 1596))  # 323, 133, 1273, 988
-    ref_crop_out = ((0 + 60, - 0 - 60), (152, -323), (418, -57))
+    ref_crop_out = ((0 + 60, -0 - 60), (152, -323), (418, -57))
     # ref_crop_out = ((0, 0), (0, 0), (0, 0))
     trf_torch = AffineTransformation(
         apply_to="lr_torch",

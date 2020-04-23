@@ -12,7 +12,7 @@ import torch
 import torch.utils.tensorboard
 import yaml
 from ignite.engine import Engine, Events
-from imageio import volwrite
+from tifffile import imsave as imwrite
 from tqdm import tqdm
 
 from lnet import settings
@@ -170,13 +170,15 @@ class FileLogger(BaseLogger):
         with ThreadPoolExecutor(max_workers=settings.max_workers_file_logger) as executor:
             futs = []
             for tn in tensor_names:
-                for tensor, meta in zip(tensors[tn], tensors["meta"]):
-                    futs.append(executor.submit(
-                        self._save_tensor,
-                        tn,
-                        tensor,
-                        self.stage.log_path / f"run{self.stage.run_count}" / str(meta["idx"]),
-                    ))
+                for tensor, tmeta in zip(tensors[tn], tensors["meta"]):
+                    futs.append(
+                        executor.submit(
+                            self._save_tensor,
+                            tn,
+                            tensor,
+                            self.stage.log_path / f"run{self.stage.run_count}" / str(tmeta["idx"]),
+                        )
+                    )
             for fut in as_completed(futs):
                 e = fut.exception()
                 if e is not None:
@@ -185,21 +187,26 @@ class FileLogger(BaseLogger):
         return unit, step
 
     @staticmethod
-    def _save_tensor(name: str, tensor: typing.Any, save_to: Path):
-        save_to.mkdir(parents=True, exist_ok=True)
+    def _save_tensor(name: str, tensor: typing.Any, folder: Path):
+        assert len(tensor.shape) in (3, 4), f"expected tensor without batch dim, but got {tensor.shape}"
+        folder.mkdir(parents=True, exist_ok=True)
         if isinstance(tensor, torch.Tensor):
             tensor = tensor.detach().cpu().numpy()
 
-        save_to = save_to / name
+        tensor = numpy.moveaxis(tensor, 0, -1)  # save channel last
+        dtype_map = {"float64": "float32"}
+        tensor = tensor.astype(dtype_map.get(str(tensor.dtype), tensor.dtype))
+
+        folder = folder / name
         if isinstance(tensor, numpy.ndarray):
             try:
-                volwrite(str(save_to.with_suffix(".tif")), tensor, compress=2)
+                imwrite(str(folder.with_suffix(".tif")), tensor, compress=2)
             except Exception as e:
                 logger.error(e, exc_info=True)
-                volwrite(str(save_to.with_suffix(".tif")), tensor, compress=2, bigtiff=True)
+                imwrite(str(folder.with_suffix(".tif")), tensor, compress=2, bigtiff=True)
 
         elif isinstance(tensor, dict):
-            with save_to.with_suffix(".yml").open("w") as f:
+            with folder.with_suffix(".yml").open("w") as f:
                 yaml.dump(tensor, f)
         else:
             raise NotImplementedError(type(tensor))
