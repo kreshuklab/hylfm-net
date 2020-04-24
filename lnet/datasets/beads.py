@@ -1,35 +1,12 @@
 from lnet.datasets.base import TensorInfo
 
-b01mu_0_lf = TensorInfo(
-    name="lf",
-    root="GHUFNAGELLFLenseLeNet_Microscope",
-    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.20.28_withSimultIllum/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
-    skip_indices=[0],  # registered ls has shape (828, 931, 1406) whereas all others have shape (838, 931, 1406)
-    insert_singleton_axes_at=[0, 0],
-)
-b01mu_0_ls = TensorInfo(
-    name="ls",
-    root="GHUFNAGELLFLenseLeNet_Microscope",
-    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.20.28_withSimultIllum/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
-    skip_indices=[0],  # registered ls has shape (828, 931, 1406) whereas all others have shape (838, 931, 1406)
-    insert_singleton_axes_at=[0, 0],
-)
-
-b01mu_0_lr = TensorInfo(
-    name="lr",
-    root="GHUFNAGELLFLenseLeNet_Microscope",
-    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.20.28_withSimultIllum/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
-    skip_indices=[0],  # registered ls has shape (828, 931, 1406) whereas all others have shape (838, 931, 1406)
-    insert_singleton_axes_at=[0, 0],
-)
-
-
 b01highc_0_lf = TensorInfo(
     name="lf",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
     insert_singleton_axes_at=[0, 0],
-    # length=4,
+    tag="b01highc_0"
+# length=4,
 )
 
 b01highc_0_ls = TensorInfo(
@@ -37,7 +14,8 @@ b01highc_0_ls = TensorInfo(
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     insert_singleton_axes_at=[0, 0],
-    # length=4,
+    tag="b01highc_0"
+# length=4,
 )
 
 b01highc_0_lr = TensorInfo(
@@ -45,7 +23,8 @@ b01highc_0_lr = TensorInfo(
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
     insert_singleton_axes_at=[0, 0],
-    # length=4,
+    tag="b01highc_0"
+# length=4,
 )
 
 
@@ -54,6 +33,7 @@ b01highc_1_lf = TensorInfo(
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_03.01.49/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="b01highc_1"
     # length=28,
 )
 
@@ -62,6 +42,7 @@ b01highc_1_ls = TensorInfo(
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_03.01.49/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="b01highc_1"
     # length=28,
 )
 
@@ -70,6 +51,7 @@ b01highc_1_lr = TensorInfo(
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_03.01.49/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="b01highc_1"
     # length=28,
 )
 
@@ -79,6 +61,7 @@ b01highc_2_lf = TensorInfo(
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="b01highc_2",
     # length=137,
 )
 
@@ -87,6 +70,7 @@ b01highc_2_ls = TensorInfo(
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="b01highc_2",
     # length=137,
 )
 
@@ -95,17 +79,309 @@ b01highc_2_lr = TensorInfo(
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="b01highc_2",
     # length=137,
 )
 
+# 11mu
+b11mu_0_lf = TensorInfo(
+    name="lf",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_11micron/2019-10-30_09.37.45/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    tag="b11mu_0",
+)
+
+b11mu_0_lr = TensorInfo(
+    name="lr",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_11micron/2019-10-30_09.37.45/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
+    tag="b11mu_0",
+)
+
+b11mu_0_ls = TensorInfo(
+    name="ls",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_11micron/2019-10-30_09.37.45/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    tag="b11mu_0",
+)
+
+
+# 0.1mu
+b01mu_0_lf = TensorInfo(
+    name="lf",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.20.28_withSimultIllu/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    tag="b01mu_0",
+    skip_indices=[0],  # registered ls has shape (828, 931, 1406) whereas all others have shape (838, 931, 1406)
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_0_lr = TensorInfo(
+    name="lr",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.20.28_withSimultIllu/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
+    tag="b01mu_0",
+    skip_indices=[0],  # registered ls has shape (828, 931, 1406) whereas all others have shape (838, 931, 1406)
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_0_ls = TensorInfo(
+    name="ls",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.20.28_withSimultIllu/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    tag="b01mu_0",
+    skip_indices=[0],  # registered ls has shape (828, 931, 1406) whereas all others have shape (838, 931, 1406)
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_1_lf = TensorInfo(
+    name="lf",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.54.12_withSimultIllu/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    tag="b01mu_1",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_1_lr = TensorInfo(
+    name="lr",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.54.12_withSimultIllu/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
+    tag="b01mu_1",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_1_ls = TensorInfo(
+    name="ls",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.54.12_withSimultIllu/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    tag="b01mu_1",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_2_lf = TensorInfo(
+    name="lf",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_06.25.24/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    tag="b1mu_2",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_2_lr = TensorInfo(
+    name="lr",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_06.25.24/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
+    tag="b1mu_2",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_2_ls = TensorInfo(
+    name="ls",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_06.25.24/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    tag="b1mu_2",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_3_lf = TensorInfo(
+    name="lf",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_06.44.56/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    tag="b1mu_3",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_3_lr = TensorInfo(
+    name="lr",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_06.44.56/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
+    tag="b1mu_3",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_3_ls = TensorInfo(
+    name="ls",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_06.44.56/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    tag="b1mu_3",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_4_lf = TensorInfo(
+    name="lf",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_07.04.52/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    tag="b1mu_4",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_4_lr = TensorInfo(
+    name="lr",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_07.04.52/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
+    tag="b1mu_4",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_4_ls = TensorInfo(
+    name="ls",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_07.04.52/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    tag="b1mu_4",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_5_lf = TensorInfo(
+    name="lf",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_07.23.55/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    tag="b1mu_5",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_5_lr = TensorInfo(
+    name="lr",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_07.23.55/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
+    tag="b1mu_5",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mu_5_ls = TensorInfo(
+    name="ls",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_07.23.55/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    tag="b1mu_5",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b4mu_0_lf = TensorInfo(
+    name="lf",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.15.32/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    tag="b4mu_0",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b4mu_0_lr = TensorInfo(
+    name="lr",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.15.32/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
+    tag="b4mu_0",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b4mu_0_ls = TensorInfo(
+    name="ls",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.15.32/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    tag="b4mu_0",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b4mu_1_lf = TensorInfo(
+    name="lf",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.34.35/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    tag="b4mu_1",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b4mu_1_lr = TensorInfo(
+    name="lr",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.34.35/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
+    tag="b4mu_1",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b4mu_1_ls = TensorInfo(
+    name="ls",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.34.35/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    tag="b4mu_1",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b4mu_2_lf = TensorInfo(
+    name="lf",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.53.53/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    tag="b4mu_2",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b4mu_2_lr = TensorInfo(
+    name="lr",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.53.53/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
+    tag="b4mu_2",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b4mu_2_ls = TensorInfo(
+    name="ls",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.53.53/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    tag="b4mu_2",
+    insert_singleton_axes_at=[0, 0],
+)
+
+
+b4mu_3_lf = TensorInfo(
+    name="lf",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_09.14.05/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    tag="b4mu_3",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b4mu_3_lr = TensorInfo(
+    name="lr",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_09.14.05/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
+    tag="b4mu_3",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b4mu_3_ls = TensorInfo(
+    name="ls",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_09.14.05/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    tag="b4mu_3",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mix4_0_lf = TensorInfo(
+    name="lf",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191031_Beads_MixedSizes/Beads_mixed01and4microns/2019-10-31_02.27.33/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+    tag="b01mix4_0",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mix4_0_lr = TensorInfo(
+    name="lr",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191031_Beads_MixedSizes/Beads_mixed01and4microns/2019-10-31_02.27.33/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
+    tag="b01mix4_0",
+    insert_singleton_axes_at=[0, 0],
+)
+
+b01mix4_0_ls = TensorInfo(
+    name="ls",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191031_Beads_MixedSizes/Beads_mixed01and4microns/2019-10-31_02.27.33/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+    tag="b01mix4_0",
+    insert_singleton_axes_at=[0, 0],
+)
 
 if __name__ == "__main__":
     from lnet.datasets.base import get_dataset_from_info, N5CachedDatasetFromInfo
 
-    ds = get_dataset_from_info(b01mu_0_lf)
+    ds = get_dataset_from_info(b01mix4_0_ls)
     ds = N5CachedDatasetFromInfo(ds)
     print(len(ds))
-    print(ds[0]["lf"].shape)
+    print(ds[0]["ls"].shape)
 
 
 # beads_01mu_1 = TensorInfo(

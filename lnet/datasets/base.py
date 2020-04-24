@@ -52,6 +52,7 @@ class TensorInfo:
         skip_indices: Sequence[int] = tuple(),
         meta: Optional[dict] = None,
         repeat: int = 1,
+        tag: Optional[str] = None,
         **kwargs,
     ):
         if z_slice is not None and skip_indices:
@@ -62,6 +63,11 @@ class TensorInfo:
         assert isinstance(location, str)
         assert isinstance(in_batches_of, int)
         self.name = name
+        if tag is None:
+            self.tag = name
+        else:
+            self.tag = tag
+
         self.root = root
         self.transformations = list(transformations)
         self.in_batches_of = in_batches_of
@@ -292,11 +298,11 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
         self.repeat = dataset.info.repeat
         description = dataset.description
         data_file_path = (
-            settings.cache_path / f"{dataset.tensor_name}_{hash_algorithm(description.encode()).hexdigest()}.n5"
+            settings.cache_path / f"{dataset.info.tag}_{dataset.tensor_name}_{hash_algorithm(description.encode()).hexdigest()}.n5"
         )
         data_file_path.with_suffix(".txt").write_text(description)
 
-        logger.info("cache %s to %s", dataset.tensor_name, data_file_path)
+        logger.info("cache %s_%s to %s", dataset.info.tag, dataset.tensor_name, data_file_path)
         tensor_name = self.dataset.tensor_name
         self.data_file = data_file = z5py.File(path=str(data_file_path), mode="a", use_zarr_format=False)
         shape = data_file[tensor_name].shape if tensor_name in data_file else None
