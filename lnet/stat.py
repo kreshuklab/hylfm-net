@@ -5,13 +5,11 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from torch.multiprocessing import RLock
 from typing import DefaultDict, Dict, List, Optional, Sequence, Set, TYPE_CHECKING, Tuple
 
 import numpy
 import yaml
-
-from lnet import settings
+from torch.multiprocessing import RLock
 
 if TYPE_CHECKING:
     from numpy.lib.npyio import NpzFile
@@ -125,14 +123,18 @@ class DatasetStat:
 
                     return ret
 
-                futs = []
-                with ThreadPoolExecutor(max_workers=settings.max_workers_for_stat_per_ds) as executor:
-                    for i in range(n):
-                        futs.append(executor.submit(compute_hist, i))
-
-                    for fut in as_completed(futs):
-                        for name, h in fut.result().items():
-                            hist[name] = hist[name] + h  # somehow `+=` invovles casting to float64 which doesn't fly...
+                # futs = []
+                # with ThreadPoolExecutor(max_workers=settings.max_workers_for_stat_per_ds) as executor:
+                #     for i in range(n):
+                #         futs.append(executor.submit(compute_hist, i))
+                #
+                #     for fut in as_completed(futs):
+                #         for name, h in fut.result().items():
+                #             hist[name] = hist[name] + h  # somehow `+=` invovles casting to float64 which doesn't fly...
+                for i in range(n):
+                    ret = compute_hist(i)
+                    for name, h in ret.items():
+                        hist[name] = hist[name] + h  # somehow `+=` invovles casting to float64 which doesn't fly...
 
                 numpy.savez_compressed(hist_path, **hist)
 
