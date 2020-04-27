@@ -392,16 +392,16 @@ if __name__ == "__main__":
 
     from lnet.datasets.base import get_dataset_from_info, N5CachedDatasetFromInfo
 
-    info = b4mu_0_ls
+    info = b4mu_3_ls
     info.transformations += [
         {
             "Resize": {
                 "apply_to": "ls",
-                "shape": [1.0, 121, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
+                "shape": [1.0, 1.0, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
                 "order": 2,
             }
         },
-        {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 121, None, None]}},
+        # {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 121, None, None]}},
     ]
     ds = get_dataset_from_info(info)
     print(

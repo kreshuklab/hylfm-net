@@ -38,6 +38,7 @@ model:
     prediction_name: pred
     nnum: *nnum
     z_out: *z_out
+    n_res2d: [488, 488, u, 244, 244]
   checkpoint: # [logs, beads/01highc/20-04-21_11-41-43/train/checkpoints/v1_checkpoint_SmoothL1Loss=-0.00012947025970788673.pth]
 
 stages:
