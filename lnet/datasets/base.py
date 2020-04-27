@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import h5py
 import imageio
 import numpy
-import torch.multiprocessing
+# import torch.multiprocessing
 import torch.utils.data
 import yaml
 import z5py
@@ -269,9 +269,9 @@ def get_dataset_from_info(info: TensorInfo) -> DatasetFromInfo:
         raise NotImplementedError
 
 
-N5CachedDataset_submit_lock = torch.multiprocessing.Lock()
-N5CachedDataset_executor = None
-N5CachedDataset_executor_user_count = 0
+# N5CachedDataset_submit_lock = torch.multiprocessing.Lock()
+# N5CachedDataset_executor = None
+# N5CachedDataset_executor_user_count = 0
 
 
 class DatasetFromInfoExtender(torch.utils.data.Dataset):
@@ -316,29 +316,29 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
             shape = (_len,) + tensor_shape[1:]
             data_file.create_dataset(tensor_name, shape=shape, chunks=tensor_shape, dtype=tensor.dtype)
 
-        self.futures = {}
-        global N5CachedDataset_executor, N5CachedDataset_executor_user_count
-        N5CachedDataset_executor_user_count += 1
-        if N5CachedDataset_executor is None:
-            assert N5CachedDataset_executor_user_count == 1
-            N5CachedDataset_executor = ThreadPoolExecutor(max_workers=settings.max_workers_per_dataset)
+        # self.futures = {}
+        # global N5CachedDataset_executor, N5CachedDataset_executor_user_count
+        # N5CachedDataset_executor_user_count += 1
+        # if N5CachedDataset_executor is None:
+        #     assert N5CachedDataset_executor_user_count == 1
+        #     N5CachedDataset_executor = ThreadPoolExecutor(max_workers=settings.max_workers_per_dataset)
 
-        worker_nr = 0
-        self.nr_background_workers = (
-            settings.max_workers_per_dataset - settings.reserved_workers_per_dataset_for_getitem
-        )
-        idx = 0
-        while (
-            worker_nr < settings.max_workers_per_dataset - settings.reserved_workers_per_dataset_for_getitem
-            and idx < len(self)
-        ):
-            fut = self.submit(idx)
-            if isinstance(fut, Future):
-                fut.add_done_callback(self.background_worker_callback)
-                idx += 1
-                worker_nr += 1
-            else:
-                idx += 1
+        # worker_nr = 0
+        # self.nr_background_workers = (
+        #     settings.max_workers_per_dataset - settings.reserved_workers_per_dataset_for_getitem
+        # )
+        # idx = 0
+        # while (
+        #     worker_nr < settings.max_workers_per_dataset - settings.reserved_workers_per_dataset_for_getitem
+        #     and idx < len(self)
+        # ):
+        #     fut = self.submit(idx)
+        #     if isinstance(fut, Future):
+        #         fut.add_done_callback(self.background_worker_callback)
+        #         idx += 1
+        #         worker_nr += 1
+        #     else:
+        #         idx += 1
 
         self.stat = DatasetStat(path=data_file_path.with_suffix(".stat.yml"), dataset=self)
 
@@ -361,25 +361,25 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
         return len(self.dataset) * self.repeat
 
     def shutdown(self):
-        if self.futures:
-            for fut in self.futures.values():
-                fut.cancel()
+        # if self.futures:
+        #     for fut in self.futures.values():
+        #         fut.cancel()
 
-        global N5CachedDataset_executor, N5CachedDataset_executor_user_count
-        N5CachedDataset_executor_user_count -= 1
-        if N5CachedDataset_executor_user_count == 0:
-            N5CachedDataset_executor.shutdown()
-            N5CachedDataset_executor = None
+        # global N5CachedDataset_executor, N5CachedDataset_executor_user_count
+        # N5CachedDataset_executor_user_count -= 1
+        # if N5CachedDataset_executor_user_count == 0:
+        #     N5CachedDataset_executor.shutdown()
+        #     N5CachedDataset_executor = None
 
         super().shutdown()
 
-    def background_worker_callback(self, fut: Future):
-        idx = fut.result()
-        for next_idx in range(idx + self.nr_background_workers, len(self), self.nr_background_workers):
-            next_fut = self.submit(next_idx)
-            if next_fut is not None:
-                next_fut.add_done_callback(self.background_worker_callback)
-                break
+    # def background_worker_callback(self, fut: Future):
+    #     idx = fut.result()
+    #     for next_idx in range(idx + self.nr_background_workers, len(self), self.nr_background_workers):
+    #         next_fut = self.submit(next_idx)
+    #         if next_fut is not None:
+    #             next_fut.add_done_callback(self.background_worker_callback)
+    #             break
 
     def ready(self, idx: int) -> bool:
         n5ds = self.data_file[self.dataset.tensor_name]
@@ -388,16 +388,18 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
 
     def submit(self, idx: int) -> Union[int, Future]:
         if self.ready(idx):
-            fut = Future()
-            fut.set_result(idx)
+            # fut = Future()
+            # fut.set_result(idx)
+            return idx
         else:
-            with N5CachedDataset_submit_lock:
-                fut = self.futures.get(idx, None)
-                if fut is None:
-                    fut = N5CachedDataset_executor.submit(self.process, idx)
-                    self.futures[idx] = fut
+            return self.process(idx)
+            # with N5CachedDataset_submit_lock:
+            # fut = self.futures.get(idx, None)
+            # if fut is None:
+            #     fut = N5CachedDataset_executor.submit(self.process, idx)
+            #     self.futures[idx] = fut
 
-        return fut
+        # return fut
 
     def process(self, idx: int) -> int:
         self.data_file[self.dataset.tensor_name][idx, ...] = self.dataset[idx][self.dataset.tensor_name]

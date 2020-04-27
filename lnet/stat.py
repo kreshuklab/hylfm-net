@@ -102,18 +102,20 @@ class DatasetStat:
 
                 return ret
 
-            futs = []
-            with ThreadPoolExecutor(max_workers=settings.max_workers_for_hist) as executor:
-                for i in range(n):
-                    futs.append(executor.submit(compute_hist, i))
+            if settings.max_workers_for_hist:
+                futs = []
+                with ThreadPoolExecutor(max_workers=settings.max_workers_for_hist) as executor:
+                    for i in range(n):
+                        futs.append(executor.submit(compute_hist, i))
 
-                for fut in as_completed(futs):
-                    for name, h in fut.result().items():
+                    for fut in as_completed(futs):
+                        for name, h in fut.result().items():
+                            hist[name] = hist[name] + h  # somehow `+=` invovles casting to float64 which doesn't fly...
+            else:
+                for i in range(n):
+                    ret = compute_hist(i)
+                    for name, h in ret.items():
                         hist[name] = hist[name] + h  # somehow `+=` invovles casting to float64 which doesn't fly...
-            # for i in range(n):
-            #     ret = compute_hist(i)
-            #     for name, h in ret.items():
-            #         hist[name] = hist[name] + h  # somehow `+=` invovles casting to float64 which doesn't fly...
 
             numpy.savez_compressed(hist_path, **hist)
 
