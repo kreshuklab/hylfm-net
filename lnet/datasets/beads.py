@@ -1,3 +1,4 @@
+from lnet import settings
 from lnet.datasets.base import TensorInfo
 
 b01highc_0_lf = TensorInfo(
@@ -6,7 +7,7 @@ b01highc_0_lf = TensorInfo(
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
     insert_singleton_axes_at=[0, 0],
     tag="b01highc_0"
-# length=4,
+    # length=4,
 )
 
 b01highc_0_ls = TensorInfo(
@@ -15,7 +16,7 @@ b01highc_0_ls = TensorInfo(
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     insert_singleton_axes_at=[0, 0],
     tag="b01highc_0"
-# length=4,
+    # length=4,
 )
 
 b01highc_0_lr = TensorInfo(
@@ -24,7 +25,7 @@ b01highc_0_lr = TensorInfo(
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
     insert_singleton_axes_at=[0, 0],
     tag="b01highc_0"
-# length=4,
+    # length=4,
 )
 
 
@@ -268,6 +269,7 @@ b4mu_0_lr = TensorInfo(
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.15.32/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
     tag="b4mu_0",
     insert_singleton_axes_at=[0, 0],
+    # length=40,
 )
 
 b4mu_0_ls = TensorInfo(
@@ -276,6 +278,7 @@ b4mu_0_ls = TensorInfo(
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.15.32/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b4mu_0",
     insert_singleton_axes_at=[0, 0],
+    # length=40,
 )
 
 b4mu_1_lf = TensorInfo(
@@ -284,6 +287,7 @@ b4mu_1_lf = TensorInfo(
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.34.35/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
     tag="b4mu_1",
     insert_singleton_axes_at=[0, 0],
+    # length=40,
 )
 
 b4mu_1_lr = TensorInfo(
@@ -292,6 +296,7 @@ b4mu_1_lr = TensorInfo(
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.34.35/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
     tag="b4mu_1",
     insert_singleton_axes_at=[0, 0],
+    # length=40,
 )
 
 b4mu_1_ls = TensorInfo(
@@ -300,6 +305,7 @@ b4mu_1_ls = TensorInfo(
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.34.35/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b4mu_1",
     insert_singleton_axes_at=[0, 0],
+    # length=40,
 )
 
 b4mu_2_lf = TensorInfo(
@@ -308,6 +314,7 @@ b4mu_2_lf = TensorInfo(
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.53.53/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
     tag="b4mu_2",
     insert_singleton_axes_at=[0, 0],
+    # length=40,
 )
 
 b4mu_2_lr = TensorInfo(
@@ -316,6 +323,7 @@ b4mu_2_lr = TensorInfo(
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.53.53/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
     tag="b4mu_2",
     insert_singleton_axes_at=[0, 0],
+    # length=40,
 )
 
 b4mu_2_ls = TensorInfo(
@@ -324,6 +332,7 @@ b4mu_2_ls = TensorInfo(
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.53.53/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b4mu_2",
     insert_singleton_axes_at=[0, 0],
+    # length=40,
 )
 
 
@@ -333,6 +342,7 @@ b4mu_3_lf = TensorInfo(
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_09.14.05/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
     tag="b4mu_3",
     insert_singleton_axes_at=[0, 0],
+    # length=40,
 )
 
 b4mu_3_lr = TensorInfo(
@@ -341,6 +351,7 @@ b4mu_3_lr = TensorInfo(
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_09.14.05/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif",
     tag="b4mu_3",
     insert_singleton_axes_at=[0, 0],
+    # length=40,
 )
 
 b4mu_3_ls = TensorInfo(
@@ -349,6 +360,7 @@ b4mu_3_ls = TensorInfo(
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_09.14.05/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b4mu_3",
     insert_singleton_axes_at=[0, 0],
+    # length=40,
 )
 
 b01mix4_0_lf = TensorInfo(
@@ -376,10 +388,27 @@ b01mix4_0_ls = TensorInfo(
 )
 
 if __name__ == "__main__":
+    from hashlib import sha224 as hash_algorithm
+
     from lnet.datasets.base import get_dataset_from_info, N5CachedDatasetFromInfo
 
-    ds = get_dataset_from_info(b01mix4_0_ls)
+    info = b4mu_0_ls
+    info.transformations += [
+        {
+            "Resize": {
+                "apply_to": "ls",
+                "shape": [1.0, 121, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
+                "order": 2,
+            }
+        },
+        {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 121, None, None]}},
+    ]
+    ds = get_dataset_from_info(info)
+    print(
+        settings.cache_path / f"{ds.info.tag}_{ds.tensor_name}_{hash_algorithm(ds.description.encode()).hexdigest()}.n5"
+    )
     ds = N5CachedDatasetFromInfo(ds)
+
     print(len(ds))
     print(ds[0]["ls"].shape)
 

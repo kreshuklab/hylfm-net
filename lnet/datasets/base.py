@@ -352,7 +352,7 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
     def __getitem__(self, idx) -> typing.OrderedDict[str, numpy.ndarray]:
         idx = int(idx)
         idx //= self.repeat
-        self.submit(idx).result()
+        self.submit(idx)  # .result()
         z5dataset = self.data_file[self.dataset.tensor_name]
         assert idx < z5dataset.shape[0], z5dataset.shape
         return OrderedDict([(self.dataset.tensor_name, z5dataset[idx : idx + 1])])

@@ -26,7 +26,7 @@ class Settings:
     max_workers_per_dataset: int = 0
     reserved_workers_per_dataset_for_getitem: int = 0
     max_workers_file_logger: int = 16
-    max_workers_for_hist: int = 0
+    max_workers_for_hist: int = 16
 
     def __post_init__(self):
         assert self.reserved_workers_per_dataset_for_getitem <= self.max_workers_per_dataset

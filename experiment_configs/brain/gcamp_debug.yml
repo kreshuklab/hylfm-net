@@ -54,7 +54,7 @@ model:
 
 stages:
   - train:
-      max_epochs: 500
+      max_epochs: 1
       metrics: {}
       log:
         TqdmLogger: {}
@@ -97,7 +97,7 @@ stages:
             - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -2}
           filters: [[z_range, {z_min: *ls_z_min, z_max: *ls_z_max}]]
           datasets:
-            - {tensors: {lf: gcamp.g200311_085233_lf, ls: gcamp.g200311_085233_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+            - {tensors: {lf: gcamp.g200311_085233_lf, ls: gcamp.g200311_085233_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 120-122}
 
       validate:
         metrics: *metrics
@@ -119,7 +119,7 @@ stages:
             sample_preprocessing: *eval_sample_prepr
             filters: [[z_range, {z_min: *ls_z_min, z_max: *ls_z_max}]]
             datasets:
-              - {tensors: {lf: gcamp.g200311_090800_lf, ls: gcamp.g200311_090800_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-5}
+              - {tensors: {lf: gcamp.g200311_090800_lf, ls: gcamp.g200311_090800_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 120-122}
 
   - test:
       metrics: *metrics
@@ -141,10 +141,10 @@ stages:
           sample_preprocessing: *eval_sample_prepr
           filters: [[z_range, {z_min: *ls_z_min, z_max: *ls_z_max}]]
           datasets:
-            - {tensors: {lf: gcamp.g200311_083021_lf, ls: gcamp.g200311_083021_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_083419_lf, ls: gcamp.g200311_083419_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_083658_lf, ls: gcamp.g200311_083658_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_083931_lf, ls: gcamp.g200311_083931_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_084207_lf, ls: gcamp.g200311_084207_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_084450_lf, ls: gcamp.g200311_084450_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_084729_lf, ls: gcamp.g200311_084729_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+            - {tensors: {lf: gcamp.g200311_083021_lf, ls: gcamp.g200311_083021_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0}
+            - {tensors: {lf: gcamp.g200311_083419_lf, ls: gcamp.g200311_083419_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0}
+            - {tensors: {lf: gcamp.g200311_083658_lf, ls: gcamp.g200311_083658_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0}
+            - {tensors: {lf: gcamp.g200311_083931_lf, ls: gcamp.g200311_083931_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0}
+            - {tensors: {lf: gcamp.g200311_084207_lf, ls: gcamp.g200311_084207_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0}
+            - {tensors: {lf: gcamp.g200311_084450_lf, ls: gcamp.g200311_084450_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0}
+            - {tensors: {lf: gcamp.g200311_084729_lf, ls: gcamp.g200311_084729_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0}
