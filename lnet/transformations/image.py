@@ -145,10 +145,10 @@ class Resize(Transform):
         meta: dict,
     ):
 
-        tmeta = meta.get(tensor_name, {})
-        assert "shape_before_resize" not in tmeta
-        tmeta["shape_before_resize"] = sample.shape
-        meta[tensor_name] = tmeta
+        # tmeta = meta.get(tensor_name, {})
+        # assert "shape_before_resize" not in tmeta
+        # tmeta["shape_before_resize"] = sample.shape
+        # meta[tensor_name] = tmeta
 
         assert len(sample.shape) == len(self.shape), (sample.shape, self.shape)
 
