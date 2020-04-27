@@ -61,15 +61,26 @@ def match_beads_from_pos(
 
 def match_beads(
     tgt: numpy.ndarray, pred: numpy.ndarray, dist_threshold: float = 5.0
-) -> Tuple[List[numpy.ndarray], List[numpy.ndarray], List[Tuple[int, int, int]]]:
+) -> Tuple[
+    List[numpy.ndarray], List[numpy.ndarray], List[Tuple[int, int, int]], List[numpy.ndarray], List[numpy.ndarray]
+]:
     bead_pos_pred = get_bead_pos(pred)
     no_beads_found = all([bpp.shape[0] == 0 for bpp in bead_pos_pred])
     if no_beads_found:
         b = len(bead_pos_pred)
-        return [numpy.array([])] * b, [numpy.array([])] * b, [(0, -1, 0)] * b
+        return (
+            [numpy.array([])] * b,
+            [numpy.array([])] * b,
+            [(0, -1, 0)] * b,
+            [numpy.array([])] * b,
+            [numpy.array([])] * b,
+        )
     else:
         bead_pos_tgt = get_bead_pos(tgt)
-        return match_beads_from_pos(btgt=bead_pos_tgt, bpred=bead_pos_pred, dist_threshold=dist_threshold)
+        btgt_idx, bpred_idx, found_missing_extra = match_beads_from_pos(
+            btgt=bead_pos_tgt, bpred=bead_pos_pred, dist_threshold=dist_threshold
+        )
+        return btgt_idx, bpred_idx, found_missing_extra, bead_pos_tgt, bead_pos_pred
 
 
 if __name__ == "__main__":

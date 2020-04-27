@@ -151,7 +151,8 @@ class TqdmLogger(BaseLogger):
 
 class FileLogger(BaseLogger):
     def _log_metric(self, engine: Engine, name: str, unit: str, step: int):
-        metric_log_file = self.stage.log_path / f"{name}.txt"
+        metric_log_file = self.stage.log_path / f"run{self.stage.run_count}"/ f"{name}.txt"
+        metric_log_file.parent.mkdir(parents=True, exist_ok=True)
         with metric_log_file.open(mode="a") as file:
             file.write(f"{unit}\t{step}\t{engine.state.metrics[name]}\n")
 

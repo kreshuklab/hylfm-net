@@ -10,8 +10,8 @@ toolbox: # defines yaml placeholders
     SSIM: {tensor_names: {y_pred: pred, y: ls}, window_size: 11, window: null, size_average: true, full: false, val_range: null}
     NRMSE: {tensor_names: {y_pred: pred, y: ls}}
     PSNR: {tensor_names: {y_pred: pred, y: ls}, data_range: null}
-    BeadPrecision: {tensor_names: {y_pred: pred, y: ls}, dist_threshold: &beadPR 5.0}
-    BeadRecall: {tensor_names: {y_pred: pred, y: ls}, dist_threshold: *beadPR}
+    BeadPrecision: {tensor_names: {y_pred: pred, y: ls, meta: meta}, dist_threshold: &beadPR 5.0}
+    BeadRecall: {tensor_names: {y_pred: pred, y: ls, meta: meta}, dist_threshold: *beadPR}
     SmoothL1Loss: {tensor_names: {y_pred: pred, y: ls}}
     MSELoss: {tensor_names: {y_pred: pred, y: ls}}
 
