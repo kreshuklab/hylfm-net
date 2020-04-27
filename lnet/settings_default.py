@@ -23,7 +23,7 @@ class Settings:
     num_workers_test_data_loader: int = 0
     pin_memory: bool = False
 
-    max_workers_per_dataset: int = 0
+    max_workers_per_dataset: int = 16
     reserved_workers_per_dataset_for_getitem: int = 0
     max_workers_file_logger: int = 16
     max_workers_for_hist: int = 16
