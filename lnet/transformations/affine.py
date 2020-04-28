@@ -301,7 +301,7 @@ class AffineTransformation(torch.nn.Module):
             output_sampling_shape = tensors[self.target_to_compare_to].shape[2:]
         else:
             z_slices = None
-            output_sampling_shape = self.target_to_compare_to
+            output_sampling_shape = tuple(self.target_to_compare_to)
 
         assert len(output_sampling_shape) == 3, output_sampling_shape
         if output_sampling_shape[0] == 1:
