@@ -49,6 +49,7 @@ class ModelSetup:
             assert len(checkpoint) == 2, f"expected root, file_path, but got: {checkpoint}"
             assert self.checkpoint.exists()
         self.partial_weights = partial_weights
+        self.strict = True
 
     def get_model(self, device: torch.device, dtype: torch.dtype) -> LnetModel:
         model_module = import_module("." + self.name.lower(), "lnet.models")
@@ -56,26 +57,29 @@ class ModelSetup:
         model = model_class(**self.kwargs)
         model = model.to(device=device, dtype=dtype)
         if self.checkpoint is not None:
-            state = torch.load(self.checkpoint, map_location=device)
-            for attempt in range(2):
-                try:
-                    model.load_state_dict(state, strict=False)
-                except RuntimeError as e:
-                    if not self.partial_weights or attempt > 0:
-                        raise
+            state = torch.load(self.checkpoint, map_location=device)["model"]
+            if self.strict:
+                model.load_state_dict(state, strict=True)
+            else:
+                for attempt in range(3):
+                    try:
+                        model.load_state_dict(state, strict=not bool(attempt))
+                    except RuntimeError as e:
+                        if not self.partial_weights or attempt > 0:
+                            raise
 
-                    logger.warning("!!!State from checkpoint does not match!!!")
+                        logger.warning("!!!State from checkpoint does not match!!!")
 
-                    # load partial state
-                    before = "size mismatch for "
-                    after = ": copying a param with shape"
-                    for line in str(e).split("\n")[1:]:
-                        idx_before = line.find(before)
-                        idx_after = line.find(after)
-                        if idx_before == -1 or idx_after == -1:
-                            logger.warning("Didn't understand 'load_state_dict' exception line: %s", line)
-                        else:
-                            state.pop(line[idx_before + len(before) : idx_after])
+                        # load partial state
+                        before = "size mismatch for "
+                        after = ": copying a param with shape"
+                        for line in str(e).split("\n")[1:]:
+                            idx_before = line.find(before)
+                            idx_after = line.find(after)
+                            if idx_before == -1 or idx_after == -1:
+                                logger.warning("Didn't understand 'load_state_dict' exception line: %s", line)
+                            else:
+                                state.pop(line[idx_before + len(before) : idx_after])
         return model
 
 
