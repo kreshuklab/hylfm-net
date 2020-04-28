@@ -85,7 +85,7 @@ class AffineTransformation(torch.nn.Module):
         self,
         *,
         apply_to: str,
-        target_to_compare_to: str,
+        target_to_compare_to: Union[str, Tuple[int, int, int]],
         order: int,
         ref_input_shape: Sequence[int],
         bdv_affine_transformations: List[
@@ -296,8 +296,12 @@ class AffineTransformation(torch.nn.Module):
         )
 
     def _forward(self, tensors: OrderedDict[str, Any]) -> OrderedDict[str, Any]:
-        z_slices = [m.get(self.target_to_compare_to, {}).get("z_slice", None) for m in tensors["meta"]]
-        output_sampling_shape = tensors[self.target_to_compare_to].shape[2:]
+        if isinstance(self.target_to_compare_to, str):
+            z_slices = [m.get(self.target_to_compare_to, {}).get("z_slice", None) for m in tensors["meta"]]
+            output_sampling_shape = tensors[self.target_to_compare_to].shape[2:]
+        else:
+            output_sampling_shape = self.target_to_compare_to
+
         assert len(output_sampling_shape) == 3, output_sampling_shape
         if output_sampling_shape[0] == 1:
             # single z_slice:
