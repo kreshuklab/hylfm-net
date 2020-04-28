@@ -1,5 +1,6 @@
 import typing
 from functools import wraps
+from pathlib import Path
 
 
 def rename(newname):
@@ -30,3 +31,12 @@ def handle_tensors(*output_names: str, **kwarg_mapping):
         return wrapper
 
     return decorator
+
+
+def delete_empty_dirs(dir: Path):
+    if dir.is_dir():
+        for d in dir.iterdir():
+            delete_empty_dirs(d)
+
+        if not any(dir.rglob("*")):
+            dir.rmdir()

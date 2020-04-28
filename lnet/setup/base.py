@@ -30,6 +30,7 @@ from lnet.step import inference_step, training_step
 from lnet.transformations import ComposedTransformation, Transform
 from lnet.utils import Period, PeriodUnit
 from lnet.utils.batch_sampler import NoCrossBatchSampler
+from lnet.utils.general import delete_empty_dirs
 
 logger = logging.getLogger(__name__)
 
@@ -682,14 +683,7 @@ class Setup:
                     stage.run()
         finally:
             self.shutdown()
-            # delete up empty log directories
-            def delete_empty_dirs(dir: Path):
-                if dir.is_dir():
-                    for d in dir.iterdir():
-                        delete_empty_dirs(d)
-
-                    if not any(dir.rglob("*")):
-                        dir.rmdir()
+            delete_empty_dirs(self.log_path)
 
     def shutdown(self):
         [stage.shutdown() for parallel_stages in self.stages for stage in parallel_stages]
