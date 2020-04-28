@@ -290,13 +290,14 @@ class Stage:
         tensors_to_save: Optional[Sequence[str]] = tuple(),
     ):
         self.name = name
+        self.log_path = log_path / name / "init"
+        self.run_count = 0
         self.tensors_to_save = tensors_to_save
         self.metrics = metrics
         self._data_loader: Optional[torch.utils.data.DataLoader] = None
         self._engine: Optional[ignite.engine.Engine] = None
         self._epoch_length: Optional[int] = None
         self.model = model
-        self.log_path = log_path / name
         batch_preprocessing_instances: List[Transform] = [
             getattr(lnet.transformations, name)(**kwargs) for trf in batch_preprocessing for name, kwargs in trf.items()
         ]
@@ -316,7 +317,16 @@ class Stage:
         self.data: DataSetup = DataSetup([DatasetGroupSetup(**d) for d in data])
         self.sampler: SamplerSetup = SamplerSetup(**sampler, _data_setup=self.data)
         self.log = self.log_class(stage=self, **log)
-        self.run_count = 0
+
+    @property
+    def run_count(self):
+        return self.__run_count
+
+    @run_count.setter
+    def run_count(self, rc: int):
+        self.__run_count = rc
+        self.log_path = self.log_path.parent / f"run{self.run_count:03}"
+        self.log_path.mkdir(parents=True)
 
     @property
     def epoch_length(self):
@@ -407,7 +417,6 @@ class Stage:
     @property
     def engine(self):
         if self._engine is None:
-            self.log_path.mkdir(parents=True, exist_ok=False)
             self._engine = ignite.engine.Engine(self.step_function)
             self.setup_engine(self._engine)
             self.log.register_callbacks(engine=self._engine)
@@ -669,6 +678,14 @@ class Setup:
                     stage.run()
         finally:
             self.shutdown()
+            # delete up empty log directories
+            def delete_empty_dirs(dir: Path):
+                if dir.is_dir():
+                    for d in dir.iterdir():
+                        delete_empty_dirs(d)
+
+                    if not any(dir.rglob("*")):
+                        dir.rmdir()
 
     def shutdown(self):
         [stage.shutdown() for parallel_stages in self.stages for stage in parallel_stages]

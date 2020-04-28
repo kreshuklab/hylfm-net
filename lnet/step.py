@@ -15,9 +15,8 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
     stage: typing.Union[EvalStage, TrainStage] = engine.state.stage
     model: torch.nn.Module = engine.state.model
     for tmeta in tensors["meta"]:
-        log_path = stage.log_path / f"run{stage.run_count}"
-        log_path.mkdir(exist_ok=True, parents=True)
-        tmeta["log_path"] = log_path
+        tmeta["log_path"] = stage.log_path / f"{tmeta['idx']:05}"
+        tmeta["log_path"].mkdir()
 
     tensors = stage.batch_preprocessing_in_step(tensors)
     start = perf_counter()

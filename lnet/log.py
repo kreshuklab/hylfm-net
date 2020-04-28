@@ -151,8 +151,7 @@ class TqdmLogger(BaseLogger):
 
 class FileLogger(BaseLogger):
     def _log_metric(self, engine: Engine, name: str, unit: str, step: int):
-        metric_log_file = self.stage.log_path / f"run{self.stage.run_count}"/ f"{name}.txt"
-        metric_log_file.parent.mkdir(parents=True, exist_ok=True)
+        metric_log_file = self.stage.log_path.parent / f"{name}.txt"
         with metric_log_file.open(mode="a") as file:
             file.write(f"{unit}\t{step}\t{engine.state.metrics[name]}\n")
 
@@ -177,7 +176,7 @@ class FileLogger(BaseLogger):
                             self._save_tensor,
                             tn,
                             tensor,
-                            self.stage.log_path / f"run{self.stage.run_count}" / str(tmeta["idx"]),
+                            tmeta["log_path"],
                         )
                     )
             for fut in as_completed(futs):
@@ -219,7 +218,7 @@ class TensorBoardLogger(BaseLogger):
     @property
     def writer(self):
         if self._writer is None:
-            self._writer = torch.utils.tensorboard.SummaryWriter(str(self.stage.log_path.parent))
+            self._writer = torch.utils.tensorboard.SummaryWriter(str(self.stage.log_path.parent.parent))
 
         return self._writer
 
