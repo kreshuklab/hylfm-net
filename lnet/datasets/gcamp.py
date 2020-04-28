@@ -895,9 +895,12 @@ g20200309_043555_120_ls = TensorInfo(
 # )
 
 if __name__ == "__main__":
-    from hashlib import sha224 as hash_algorithm
+    import logging
 
+    from hashlib import sha224 as hash_algorithm
     from lnet.datasets.base import get_dataset_from_info, N5CachedDatasetFromInfo
+
+    logger = logging.getLogger("gcamp")
 
     # info = b4mu_3_ls
     for info in [
@@ -934,17 +937,23 @@ if __name__ == "__main__":
         g20200309_043555_110_lf,
         g20200309_043555_120_lf,
     ]:
-        info.transformations += [{"Assert": {"apply_to": "lf", "expected_tensor_shape": [1, 1, None, None]}}]  # bcyx
-        ds = get_dataset_from_info(info)
-        print(
-            settings.cache_path
-            / f"{ds.info.tag}_{ds.tensor_name}_{hash_algorithm(ds.description.encode()).hexdigest()}.n5"
-        )
-        ds = N5CachedDatasetFromInfo(ds)
+        try:
+            info.transformations += [
+                {"Assert": {"apply_to": "lf", "expected_tensor_shape": [1, 1, None, None]}}
+            ]  # bcyx
+            ds = get_dataset_from_info(info)
+            print(
+                settings.cache_path
+                / f"{ds.info.tag}_{ds.tensor_name}_{hash_algorithm(ds.description.encode()).hexdigest()}.n5"
+            )
+            ds = N5CachedDatasetFromInfo(ds)
 
-        print(len(ds))
-        print(ds[0]["lf"].shape)
+            print(len(ds))
+            print(ds[0]["lf"].shape)
+        except Exception as e:
+            logger.error(e)
 
+    print("lf done")
     for info in [
         g20200311_073039_70_ls,
         g20200311_073039_80_ls,
@@ -979,22 +988,25 @@ if __name__ == "__main__":
         g20200309_043555_110_ls,
         g20200309_043555_120_ls,
     ]:
-        info.transformations += [
-            {
-                "Resize": {
-                    "apply_to": "ls",
-                    "shape": [1.0, 1.0, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
-                    "order": 2,
-                }
-            },
-            {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 1, None, None]}},
-        ]
-        ds = get_dataset_from_info(info)
-        print(
-            settings.cache_path
-            / f"{ds.info.tag}_{ds.tensor_name}_{hash_algorithm(ds.description.encode()).hexdigest()}.n5"
-        )
-        ds = N5CachedDatasetFromInfo(ds)
+        try:
+            info.transformations += [
+                {
+                    "Resize": {
+                        "apply_to": "ls",
+                        "shape": [1.0, 1.0, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
+                        "order": 2,
+                    }
+                },
+                {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 1, None, None]}},
+            ]
+            ds = get_dataset_from_info(info)
+            print(
+                settings.cache_path
+                / f"{ds.info.tag}_{ds.tensor_name}_{hash_algorithm(ds.description.encode()).hexdigest()}.n5"
+            )
+            ds = N5CachedDatasetFromInfo(ds)
 
-        print(len(ds))
-        print(ds[0]["ls"].shape)
+            print(len(ds))
+            print(ds[0]["ls"].shape)
+        except Exception as e:
+            logger.error(e)
