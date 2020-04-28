@@ -392,25 +392,26 @@ if __name__ == "__main__":
 
     from lnet.datasets.base import get_dataset_from_info, N5CachedDatasetFromInfo
 
-    info = b4mu_3_ls
-    info.transformations += [
-        {
-            "Resize": {
-                "apply_to": "ls",
-                "shape": [1.0, 1.0, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
-                "order": 2,
-            }
-        },
-        # {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 121, None, None]}},
-    ]
-    ds = get_dataset_from_info(info)
-    print(
-        settings.cache_path / f"{ds.info.tag}_{ds.tensor_name}_{hash_algorithm(ds.description.encode()).hexdigest()}.n5"
-    )
-    ds = N5CachedDatasetFromInfo(ds)
+    # info = b4mu_3_ls
+    for info in [b4mu_0_ls, b4mu_1_ls, b4mu_2_ls, b4mu_3_ls]:
+        info.transformations += [
+            {
+                "Resize": {
+                    "apply_to": "ls",
+                    "shape": [1.0, 0.14439140811455847255369928400955, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
+                    "order": 2,
+                }
+            },
+            {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 121, None, None]}},
+        ]
+        ds = get_dataset_from_info(info)
+        print(
+            settings.cache_path / f"{ds.info.tag}_{ds.tensor_name}_{hash_algorithm(ds.description.encode()).hexdigest()}.n5"
+        )
+        ds = N5CachedDatasetFromInfo(ds)
 
-    print(len(ds))
-    print(ds[0]["ls"].shape)
+        print(len(ds))
+        print(ds[0]["ls"].shape)
 
 
 # beads_01mu_1 = TensorInfo(

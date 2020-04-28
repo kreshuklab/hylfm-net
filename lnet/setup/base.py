@@ -4,6 +4,7 @@ import logging
 import shutil
 import typing
 from collections import OrderedDict
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
 from importlib import import_module
@@ -191,7 +192,7 @@ class DatasetSetup:
             if isinstance(info_name, str):
                 info_module_name, info_name = info_name.split(".")
                 info_module = import_module("." + info_module_name, "lnet.datasets")
-                info = getattr(info_module, info_name)
+                info = deepcopy(getattr(info_module, info_name))
             elif isinstance(info_name, dict):
                 info = TensorInfo(**info_name)
             else:

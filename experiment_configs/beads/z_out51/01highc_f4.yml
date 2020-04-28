@@ -18,7 +18,7 @@ toolbox: # defines yaml placeholders
 
   eval_batch_size: &eval_batch_size 1
   sample_trfs: &sample_trfs
-    - Resize: {apply_to: ls, shape: [1.0, 121, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947], order: 2}  # 0.42105263157894736842105263157895‬=8/19
+    - Resize: {apply_to: ls, shape: [1.0, 0.14439140811455847255369928400955, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947], order: 2}  # 0.42105263157894736842105263157895‬=8/19
     - Assert: {apply_to: ls, expected_tensor_shape: [null, 1, 121, null, null]}
   eval_sample_prepr: &eval_sample_prepr
     - Crop: {apply_to: ls, crop: *ls_roi}
