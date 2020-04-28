@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import bisect
 import logging
 import re
 import typing
@@ -576,8 +577,12 @@ class ConcatDataset(torch.utils.data.ConcatDataset):
         self.transform = transform
         super().__init__(datasets=datasets)
 
-    def __getitem__(self, item):
-        sample = super().__getitem__(item)
+    def __getitem__(self, idx):
+        sample = super().__getitem__(idx)
+        dataset_idx = bisect.bisect_right(self.cumulative_sizes, idx)
+        for tmeta in sample["meta"]:
+            tmeta["dataset_idx"] = dataset_idx
+
         if self.transform is not None:
             sample = self.transform(sample)
 
