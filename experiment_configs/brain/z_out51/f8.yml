@@ -4,8 +4,8 @@ z_out: &z_out 51
 
 toolbox: # defines yaml placeholders
   interpol: &interpol 2
-  lf_crop: &lf_crop [[0, null], [133, 1121], [323, 1596]]
-  ls_crop: &ls_crop [[0, null], [0, null], [16, -36], [46, -10]]
+  lf_crop: &lf_crop [[0, null], [113, 1140], [304, 1615]] # 988x1273 input at 133,1121x + 19,19x19,19 shrinkage
+  ls_crop: &ls_crop [[0, null], [0, null], [64, -144], [184, -40]]
   ls_z_min: &ls_z_min 60
   ls_z_max: &ls_z_max 181
   metrics: &metrics
@@ -32,6 +32,7 @@ toolbox: # defines yaml placeholders
   batch_prepr_in_step: &batch_prepr_in_step
     - Cast: {apply_to: [lfc, ls], dtype: *precision, device: cuda, non_blocking: true}
   batch_postpr: &batch_postpr
+    - Assert: {apply_to: pred, expected_tensor_shape: [null, 1, *z_out, null, null]}
     - AffineTransformation:
         apply_to: pred
         target_to_compare_to: ls
@@ -39,8 +40,8 @@ toolbox: # defines yaml placeholders
         ref_input_shape: [838, 1330, 1615]
         bdv_affine_transformations: [[0.98048,0.004709,0.098297,-111.7542,7.6415e-05,0.97546,0.0030523,-20.1143,0.014629,8.2964e-06,-3.9928,846.8515]]
         ref_output_shape: [241, 1501, 1801]
-        ref_crop_in: [[152, -223], [133, 1121], [323, 1596]]  # 323, 133, 1273, 988
-        ref_crop_out: [[*ls_z_min, *ls_z_max], [152, -323], [418, -57]]
+        ref_crop_in: [[152, -223], [133, 1121], [323, 1596]]  # 463x988x1273 - 0x0x0 no excess shrinkage: 19/19*8,19/19*8 - 8,8
+        ref_crop_out: [[*ls_z_min, *ls_z_max], [152, -323], [418, -57]]  # 121x1026x1326 /19*8 121x432x558.3
 
 model:
   name: A04
@@ -49,8 +50,8 @@ model:
     prediction_name: pred
     nnum: *nnum
     z_out: *z_out
-    n_res2d: [488, 488, u, 244, 244]
-    n_res3d: [[7], [7], [7]]
+#    n_res2d: [488, 488, u, 244, 244]
+#    n_res3d: [[7], [7], [7]]
   checkpoint:
 
 stages:
@@ -98,7 +99,14 @@ stages:
             - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -2}
           filters: [[z_range, {z_min: *ls_z_min, z_max: *ls_z_max}]]
           datasets:
-            - {tensors: {lf: gcamp.g200311_085233_lf, ls: gcamp.g200311_085233_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+            - {tensors: {lf: gcamp.g200311_085233_lf, ls: gcamp.g200311_085233_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-968}
+            - {tensors: {lf: gcamp.g200311_090800_lf, ls: gcamp.g200311_090800_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-968}
+            - {tensors: {lf: gcamp.g200311_083021_lf, ls: gcamp.g200311_083021_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+            - {tensors: {lf: gcamp.g200311_083419_lf, ls: gcamp.g200311_083419_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+            - {tensors: {lf: gcamp.g200311_083658_lf, ls: gcamp.g200311_083658_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+            - {tensors: {lf: gcamp.g200311_084207_lf, ls: gcamp.g200311_084207_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+            - {tensors: {lf: gcamp.g200311_084450_lf, ls: gcamp.g200311_084450_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+            - {tensors: {lf: gcamp.g200311_084729_lf, ls: gcamp.g200311_084729_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
 
       validate:
         metrics: *metrics
@@ -110,7 +118,7 @@ stages:
             tensor_names: [lf, pred, ls]
         score_metric: MSSSIM
         period: {value: 1, unit: epoch}
-        patience: 10
+        patience: 5
         batch_preprocessing: *eval_batch_prepr
         batch_preprocessing_in_step: *batch_prepr_in_step
         batch_postprocessing: *batch_postpr
@@ -120,7 +128,7 @@ stages:
             sample_preprocessing: *eval_sample_prepr
             filters: [[z_range, {z_min: *ls_z_min, z_max: *ls_z_max}]]
             datasets:
-              - {tensors: {lf: gcamp.g200311_090800_lf, ls: gcamp.g200311_090800_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+              - {tensors: {lf: gcamp.g200311_083931_lf, ls: gcamp.g200311_083931_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 484-986}
 
   - test:
       metrics: *metrics
@@ -142,10 +150,4 @@ stages:
           sample_preprocessing: *eval_sample_prepr
           filters: [[z_range, {z_min: *ls_z_min, z_max: *ls_z_max}]]
           datasets:
-            - {tensors: {lf: gcamp.g200311_083021_lf, ls: gcamp.g200311_083021_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_083419_lf, ls: gcamp.g200311_083419_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_083658_lf, ls: gcamp.g200311_083658_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_083931_lf, ls: gcamp.g200311_083931_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_084207_lf, ls: gcamp.g200311_084207_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_084450_lf, ls: gcamp.g200311_084450_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_084729_lf, ls: gcamp.g200311_084729_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+            - {tensors: {lf: gcamp.g200311_083931_lf, ls: gcamp.g200311_083931_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-484}
