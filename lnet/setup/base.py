@@ -364,9 +364,10 @@ class Stage:
         msecs = (secs % 1) * 1000
         hours, mins = divmod(mins, 60)
         engine.logger.info(
-            "%s run on %d mini-batches completed in %.2f s with avg compute time %02d:%02d:%02d:%03d",
+            "%s ran %d iterations (batch sizes %s) in %.2f s with avg compute time per iteration %02d:%02d:%02d:%03d h:m:s:ms",
             self.name,
-            len(engine.state.dataloader),
+            engine.state.iteration,
+            [g.batch_size for g in engine.state.stage.data.groups],
             engine.state.compute_time,
             hours,
             mins,

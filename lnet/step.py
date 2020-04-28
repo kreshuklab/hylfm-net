@@ -19,7 +19,6 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
         tmeta["log_path"].mkdir(exist_ok=True)
 
     tensors = stage.batch_preprocessing_in_step(tensors)
-    start = perf_counter()
     model.train(train)
     if train:
         optimizer = engine.state.optimizer
@@ -27,13 +26,9 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
     else:
         optimizer = None
 
-    # tensors = OrderedDict(
-    #     [
-    #         (name, (tensor.to(device=setup.device) if isinstance(tensor, torch.Tensor) else tensor))
-    #         for name, tensor in tensors.items()
-    #     ]
-    # )
+    start = perf_counter()
     tensors = model(tensors)
+    engine.state.compute_time += perf_counter() - start
     tensors = engine.state.batch_postprocessing(tensors)
 
     if train:
@@ -42,10 +37,11 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
         loss.backward()
         optimizer.step()
 
-    engine.state.compute_time += perf_counter() - start
     return OrderedDict(
         [
-            (name, tensor.detach().to(device=torch.device("cpu"), non_blocking=True)) if isinstance(tensor, torch.Tensor) else (name, tensor)
+            (name, tensor.detach().to(device=torch.device("cpu"), non_blocking=True))
+            if isinstance(tensor, torch.Tensor)
+            else (name, tensor)
             for name, tensor in tensors.items()
         ]
     )
