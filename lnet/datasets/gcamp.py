@@ -352,10 +352,11 @@ g20200311_065726_lf = TensorInfo(
 g20200311_065726_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/5Hz/2020-03-11_06.57.26/stack_33_channel_4/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/5Hz/2020-03-11_06.57.26/stack_33_channel_4/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0, 0],
     tag="g20200311_065726",
     z_slice="60+idx%121",
+    samples_per_dataset=121,
     # length=6534
 )
 
