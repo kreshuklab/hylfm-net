@@ -148,7 +148,8 @@ g200311_083931_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.39.31/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
     tag="g200311_083931",
-    z_slice="60+idx%121"
+    z_slice="60+idx%121",
+    datasets_per_file=121,
     # length=8*121,
 )
 
@@ -166,7 +167,8 @@ g200311_084207_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.42.07/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
     tag="g200311_084207",
-    z_slice="60+idx%121"
+    z_slice="60+idx%121",
+    datasets_per_file=121,
     # length=8*121,
 )
 
@@ -176,6 +178,7 @@ g200311_084450_lf = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.44.50/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
     tag="g200311_084450",
+    datasets_per_file=121,
     # length=8*121,
 )
 g200311_084450_ls = TensorInfo(
@@ -184,7 +187,8 @@ g200311_084450_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.44.50/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
     tag="g200311_084450",
-    z_slice="60+idx%121"
+    z_slice="60+idx%121",
+    datasets_per_file=121,
     # length=8*121,
 )
 
@@ -202,7 +206,8 @@ g200311_084729_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.47.29/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
     tag="g200311_084729",
-    z_slice="60+idx%121"
+    z_slice="60+idx%121",
+    datasets_per_file=121,
     # length=8*121,
 )
 
