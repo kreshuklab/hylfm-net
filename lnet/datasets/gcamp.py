@@ -6,6 +6,7 @@ ref0_lf = TensorInfo(
     root="lnet",
     location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/*Cam_Right.tif",
     insert_singleton_axes_at=[0],
+    tag="ref0",
 )
 ref0_lf_repeated = TensorInfo(
     name="lf",
@@ -13,6 +14,7 @@ ref0_lf_repeated = TensorInfo(
     location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/*Cam_Right.tif",
     insert_singleton_axes_at=[0],
     repeat=241,
+    tag="ref0_repeated",
 )
 ref0_sample_ls_slice = TensorInfo(
     name="ls",
@@ -21,6 +23,7 @@ ref0_sample_ls_slice = TensorInfo(
     insert_singleton_axes_at=[0, 0],
     datasets_per_file=241,
     z_slice="idx%241",
+    tag="ref0_slice",
 )
 
 ref0_lr = TensorInfo(
@@ -28,12 +31,14 @@ ref0_lr = TensorInfo(
     root="lnet",
     location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/Gcamp_dataset.h5/t[0-9]+/s00/0/cells",
     insert_singleton_axes_at=[0, 0],
+    tag="ref0",
 )
 ref0_ls = TensorInfo(
     name="ls",
     root="lnet",
     location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/Gcamp_dataset.h5/t[0-9]+/s01/0/cells",
     insert_singleton_axes_at=[0, 0, 0],
+    tag="ref0",
 )
 
 # TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes
@@ -42,6 +47,7 @@ g200311_085233_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_08.52.33/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="g200311_085233",
     # length=31*241,
 )
 g200311_085233_ls = TensorInfo(
@@ -50,6 +56,7 @@ g200311_085233_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_08.52.33/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
     z_slice="idx%241",
+    tag="g200311_085233",
     # length=31*241=,
 )
 
@@ -58,6 +65,7 @@ g200311_090800_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_09.08.00/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="g200311_090800",
     # length=15*241,
 )
 g200311_090800_ls = TensorInfo(
@@ -65,6 +73,7 @@ g200311_090800_ls = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_09.08.00/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
+    tag="g200311_090800",
     z_slice="idx%241"
     # length=15*241,
 )
@@ -76,6 +85,7 @@ g200311_083021_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.30.21/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="g200311_083021",
     # length=8*121,
 )
 g200311_083021_ls = TensorInfo(
@@ -83,6 +93,7 @@ g200311_083021_ls = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.30.21/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
+    tag="g200311_083021",
     z_slice="60+idx%121"
     # length=8*121,
 )
@@ -92,6 +103,7 @@ g200311_083419_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.34.19/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="g200311_083419",
     # length=8*121,
 )
 g200311_083419_ls = TensorInfo(
@@ -99,6 +111,7 @@ g200311_083419_ls = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.34.19/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
+    tag="g200311_083419",
     z_slice="60+idx%121"
     # length=8*121,
 )
@@ -108,6 +121,7 @@ g200311_083658_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.36.58/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="g200311_083658",
     # length=8*121,
 )
 g200311_083658_ls = TensorInfo(
@@ -115,6 +129,7 @@ g200311_083658_ls = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.36.58/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
+    tag="g200311_083658",
     z_slice="60+idx%121"
     # length=8*121,
 )
@@ -124,6 +139,7 @@ g200311_083931_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.39.31/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="g200311_083931",
     # length=8*121,
 )
 g200311_083931_ls = TensorInfo(
@@ -131,6 +147,7 @@ g200311_083931_ls = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.39.31/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
+    tag="g200311_083931",
     z_slice="60+idx%121"
     # length=8*121,
 )
@@ -140,6 +157,7 @@ g200311_084207_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.42.07/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="g200311_084207",
     # length=8*121,
 )
 g200311_084207_ls = TensorInfo(
@@ -147,6 +165,7 @@ g200311_084207_ls = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.42.07/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
+    tag="g200311_084207",
     z_slice="60+idx%121"
     # length=8*121,
 )
@@ -156,6 +175,7 @@ g200311_084450_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.44.50/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="g200311_084450",
     # length=8*121,
 )
 g200311_084450_ls = TensorInfo(
@@ -163,6 +183,7 @@ g200311_084450_ls = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.44.50/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
+    tag="g200311_084450",
     z_slice="60+idx%121"
     # length=8*121,
 )
@@ -172,6 +193,7 @@ g200311_084729_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.47.29/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="g200311_084729",
     # length=8*121,
 )
 g200311_084729_ls = TensorInfo(
@@ -179,6 +201,7 @@ g200311_084729_ls = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.47.29/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
+    tag="g200311_084729",
     z_slice="60+idx%121"
     # length=8*121,
 )
@@ -191,7 +214,7 @@ g20200311_073039_70_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_07.30.39/stack_7_channel_3/SinglePlane_-320/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
-    tag="200311_073039_70",
+    tag="g200311_073039_70",
     # length=600,
 )
 g20200311_073039_70_ls = TensorInfo(
@@ -200,7 +223,7 @@ g20200311_073039_70_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_07.30.39/stack_7_channel_3/SinglePlane_-320/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
     z_slice=70,
-    tag="200311_073039_70",
+    tag="g200311_073039_70",
     # length=600,
 )
 
@@ -210,7 +233,7 @@ g20200311_073039_80_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_07.30.39/stack_8_channel_3/SinglePlane_-310/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
-    tag="200311_073039_80",
+    tag="g200311_073039_80",
     # length=600,
 )
 g20200311_073039_80_ls = TensorInfo(
@@ -219,7 +242,7 @@ g20200311_073039_80_ls = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_07.30.39/stack_8_channel_3/SinglePlane_-310/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
     z_slice=80,
-    tag="200311_073039_80",
+    tag="g200311_073039_80",
     # length=600,
 )
 
@@ -229,7 +252,7 @@ g20200311_101320_100_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_10.13.20/stack_10_channel_3/SinglePlane_-290/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
-    tag="00311_101320_100",
+    tag="g20200311_101320_100",
     # length=
 )
 g20200311_101320_100_ls = TensorInfo(
@@ -928,74 +951,93 @@ if __name__ == "__main__":
     logger = logging.getLogger("gcamp")
 
     for info_lf, info_ls in zip(
-            [
-        g20200311_073039_70_lf,
-        g20200311_073039_80_lf,
-        g20200311_101320_100_lf,
-        g20200311_101320_75_lf,
-        g20200311_102541_50_lf,
-        g20200311_102541_95_lf,
-        g20200311_102541_85_lf,
-        g20200311_065726_lf,
-        g20200311_073447_lf,
-        g20200311_033035_lf,
-        g20200311_040327_lf,
-        g20200311_042734_lf,
-        g20200311_042839_lf,
-        g20200311_043502_lf,
-        g20200311_024927_lf,
-        g20200311_101734_110_lf, # super nice start
-        g20200311_101734_60_lf,
-        g20200311_102114_95_lf,
-        g20200311_102114_85_lf,  # super nice end
-        g20200309_043555_60_lf,
-        g20200309_043555_50_lf,
-        g20200309_043555_40_lf,
-        g20200309_043555_30_lf,
-        g20200309_043555_20_lf,
-        g20200309_043555_70_lf,
-        g20200309_043555_80_lf,
-        g20200309_043555_90_lf,
-        g20200309_043555_100_lf,
-        g20200309_043555_0_lf,
-        g20200309_043555_10_lf,
-        g20200309_043555_110_lf,
-        g20200309_043555_120_lf,
-    ],
-                [
-        g20200311_073039_70_ls,
-        g20200311_073039_80_ls,
-        g20200311_101320_100_ls,
-        g20200311_101320_75_ls,
-        g20200311_102541_50_ls,
-        g20200311_102541_95_ls,
-        g20200311_102541_85_ls,
-        g20200311_065726_ls,
-        g20200311_073447_ls,
-        g20200311_033035_ls,
-        g20200311_040327_ls,
-        g20200311_042734_ls,
-        g20200311_042839_ls,
-        g20200311_043502_ls,
-        g20200311_024927_ls,
-        g20200311_101734_110_ls,
-        g20200311_101734_60_ls,
-        g20200311_102114_95_ls,
-        g20200311_102114_85_ls,
-        g20200309_043555_60_ls,
-        g20200309_043555_50_ls,
-        g20200309_043555_40_ls,
-        g20200309_043555_30_ls,
-        g20200309_043555_20_ls,
-        g20200309_043555_70_ls,
-        g20200309_043555_80_ls,
-        g20200309_043555_90_ls,
-        g20200309_043555_100_ls,
-        g20200309_043555_0_ls,
-        g20200309_043555_10_ls,
-        g20200309_043555_110_ls,
-        g20200309_043555_120_ls,
-    ]):
+        [
+            g200311_085233_lf,
+            g200311_090800_lf,
+            g200311_083021_lf,
+            g200311_083419_lf,
+            g200311_083658_lf,
+            g200311_083931_lf,
+            g200311_084207_lf,
+            g200311_084450_lf,
+            g200311_084729_lf,
+            g20200311_073039_70_lf,
+            g20200311_073039_80_lf,
+            g20200311_101320_100_lf,
+            g20200311_101320_75_lf,
+            g20200311_102541_50_lf,
+            g20200311_102541_95_lf,
+            g20200311_102541_85_lf,
+            g20200311_065726_lf,
+            g20200311_073447_lf,
+            g20200311_033035_lf,
+            g20200311_040327_lf,
+            g20200311_042734_lf,
+            g20200311_042839_lf,
+            g20200311_043502_lf,
+            g20200311_024927_lf,
+            g20200311_101734_110_lf,
+            g20200311_101734_60_lf,
+            g20200311_102114_95_lf,
+            g20200311_102114_85_lf,
+            g20200309_043555_60_lf,
+            g20200309_043555_50_lf,
+            g20200309_043555_40_lf,
+            g20200309_043555_30_lf,
+            g20200309_043555_20_lf,
+            g20200309_043555_70_lf,
+            g20200309_043555_80_lf,
+            g20200309_043555_90_lf,
+            g20200309_043555_100_lf,
+            g20200309_043555_0_lf,
+            g20200309_043555_10_lf,
+            g20200309_043555_110_lf,
+            g20200309_043555_120_lf,
+        ],
+        [
+            g200311_085233_ls,
+            g200311_090800_ls,
+            g200311_083021_ls,
+            g200311_083419_ls,
+            g200311_083658_ls,
+            g200311_083931_ls,
+            g200311_084207_ls,
+            g200311_084450_ls,
+            g200311_084729_ls,
+            g20200311_073039_70_ls,
+            g20200311_073039_80_ls,
+            g20200311_101320_100_ls,
+            g20200311_101320_75_ls,
+            g20200311_102541_50_ls,
+            g20200311_102541_95_ls,
+            g20200311_102541_85_ls,
+            g20200311_065726_ls,
+            g20200311_073447_ls,
+            g20200311_033035_ls,
+            g20200311_040327_ls,
+            g20200311_042734_ls,
+            g20200311_042839_ls,
+            g20200311_043502_ls,
+            g20200311_024927_ls,
+            g20200311_101734_110_ls,
+            g20200311_101734_60_ls,
+            g20200311_102114_95_ls,
+            g20200311_102114_85_ls,
+            g20200309_043555_60_ls,
+            g20200309_043555_50_ls,
+            g20200309_043555_40_ls,
+            g20200309_043555_30_ls,
+            g20200309_043555_20_ls,
+            g20200309_043555_70_ls,
+            g20200309_043555_80_ls,
+            g20200309_043555_90_ls,
+            g20200309_043555_100_ls,
+            g20200309_043555_0_ls,
+            g20200309_043555_10_ls,
+            g20200309_043555_110_ls,
+            g20200309_043555_120_ls,
+        ],
+    ):
         # try:
         info_lf.transformations += [
             {"Assert": {"apply_to": "lf", "expected_tensor_shape": [None, 1, None, None]}}
@@ -1014,6 +1056,7 @@ if __name__ == "__main__":
             {
                 "Resize": {
                     "apply_to": "ls",
+                    # "shape": [1.0, 1.0, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947],
                     "shape": [1.0, 1.0, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
                     "order": 2,
                 }
