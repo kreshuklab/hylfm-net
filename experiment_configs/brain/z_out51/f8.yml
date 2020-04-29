@@ -116,11 +116,11 @@ stages:
             - {tensors: {lf: gcamp.g20200311_065726_lf, ls: gcamp.g20200311_065726_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-121|363-484|726-847|1089-1210|1452-1573}  # length=6534
             - {tensors: {lf: gcamp.g20200311_073447_lf, ls: gcamp.g20200311_073447_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-121|363-484|726-847|1089-1210|1452-1573}  # length=9680
             - {tensors: {lf: gcamp.g20200311_033035_lf, ls: gcamp.g20200311_033035_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-242|363-484|726-847|1089-1210}  # length=1331
-            - {tensors: {lf: gcamp.g20200311_040327_lf, ls: gcamp.g20200311_040327_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-363}
-            - {tensors: {lf: gcamp.g20200311_042734_lf, ls: gcamp.g20200311_042734_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-363}
-            - {tensors: {lf: gcamp.g20200311_042839_lf, ls: gcamp.g20200311_042839_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-363}
-            - {tensors: {lf: gcamp.g20200311_043502_lf, ls: gcamp.g20200311_043502_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-363}
-            - {tensors: {lf: gcamp.g20200311_024927_lf, ls: gcamp.g20200311_024927_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-363}
+            - {tensors: {lf: gcamp.g20200311_040327_lf, ls: gcamp.g20200311_040327_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-121|363-484|726-847|1089-1210|1452-1573}  # length 2783
+            - {tensors: {lf: gcamp.g20200311_042734_lf, ls: gcamp.g20200311_042734_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-121} # length 121
+            - {tensors: {lf: gcamp.g20200311_042839_lf, ls: gcamp.g20200311_042839_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-121} # length 121
+            - {tensors: {lf: gcamp.g20200311_043502_lf, ls: gcamp.g20200311_043502_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-242|363-484|726-847|1089-1210} # length 1210
+            - {tensors: {lf: gcamp.g20200311_024927_lf, ls: gcamp.g20200311_024927_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-121|363-484|726-847|1089-1210|1452-1573} # length 2299
             - {tensors: {lf: gcamp.g20200309_043555_60_lf, ls: gcamp.g20200309_043555_60_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
             - {tensors: {lf: gcamp.g20200309_043555_50_lf, ls: gcamp.g20200309_043555_50_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
             - {tensors: {lf: gcamp.g20200309_043555_40_lf, ls: gcamp.g20200309_043555_40_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
