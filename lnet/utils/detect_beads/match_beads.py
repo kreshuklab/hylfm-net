@@ -18,8 +18,8 @@ def match_beads_from_pos(
     assert all(len(tgt.shape) == 2 for tgt in btgt), list(len(tgt.shape) for tgt in btgt)  # bn3
     assert all(len(pred.shape) == 2 for pred in bpred), list(len(pred.shape) for pred in bpred)  # bn3
 
-    assert all(tgt.shape[1] == 3 for tgt in btgt)  # zyx spatial dims
-    assert all(pred.shape[1] == 3 for pred in bpred)  # zyx spatial dims
+    assert all(tgt.shape[1] == 3 for tgt in btgt), [tgt.shape for tgt in btgt]  # zyx spatial dims
+    assert all(pred.shape[1] == 3 for pred in bpred), [pred.shape for pred in bpred]  # zyx spatial dims
 
     assert len(btgt) == len(bpred)  # batch dim must match
 
@@ -34,7 +34,9 @@ def match_beads_from_pos(
         logger.debug("dist threshold: %s", dist_threshold)
 
         assert tgt.shape[1] == len(scaling), (tgt.shape, scaling)
-        diff = numpy.stack([numpy.subtract.outer(tgt[:, d], pred[:, d]) * s for d, s in zip(range(tgt.shape[1]), scaling)])
+        diff = numpy.stack(
+            [numpy.subtract.outer(tgt[:, d], pred[:, d]) * s for d, s in zip(range(tgt.shape[1]), scaling)]
+        )
         dist = numpy.sqrt(numpy.square(diff).sum(axis=0))
         ridiculous_dist = 1e5
         dist[dist > dist_threshold] = ridiculous_dist
@@ -61,7 +63,14 @@ def match_beads_from_pos(
 
 
 def match_beads(
-    tgt: numpy.ndarray, pred: numpy.ndarray, *, dist_threshold: float, scaling: Tuple[float, float, float], min_sigma: float, max_sigma: float, **kwargs
+    tgt: numpy.ndarray,
+    pred: numpy.ndarray,
+    *,
+    dist_threshold: float,
+    scaling: Tuple[float, float, float],
+    min_sigma: float,
+    max_sigma: float,
+    **kwargs
 ) -> Tuple[
     List[numpy.ndarray], List[numpy.ndarray], List[Tuple[int, int, int]], List[numpy.ndarray], List[numpy.ndarray]
 ]:
@@ -83,7 +92,7 @@ def match_beads(
     else:
         bead_pos_tgt = get_bead_pos(tgt, **kwargs)
         btgt_idx, bpred_idx, found_missing_extra = match_beads_from_pos(
-            btgt=bead_pos_tgt, bpred=bead_pos_pred, dist_threshold=dist_threshold, scaling=scaling,
+            btgt=bead_pos_tgt, bpred=bead_pos_pred, dist_threshold=dist_threshold, scaling=scaling
         )
         return btgt_idx, bpred_idx, found_missing_extra, bead_pos_tgt, bead_pos_pred
 
@@ -91,11 +100,24 @@ def match_beads(
 if __name__ == "__main__":
     tgt = imread("/g/kreshuk/LF_computed/lnet/logs/beads/01highc/20-04-21_11-41-43/test/output/0/ls.tif")[None, ...]
     print(tgt.max(), tgt.shape)
-    pred =   imread("/g/kreshuk/LF_computed/lnet/logs/beads/01highc/20-04-21_11-41-43/test/output/0/pred.tif")[None, ...]
+    pred = imread("/g/kreshuk/LF_computed/lnet/logs/beads/01highc/20-04-21_11-41-43/test/output/0/pred.tif")[None, ...]
     print(pred.max(), pred.shape)
-    bead_pos_tgt = get_bead_pos(tgt)
-    bead_pos_pred = get_bead_pos(pred)
-    tgt_idx, pred_idx, found_missing_extra = match_beads_from_pos(bead_pos_tgt, bead_pos_pred, dist_threshold=5.0, scaling=(2.0, 1.0, 1.0))
 
-    plot_matched_beads(bead_pos_tgt, tgt_idx, bead_pos_pred, pred_idx)
+    match_beads_kwargs = {
+        "min_sigma": 1.0,
+        "max_sigma": 6.0,
+        "sigma_ratio": 3.0,
+        "threshold": 0.05,
+        "overlap": 0.5,
+        "exclude_border": False,
+        "dist_threshold": 3.0,
+        "scaling": [2.0, 1.4, 1.4],
+    }
+
+    btgt_idx, bpred_idx, fme, bead_pos_btgt, bead_pos_bpred = match_beads(tgt, pred, **match_beads_kwargs)
+    # bead_pos_btgt = get_bead_pos(tgt)
+    # bead_pos_bpred = get_bead_pos(pred)
+    # btgt_idx, bpred_idx, found_missing_extra = match_beads_from_pos(bead_pos_tgt, bead_pos_pred, dist_threshold=5.0, scaling=(2.0, 1.0, 1.0))
+    #
+    plot_matched_beads(bead_pos_btgt, btgt_idx, bead_pos_bpred, bpred_idx)
     plt.show()

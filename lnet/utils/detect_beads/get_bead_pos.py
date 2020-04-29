@@ -64,7 +64,7 @@ def get_bead_pos(img: numpy.ndarray, *, min_sigma: Union[float, Sequence[float]]
 #     else:
 #         logger.debug("no beads found")
 
-    return [blob_dog(bimg, min_sigma=min_sigma, max_sigma=max_sigma, sigma_ratio=sigma_ratio, threshold=threshold, overlap=overlap, exclude_border=exclude_border) for bimg in img[:, 0]]
+    return [blob_dog(bimg, min_sigma=min_sigma, max_sigma=max_sigma, sigma_ratio=sigma_ratio, threshold=threshold, overlap=overlap, exclude_border=exclude_border)[:, :3] for bimg in img[:, 0]]
 
 
 
