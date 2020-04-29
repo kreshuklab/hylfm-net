@@ -678,7 +678,7 @@ g20200309_043555_60_lf = TensorInfo(
 g20200309_043555_60_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_2_channel_3/Cam_Left_00000.h5/Data",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_2_channel_3/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0],
     z_slice=60,
     tag="g20200309_043555_60",
@@ -698,7 +698,7 @@ g20200309_043555_50_lf = TensorInfo(
 g20200309_043555_50_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_3_channel_3/Cam_Left_00000.h5/Data",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_3_channel_3/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0],
     z_slice=50,
     tag="g20200309_043555_50",
@@ -718,7 +718,7 @@ g20200309_043555_40_lf = TensorInfo(
 g20200309_043555_40_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_4_channel_3/Cam_Left_00000.h5/Data",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_4_channel_3/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0],
     z_slice=40,
     tag="g20200309_043555_40",
@@ -738,7 +738,7 @@ g20200309_043555_30_lf = TensorInfo(
 g20200309_043555_30_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_5_channel_3/Cam_Left_00000.h5/Data",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_5_channel_3/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0],
     z_slice=30,
     tag="g20200309_043555_30",
@@ -758,7 +758,7 @@ g20200309_043555_20_lf = TensorInfo(
 g20200309_043555_20_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_6_channel_3/Cam_Left_00000.h5/Data",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_6_channel_3/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0],
     z_slice=20,
     tag="g20200309_043555_20",
@@ -778,7 +778,7 @@ g20200309_043555_70_lf = TensorInfo(
 g20200309_043555_70_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_7_channel_3/Cam_Left_00000.h5/Data",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_7_channel_3/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0],
     z_slice=70,
     tag="g20200309_043555_70",
@@ -798,7 +798,7 @@ g20200309_043555_80_lf = TensorInfo(
 g20200309_043555_80_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_8_channel_3/Cam_Left_00000.h5/Data",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_8_channel_3/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0],
     z_slice=80,
     tag="g20200309_043555_80",
@@ -818,7 +818,7 @@ g20200309_043555_90_lf = TensorInfo(
 g20200309_043555_90_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_9_channel_3/Cam_Left_00000.h5/Data",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_9_channel_3/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0],
     z_slice=90,
     tag="g20200309_043555_90",
@@ -838,7 +838,7 @@ g20200309_043555_100_lf = TensorInfo(
 g20200309_043555_100_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_10_channel_3/Cam_Left_00000.h5/Data",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_10_channel_3/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0],
     z_slice=100,
     tag="g20200309_043555_100",
@@ -858,7 +858,7 @@ g20200309_043555_0_lf = TensorInfo(
 g20200309_043555_0_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_12_channel_3/Cam_Left_00000.h5/Data",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_12_channel_3/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0],
     z_slice=0,
     tag="g20200309_043555_0",
@@ -878,7 +878,7 @@ g20200309_043555_10_lf = TensorInfo(
 g20200309_043555_10_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_13_channel_3/Cam_Left_00000.h5/Data",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_13_channel_3/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0],
     z_slice=10,
     tag="g20200309_043555_10",
@@ -898,7 +898,7 @@ g20200309_043555_110_lf = TensorInfo(
 g20200309_043555_110_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_14_channel_3/Cam_Left_00000.h5/Data",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_14_channel_3/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0],
     z_slice=110,
     tag="g20200309_043555_110",
@@ -918,7 +918,7 @@ g20200309_043555_120_lf = TensorInfo(
 g20200309_043555_120_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_15_channel_3/Cam_Left_00000.h5/Data",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/2020-03-09_04.35.55/stack_15_channel_3/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0],
     z_slice=120,
     tag="g20200309_043555_120",
@@ -957,126 +957,126 @@ if __name__ == "__main__":
 
     for info_lf, info_ls in zip(
         [
-            # g200311_085233_lf,
-            # g200311_090800_lf,
-            # g200311_083021_lf,
-            # g200311_083419_lf,
-            # g200311_083658_lf,
-            # g200311_083931_lf,
-            # g200311_084207_lf,
-            # g200311_084450_lf,
-            # g200311_084729_lf,
-            # g20200311_073039_70_lf,
-            # g20200311_073039_80_lf,
-            # g20200311_101320_100_lf,
-            # g20200311_101320_75_lf,
-            # g20200311_102541_50_lf,
-            # g20200311_102541_95_lf,
-            # g20200311_102541_85_lf,
-            # g20200311_065726_lf,
-            # g20200311_073447_lf,
-            # g20200311_033035_lf,
-            # g20200311_040327_lf,
-            # g20200311_042734_lf,
-            # g20200311_042839_lf,
-            # g20200311_043502_lf,
-            # g20200311_024927_lf,
-            # g20200311_101734_110_lf,
-            # g20200311_101734_60_lf,
-            # g20200311_102114_95_lf,
-            # g20200311_102114_85_lf,
+            g200311_085233_lf,
+            g200311_090800_lf,
+            g200311_083021_lf,
+            g200311_083419_lf,
+            g200311_083658_lf,
+            g200311_083931_lf,
+            g200311_084207_lf,
+            g200311_084450_lf,
+            g200311_084729_lf,
+            g20200311_073039_70_lf,
+            g20200311_073039_80_lf,
+            g20200311_101320_100_lf,
+            g20200311_101320_75_lf,
+            g20200311_102541_50_lf,
+            g20200311_102541_95_lf,
+            g20200311_102541_85_lf,
+            g20200311_065726_lf,
+            g20200311_073447_lf,
+            g20200311_033035_lf,
+            g20200311_040327_lf,
+            g20200311_042734_lf,
+            g20200311_042839_lf,
+            g20200311_043502_lf,
+            g20200311_024927_lf,
+            g20200311_101734_110_lf,
+            g20200311_101734_60_lf,
+            g20200311_102114_95_lf,
+            g20200311_102114_85_lf,
             g20200309_043555_60_lf,
-            # g20200309_043555_50_lf,
-            # g20200309_043555_40_lf,
-            # g20200309_043555_30_lf,
-            # g20200309_043555_20_lf,
-            # g20200309_043555_70_lf,
-            # g20200309_043555_80_lf,
-            # g20200309_043555_90_lf,
-            # g20200309_043555_100_lf,
-            # g20200309_043555_0_lf,
-            # g20200309_043555_10_lf,
-            # g20200309_043555_110_lf,
-            # g20200309_043555_120_lf,
+            g20200309_043555_50_lf,
+            g20200309_043555_40_lf,
+            g20200309_043555_30_lf,
+            g20200309_043555_20_lf,
+            g20200309_043555_70_lf,
+            g20200309_043555_80_lf,
+            g20200309_043555_90_lf,
+            g20200309_043555_100_lf,
+            g20200309_043555_0_lf,
+            g20200309_043555_10_lf,
+            g20200309_043555_110_lf,
+            g20200309_043555_120_lf,
         ],
         [
-            # g200311_085233_ls,
-            # g200311_090800_ls,
-            # g200311_083021_ls,
-            # g200311_083419_ls,
-            # g200311_083658_ls,
-            # g200311_083931_ls,
-            # g200311_084207_ls,
-            # g200311_084450_ls,
-            # g200311_084729_ls,
-            # g20200311_073039_70_ls,
-            # g20200311_073039_80_ls,
-            # g20200311_101320_100_ls,
-            # g20200311_101320_75_ls,
-            # g20200311_102541_50_ls,
-            # g20200311_102541_95_ls,
-            # g20200311_102541_85_ls,
-            # g20200311_065726_ls,
-            # g20200311_073447_ls,
-            # g20200311_033035_ls,
-            # g20200311_040327_ls,
-            # g20200311_042734_ls,
-            # g20200311_042839_ls,
-            # g20200311_043502_ls,
-            # g20200311_024927_ls,
-            # g20200311_101734_110_ls,
-            # g20200311_101734_60_ls,
-            # g20200311_102114_95_ls,
-            # g20200311_102114_85_ls,
+            g200311_085233_ls,
+            g200311_090800_ls,
+            g200311_083021_ls,
+            g200311_083419_ls,
+            g200311_083658_ls,
+            g200311_083931_ls,
+            g200311_084207_ls,
+            g200311_084450_ls,
+            g200311_084729_ls,
+            g20200311_073039_70_ls,
+            g20200311_073039_80_ls,
+            g20200311_101320_100_ls,
+            g20200311_101320_75_ls,
+            g20200311_102541_50_ls,
+            g20200311_102541_95_ls,
+            g20200311_102541_85_ls,
+            g20200311_065726_ls,
+            g20200311_073447_ls,
+            g20200311_033035_ls,
+            g20200311_040327_ls,
+            g20200311_042734_ls,
+            g20200311_042839_ls,
+            g20200311_043502_ls,
+            g20200311_024927_ls,
+            g20200311_101734_110_ls,
+            g20200311_101734_60_ls,
+            g20200311_102114_95_ls,
+            g20200311_102114_85_ls,
             g20200309_043555_60_ls,
-            # g20200309_043555_50_ls,
-            # g20200309_043555_40_ls,
-            # g20200309_043555_30_ls,
-            # g20200309_043555_20_ls,
-            # g20200309_043555_70_ls,
-            # g20200309_043555_80_ls,
-            # g20200309_043555_90_ls,
-            # g20200309_043555_100_ls,
-            # g20200309_043555_0_ls,
-            # g20200309_043555_10_ls,
-            # g20200309_043555_110_ls,
-            # g20200309_043555_120_ls,
+            g20200309_043555_50_ls,
+            g20200309_043555_40_ls,
+            g20200309_043555_30_ls,
+            g20200309_043555_20_ls,
+            g20200309_043555_70_ls,
+            g20200309_043555_80_ls,
+            g20200309_043555_90_ls,
+            g20200309_043555_100_ls,
+            g20200309_043555_0_ls,
+            g20200309_043555_10_ls,
+            g20200309_043555_110_ls,
+            g20200309_043555_120_ls,
         ],
     ):
-        # try:
-        info_lf.transformations += [
-            {"Assert": {"apply_to": "lf", "expected_tensor_shape": [None, 1, None, None]}}
-        ]  # bcyx
-        dslf = get_dataset_from_info(info_lf)
-        print(
-            settings.cache_path
-            / f"{dslf.info.tag}_{dslf.tensor_name}_{hash_algorithm(dslf.description.encode()).hexdigest()}.n5"
-        )
-        dslf = N5CachedDatasetFromInfo(dslf)
+        try:
+            info_lf.transformations += [
+                {"Assert": {"apply_to": "lf", "expected_tensor_shape": [None, 1, None, None]}}
+            ]  # bcyx
+            dslf = get_dataset_from_info(info_lf)
+            print(
+                settings.cache_path
+                / f"{dslf.info.tag}_{dslf.tensor_name}_{hash_algorithm(dslf.description.encode()).hexdigest()}.n5"
+            )
+            dslf = N5CachedDatasetFromInfo(dslf)
 
-        print(len(dslf))
-        print(dslf[0]["lf"].shape)
-        info_ls.transformations += [
-            {
-                "Resize": {
-                    "apply_to": "ls",
-                    # "shape": [1.0, 1.0, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947],
-                    "shape": [1.0, 1.0, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
-                    "order": 2,
-                }
-            },
-            {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 1, None, None]}},
-        ]
-        dsls = get_dataset_from_info(info_ls)
-        print(
-            settings.cache_path
-            / f"{dsls.info.tag}_{dsls.tensor_name}_{hash_algorithm(dsls.description.encode()).hexdigest()}.n5"
-        )
-        dsls = N5CachedDatasetFromInfo(dsls)
+            print(len(dslf))
+            print(dslf[0]["lf"].shape)
+            info_ls.transformations += [
+                {
+                    "Resize": {
+                        "apply_to": "ls",
+                        # "shape": [1.0, 1.0, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947],
+                        "shape": [1.0, 1.0, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
+                        "order": 2,
+                    }
+                },
+                {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 1, None, None]}},
+            ]
+            dsls = get_dataset_from_info(info_ls)
+            print(
+                settings.cache_path
+                / f"{dsls.info.tag}_{dsls.tensor_name}_{hash_algorithm(dsls.description.encode()).hexdigest()}.n5"
+            )
+            dsls = N5CachedDatasetFromInfo(dsls)
 
-        print(len(dsls))
-        print(dsls[0]["ls"].shape)
-        assert len(dslf) == len(dsls), (len(dslf), len(dsls))
-        # except Exception as e:
-        #     print("error")
-        #     logger.error(e)
+            print(len(dsls))
+            print(dsls[0]["ls"].shape)
+            assert len(dslf) == len(dsls), (len(dslf), len(dsls))
+        except Exception as e:
+            print("error")
+            logger.error(e)
