@@ -35,7 +35,7 @@ class BeadPrecisionRecall(Metric):
             "overlap": overlap,
             "exclude_border": exclude_border,
             "dist_threshold": dist_threshold,
-            "sccaling": scaling,
+            "scaling": scaling,
         }
 
     def reset(self):
