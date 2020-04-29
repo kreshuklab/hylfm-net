@@ -6,9 +6,9 @@ from matplotlib.figure import Figure
 
 
 def plot_matched_beads(
-    bead_pos_tgt: numpy.ndarray,
+    bead_pos_tgt: List[numpy.ndarray],
     tgt_idx: List[numpy.ndarray],
-    bead_pos_pred: numpy.ndarray,
+    bead_pos_pred: List[numpy.ndarray],
     pred_idx: List[numpy.ndarray],
     bi=0,
 ) -> Figure:

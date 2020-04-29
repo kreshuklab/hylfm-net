@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def match_beads_from_pos(
-    btgt: List[numpy.ndarray], bpred: List[numpy.ndarray], dist_threshold: float
+    btgt: List[numpy.ndarray], bpred: List[numpy.ndarray], *, dist_threshold: float, scaling: Tuple[float, float, float]
 ) -> Tuple[List[numpy.ndarray], List[numpy.ndarray], List[Tuple[int, int, int]]]:
     assert all(len(tgt.shape) == 2 for tgt in btgt), list(len(tgt.shape) for tgt in btgt)  # bn3
     assert all(len(pred.shape) == 2 for pred in bpred), list(len(pred.shape) for pred in bpred)  # bn3
@@ -33,7 +33,8 @@ def match_beads_from_pos(
         logger.debug("pred: %s", pred.shape)
         logger.debug("dist threshold: %s", dist_threshold)
 
-        diff = numpy.stack([numpy.subtract.outer(tgt[:, d], pred[:, d]) for d in range(tgt.shape[1])])
+        assert tgt.shape[1] == len(scaling), (tgt.shape, scaling)
+        diff = numpy.stack([numpy.subtract.outer(tgt[:, d], pred[:, d]) * s for d, s in zip(range(tgt.shape[1]), scaling)])
         dist = numpy.sqrt(numpy.square(diff).sum(axis=0))
         ridiculous_dist = 1e5
         dist[dist > dist_threshold] = ridiculous_dist
@@ -60,11 +61,15 @@ def match_beads_from_pos(
 
 
 def match_beads(
-    tgt: numpy.ndarray, pred: numpy.ndarray, dist_threshold: float = 5.0
+    tgt: numpy.ndarray, pred: numpy.ndarray, *, dist_threshold: float, scaling: Tuple[float, float, float], min_sigma: float, max_sigma: float, **kwargs
 ) -> Tuple[
     List[numpy.ndarray], List[numpy.ndarray], List[Tuple[int, int, int]], List[numpy.ndarray], List[numpy.ndarray]
 ]:
-    bead_pos_pred = get_bead_pos(pred)
+    min_sigma = [min_sigma / s for s in scaling]
+    max_sigma = [max_sigma / s for s in scaling]
+    kwargs.update(min_sigma=min_sigma, max_sigma=max_sigma)
+
+    bead_pos_pred = get_bead_pos(pred, **kwargs)
     no_beads_found = all([bpp.shape[0] == 0 for bpp in bead_pos_pred])
     if no_beads_found:
         b = len(bead_pos_pred)
@@ -76,27 +81,21 @@ def match_beads(
             [numpy.array([])] * b,
         )
     else:
-        bead_pos_tgt = get_bead_pos(tgt)
+        bead_pos_tgt = get_bead_pos(tgt, **kwargs)
         btgt_idx, bpred_idx, found_missing_extra = match_beads_from_pos(
-            btgt=bead_pos_tgt, bpred=bead_pos_pred, dist_threshold=dist_threshold
+            btgt=bead_pos_tgt, bpred=bead_pos_pred, dist_threshold=dist_threshold, scaling=scaling,
         )
         return btgt_idx, bpred_idx, found_missing_extra, bead_pos_tgt, bead_pos_pred
 
 
 if __name__ == "__main__":
-    tgt = (
-        imread("K:/beuttenm/repos/lnet/logs/beads/19-08-23_18-32_c307a5a_aux1_/result/test/target/0000.tif")[None, ...]
-        / numpy.iinfo(numpy.uint16).max
-    )
-    pred = (
-        imread("K:/beuttenm/repos/lnet/logs/beads/19-08-23_18-32_c307a5a_aux1_/result/test/prediction/0000.tif")[
-            None, ...
-        ]
-        / numpy.iinfo(numpy.uint16).max
-    )
+    tgt = imread("/g/kreshuk/LF_computed/lnet/logs/beads/01highc/20-04-21_11-41-43/test/output/0/ls.tif")[None, ...]
+    print(tgt.max(), tgt.shape)
+    pred =   imread("/g/kreshuk/LF_computed/lnet/logs/beads/01highc/20-04-21_11-41-43/test/output/0/pred.tif")[None, ...]
+    print(pred.max(), pred.shape)
     bead_pos_tgt = get_bead_pos(tgt)
     bead_pos_pred = get_bead_pos(pred)
-    tgt_idx, pred_idx, found_missing_extra = match_beads_from_pos(bead_pos_tgt, bead_pos_pred, 5)
+    tgt_idx, pred_idx, found_missing_extra = match_beads_from_pos(bead_pos_tgt, bead_pos_pred, dist_threshold=5.0, scaling=(2.0, 1.0, 1.0))
 
     plot_matched_beads(bead_pos_tgt, tgt_idx, bead_pos_pred, pred_idx)
     plt.show()

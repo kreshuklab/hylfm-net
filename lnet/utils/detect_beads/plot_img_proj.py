@@ -30,8 +30,8 @@ def plot_img_projections(img: numpy.ndarray, b=0) -> Figure:
 
     # ax3
     ax3 = fig.add_subplot(gs[0, 0], sharex=ax1, anchor="E")
-    ax3.set_xlabel("x")
-    # ax3.set_ylabel('z')
+    # ax3.set_xlabel("x")
+    ax3.set_ylabel('z')
     plt.setp(ax3.get_xticklabels(), visible=False)
 
     ax1.imshow(img.max(0), cmap=turbo_colormap)

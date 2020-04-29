@@ -1,4 +1,5 @@
 import logging
+from typing import Tuple, Union, Sequence
 
 import numpy
 from ignite.metrics import Metric, MetricsLambda
@@ -12,9 +13,30 @@ logger = logging.getLogger(__name__)
 class BeadPrecisionRecall(Metric):
     _required_output_keys = ("y_pred", "y", "meta")
 
-    def __init__(self, *, dist_threshold: float = 5.0, **super_kwargs):
+    def __init__(
+        self,
+        *,
+        dist_threshold: float,
+        scaling: Tuple[float, float, float],
+        min_sigma: float,
+        max_sigma: float,
+        sigma_ratio: float,
+        threshold: float,
+        overlap: float,
+        exclude_border: Union[Tuple[int, ...], int, bool],
+        **super_kwargs
+    ):
         super().__init__(**super_kwargs)
-        self.dist_threshold = dist_threshold
+        self.match_beads_kwargs = {
+            "min_sigma": min_sigma,
+            "max_sigma": max_sigma,
+            "sigma_ratio": sigma_ratio,
+            "threshold": threshold,
+            "overlap": overlap,
+            "exclude_border": exclude_border,
+            "dist_threshold": dist_threshold,
+            "sccaling": scaling,
+        }
 
     def reset(self):
         self.found_missing_extra = []
@@ -23,7 +45,7 @@ class BeadPrecisionRecall(Metric):
         pred, tgt, meta = output
         try:
             btgt_idx, bpred_idx, fme, bead_pos_btgt, bead_pos_bpred = match_beads(
-                tgt.detach().cpu().numpy(), pred.detach().cpu().numpy(), dist_threshold=self.dist_threshold
+                tgt.detach().cpu().numpy(), pred.detach().cpu().numpy(), **self.match_beads_kwargs
             )
         except Exception as e:
             logger.info(e)

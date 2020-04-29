@@ -47,7 +47,8 @@ class TensorInfo:
         root: str,
         location: str,
         transformations: Sequence[Dict[str, Any]] = tuple(),
-        in_batches_of: int = 1,
+        datasets_per_file: int = 1,
+        samples_per_dataset: int = 1,
         insert_singleton_axes_at: Sequence[int] = tuple(),
         z_slice: Optional[Union[str, int]] = None,
         skip_indices: Sequence[int] = tuple(),
@@ -62,7 +63,8 @@ class TensorInfo:
         assert isinstance(name, str)
         assert isinstance(root, str)
         assert isinstance(location, str)
-        assert isinstance(in_batches_of, int)
+        assert isinstance(datasets_per_file, int)
+        assert isinstance(samples_per_dataset, int)
         self.name = name
         if tag is None:
             self.tag = name
@@ -71,7 +73,8 @@ class TensorInfo:
 
         self.root = root
         self.transformations = list(transformations)
-        self.in_batches_of = in_batches_of
+        self.datasets_per_file = datasets_per_file
+        self.samples_per_dataset = samples_per_dataset
         self.insert_singleton_axes_at = insert_singleton_axes_at
         self.z_slice = z_slice
         self.skip_indices = skip_indices
@@ -102,7 +105,8 @@ class TensorInfo:
                 "root": self.root,
                 "location": self.location,
                 "transformations": self.transformations,
-                "in_batches_of": self.in_batches_of,
+                "datasets_per_file": self.datasets_per_file,
+                "samples_per_dataset": self.samples_per_dataset,
                 "z_slice": self.z_slice,
                 "skip_indices": list(self.skip_indices),
                 "meta": self.meta,
@@ -127,7 +131,6 @@ class DatasetFromInfo(torch.utils.data.Dataset):
             ]
         )
 
-        self.in_batches_of = info.in_batches_of
         self.insert_singleton_axes_at = info.insert_singleton_axes_at
 
         self._z_slice_mod: Optional[int] = None
@@ -180,6 +183,9 @@ class DatasetFromInfo(torch.utils.data.Dataset):
 
 class TiffDataset(DatasetFromInfo):
     def __init__(self, *, info: TensorInfo):
+        if info.samples_per_dataset != 1:
+            raise NotImplementedError
+
         assert not info.kwargs, info.kwargs
         super().__init__(info=info)
         paths, numbers = get_paths_and_numbers(info.path)
@@ -187,14 +193,14 @@ class TiffDataset(DatasetFromInfo):
         self.numbers = numbers
 
     def __len__(self):
-        return len(self.paths) * self.in_batches_of
+        return len(self.paths) * self.info.datasets_per_file * self.info.samples_per_dataset
 
     def __getitem__(self, idx: int) -> typing.OrderedDict[str, Union[numpy.ndarray, list]]:
-        path_idx = idx // self.in_batches_of
-        idx %= self.in_batches_of
+        path_idx = idx // self.info.datasets_per_file
+        idx %= self.info.datasets_per_file
         img_path = self.paths[path_idx]
         img: numpy.ndarray = imageio.volread(img_path)
-        if self.in_batches_of > 1:
+        if self.info.datasets_per_file > 1:
             img = img[idx : idx + 1]
 
         for axis in self.insert_singleton_axes_at:
@@ -227,29 +233,32 @@ class H5Dataset(DatasetFromInfo):
         paths, numbers = get_paths_and_numbers(Path(file_path_glob))
         self.numbers = numbers
         self.h5files = [h5py.File(p, mode="r") for p in paths]
-        self.within_paths = []
+        self.dataset_paths = []
         for hf in self.h5files:
             root_group = hf["/"]
             within = []
             root_group.visit(self.get_ds_resolver(within_pattern, within))
-            self.within_paths.append(sorted(within))
+            self.dataset_paths.append(sorted(within))
 
-        assert all(self.within_paths), self.within_paths
+        assert all(self.dataset_paths), self.dataset_paths
         self._shutdown = False
 
     def __len__(self):
-        return len(self.h5files) * self.in_batches_of
+        return len(self.h5files) * self.info.datasets_per_file * self.info.samples_per_dataset
 
     def __getitem__(self, idx: int) -> typing.OrderedDict[str, Union[numpy.ndarray, list]]:
         assert not self._shutdown
-        path_idx = idx // self.in_batches_of
-        idx %= self.in_batches_of
+        path_idx = idx // (self.info.datasets_per_file * self.info.samples_per_dataset)
+        idx %= (self.info.datasets_per_file * self.info.samples_per_dataset)
         hf = self.h5files[path_idx]
-        withins = self.within_paths[path_idx]
-        h5ds = hf[withins[idx]]
-        img: numpy.ndarray = h5ds[:]
-        if self.in_batches_of > 1:
-            img = img[idx : idx + 1]
+        ds_idx = idx // self.info.samples_per_dataset
+        idx %= self.info.samples_per_dataset
+        dataset_path = self.dataset_paths[path_idx][ds_idx]
+        h5ds = hf[dataset_path]
+        if self.info.samples_per_dataset > 1:
+            img: numpy.ndarray = h5ds[idx : idx + 1]
+        else:
+            img: numpy.ndarray = h5ds[:]
 
         for axis in self.insert_singleton_axes_at:
             img = numpy.expand_dims(img, axis=axis)
