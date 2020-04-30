@@ -15,6 +15,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import h5py
 import imageio
 import numpy
+
 # import torch.multiprocessing
 import torch.utils.data
 import yaml
@@ -233,42 +234,37 @@ class H5Dataset(DatasetFromInfo):
         file_path_glob += h5_ext
         paths, numbers = get_paths_and_numbers(Path(file_path_glob))
         self.numbers = numbers
-        self.h5files = [h5py.File(p, mode="r") for p in paths]
+        self.h5file_paths = paths
         self.dataset_paths = []
-        for hf in self.h5files:
-            root_group = hf["/"]
-            within = []
-            root_group.visit(self.get_ds_resolver(within_pattern, within))
-            self.dataset_paths.append(sorted(within))
+        for p in paths:
+            with h5py.File(p, mode="r") as hf:
+                root_group = hf["/"]
+                within = []
+                root_group.visit(self.get_ds_resolver(within_pattern, within))
+                self.dataset_paths.append(sorted(within))
 
         assert all(self.dataset_paths), self.dataset_paths
-        self._shutdown = False
 
     def __len__(self):
-        return len(self.h5files) * self.info.datasets_per_file * self.info.samples_per_dataset
+        return len(self.h5file_paths) * self.info.datasets_per_file * self.info.samples_per_dataset
 
     def __getitem__(self, idx: int) -> typing.OrderedDict[str, Union[numpy.ndarray, list]]:
-        assert not self._shutdown
         path_idx = idx // (self.info.datasets_per_file * self.info.samples_per_dataset)
-        idx %= (self.info.datasets_per_file * self.info.samples_per_dataset)
-        hf = self.h5files[path_idx]
+        idx %= self.info.datasets_per_file * self.info.samples_per_dataset
         ds_idx = idx // self.info.samples_per_dataset
         idx %= self.info.samples_per_dataset
         dataset_path = self.dataset_paths[path_idx][ds_idx]
-        h5ds = hf[dataset_path]
-        if self.info.samples_per_dataset > 1:
-            img: numpy.ndarray = h5ds[idx : idx + 1]
-        else:
-            img: numpy.ndarray = h5ds[:]
+        with h5py.File(self.h5file_paths[path_idx], mode="r") as hf:
+            h5ds = hf[dataset_path]
+            if self.info.samples_per_dataset > 1:
+                img: numpy.ndarray = h5ds[idx : idx + 1]
+            else:
+                img: numpy.ndarray = h5ds[:]
 
         for axis in self.insert_singleton_axes_at:
             img = numpy.expand_dims(img, axis=axis)
 
         return self.transform(OrderedDict(**{self.tensor_name: img}))
-
-    def shutdown(self):
-        self._shutdown = True
-        [hf.close() for hf in self.h5files]
 
 
 def get_dataset_from_info(info: TensorInfo) -> DatasetFromInfo:
@@ -309,7 +305,8 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
         self.repeat = dataset.info.repeat
         description = dataset.description
         data_file_path = (
-            settings.cache_path / f"{dataset.info.tag}_{dataset.tensor_name}_{hash_algorithm(description.encode()).hexdigest()}.n5"
+            settings.cache_path
+            / f"{dataset.info.tag}_{dataset.tensor_name}_{hash_algorithm(description.encode()).hexdigest()}.n5"
         )
         data_file_path.with_suffix(".txt").write_text(description)
 
