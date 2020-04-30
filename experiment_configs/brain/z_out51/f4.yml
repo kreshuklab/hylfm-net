@@ -145,8 +145,8 @@ stages:
             tensors_every: {value: 1, unit: epoch}
             tensor_names: [lf, pred, ls]
         score_metric: MSSSIM
-        period: {value: 1, unit: epoch}
-        patience: 5
+        period: {value: 1065, unit: iteration}
+        patience: 3
         batch_preprocessing: *eval_batch_prepr
         batch_preprocessing_in_step: *batch_prepr_in_step
         batch_postprocessing: *batch_postpr
