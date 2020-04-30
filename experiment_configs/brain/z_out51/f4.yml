@@ -4,7 +4,7 @@ z_out: &z_out 51
 
 toolbox: # defines yaml placeholders
   interpol: &interpol 2
-  lf_crop: &lf_crop [[0, null], [94, 1159], [285, 1634]] # 988x1273 input at 133,1121x + 2*19,2*19x2*19,2*19 shrinkage
+  lf_crop: &lf_crop [[0, null], [95, 1159], [285, 1634]] # 988x1273 input at 133,1121x + 2*19,2*19x2*19,2*19 shrinkage
   ls_crop: &ls_crop [[0, null], [0, null], [32, -72], [92, -20]]
   ls_z_min: &ls_z_min 60
   ls_z_max: &ls_z_max 181

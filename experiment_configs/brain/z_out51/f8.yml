@@ -4,7 +4,7 @@ z_out: &z_out 51
 
 toolbox: # defines yaml placeholders
   interpol: &interpol 2
-  lf_crop: &lf_crop [[0, null], [113, 1140], [304, 1615]] # 988x1273 input at 133,1121x + 19,19x19,19 shrinkage
+  lf_crop: &lf_crop [[0, null], [114, 1140], [304, 1615]] # 988x1273 input at 133,1121x + 19,19x19,19 shrinkage
   ls_crop: &ls_crop [[0, null], [0, null], [64, -144], [184, -40]]
   ls_z_min: &ls_z_min 60
   ls_z_max: &ls_z_max 181
@@ -61,7 +61,7 @@ stages:
         TqdmLogger: {}
         TensorBoardLogger:
           scalars_every: {value: 10, unit: iteration}
-          tensors_every: {value: 500, unit: iteration}
+          tensors_every: {value: 100, unit: iteration}
           tensor_names: [lf, pred, ls]
 
       criterion:
@@ -145,8 +145,8 @@ stages:
             tensors_every: {value: 1, unit: epoch}
             tensor_names: [lf, pred, ls]
         score_metric: MSSSIM
-        period: {value: 1, unit: epoch}
-        patience: 5
+        period: {value: 1065, unit: iterations}
+        patience: 3
         batch_preprocessing: *eval_batch_prepr
         batch_preprocessing_in_step: *batch_prepr_in_step
         batch_postprocessing: *batch_postpr
