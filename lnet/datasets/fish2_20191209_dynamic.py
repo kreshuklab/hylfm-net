@@ -1011,3 +1011,58 @@ t0402c11p160b_ls = TensorInfo(
     z_slice=160,
     # length=200,
 )
+
+if __name__ == "__main__":
+    import logging
+
+    from hashlib import sha224 as hash_algorithm
+    from lnet.settings import settings
+    from lnet.datasets.base import get_dataset_from_info, N5CachedDatasetFromInfo
+
+    logger = logging.getLogger("gcamp")
+
+    for info_lf, info_ls in zip(
+        [
+t0454c2_lf
+        ],
+        [
+t0454c2_ls
+        ],
+    ):
+        try:
+            info_lf.transformations += [
+                {"Assert": {"apply_to": "lf", "expected_tensor_shape": [None, 1, None, None]}}
+            ]  # bcyx
+            dslf = get_dataset_from_info(info_lf)
+            print(
+                settings.cache_path
+                / f"{dslf.info.tag}_{dslf.tensor_name}_{hash_algorithm(dslf.description.encode()).hexdigest()}.n5"
+            )
+            dslf = N5CachedDatasetFromInfo(dslf)
+
+            print(len(dslf))
+            print(dslf[0]["lf"].shape)
+            info_ls.transformations += [
+                {
+                    "Resize": {
+                        "apply_to": "ls",
+                        # "shape": [1.0, 1.0, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947],
+                        "shape": [1.0, 1.0, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
+                        "order": 2,
+                    }
+                },
+                {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 1, None, None]}},
+            ]
+            dsls = get_dataset_from_info(info_ls)
+            print(
+                settings.cache_path
+                / f"{dsls.info.tag}_{dsls.tensor_name}_{hash_algorithm(dsls.description.encode()).hexdigest()}.n5"
+            )
+            dsls = N5CachedDatasetFromInfo(dsls)
+
+            print(len(dsls))
+            print(dsls[0]["ls"].shape)
+            assert len(dslf) == len(dsls), (len(dslf), len(dsls))
+        except Exception as e:
+            print("error")
+            logger.error(e, exc_info=True)

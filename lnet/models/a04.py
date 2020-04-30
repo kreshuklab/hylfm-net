@@ -1,6 +1,7 @@
 import inspect
 import logging
 import typing
+from collections import OrderedDict
 from functools import partial
 from typing import Callable, Optional, Sequence, Tuple
 
@@ -28,6 +29,7 @@ class A04(LnetModel):
         inplanes_3d: int = 7,
         n_res3d: Sequence[Sequence[int]] = ((7, 7), (7,), (7,)),
         init_fn: Callable = nn.init.xavier_uniform_,
+        last_2d_kernel: Tuple[int, int] = (1, 1),
     ):
         # assert len(n_res3d) >= 1, n_res3d
         super().__init__()
@@ -68,7 +70,7 @@ class A04(LnetModel):
             init_fn_conv2d = init_fn
 
         init = partial(Initialization, weight_initializer=init_fn_conv2d, bias_initializer=Constant(0.0))
-        self.conv2d = Conv2D(n_res2d[-1], z_out * inplanes_3d, (1, 1), activation="ReLU", initialization=init)
+        self.conv2d = Conv2D(n_res2d[-1], z_out * inplanes_3d, last_2d_kernel, activation="ReLU", initialization=init)
 
         self.c2z = lambda ipt, ip3=inplanes_3d: ipt.view(ipt.shape[0], ip3, z_out, *ipt.shape[2:])
 
@@ -152,6 +154,7 @@ def try_static(backprop: bool = True):
     import matplotlib.pyplot as plt
 
     from lnet.datasets.base import TensorInfo
+    from lnet.datasets.beads import b4mu_3_lf, b4mu_3_ls
     from lnet.datasets import get_dataset_from_info, ZipDataset, N5CachedDatasetFromInfo, get_collate_fn
     from lnet.transformations import Normalize01, ComposedTransformation, ChannelFromLightField, Cast, Crop
 
@@ -161,58 +164,65 @@ def try_static(backprop: bool = True):
         prediction_name="pred",
         z_out=51,
         nnum=19,
-        n_res2d=(488, 488, "u", 244, 244),
-        n_res3d=[[7], [7], [7]],
+        # n_res2d=(488, 488, "u", 244, 244),
+        # n_res3d=[[7], [7], [7]],
     )
     # n_res2d: [976, 488, u, 244, 244, u, 122, 122]
     # inplanes_3d: 7
     # n_res3d: [[7, 7], [7], [1]]
 
+    b4mu_3_ls.transformations += [
+        {"Resize": {"apply_to": "ls", "shape": [1.0, 121 / 838, 8 / 19, 8 / 19], "order": 2}},
+        {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 121, None, None]}},
+    ]
+
     lfds = N5CachedDatasetFromInfoSubset(
         N5CachedDatasetFromInfo(
             get_dataset_from_info(
-                TensorInfo(
-                    name="lf",
-                    root="GHUFNAGELLFLenseLeNet_Microscope",
-                    location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
-                    insert_singleton_axes_at=[0, 0],
-                )
+                b4mu_3_lf
+                # TensorInfo(
+                #     name="lf",
+                #     root="GHUFNAGELLFLenseLeNet_Microscope",
+                #     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif",
+                #     insert_singleton_axes_at=[0, 0],
+                # )
             )
         )
     )
     lsds = N5CachedDatasetFromInfoSubset(
         N5CachedDatasetFromInfo(
             get_dataset_from_info(
-                TensorInfo(
-                    name="ls",
-                    root="GHUFNAGELLFLenseLeNet_Microscope",
-                    location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
-                    insert_singleton_axes_at=[0, 0],
-                    transformations=[
-                        {
-                            "Resize": {
-                                "apply_to": "ls",
-                                "shape": [
-                                    1.0,
-                                    121,
-                                    0.21052631578947368421052631578947,
-                                    0.21052631578947368421052631578947,
-                                ],
-                                "order": 2,
-                            }
-                        }
-                    ],
-                )
+                b4mu_3_ls
+                # TensorInfo(
+                #     name="ls",
+                #     root="GHUFNAGELLFLenseLeNet_Microscope",
+                #     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
+                #     insert_singleton_axes_at=[0, 0],
+                #     transformations=[
+                #         {
+                #             "Resize": {
+                #                 "apply_to": "ls",
+                #                 "shape": [
+                #                     1.0,
+                #                     121,
+                #                     0.21052631578947368421052631578947,
+                #                     0.21052631578947368421052631578947,
+                #                 ],
+                #                 "order": 2,
+                #             }
+                #         }
+                #     ],
+                # )
             )
         )
     )
     trf = ComposedTransformation(
-        Crop(apply_to="ls", crop=[[0, 0], [35, -35], [6, -6], [6, -6]]),
+        Crop(apply_to="ls", crop=((0, None), (35, -35), (8, -8), (8, -8))),
         Normalize01(apply_to=["lf", "ls"], min_percentile=0, max_percentile=100),
         ChannelFromLightField(apply_to="lf", nnum=19),
         Cast(apply_to=["lf", "ls"], dtype="float32", device="cuda"),
     )
-    ds = ZipDataset({"lf": lfds, "ls": lsds}, transformation=trf)
+    ds = ZipDataset(OrderedDict(lf=lfds, ls=lsds), transformation=trf)
     loader = DataLoader(ds, batch_size=1, collate_fn=get_collate_fn(lambda t: t))
 
     device = torch.device("cuda")

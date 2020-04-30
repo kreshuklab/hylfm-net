@@ -210,7 +210,6 @@ g200311_084729_ls = TensorInfo(
     # length=8*121,
 )
 
-# //////////////////////
 
 # single plane TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane
 g20200311_073039_70_lf = TensorInfo(
@@ -510,20 +509,20 @@ g20200311_024927_ls = TensorInfo(
 g20200311_101734_110_lf = TensorInfo(
     name="lf",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.17.34/stack_14_channel_3/SinglePlane_-280//TP_*/RC_rectified/Cam_Right_*_rectified.tif",
+    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.17.34/stack_14_channel_3/SinglePlane_-280/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
     tag="00311_101734_110",
-    # length=
+    # length=600
 )
 g20200311_101734_110_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.17.34/stack_14_channel_3/SinglePlane_-280//TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.17.34/stack_14_channel_3/Cam_Left_*.h5/Data",
+    insert_singleton_axes_at=[0, 0],
     z_slice=110,
     tag="00311_101734_110",
-    datasets_per_file=121,
-    # length=
+    samples_per_dataset=600,
+    # length=600
 )
 
 g20200311_101734_60_lf = TensorInfo(
@@ -532,17 +531,17 @@ g20200311_101734_60_lf = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.17.34/stack_16_channel_3/SinglePlane_-330/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
     tag="200311_101734_60",
-    # length=
+    # length=600
 )
 g20200311_101734_60_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.17.34/stack_16_channel_3/SinglePlane_-330/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.17.34/stack_16_channel_3/Cam_Left_*.h5/Data",
+    insert_singleton_axes_at=[0, 0],
     z_slice=60,
     tag="200311_101734_60",
-    datasets_per_file=121,
-    # length=
+    samples_per_dataset=600,
+    # length=600
 )
 
 g20200311_102114_95_lf = TensorInfo(
@@ -551,17 +550,17 @@ g20200311_102114_95_lf = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.21.14/stack_25_channel_3/SinglePlane_-295/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
     tag="200311_102114_95",
-    # length=
+    # length=600
 )
 g20200311_102114_95_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.21.14/stack_25_channel_3/SinglePlane_-295/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.21.14/stack_25_channel_3/Cam_Left_*.h5/Data",
+    insert_singleton_axes_at=[0, 0],
     z_slice=95,
     tag="200311_102114_95",
-    datasets_per_file=121,
-    # length=
+    samples_per_dataset=600,
+    # length=600
 )
 
 g20200311_102114_85_lf = TensorInfo(
@@ -570,17 +569,17 @@ g20200311_102114_85_lf = TensorInfo(
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.21.14/stack_29_channel_3/SinglePlane_-305/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
     tag="200311_102114_85",
-    # length=
+    # length=600
 )
 g20200311_102114_85_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.21.14/stack_29_channel_3/SinglePlane_-305/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.21.14/stack_29_channel_3/Cam_Left_*.h5/Data",
+    insert_singleton_axes_at=[0, 0],
     z_slice=85,
     tag="200311_102114_85",
-    datasets_per_file=121,
-    # length=
+    samples_per_dataset=600,
+    # length=600
 )
 
 
@@ -957,90 +956,90 @@ if __name__ == "__main__":
 
     for info_lf, info_ls in zip(
         [
-            g200311_085233_lf,
-            g200311_090800_lf,
-            g200311_083021_lf,
-            g200311_083419_lf,
-            g200311_083658_lf,
-            g200311_083931_lf,
-            g200311_084207_lf,
-            g200311_084450_lf,
-            g200311_084729_lf,
-            g20200311_073039_70_lf,
-            g20200311_073039_80_lf,
-            g20200311_101320_100_lf,
-            g20200311_101320_75_lf,
-            g20200311_102541_50_lf,
-            g20200311_102541_95_lf,
-            g20200311_102541_85_lf,
-            g20200311_065726_lf,
-            g20200311_073447_lf,
-            g20200311_033035_lf,
-            g20200311_040327_lf,
-            g20200311_042734_lf,
-            g20200311_042839_lf,
-            g20200311_043502_lf,
-            g20200311_024927_lf,
+            # g200311_085233_lf,
+            # g200311_090800_lf,
+            # g200311_083021_lf,
+            # g200311_083419_lf,
+            # g200311_083658_lf,
+            # g200311_083931_lf,
+            # g200311_084207_lf,
+            # g200311_084450_lf,
+            # g200311_084729_lf,
+            # g20200311_073039_70_lf,
+            # g20200311_073039_80_lf,
+            # g20200311_101320_100_lf,
+            # g20200311_101320_75_lf,
+            # g20200311_102541_50_lf,
+            # g20200311_102541_95_lf,
+            # g20200311_102541_85_lf,
+            # g20200311_065726_lf,
+            # g20200311_073447_lf,
+            # g20200311_033035_lf,
+            # g20200311_040327_lf,
+            # g20200311_042734_lf,
+            # g20200311_042839_lf,
+            # g20200311_043502_lf,
+            # g20200311_024927_lf,
             g20200311_101734_110_lf,
             g20200311_101734_60_lf,
             g20200311_102114_95_lf,
             g20200311_102114_85_lf,
-            g20200309_043555_60_lf,
-            g20200309_043555_50_lf,
-            g20200309_043555_40_lf,
-            g20200309_043555_30_lf,
-            g20200309_043555_20_lf,
-            g20200309_043555_70_lf,
-            g20200309_043555_80_lf,
-            g20200309_043555_90_lf,
-            g20200309_043555_100_lf,
-            g20200309_043555_0_lf,
-            g20200309_043555_10_lf,
-            g20200309_043555_110_lf,
-            g20200309_043555_120_lf,
+            # g20200309_043555_60_lf,
+            # g20200309_043555_50_lf,
+            # g20200309_043555_40_lf,
+            # g20200309_043555_30_lf,
+            # g20200309_043555_20_lf,
+            # g20200309_043555_70_lf,
+            # g20200309_043555_80_lf,
+            # g20200309_043555_90_lf,
+            # g20200309_043555_100_lf,
+            # g20200309_043555_0_lf,
+            # g20200309_043555_10_lf,
+            # g20200309_043555_110_lf,
+            # g20200309_043555_120_lf,
         ],
         [
-            g200311_085233_ls,
-            g200311_090800_ls,
-            g200311_083021_ls,
-            g200311_083419_ls,
-            g200311_083658_ls,
-            g200311_083931_ls,
-            g200311_084207_ls,
-            g200311_084450_ls,
-            g200311_084729_ls,
-            g20200311_073039_70_ls,
-            g20200311_073039_80_ls,
-            g20200311_101320_100_ls,
-            g20200311_101320_75_ls,
-            g20200311_102541_50_ls,
-            g20200311_102541_95_ls,
-            g20200311_102541_85_ls,
-            g20200311_065726_ls,
-            g20200311_073447_ls,
-            g20200311_033035_ls,
-            g20200311_040327_ls,
-            g20200311_042734_ls,
-            g20200311_042839_ls,
-            g20200311_043502_ls,
-            g20200311_024927_ls,
+            # g200311_085233_ls,
+            # g200311_090800_ls,
+            # g200311_083021_ls,
+            # g200311_083419_ls,
+            # g200311_083658_ls,
+            # g200311_083931_ls,
+            # g200311_084207_ls,
+            # g200311_084450_ls,
+            # g200311_084729_ls,
+            # g20200311_073039_70_ls,
+            # g20200311_073039_80_ls,
+            # g20200311_101320_100_ls,
+            # g20200311_101320_75_ls,
+            # g20200311_102541_50_ls,
+            # g20200311_102541_95_ls,
+            # g20200311_102541_85_ls,
+            # g20200311_065726_ls,
+            # g20200311_073447_ls,
+            # g20200311_033035_ls,
+            # g20200311_040327_ls,
+            # g20200311_042734_ls,
+            # g20200311_042839_ls,
+            # g20200311_043502_ls,
+            # g20200311_024927_ls,
             g20200311_101734_110_ls,
             g20200311_101734_60_ls,
             g20200311_102114_95_ls,
             g20200311_102114_85_ls,
-            g20200309_043555_60_ls,
-            g20200309_043555_50_ls,
-            g20200309_043555_40_ls,
-            g20200309_043555_30_ls,
-            g20200309_043555_20_ls,
-            g20200309_043555_70_ls,
-            g20200309_043555_80_ls,
-            g20200309_043555_90_ls,
-            g20200309_043555_100_ls,
-            g20200309_043555_0_ls,
-            g20200309_043555_10_ls,
-            g20200309_043555_110_ls,
-            g20200309_043555_120_ls,
+            # g20200309_043555_60_ls,
+            # g20200309_043555_50_ls,
+            # g20200309_043555_40_ls,
+            # g20200309_043555_30_ls,
+            # g20200309_043555_20_ls,
+            # g20200309_043555_70_ls,
+            # g20200309_043555_80_ls,
+            # g20200309_043555_90_ls,
+            # g20200309_043555_100_ls,
+            # g20200309_043555_0_ls,
+            # g20200309_043555_10_ls,
+            # g20200309_043555_110_ls,
+            # g20200309_043555_120_ls,
         ],
     ):
         try:
@@ -1079,4 +1078,4 @@ if __name__ == "__main__":
             assert len(dslf) == len(dsls), (len(dslf), len(dsls))
         except Exception as e:
             print("error")
-            logger.error(e)
+            logger.error(e, exc_info=True)
