@@ -72,6 +72,7 @@ class TensorInfo:
             self.tag = tag
 
         self.root = root
+        self.location = location
         self.transformations = list(transformations)
         self.datasets_per_file = datasets_per_file
         self.samples_per_dataset = samples_per_dataset
@@ -81,7 +82,6 @@ class TensorInfo:
         self.meta: dict = meta or {}
         self.repeat = repeat
         self.kwargs = kwargs
-        self.location = location
         self.path: Path = getattr(settings.data_roots, root) / location
 
     @property
@@ -107,6 +107,7 @@ class TensorInfo:
                 "transformations": self.transformations,
                 "datasets_per_file": self.datasets_per_file,
                 "samples_per_dataset": self.samples_per_dataset,
+                "insert_singleton_axes_at": self.insert_singleton_axes_at,
                 "z_slice": self.z_slice,
                 "skip_indices": list(self.skip_indices),
                 "meta": self.meta,

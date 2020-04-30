@@ -97,6 +97,9 @@ class Assert(Transform):
         self, tensor: Any, *, name: str, idx: int, meta: typing.List[dict]
     ) -> Union[numpy.ndarray, torch.Tensor]:
         shape_is = tuple(tensor.shape)
+        if len(shape_is) != len(self.expected_shape):
+            raise ValueError(f"expected shape {self.expected_shape}, but found {shape_is}")
+
         for si, s in zip(shape_is, self.expected_shape):
             if s is None:
                 continue
