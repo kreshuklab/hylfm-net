@@ -408,6 +408,7 @@ g20200311_040327_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish1/5Hz/longRun/niceOne2/2020-03-11_04.03.27/stack_33_channel_4/SwipeThrough_-390_-270_nimages_121/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="g20200311_040327",
     z_slice="60+idx%121",
     # length=
 )
@@ -428,6 +429,7 @@ g20200311_042734_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish1/5Hz/longRun/niceOne3/2020-03-11_04.27.34/stack_33_channel_4/SwipeThrough_-390_-270_nimages_121/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="g20200311_042734",
     z_slice="60+idx%121",
     # length=
 )
@@ -448,6 +450,7 @@ g20200311_042839_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish1/5Hz/longRun/niceOne3/2020-03-11_04.28.39/stack_33_channel_4/SwipeThrough_-390_-270_nimages_121/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
+    tag="g20200311_042839",
     z_slice="60+idx%121",
     # length=
 )
