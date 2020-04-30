@@ -10,8 +10,17 @@ toolbox: # defines yaml placeholders
     SSIM: {tensor_names: {y_pred: pred, y: ls}, window_size: 11, window: null, size_average: true, full: false, val_range: null}
     NRMSE: {tensor_names: {y_pred: pred, y: ls}}
     PSNR: {tensor_names: {y_pred: pred, y: ls}, data_range: null}
-    BeadPrecision: {tensor_names: {y_pred: pred, y: ls, meta: meta}, dist_threshold: &beadPR 5.0}
-    BeadRecall: {tensor_names: {y_pred: pred, y: ls, meta: meta}, dist_threshold: *beadPR}
+    BeadPrecision: &bead_metric_kwargs
+      tensor_names: {y_pred: pred, y: ls, meta: meta}
+      dist_threshold: 3.0
+      scaling: [2., 0.7, 0.7]
+      min_sigma: 1.0
+      max_sigma: 6.0
+      sigma_ratio: 3.0
+      threshold: .05
+      overlap: 0.5
+      exclude_border: false
+    BeadRecall: *bead_metric_kwargs
     SmoothL1Loss: {tensor_names: {y_pred: pred, y: ls}}
     MSELoss: {tensor_names: {y_pred: pred, y: ls}}
 
@@ -38,79 +47,9 @@ model:
     prediction_name: pred
     nnum: *nnum
     z_out: *z_out
-  checkpoint: # [logs, beads/01highc/20-04-21_11-41-43/train/checkpoints/v1_checkpoint_SmoothL1Loss=-0.00012947025970788673.pth]
+  checkpoint: [logs, beads/z_out51/4mu_f8/20-04-28_12-26-34/train/run000/checkpoints/v1_checkpoint_SmoothL1Loss=-5.7781363365292134e-05.pth]
 
 stages:
-  - train:
-      max_epochs: 500
-      metrics: {}
-      log:
-        TqdmLogger: {}
-        TensorBoardLogger:
-          scalars_every: {value: 10, unit: iteration}
-          tensors_every: {value: 1, unit: epoch}
-          tensor_names: [lf, pred, ls]
-
-      criterion:
-        name: WeightedSmoothL1Loss
-        kwargs: {threshold: 0.5, initial_weight: .05, apply_below_threshold: true, decay_by: .8, every_nth_epoch: 1}
-#        name: MSELoss
-#        kwargs: {reduction: mean}
-        tensor_names: {input: pred, target: ls}
-
-      optimizer:
-        name: Adam
-        kwargs: {lr: 1.0e-4, eps: 1.0e-8}
-
-      sampler:
-        base: RandomSampler
-        drop_last: false
-
-      batch_preprocessing:
-        - RandomRotate90: {apply_to: [lf, ls]}
-        - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
-      batch_preprocessing_in_step: *batch_prepr_in_step
-      batch_postprocessing: *batch_postpr
-
-      data:
-        - batch_size: 1
-          interpolation_order: *interpol
-          sample_preprocessing:
-            - Crop: {apply_to: ls, crop: *ls_roi}
-            - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
-            - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
-            - AdditiveGaussianNoise: {apply_to: lf, sigma: 0.1}
-            - AdditiveGaussianNoise: {apply_to: ls, sigma: 0.05}
-            - RandomIntensityScale: {apply_to: [lf, ls], factor_min: .8, factor_max: 1.2}
-            - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -1}
-            - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -2}
-
-          datasets:
-            - {tensors: {lf: beads.b4mu_0_lf, ls: beads.b4mu_0_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: beads.b4mu_1_lf, ls: beads.b4mu_1_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: beads.b4mu_2_lf, ls: beads.b4mu_2_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-
-      validate:
-        metrics: *metrics
-        log:
-          TqdmLogger: {}
-          TensorBoardLogger:
-            scalars_every: {value: 1, unit: epoch}
-            tensors_every: {value: 1, unit: epoch}
-            tensor_names: [lf, pred, ls]
-        score_metric: -SmoothL1Loss
-        period: {value: 1, unit: epoch}
-        patience: 10
-        batch_preprocessing: *eval_batch_prepr
-        batch_preprocessing_in_step: *batch_prepr_in_step
-        batch_postprocessing: *batch_postpr
-        data:
-          - batch_size: *eval_batch_size
-            interpolation_order: *interpol
-            sample_preprocessing: *eval_sample_prepr
-            datasets:
-              - {tensors: {lf: beads.b4mu_3_lf, ls: beads.b4mu_3_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 35-40}
-
   - test:
       metrics: *metrics
       log:
