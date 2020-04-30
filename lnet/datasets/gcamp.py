@@ -565,24 +565,43 @@ g20200311_101734_60_ls = TensorInfo(
     # length=600
 )
 
-g20200311_102114_95_lf = TensorInfo(
+# g20200311_102114_95_lf = TensorInfo(
+#     name="lf",
+#     root="GKRESHUK",
+#     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.21.14/stack_25_channel_3/SinglePlane_-295/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
+#     insert_singleton_axes_at=[0, 0],
+#     tag="g200311_102114_95",
+#     # length=600
+# )
+# g20200311_102114_95_ls = TensorInfo(
+#     name="ls",
+#     root="GKRESHUK",
+#     location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.21.14/stack_25_channel_3/Cam_Left_*.h5/Data",
+#     insert_singleton_axes_at=[0, 0],
+#     z_slice=95,
+#     tag="g200311_102114_95",
+#     samples_per_dataset=600,
+#     # length=600
+# )
+g20200311_102114_26_lf = TensorInfo(
     name="lf",
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.21.14/stack_25_channel_3/SinglePlane_-295/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
-    tag="g200311_102114_95",
+    tag="g200311_102114_26",
     # length=600
 )
-g20200311_102114_95_ls = TensorInfo(
+g20200311_102114_26_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
     location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.21.14/stack_25_channel_3/Cam_Left_*.h5/Data",
     insert_singleton_axes_at=[0, 0],
-    z_slice=95,
-    tag="g200311_102114_95",
+    z_slice=26,
+    tag="g200311_102114_26",
     samples_per_dataset=600,
     # length=600
 )
+
 
 g20200311_102114_85_lf = TensorInfo(
     name="lf",
@@ -1003,7 +1022,7 @@ if __name__ == "__main__":
             # g20200311_024927_lf,
             # g20200311_101734_110_lf,
             # g20200311_101734_60_lf,
-            # g20200311_102114_95_lf,
+            g20200311_102114_26_lf,
             # g20200311_102114_85_lf,
             # g20200309_043555_60_lf,
             # g20200309_043555_50_lf,
@@ -1046,7 +1065,7 @@ if __name__ == "__main__":
             # g20200311_024927_ls,
             # g20200311_101734_110_ls,
             # g20200311_101734_60_ls,
-            # g20200311_102114_95_ls,
+            g20200311_102114_26_ls,
             # g20200311_102114_85_ls,
             # g20200309_043555_60_ls,
             # g20200309_043555_50_ls,
