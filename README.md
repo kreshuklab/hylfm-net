@@ -1,13 +1,14 @@
 # BEADS
 ## precision and recall
 ### 1.4mu in xy
-01highc_f4 applied to 01highc/4mu: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/01highc_f4/20-04-29_15-40-01`
-4mu_f4 applied to 4mu/01highc: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/4mu_f4/20-04-29_15-51-31`
+01highc_f4 applied to 01highc/4mu: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/01highc_f4/20-04-29_17-08-09`
+4mu_f4 applied to 4mu/01highc: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/4mu_f4/20-04-29_17-09-19`
+01highc_f4_lr applied to 01highc/4mu: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/01highc_f4_lr/20-04-29_17-55-30`
 
 ### 0.7mu in xy
-01highc_f8 applied to 01highc/4mu: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/01highc_f8/20-04-29_15-39-55`
-4mu_f8 applied to 4mu/01highc: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/4mu_f8/20-04-29_15-56-50`
-
+01highc_f8 applied to 01highc/4mu: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/01highc_f8/20-04-29_17-09-06`
+4mu_f8 applied to 4mu/01highc: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/4mu_f8/20-04-29_17-10-01`
+01highc_f8_lr applied to 01highc/4mu: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/01highc_f8_lr/20-04-29_18-38-22`
 
 # BRAIN
 

@@ -68,12 +68,13 @@ stages:
           input_shape: [838, 1330, 1615]
           output_shape: [241, 1501, 1801]
           matrices: [[0.98048,0.004709,0.098297,-111.7542,7.6415e-05,0.97546,0.0030523,-20.1143,0.014629,8.2964e-06,-3.9928,846.8515]]
-          crop_out: *ls_crop
           crop_in: *pred_crop
+          crop_out: *ls_crop
     data:
       - batch_size: *eval_batch_size
         interpolation_order: *interpol
         sample_transforms: *eval_sample_transforms
+        filters: [z_range: {}]
         datasets:
-          - {tensors: {lr: gcamp.ref0_lr, ls: gcamp.ref0_ls}, interpolation_order: *interpol, indices: 0, z_crop: [3, 219]}
+          - {tensors: {lr: gcamp.ref0_lr, ls: gcamp.ref0_ls}, interpolation_order: *interpol, indices: 0}
 #          - {tensors: {lf: gcamp.ref0_lf, lr: gcamp.ref0_lr, ls: gcamp.ref0_ls}, interpolation_order: *interpol, indices: 0}
