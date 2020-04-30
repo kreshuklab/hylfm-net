@@ -1,16 +1,19 @@
-from .base import TensorInfo
+from lnet.datasets.base import TensorInfo
 
 t0454c2_lf = TensorInfo(
     name="lf",
     root="GKRESHUK",
     location="LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_04.54.38/stack_1_channel_2/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
+    insert_singleton_axes_at=[0, 0],
     tag="t0454c2",
     z_slice="idx%241",
     # length=241 * 51,
 )
 t0454c2_ls = TensorInfo(
+    name="ls",
     root="GKRESHUK",
     location="LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_04.54.38/stack_1_channel_2/TP_*/LC/Cam_Left_*.tif",
+    insert_singleton_axes_at=[0, 0, 0],
     tag="t0454c2",
     z_slice="idx%241",
     # length=241 * 51,
