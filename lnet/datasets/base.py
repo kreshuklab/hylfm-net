@@ -248,7 +248,7 @@ class H5Dataset(DatasetFromInfo):
         file_path_glob += h5_ext
         paths, numbers = get_paths_and_numbers(Path(file_path_glob))
         self.numbers = numbers
-        self.h5file_paths = paths
+        self.paths = paths
         self.dataset_paths = []
         for p in paths:
             with h5py.File(p, mode="r") as hf:
@@ -260,7 +260,7 @@ class H5Dataset(DatasetFromInfo):
         assert all(self.dataset_paths), self.dataset_paths
 
     def __len__(self):
-        return len(self.h5file_paths) * self.info.datasets_per_file * self.info.samples_per_dataset
+        return len(self.paths) * self.info.datasets_per_file * self.info.samples_per_dataset
 
     def __getitem__(self, idx: int) -> typing.OrderedDict[str, Union[numpy.ndarray, list]]:
         path_idx = idx // (self.info.datasets_per_file * self.info.samples_per_dataset)
@@ -268,7 +268,7 @@ class H5Dataset(DatasetFromInfo):
         ds_idx = idx // self.info.samples_per_dataset
         idx %= self.info.samples_per_dataset
         dataset_path = self.dataset_paths[path_idx][ds_idx]
-        with h5py.File(self.h5file_paths[path_idx], mode="r") as hf:
+        with h5py.File(self.paths[path_idx], mode="r") as hf:
             h5ds = hf[dataset_path]
             if self.info.samples_per_dataset > 1:
                 img: numpy.ndarray = h5ds[idx : idx + 1]
