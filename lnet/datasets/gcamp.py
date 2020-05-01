@@ -241,7 +241,7 @@ g20200311_073039_130_ls = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_07.30.39/stack_7_channel_3/SinglePlane_-320/TP_*/LC/Cam_Left_*.tif",
     insert_singleton_axes_at=[0, 0, 0],
-    z_slice="from_gcamp_path_130",
+    z_slice=130,
     tag="g200311_073039_130",
     # length=600,
 )
