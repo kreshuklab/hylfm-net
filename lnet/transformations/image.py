@@ -23,18 +23,16 @@ class Crop(Transform):
             raise ValueError("exclusive arguments: `crop` and `crop_fn`")
         elif crop_fn is None:
             assert all(len(c) == 2 for c in crop)
-
-            def default_crop_fn(ipt_shape, crop=crop):
-                return crop
-
-            self.crop_fn = default_crop_fn
+            self.crop = crop
+            self.crop_fn = None
         else:
+            self.crop = None
             self.crop_fn = crop_fn
 
     def apply_to_tensor(
         self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: Optional[dict]
     ) -> Union[numpy.ndarray, torch.Tensor]:
-        crop = self.crop_fn(tensor.shape[2:])
+        crop = self.crop or self.crop_fn(tensor.shape[2:])
         assert len(tensor.shape) - 1 == len(crop), (tensor.shape, crop)
         out = tensor[(slice(None),) + tuple(slice(c[0], c[1]) for c in crop)]
         logger.debug("Crop tensor: %s %s by %s to %s", name, tensor.shape, crop, out.shape)
