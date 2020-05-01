@@ -23,7 +23,11 @@ class Crop(Transform):
             raise ValueError("exclusive arguments: `crop` and `crop_fn`")
         elif crop_fn is None:
             assert all(len(c) == 2 for c in crop)
-            self.crop_fn = lambda _: crop
+
+            def default_crop_fn(ipt_shape, crop=crop):
+                return crop
+
+            self.crop_fn = default_crop_fn
         else:
             self.crop_fn = crop_fn
 
