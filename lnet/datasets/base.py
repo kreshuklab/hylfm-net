@@ -24,7 +24,7 @@ import z5py
 import lnet
 import lnet.datasets.filters
 from lnet import settings
-from lnet.datasets.utils import get_paths_and_numbers
+from lnet.datasets.utils import get_paths_and_numbers, get_gcamp_z_slice_from_path
 from lnet.stat import DatasetStat
 from lnet.transformations.base import ComposedTransformation
 
@@ -94,7 +94,7 @@ class TensorInfo:
         assert isinstance(trfs, list)
         for trf in trfs:
             for kwargs in trf.values():
-                assert kwargs["apply_to"] == self.name, trf
+                assert "apply_to" in kwargs and kwargs["apply_to"] == self.name, trf
 
         self.__transformations = trfs
 
@@ -119,6 +119,7 @@ class TensorInfo:
 
 class DatasetFromInfo(torch.utils.data.Dataset):
     get_z_slice: Callable[[int], Optional[int]]
+    paths: List[Path]
 
     def __init__(self, *, info: TensorInfo):
         super().__init__()
@@ -138,6 +139,7 @@ class DatasetFromInfo(torch.utils.data.Dataset):
         self._z_slice_mod: Optional[int] = None
         self._z_slice: Optional[int] = None
         self._z_offset = 0
+        self._z_slice_from_path: Optional[Callable[[Path], int]] = None
         if info.z_slice is None:
             pass
         elif isinstance(info.z_slice, int):
@@ -150,14 +152,26 @@ class DatasetFromInfo(torch.utils.data.Dataset):
                 z_slice_str = info.z_slice
 
             if z_slice_str.startswith("idx%"):
-                self._z_slice_mod = int(z_slice_str[4:])
+                self._z_slice_mod = int(z_slice_str[len("idx%"):])
+            elif z_slice_str.startswith("from_gcamp_path_"):
+                assert info.name == "ls"
+                self._z_slice = int(z_slice_str[len("from_gcamp_path_"):])
+                retrieved_z_slice = get_gcamp_z_slice_from_path(info.path)
+                assert retrieved_z_slice == self._z_slice, (retrieved_z_slice, self._z_slice)
+            elif z_slice_str.startswith("from_gcamp_path"):
+                self._z_slice_from_path = get_gcamp_z_slice_from_path
+
             else:
                 raise NotImplementedError(info.z_slice)
         else:
             raise NotImplementedError(info.z_slice)
 
     def get_z_slice(self, idx: int) -> Optional[int]:
-        if self._z_slice is None:
+        if self._z_slice_from_path is not None:
+            path_idx = idx // self.info.datasets_per_file
+            idx %= self.info.datasets_per_file
+            return self._z_slice_from_path(self.paths[path_idx])
+        elif self._z_slice is None:
             if self._z_slice_mod is None:
                 return None
             else:

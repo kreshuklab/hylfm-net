@@ -37,6 +37,22 @@ class Crop(Transform):
         return out
 
 
+class FlipAxis(Transform):
+    def __init__(self, axis: int, **super_kwargs):
+        super().__init__(**super_kwargs)
+        self.axis = axis if axis < 0 else axis + 1  # add batch dim for positive axis
+
+    def apply_to_tensor(
+        self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: List[dict]
+    ) -> Union[numpy.ndarray, torch.Tensor]:
+        if isinstance(tensor, numpy.ndarray):
+            return numpy.flip(tensor, axis=self.axis)
+        elif isinstance(tensor, torch.Tensor):
+            return tensor.flip([self.axis])
+        else:
+            raise NotImplementedError
+
+
 class RandomlyFlipAxis(Transform):
     meta_key_format = "flip_axis_{}"
 

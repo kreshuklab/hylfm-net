@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, Optional, OrderedDict, Sequence, Tuple, Union
+from typing import Any, List, Optional, OrderedDict, Sequence, Tuple, Union, Dict
 
 import numpy
 import torch.nn.functional
@@ -84,7 +84,7 @@ class AffineTransformation(torch.nn.Module):
     def __init__(
         self,
         *,
-        apply_to: str,
+        apply_to: Union[str, Dict[str, str]],
         target_to_compare_to: Union[str, Tuple[int, int, int]],
         order: int,
         ref_input_shape: Sequence[int],
@@ -105,7 +105,10 @@ class AffineTransformation(torch.nn.Module):
             raise NotImplementedError
 
         super().__init__()
-        self.apply_to = apply_to
+        if isinstance(apply_to, str):
+            apply_to = {apply_to: apply_to}
+
+        self.apply_to: Dict[str, str] = apply_to
         self.target_to_compare_to = target_to_compare_to
         self.input_shape = ref_input_shape
         self.output_shape = ref_output_shape
@@ -130,7 +133,10 @@ class AffineTransformation(torch.nn.Module):
             ref_crop_in = ref_crop_in[1:]
 
         self.cropped_input_shape = tuple(
-            [c[1] - c[0] if c[1] > 0 else ins - c[0] + c[1] for ins, c in zip(self.input_shape, ref_crop_in)]
+            [
+                ins - c[0] if c[1] is None else c[1] - c[0] if c[1] > 0 else ins - c[0] + c[1]
+                for ins, c in zip(self.input_shape, ref_crop_in)
+            ]
         )
 
         crop_shift_in = numpy.eye(len(ref_input_shape) + 1, dtype=trf_matrix.dtype)
@@ -165,12 +171,15 @@ class AffineTransformation(torch.nn.Module):
 
             logger.info("determined crop_out: %s", ref_crop_out)
         elif len(ref_crop_out) == len(ref_output_shape) + 1:
-            assert ref_crop_out[0][0] == 0 and ref_crop_out[0][1] == 0, ref_crop_out
+            assert ref_crop_out[0][0] == 0 and ref_crop_out[0][1] is None or ref_crop_out[0][1] == 0, ref_crop_out
             ref_crop_out = ref_crop_out[1:]
 
         self.z_offset = ref_crop_out[0][0]
         self.cropped_output_shape = tuple(
-            [c[1] - c[0] if c[1] > 0 else outs - c[0] + c[1] for outs, c in zip(self.output_shape, ref_crop_out)]
+            [
+                outs - c[0] if c[1] is None else c[1] - c[0] if c[1] > 0 else outs - c[0] + c[1]
+                for outs, c in zip(self.output_shape, ref_crop_out)
+            ]
         )
 
         crop_shift_out = numpy.eye(len(ref_output_shape) + 1, dtype=trf_matrix.dtype)
@@ -308,15 +317,16 @@ class AffineTransformation(torch.nn.Module):
             # single z_slice:
             output_sampling_shape = (self.cropped_output_shape[0],) + output_sampling_shape[1:]
 
-        tensors[self.apply_to] = self._impl(
-            ipt=tensors[self.apply_to],
-            matrix=self.trf_matrix,
-            trf_in_shape=self.cropped_input_shape,
-            trf_out_shape=self.cropped_output_shape,
-            order=self.order,
-            output_sampling_shape=output_sampling_shape,
-            z_slices=z_slices,
-        )
+        for in_name, out_name in self.apply_to.items():
+            tensors[out_name] = self._impl(
+                ipt=tensors[in_name],
+                matrix=self.trf_matrix,
+                trf_in_shape=self.cropped_input_shape,
+                trf_out_shape=self.cropped_output_shape,
+                order=self.order,
+                output_sampling_shape=output_sampling_shape,
+                z_slices=z_slices,
+            )
         return tensors
 
 

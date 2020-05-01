@@ -34,6 +34,58 @@ def get_paths_and_numbers(location: Path):
     return found_paths, numbers
 
 
+def get_gcamp_z_slice_from_path(ls_path_with_glob: Path):
+    folder, _ = split_off_glob(ls_path_with_glob)
+    folder = Path(
+        folder.as_posix().replace(
+            "LF_partially_restored/LenseLeNet_Microscope/",
+            "LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/",
+        )
+    )
+    assert folder.exists(), folder
+    subfolder = next(folder.glob("*/")).name
+    regular_exp_LS_pos = "SinglePlane_(-[0-9]{3})"
+    LS_stack_range_start = -450
+    LS_stack_range_end = -210
+    return int(re.search(regular_exp_LS_pos, subfolder).group(1)) - LS_stack_range_start
+
+
+# regular_exp_h5 = "TestOutputGcamp(.*)SinglePlane_-[0-9]{3}"
+# regular_exp_TP = "TP_([0-9]{5})"
+#
+#
+#
+# def gcamp_extract_LS_pos_from_path_of_rectified_file(path_to_rectified_file: Path):
+#     assert path_to_rectified_file.exists()
+#     LS_plane_pos_string = re.search(regular_exp_LS_pos, path_to_rectified_file.as_posix())
+#     LS_plane_pos = int(LS_plane_pos_string.group(1))
+#     assert LS_plane_pos is not None, (path_to_rectified_file, regular_exp_LS_pos)
+#     return LS_plane_pos
+#
+#
+# def gcamp_get_path_of_corresponding_LS_h5_file_from_rectified_file(path_to_rectified_file: Path, base_folder_h5: Path):
+#     assert base_folder_h5.exists(), base_folder_h5
+#     subpath_to_add_to_h5_parent_dir = re.search(regular_exp_h5, path_to_rectified_file.as_posix()).group(1)
+#     TP_used = re.search(regular_exp_TP, path_to_rectified_file.as_posix()).group(1)
+#     h5_file = base_folder_h5 / subpath_to_add_to_h5_parent_dir / f"Cam_Left_{TP_used}.h5"
+#     assert h5_file.exists(), h5_file
+#     return h5_file
+#
+#
+# def gcamp_convert_LS_pos_in_original_stack_to_network_slice_pos(LS_stack_range_start, LS_plane_pos):
+#     LS_pos_in_stack = abs(LS_stack_range_start - LS_plane_pos)
+#     return LS_pos_in_stack
+
+
+# #Check:
+#
+# path_to_corresponding_h5_file = get_path_of_corresponding_LS_h5_file_from_rectified_file(path_to_rectified_file, regular_exp_h5, base_folder_h5, regular_exp_TP)
+#
+# LS_plane_pos = extract_LS_pos_from_path_of_rectified_file(path_to_rectified_file, regular_exp_LS_pos)
+#
+# LS_pos_in_stack = convert_LS_pos_in_original_stack_to_network_slice_pos(LS_stack_range_start, LS_plane_pos)
+
+
 # def get_image_paths(x_folder: Path, x_glob: str, y_folder: Optional[Path], y_glob: Optional[str], *, z_crop: Optional[Tuple[int, int]], z_min: Optional[int], z_max: Optional[int], z_dim: Optional[int], dynamic_z_slice_mod: Optional[int]):
 #     if z_crop is None:
 #         assert z_min is not None
