@@ -691,37 +691,37 @@ g20200311_102114_145_ls = TensorInfo(
 
 # not much happening in:
 g20200309_093152_0_lf = TensorInfo(
-    name = "lf",
-    root = "GKRESHUK",
+    name="lf",
+    root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish4_promising/singlePlanes/fov2/2020-03-09_09.31.52/stack_*_channel_4/*/TP_00000/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
-    tag = "g20200309_093152_0",
+    tag="g20200309_093152_0",
 )
 g20200309_093152_0_ls = TensorInfo(
-    name = "ls",
-    root = "GKRESHUK",
+    name="ls",
+    root="GKRESHUK",
     location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish4_promising/singlePlanes/fov2/2020-03-09_09.31.52/stack_*_channel_4/Cam_Left_00000.h5/Data",
     transformations=deepcopy(from_h5),
     insert_singleton_axes_at=[0, 0],
     samples_per_dataset=600,
-    tag = "g20200309_093152_0",
+    tag="g20200309_093152_0",
     z_slice="from_gcamp_path",
 )
 g20200309_093152_1_lf = TensorInfo(
-    name = "lf",
-    root = "GKRESHUK",
+    name="lf",
+    root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish4_promising/singlePlanes/fov2/2020-03-09_09.31.52/stack_*_channel_4/*/TP_00001/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
-    tag = "g20200309_093152_1",
+    tag="g20200309_093152_1",
 )
 g20200309_093152_1_ls = TensorInfo(
-    name = "ls",
-    root = "GKRESHUK",
+    name="ls",
+    root="GKRESHUK",
     location="LF_partially_restored/LenseLeNet_Microscope/20200309_Gcamp/fish4_promising/singlePlanes/fov2/2020-03-09_09.31.52/stack_*_channel_4/Cam_Left_00001.h5/Data",
     transformations=deepcopy(from_h5),
     insert_singleton_axes_at=[0, 0],
     samples_per_dataset=600,
-    tag = "g20200309_093152_1",
+    tag="g20200309_093152_1",
     z_slice="from_gcamp_path",
 )
 
@@ -1051,6 +1051,28 @@ Gcamp_weird_inference_check_ls = TensorInfo(
     # length=600
 )
 
+
+g20200311_065314_120_lf = TensorInfo(
+    name="lf",
+    root="GKRESHUK",
+    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/5Hz/2020-03-11_06.53.14/stack_34_channel_4/SinglePlane_-330/TP_00000/RC_rectified/Cam_Right_*.tif",
+    insert_singleton_axes_at=[0, 0],
+    tag="g20200311_065314_120",
+    # length=150
+)
+g20200311_065314_120_ls = TensorInfo(
+    name="ls",
+    root="GKRESHUK",
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/5Hz/2020-03-11_06.53.14/stack_34_channel_4/Cam_Left_*.h5/Data",
+    insert_singleton_axes_at=[0, 0],
+    z_slice="from_gcamp_path_120",
+    samples_per_dataset=150,
+    tag="g20200311_065314_120",
+    # length=150
+)
+
+
+
 if __name__ == "__main__":
     import logging
 
@@ -1077,31 +1099,32 @@ if __name__ == "__main__":
             g20200311_102541_110_lf,
             g20200311_102541_155_lf,
             g20200311_102541_145_lf,
-            # g20200311_065726_lf,
-            # g20200311_073447_lf,
-            # g20200311_033035_lf,
-            # g20200311_040327_lf,
-            # g20200311_042734_lf,
-            # g20200311_042839_lf,
-            # g20200311_043502_lf,
-            # g20200311_024927_lf,
-            # g20200311_101734_170_lf,
-            # g20200311_101734_120_lf,
-            # g20200311_102114_155_lf,
-            # g20200311_102114_145_lf,
-            # g20200309_043555_120_lf,
-            # g20200309_043555_110_lf,
-            # g20200309_043555_100_lf,
-            # g20200309_043555_90_lf,
-            # g20200309_043555_80_lf,
-            # g20200309_043555_130_lf,
-            # g20200309_043555_140_lf,
-            # g20200309_043555_150_lf,
-            # g20200309_043555_160_lf,
-            # g20200309_043555_60_lf,
-            # g20200309_043555_70_lf,
-            # g20200309_043555_170_lf,
-            # g20200309_043555_180_lf,
+            g20200311_065726_lf,
+            g20200311_073447_lf,
+            g20200311_033035_lf,
+            g20200311_040327_lf,
+            g20200311_042734_lf,
+            g20200311_042839_lf,
+            g20200311_043502_lf,
+            g20200311_024927_lf,
+            g20200311_101734_170_lf,
+            g20200311_101734_120_lf,
+            g20200311_102114_155_lf,
+            g20200311_102114_145_lf,
+            g20200309_043555_120_lf,
+            g20200309_043555_110_lf,
+            g20200309_043555_100_lf,
+            g20200309_043555_90_lf,
+            g20200309_043555_80_lf,
+            g20200309_043555_130_lf,
+            g20200309_043555_140_lf,
+            g20200309_043555_150_lf,
+            g20200309_043555_160_lf,
+            g20200309_043555_60_lf,
+            g20200309_043555_70_lf,
+            g20200309_043555_170_lf,
+            g20200309_043555_180_lf,
+            g20200311_065314_120_lf,
         ],
         [
             g200311_085233_ls,
@@ -1120,31 +1143,32 @@ if __name__ == "__main__":
             g20200311_102541_110_ls,
             g20200311_102541_155_ls,
             g20200311_102541_145_ls,
-            # g20200311_065726_ls,
-            # g20200311_073447_ls,
-            # g20200311_033035_ls,
-            # g20200311_040327_ls,
-            # g20200311_042734_ls,
-            # g20200311_042839_ls,
-            # g20200311_043502_ls,
-            # g20200311_024927_ls,
-            # g20200311_101734_170_ls,
-            # g20200311_101734_120_ls,
-            # g20200311_102114_155_ls,
-            # g20200311_102114_145_ls,
-            # g20200309_043555_120_ls,
-            # g20200309_043555_110_ls,
-            # g20200309_043555_100_ls,
-            # g20200309_043555_90_ls,
-            # g20200309_043555_80_ls,
-            # g20200309_043555_130_ls,
-            # g20200309_043555_140_ls,
-            # g20200309_043555_150_ls,
-            # g20200309_043555_160_ls,
-            # g20200309_043555_60_ls,
-            # g20200309_043555_70_ls,
-            # g20200309_043555_170_ls,
-            # g20200309_043555_180_ls,
+            g20200311_065726_ls,
+            g20200311_073447_ls,
+            g20200311_033035_ls,
+            g20200311_040327_ls,
+            g20200311_042734_ls,
+            g20200311_042839_ls,
+            g20200311_043502_ls,
+            g20200311_024927_ls,
+            g20200311_101734_170_ls,
+            g20200311_101734_120_ls,
+            g20200311_102114_155_ls,
+            g20200311_102114_145_ls,
+            g20200309_043555_120_ls,
+            g20200309_043555_110_ls,
+            g20200309_043555_100_ls,
+            g20200309_043555_90_ls,
+            g20200309_043555_80_ls,
+            g20200309_043555_130_ls,
+            g20200309_043555_140_ls,
+            g20200309_043555_150_ls,
+            g20200309_043555_160_ls,
+            g20200309_043555_60_ls,
+            g20200309_043555_70_ls,
+            g20200309_043555_170_ls,
+            g20200309_043555_180_ls,
+            g20200311_065314_120_ls,
         ],
     ):
         # try:
@@ -1160,30 +1184,27 @@ if __name__ == "__main__":
 
         print(len(dslf))
         print(dslf[0]["lf"].shape)
-        info_ls.transformations += [
-            # {
-            #     "Resize": {
-            #         "apply_to": "ls",
-            #         # "shape": [1.0, 1.0, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947],
-            #         "shape": [1.0, 1.0, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
-            #         "order": 2,
-            #     }
-            # },
-            {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 1, None, None]}}
-        ]
-        dsls = get_dataset_from_info(info_ls)
-        print(
-            settings.cache_path
-            / f"{dsls.info.tag}_{dsls.tensor_name}_{hash_algorithm(dsls.description.encode()).hexdigest()}.n5"
-        )
-        dsls = N5CachedDatasetFromInfo(dsls)
-
-        print(len(dsls))
-        print(dsls[0]["ls"].shape)
-        assert len(dslf) == len(dsls), (len(dslf), len(dsls))
-
-        s0 = dsls[0]["ls"][0, 0, 0]
-        imageio.imwrite("/g/kreshuk/LF_computed/lnet/debug3.tif", s0)
+        # info_ls.transformations += [
+        #     # {
+        #     #     "Resize": {
+        #     #         "apply_to": "ls",
+        #     #         # "shape": [1.0, 1.0, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947],
+        #     #         "shape": [1.0, 1.0, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
+        #     #         "order": 2,
+        #     #     }
+        #     # },
+        #     {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 1, None, None]}}
+        # ]
+        # dsls = get_dataset_from_info(info_ls)
+        # print(
+        #     settings.cache_path
+        #     / f"{dsls.info.tag}_{dsls.tensor_name}_{hash_algorithm(dsls.description.encode()).hexdigest()}.n5"
+        # )
+        # dsls = N5CachedDatasetFromInfo(dsls)
+        #
+        # print(len(dsls))
+        # print(dsls[0]["ls"].shape)
+        # assert len(dslf) == len(dsls), (len(dslf), len(dsls))
         # except Exception as e:
         #     print("error")
         #     logger.error(e, exc_info=True)
