@@ -17,22 +17,24 @@ logger = logging.getLogger(__name__)
 class A01(LnetModel):
     def __init__(
         self,
+        input_name: str,
+        prediction_name: str,
         z_out: int,
         nnum: int,
-        affine_transform_classes: Dict[str, str],
-        interpolation_order: int,
-        grid_sampling_scale: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+        # affine_transform_classes: Dict[str, str],
+        # interpolation_order: int,
+        # grid_sampling_scale: Tuple[float, float, float] = (1.0, 1.0, 1.0),
         final_activation: Optional[str] = None,
         n_res2d: Sequence[int] = (256, 128, 98),
         inplanes_3d: int = 2,
         n_res3d: Sequence[Sequence[int]] = ((32, 32), (16, 16)),
         init_fn: Callable = nn.init.xavier_uniform_,
     ):
-        assert interpolation_order in [0, 2]
+        # assert interpolation_order in [0, 2]
         # assert len(n_res3d) >= 1, n_res3d
         super().__init__()
-        self.grid_sampling_scale = grid_sampling_scale
-        assert int(z_out * self.grid_sampling_scale[0]) == z_out * self.grid_sampling_scale[0]
+        # self.grid_sampling_scale = grid_sampling_scale
+        # assert int(z_out * self.grid_sampling_scale[0]) == z_out * self.grid_sampling_scale[0]
         self.n_res2d = n_res2d
         n_res2d = [nnum ** 2] + list(n_res2d)
         self.n_res3d = n_res3d
@@ -87,16 +89,16 @@ class A01(LnetModel):
 
         # todo: make learnable with ModuleDict
 
-        self.affine_transforms = {
-            in_shape_for_at: getattr(registration, at_class)(
-                order=interpolation_order, trf_out_zoom=grid_sampling_scale
-            )
-            for in_shape_for_at, at_class in affine_transform_classes.items()
-        }
-        self.z_dims = {
-            in_shape: at.ls_shape[0] - at.lf2ls_crop[0][0] - at.lf2ls_crop[0][1]
-            for in_shape, at in self.affine_transforms.items()
-        }
+        # self.affine_transforms = {
+        #     in_shape_for_at: getattr(registration, at_class)(
+        #         order=interpolation_order, trf_out_zoom=grid_sampling_scale
+        #     )
+        #     for in_shape_for_at, at_class in affine_transform_classes.items()
+        # }
+        # self.z_dims = {
+        #     in_shape: at.ls_shape[0] - at.lf2ls_crop[0][0] - at.lf2ls_crop[0][1]
+        #     for in_shape, at in self.affine_transforms.items()
+        # }
 
         if final_activation == "sigmoid":
             self.final_activation = torch.nn.Sigmoid()
@@ -105,7 +107,8 @@ class A01(LnetModel):
         else:
             self.final_activation = None
 
-    def forward(self, x, z_slices: Optional[Sequence[int]] = None):
+    def forward(self, tensors):
+        x = tensors[self.input_name]
         in_shape = ",".join(str(s) for s in x.shape[1:])
         x = self.res2d(x)
         x = self.conv2d(x)
@@ -113,18 +116,19 @@ class A01(LnetModel):
         x = self.res3d(x)
         x = self.conv3d(x)
 
-        if z_slices is None:
-            out_shape = tuple(int(s * g) for s, g in zip(x.shape[2:], self.grid_sampling_scale))
-        else:
-            z_dim = int(self.z_dims[in_shape] * self.grid_sampling_scale[0])
-            out_shape = (z_dim,) + tuple(int(s * g) for s, g in zip(x.shape[3:], self.grid_sampling_scale[1:]))
+        # if z_slices is None:
+        #     out_shape = tuple(int(s * g) for s, g in zip(x.shape[2:], self.grid_sampling_scale))
+        # else:
+        #     z_dim = int(self.z_dims[in_shape] * self.grid_sampling_scale[0])
+        #     out_shape = (z_dim,) + tuple(int(s * g) for s, g in zip(x.shape[3:], self.grid_sampling_scale[1:]))
 
-        x = self.affine_transforms[in_shape](x, output_shape=out_shape, z_slices=z_slices)
+        # x = self.affine_transforms[in_shape](x, output_shape=out_shape, z_slices=z_slices)
 
         if self.final_activation is not None:
             x = self.final_activation(x)
 
-        return x
+        tensors[self.prediction_name] = x
+        return tensors
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
         s = max(1, 2 * len(self.n_res3d))
@@ -139,11 +143,11 @@ class A01(LnetModel):
         s += 1  # 3d valid conv
 
         # grid sampling scale
-        sfloat = (s * self.grid_sampling_scale[1], s * self.grid_sampling_scale[2])
-        s = (int(sfloat[0]), int(sfloat[1]))
-        assert s == sfloat
+        # sfloat = (s * self.grid_sampling_scale[1], s * self.grid_sampling_scale[2])
+        # s = (int(sfloat[0]), int(sfloat[1]))
+        # assert s == sfloat
 
-        return s
+        return s, s
 
     def get_output_shape(self, ipt_shape: Tuple[int, int]) -> Tuple[int, int, int]:
         return (int(self.z_out * self.grid_sampling_scale[0]),) + tuple(
@@ -155,9 +159,9 @@ def try_a01_static():
     import yaml
 
     import matplotlib.pyplot as plt
-    from lnet.config.data import DataConfig, DataCategory
+    from lnet.setup import DataConfig, DataCategory
 
-    from lnet.config import ModelConfig
+    from lnet.setup import ModelConfig
 
     model_config = ModelConfig.load(
         "A01",
@@ -240,9 +244,9 @@ def try_a01_dynamic():
     import yaml
 
     import matplotlib.pyplot as plt
-    from lnet.config.data import DataConfig, DataCategory
+    from lnet.setup import DataConfig, DataCategory
 
-    from lnet.config import ModelConfig
+    from lnet.setup import ModelConfig
 
     model_config = ModelConfig.load(
         "A01",
