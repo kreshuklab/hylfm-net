@@ -13,45 +13,45 @@ from_h5 = [
 ]
 
 
-ref0_lf = TensorInfo(
-    name="lf",
-    root="lnet",
-    location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/*Cam_Right.tif",
-    insert_singleton_axes_at=[0],
-    tag="ref0",
-)
-ref0_lf_repeated = TensorInfo(
-    name="lf",
-    root="lnet",
-    location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/*Cam_Right.tif",
-    insert_singleton_axes_at=[0],
-    repeat=241,
-    tag="ref0_repeated",
-)
-ref0_sample_ls_slice = TensorInfo(
-    name="ls",
-    root="lnet",
-    location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/*Cam_Left.tif",
-    insert_singleton_axes_at=[0, 0],
-    datasets_per_file=241,
-    z_slice="idx%241",
-    tag="ref0_slice",
-)
-
-ref0_lr = TensorInfo(
-    name="lr",
-    root="lnet",
-    location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/Gcamp_dataset.h5/t[0-9]+/s00/0/cells",
-    insert_singleton_axes_at=[0, 0],
-    tag="ref0",
-)
-ref0_ls = TensorInfo(
-    name="ls",
-    root="lnet",
-    location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/Gcamp_dataset.h5/t[0-9]+/s01/0/cells",
-    insert_singleton_axes_at=[0, 0, 0],
-    tag="ref0",
-)
+# ref0_lf = TensorInfo(
+#     name="lf",
+#     root="lnet",
+#     location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/*Cam_Right.tif",
+#     insert_singleton_axes_at=[0],
+#     tag="ref0",
+# )
+# ref0_lf_repeated = TensorInfo(
+#     name="lf",
+#     root="lnet",
+#     location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/*Cam_Right.tif",
+#     insert_singleton_axes_at=[0],
+#     repeat=241,
+#     tag="ref0_repeated",
+# )
+# ref0_sample_ls_slice = TensorInfo(
+#     name="ls",
+#     root="lnet",
+#     location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/*Cam_Left.tif",
+#     insert_singleton_axes_at=[0, 0],
+#     datasets_per_file=241,
+#     z_slice="idx%241",
+#     tag="ref0_slice",
+# )
+#
+# ref0_lr = TensorInfo(
+#     name="lr",
+#     root="lnet",
+#     location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/Gcamp_dataset.h5/t[0-9]+/s00/0/cells",
+#     insert_singleton_axes_at=[0, 0],
+#     tag="ref0",
+# )
+# ref0_ls = TensorInfo(
+#     name="ls",
+#     root="lnet",
+#     location="ref_data/AffineTransforms/SwipeThrough_-450_-210_nimages_241/Gcamp_dataset.h5/t[0-9]+/s01/0/cells",
+#     insert_singleton_axes_at=[0, 0, 0],
+#     tag="ref0",
+# )
 
 # TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes
 g200311_085233_lf = TensorInfo(
