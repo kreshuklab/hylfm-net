@@ -472,11 +472,18 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
                     mask[idx] = False
 
             with ThreadPoolExecutor(max_workers=settings.max_workers_per_dataset) as executor:
+                futs = []
                 for idx in indices:
-                    executor.submit(apply_filters_to_mask, idx)
+                    futs.append(executor.submit(apply_filters_to_mask, idx))
+
+                for idx, fut in enumerate(futs):
+                    exc = fut.exception()
+                    if exc is not None:
+                        raise exc
 
             numpy.save(str(mask_file_path), mask)
 
+        logger.info("using dataset mask %s", mask_description_file_path)
         self.mask = mask
 
     def shutdown(self):
