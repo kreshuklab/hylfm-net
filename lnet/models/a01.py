@@ -30,6 +30,8 @@ class A01(LnetModel):
         n_res3d: Sequence[Sequence[int]] = ((32, 32), (16, 16)),
         init_fn: Callable = nn.init.xavier_uniform_,
     ):
+        self.input_name = input_name
+        self.prediction_name = prediction_name
         # assert interpolation_order in [0, 2]
         # assert len(n_res3d) >= 1, n_res3d
         super().__init__()
