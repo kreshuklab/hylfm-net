@@ -58,6 +58,9 @@ class TensorInfo:
         tag: Optional[str] = None,
         **kwargs,
     ):
+        assert not location.endswith(".h5"), "h5 path to dataset missing .h5/Dataset"
+        assert transformations or ".h5" not in location, ".h5 datasets require transformation!"
+
         if z_slice is not None and skip_indices:
             raise NotImplementedError("skip indices with z_slice")
 

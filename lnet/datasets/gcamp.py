@@ -65,8 +65,9 @@ g200311_085233_lf = TensorInfo(
 g200311_085233_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_08.52.33/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_08.52.33/stack_1_channel_3/Cam_Left_*.h5/Data",
+    transformations=deepcopy(from_h5),
+    insert_singleton_axes_at=[0, 0],
     z_slice="idx%241",
     tag="g200311_085233",
     # length=30*241=7230,
@@ -83,8 +84,9 @@ g200311_090800_lf = TensorInfo(
 g200311_090800_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_09.08.00/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_09.08.00/stack_1_channel_3/Cam_Left_*.h5/Data",
+    transformations=deepcopy(from_h5),
+    insert_singleton_axes_at=[0, 0],
     tag="g200311_090800",
     z_slice="idx%241"
     # length=15*241,
@@ -103,8 +105,9 @@ g200311_083021_lf = TensorInfo(
 g200311_083021_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.30.21/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.30.21/stack_36_channel_3/Cam_Left_*.h5/Data",
+    transformations=deepcopy(from_h5),
+    insert_singleton_axes_at=[0, 0],
     tag="g200311_083021",
     z_slice="60+idx%121"
     # length=8*121,
@@ -121,8 +124,9 @@ g200311_083419_lf = TensorInfo(
 g200311_083419_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.34.19/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.34.19/stack_36_channel_3/Cam_Left_*.h5/Data",
+    transformations=deepcopy(from_h5),
+    insert_singleton_axes_at=[0, 0],
     tag="g200311_083419",
     z_slice="60+idx%121"
     # length=8*121,
@@ -139,8 +143,9 @@ g200311_083658_lf = TensorInfo(
 g200311_083658_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.36.58/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.36.58/stack_36_channel_3/Cam_Left_*.h5/Data",
+    transformations=deepcopy(from_h5),
+    insert_singleton_axes_at=[0, 0],
     tag="g200311_083658",
     z_slice="60+idx%121"
     # length=8*121,
@@ -239,8 +244,9 @@ g20200311_073039_130_lf = TensorInfo(
 g20200311_073039_130_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_07.30.39/stack_7_channel_3/SinglePlane_-320/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_07.30.39/stack_7_channel_3/Cam_Left_*.h5/Data",
+    transformations=deepcopy(from_h5),
+    insert_singleton_axes_at=[0, 0],
     z_slice=130,
     tag="g200311_073039_130",
     # length=600,
@@ -258,8 +264,9 @@ g20200311_073039_140_lf = TensorInfo(
 g20200311_073039_140_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_07.30.39/stack_8_channel_3/SinglePlane_-310/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_07.30.39/stack_8_channel_3/Cam_Left_*.h5/Data",
+    transformations=deepcopy(from_h5),
+    insert_singleton_axes_at=[0, 0],
     z_slice=140,
     tag="g200311_073039_140",
     # length=600,
@@ -277,8 +284,9 @@ g20200311_101320_160_lf = TensorInfo(
 g20200311_101320_160_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_10.13.20/stack_10_channel_3/SinglePlane_-290/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_10.13.20/stack_10_channel_3/Cam_Left_*.h5/Data",
+    transformations=deepcopy(from_h5),
+    insert_singleton_axes_at=[0, 0],
     z_slice=160,
     tag="00311_101320_160",
     # length=600
@@ -296,8 +304,9 @@ g20200311_101320_135_lf = TensorInfo(
 g20200311_101320_135_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_10.13.20/stack_24_channel_3/SinglePlane_-315/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_10.13.20/stack_24_channel_3/Cam_Left_*.h5/Data",
+    transformations=deepcopy(from_h5),
+    insert_singleton_axes_at=[0, 0],
     z_slice=135,
     tag="g200311_101320_135",
     # length=600
@@ -315,8 +324,9 @@ g20200311_102541_110_lf = TensorInfo(
 g20200311_102541_110_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_10.25.41/stack_3_channel_3/SinglePlane_-340/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_10.25.41/stack_3_channel_3/Cam_Left_*.h5/Data",
+    transformations=deepcopy(from_h5),
+    insert_singleton_axes_at=[0, 0],
     z_slice=110,
     tag="g20200311_102541_110",
     # length=600
@@ -333,8 +343,9 @@ g20200311_102541_155_lf = TensorInfo(
 g20200311_102541_155_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_10.25.41/stack_25_channel_3/SinglePlane_-295/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_10.25.41/stack_25_channel_3/Cam_Left_*.h5/Data",
+    transformations=deepcopy(from_h5),
+    insert_singleton_axes_at=[0, 0],
     z_slice=155,
     tag="g200311_102541_155",
     # length=
@@ -352,8 +363,9 @@ g20200311_102541_145_lf = TensorInfo(
 g20200311_102541_145_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_10.25.41/stack_29_channel_3/SinglePlane_-305/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/2020-03-11_10.25.41/stack_29_channel_3/Cam_Left_*.h5/Data",
+    transformations=deepcopy(from_h5),
+    insert_singleton_axes_at=[0, 0],
     z_slice=145,
     tag="g200311_102541_145",
     # length=600
@@ -393,8 +405,9 @@ g20200311_073447_lf = TensorInfo(
 g20200311_073447_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/2020-03-11_07.34.47/stack_33_channel_3/SwipeThrough_-390_-270_nimages_121/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
+    location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/2020-03-11_07.34.47/stack_33_channel_3/Cam_Left_*.h5/Data",
+    transformations=deepcopy(from_h5),
+    insert_singleton_axes_at=[0, 0],
     tag="g20200311_073447",
     z_slice="60+idx%121",
     # length=9680
@@ -587,15 +600,6 @@ g20200311_102114_155_ls = TensorInfo(
     z_slice="from_gcamp_path_155",
     tag="g200311_102114_155",
     samples_per_dataset=600,
-    # length=600
-)
-g20200311_102114_155_ls_tif = TensorInfo(
-    name="ls",
-    root="GKRESHUK",
-    location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/singlePlane/superNice/2020-03-11_10.21.14/stack_25_channel_3/SinglePlane_-295/TP_*/LC/Cam_Left_*.tif",
-    insert_singleton_axes_at=[0, 0, 0],
-    z_slice=155,
-    tag="g200311_102114_155_tif",
     # length=600
 )
 
@@ -1073,7 +1077,6 @@ g20200311_065314_120_ls = TensorInfo(
 )
 
 
-
 if __name__ == "__main__":
     import logging
 
@@ -1194,7 +1197,7 @@ if __name__ == "__main__":
                     "order": 2,
                 }
             },
-            {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 1, None, None]}}
+            {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 1, None, None]}},
         ]
         dsls = get_dataset_from_info(info_ls)
         print(
