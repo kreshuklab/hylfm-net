@@ -17,6 +17,7 @@ t0454c2_ls = TensorInfo(
     tag="t0454c2",
     z_slice="idx%241",
     # length=241 * 51,
+    # 1651x1451
 )
 
 t0454c3_lf = TensorInfo(
@@ -138,6 +139,7 @@ insert_singleton_axes_at=[0, 0],
 # #     z_slice="idx%241",
 # # )
 
+# LenseLeNet_Microscope\20191208_dynamic_static_heart\fish2\dynamic\Heart_tightCrop\2019-12-09_05.41.14_theGoldenOne
 t0541c2p30_lf = TensorInfo(
     name="lf",
     root="GKRESHUK",
