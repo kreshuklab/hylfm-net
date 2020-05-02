@@ -1064,6 +1064,7 @@ g20200311_065314_120_ls = TensorInfo(
     name="ls",
     root="GKRESHUK",
     location="LF_partially_restored/LenseLeNet_Microscope/20200311_Gcamp/fish2/5Hz/2020-03-11_06.53.14/stack_34_channel_4/Cam_Left_*.h5/Data",
+    transformations=deepcopy(from_h5),
     insert_singleton_axes_at=[0, 0],
     z_slice="from_gcamp_path_120",
     samples_per_dataset=150,
