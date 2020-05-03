@@ -4,6 +4,7 @@ import bisect
 import logging
 import re
 import typing
+import warnings
 from collections import OrderedDict
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -62,7 +63,9 @@ class TensorInfo:
         assert transformations or ".h5" not in location, ".h5 datasets require transformation!"
 
         if z_slice is not None and skip_indices:
-            raise NotImplementedError("skip indices with z_slice")
+            warnings.warn(
+                f"z_slice {z_slice}) and skip_indices {skip_indices} specified. skip_indices indices are directly based on path index and ignore z_slice."
+            )
 
         assert isinstance(name, str)
         assert isinstance(root, str)
@@ -155,10 +158,10 @@ class DatasetFromInfo(torch.utils.data.Dataset):
                 z_slice_str = info.z_slice
 
             if z_slice_str.startswith("idx%"):
-                self._z_slice_mod = int(z_slice_str[len("idx%"):])
+                self._z_slice_mod = int(z_slice_str[len("idx%") :])
             elif z_slice_str.startswith("from_gcamp_path_"):
                 assert info.name == "ls"
-                self._z_slice = int(z_slice_str[len("from_gcamp_path_"):])
+                self._z_slice = int(z_slice_str[len("from_gcamp_path_") :])
                 retrieved_z_slice = get_gcamp_z_slice_from_path(info.path)
                 assert retrieved_z_slice == self._z_slice, (retrieved_z_slice, self._z_slice)
             elif z_slice_str.startswith("from_gcamp_path"):
