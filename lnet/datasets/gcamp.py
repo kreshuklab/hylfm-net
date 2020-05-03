@@ -55,9 +55,9 @@ g200311_085233_lf = TensorInfo(
     root="GKRESHUK",
     location="LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/241Planes/2020-03-11_08.52.33/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
     insert_singleton_axes_at=[0, 0],
-    tag="g200311_085233_a",
+    tag="g200311_085233",
     # length=31*241,
-    skip_indices=[18],  # missing rectified images
+    # skip_indices=[TP00018],  # missing rectified images
     # length=30*241,
 )
 g200311_085233_ls = TensorInfo(
