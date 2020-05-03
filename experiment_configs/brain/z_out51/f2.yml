@@ -4,8 +4,13 @@ z_out: &z_out 51
 
 toolbox: # defines yaml placeholders
   interpol: &interpol 2
-  lf_crop: &lf_crop [[0, null], [133, 1121], [323, 1596]]
-  ls_crop: &ls_crop [[0, null], [0, null], [16, -36], [46, -10]]
+  # lf_crop no shrinkage: &lf_crop [[0, null], [133, 1121], [323, 1596]]  # [133, 1121], [323, 1596] / 19 = [7, 59], [17, 84] # max: 70, 85
+  lf_crop: &lf_crop [[0, null], [76, 1178], [266, 1615]]  # f2 shrinkage: 6/2*19 = 38; lenslets cut: (3, 3), (3, 1)
+#   lf_crop: &lf_crop [[0, null], [95, 1159], [266, 1615]]  # f4 shrinkage: 8/4*19 = 38; lenslets cut: (2, 2), (2, 1)
+#   lf_crop: &lf_crop [[0, null], [114, 1140], [304, 1615]]  # f8 shrinkage: 8/8*19 = 19; lenslets cut: (1, 1), (1, 1)
+  ls_crop: &ls_crop [[0, null], [0, null], [16, -36], [46, -10]] # f2
+#   ls_crop: &ls_crop [[0, null], [0, null], [32, -72], [92, -20]]  # f4
+#   ls_crop: &ls_crop [[0, null], [0, null], [64, -144], [184, -40]]  # f8
   ls_z_min: &ls_z_min 60
   ls_z_max: &ls_z_max 181
   metrics: &metrics
@@ -13,15 +18,15 @@ toolbox: # defines yaml placeholders
     SSIM: {tensor_names: {y_pred: pred, y: ls}, window_size: 11, window: null, size_average: true, full: false, val_range: null}
     NRMSE: {tensor_names: {y_pred: pred, y: ls}}
     PSNR: {tensor_names: {y_pred: pred, y: ls}, data_range: null}
-    BeadPrecision: {tensor_names: {y_pred: pred, y: ls}, dist_threshold: &beadPR 5.0}
-    BeadRecall: {tensor_names: {y_pred: pred, y: ls}, dist_threshold: *beadPR}
     SmoothL1Loss: {tensor_names: {y_pred: pred, y: ls}}
     MSELoss: {tensor_names: {y_pred: pred, y: ls}}
 
   eval_batch_size: &eval_batch_size 2
   sample_trfs: &sample_trfs
+    - Assert: {apply_to: lf, expected_tensor_shape: [null, 1, null, null]}
     - Resize: {apply_to: ls, shape: [1.0, 1.0, 0.10526315789473684210526315789474, 0.10526315789473684210526315789474], order: 2}  # 2/19=0.10526315789473684210526315789474; 4/19=0.21052631578947368421052631578947; 8/19=0.42105263157894736842105263157895
     - Assert: {apply_to: ls, expected_tensor_shape: [null, 1, 1, null, null]}
+
   eval_sample_prepr: &eval_sample_prepr
     - Crop: {apply_to: lf, crop: *lf_crop}
     - Crop: {apply_to: ls, crop: *ls_crop}
@@ -32,6 +37,7 @@ toolbox: # defines yaml placeholders
   batch_prepr_in_step: &batch_prepr_in_step
     - Cast: {apply_to: [lfc, ls], dtype: *precision, device: cuda, non_blocking: true}
   batch_postpr: &batch_postpr
+    - Assert: {apply_to: pred, expected_tensor_shape: [null, 1, *z_out, null, null]}
     - AffineTransformation:
         apply_to: pred
         target_to_compare_to: ls
@@ -39,7 +45,10 @@ toolbox: # defines yaml placeholders
         ref_input_shape: [838, 1330, 1615]
         bdv_affine_transformations: [[0.98048,0.004709,0.098297,-111.7542,7.6415e-05,0.97546,0.0030523,-20.1143,0.014629,8.2964e-06,-3.9928,846.8515]]
         ref_output_shape: [241, 1501, 1801]
-        ref_crop_in: [[152, -223], [133, 1121], [323, 1596]]  # 323, 133, 1273, 988
+#         ref_crop_in: [[152, -223], [133, 1121], [323, 1596]]  # 463x988x1273 - 0x0x0 no excess shrinkage
+        ref_crop_in: [[152, -223], [133, 1121], [323, 1558]]  # f2: shrinkage lnet: (0, 0)x(0, 0)x(0, -2); shrinkage: -2*19 = -38
+#         ref_crop_in: [[152, -223], [133, 1121], [323, 1577]]  # f4: shrinkage lnet: (0, 0)x(0, 0)x(0, -1); shrinkage: -*19 = -19
+#         ref_crop_in: [[152, -223], [133, 1121], [323, 1596]]  # f8: shrinkage lnet: (0, 0)x(0, 0)x(0, 0)
         ref_crop_out: [[*ls_z_min, *ls_z_max], [152, -323], [418, -57]]
 
 model:

@@ -1142,10 +1142,12 @@ if __name__ == "__main__":
 
     for info_lf, info_ls in zip(
         [
-t0454c2_lf
+t0454c2_lf,
+t0521c2_lf
         ],
         [
-t0454c2_ls
+t0454c2_ls,
+t0521c2_ls
         ],
     ):
         try:

@@ -57,6 +57,8 @@ g200311_085233_lf = TensorInfo(
     insert_singleton_axes_at=[0, 0],
     tag="g200311_085233_a",
     # length=31*241,
+    skip_indices=[18],  # missing rectified images
+    # length=30*241,
 )
 g200311_085233_ls = TensorInfo(
     name="ls",
@@ -68,6 +70,8 @@ g200311_085233_ls = TensorInfo(
     z_slice="idx%241",
     tag="g200311_085233",
     # length=31*241,
+    skip_indices=[18],
+    # length=30*241,
 )
 
 g200311_090800_lf = TensorInfo(
