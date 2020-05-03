@@ -312,6 +312,8 @@ class AffineTransformation(torch.nn.Module):
             z_slices = None
             output_sampling_shape = tuple(self.target_to_compare_to)
 
+        assert 0 not in output_sampling_shape, output_sampling_shape
+
         assert len(output_sampling_shape) == 3, output_sampling_shape
         if output_sampling_shape[0] == 1:
             # single z_slice:

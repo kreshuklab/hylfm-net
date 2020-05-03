@@ -101,7 +101,7 @@ class Assert(Transform):
             raise ValueError(f"expected shape {self.expected_shape}, but found {shape_is}")
 
         for si, s in zip(shape_is, self.expected_shape):
-            if s is None:
+            if s is None and si > 0:
                 continue
             elif si != s:
                 raise ValueError(f"expected shape {self.expected_shape}, but found {shape_is}")

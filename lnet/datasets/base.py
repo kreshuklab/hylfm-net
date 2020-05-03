@@ -241,9 +241,6 @@ class H5Dataset(DatasetFromInfo):
         return ds_resolver
 
     def __init__(self, *, info: TensorInfo):
-        if info.skip_indices:
-            raise NotImplementedError("skip_indices")
-
         if info.kwargs:
             raise NotImplementedError(info.kwargs)
         super().__init__(info=info)
@@ -253,8 +250,8 @@ class H5Dataset(DatasetFromInfo):
         within_pattern = within_pattern.strip("/")
         file_path_glob += h5_ext
         paths, numbers = get_paths_and_numbers(Path(file_path_glob))
+        self.paths = [p for i, p in enumerate(paths) if i not in info.skip_indices]
         self.numbers = numbers
-        self.paths = paths
         self.dataset_paths = []
         for p in paths:
             with h5py.File(p, mode="r") as hf:
@@ -615,7 +612,7 @@ class ConcatDataset(torch.utils.data.ConcatDataset):
         sample = super().__getitem__(idx)
         dataset_idx = bisect.bisect_right(self.cumulative_sizes, idx)
         for tmeta in sample["meta"]:
-            tmeta["dataset_idx"] = dataset_idx
+            tmeta["dataset_idx"] = tmeta.get("dataset_idx", []) + [dataset_idx]
 
         if self.transform is not None:
             sample = self.transform(sample)
