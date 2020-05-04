@@ -429,6 +429,9 @@ class Stage:
 
         return self._engine
 
+    def setup(self):
+        return self.engine, self.data_loader, self.max_epochs, self.epoch_length, self.seed
+
     def run(self):
         state = self.engine.run(
             data=self.data_loader, max_epochs=self.max_epochs, epoch_length=self.epoch_length, seed=self.seed
@@ -676,7 +679,14 @@ class Setup:
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
         return self.model.get_scaling(ipt_shape)
 
+    def setup(self) -> None:
+        for parallel_stages in self.stages:
+            for stage in parallel_stages:
+                logger.info("setup stage: %s", stage.name)
+                stage.setup()
+
     def run(self) -> None:
+        self.setup()
         try:
             for parallel_stages in self.stages:
                 for stage in parallel_stages:
