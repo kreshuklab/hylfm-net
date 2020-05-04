@@ -11,7 +11,7 @@ from inferno.extensions.initializers import Constant, Initialization
 from lnet import registration
 from lnet.models.base import LnetModel
 from lnet.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
-from lnet.transforms import EdgeCrop
+from lnet.transformations import EdgeCrop
 
 logger = logging.getLogger(__name__)
 
@@ -112,12 +112,12 @@ class A02(LnetModel):
 
         # todo: make learnable with ModuleDict
 
-        self.affine_transforms = {
-            in_shape_for_at: getattr(registration, at_class)(
-                order=interpolation_order, trf_out_zoom=grid_sampling_scale, forward="lf2ls"
-            )
-            for in_shape_for_at, at_class in affine_transform_classes.items()
-        }
+        # self.affine_transforms = {
+        #     in_shape_for_at: getattr(registration, at_class)(
+        #         order=interpolation_order, trf_out_zoom=grid_sampling_scale, forward="lf2ls"
+        #     )
+        #     for in_shape_for_at, at_class in affine_transform_classes.items()
+        # }
         self.z_dims = {
             in_shape: at.ls_shape[0] - at.lf2ls_crop[0][0] - at.lf2ls_crop[0][1]
             for in_shape, at in self.affine_transforms.items()
@@ -152,8 +152,8 @@ class A02(LnetModel):
         else:
             out_shape = tuple(int(s * g) for s, g in zip(x.shape[2:], self.grid_sampling_scale))
 
-        if self.affine_transforms:
-            x = self.affine_transforms[in_shape](x, output_shape=out_shape, z_slices=z_slices)
+        # if self.affine_transforms:
+        #     x = self.affine_transforms[in_shape](x, output_shape=out_shape, z_slices=z_slices)
 
         if self.final_activation is not None:
             x = self.final_activation(x)

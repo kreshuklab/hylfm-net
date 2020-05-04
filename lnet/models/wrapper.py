@@ -37,6 +37,7 @@ class AffineTransformationAndSliceWrapper(LnetModel):
         self.get_output_shape = self.inner.get_output_shape
 
     def forward(self, x, z_slices=None):
+        raise NotImplementedError
         if z_slices is None:
             return self.inner.forward(x)
         else:

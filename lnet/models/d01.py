@@ -176,9 +176,9 @@ def try_static():
     import yaml
 
     import matplotlib.pyplot as plt
-    from lnet.config.data import DataConfig, DataCategory
+    from config.config import DataConfig, DataCategory
 
-    from lnet.config import ModelConfig
+    from config.config import ModelConfig
 
     model_config = ModelConfig.load(
         "D01",
@@ -266,9 +266,9 @@ def try_dynamic():
     import yaml
 
     import matplotlib.pyplot as plt
-    from lnet.config.data import DataConfig, DataCategory
+    from config.config import DataConfig, DataCategory
 
-    from lnet.config import ModelConfig
+    from config.config import ModelConfig
 
     model_config = ModelConfig.load(
         "D01",

@@ -1,6 +1,7 @@
 import logging
+import typing
 from functools import partial
-from typing import Optional, Sequence, Tuple
+from typing import Any, Optional, Sequence, Tuple
 
 import torch.nn
 import torch.nn as nn
@@ -76,7 +77,8 @@ class M22(LnetModel):
         else:
             self.final_activation = None
 
-    def forward(self, x):
+    def forward(self, tensors: typing.OrderedDict[str, Any]):
+        x = tensors["lf"]
         x = self.res2d(x)
         x = self.conv2d(x)
         x = self.c2z(x)
@@ -86,7 +88,8 @@ class M22(LnetModel):
         if self.final_activation is not None:
             x = self.final_activation(x)
 
-        return x
+        tensors["pred"] = x
+        return tensors
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
         s = 2 * len(self.n_res3d)
