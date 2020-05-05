@@ -1140,16 +1140,16 @@ if __name__ == "__main__":
     from lnet.settings import settings
     from lnet.datasets.base import get_dataset_from_info, N5CachedDatasetFromInfo
 
-    logger = logging.getLogger("gcamp")
+    logger = logging.getLogger("fdyn")
 
     for info_lf, info_ls in zip(
         [
 t0454c2_lf,
-t0521c2_lf
+# t0521c2_lf
         ],
         [
 t0454c2_ls,
-t0521c2_ls
+# t0521c2_ls
         ],
     ):
         try:

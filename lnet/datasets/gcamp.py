@@ -5,7 +5,9 @@ from lnet.datasets.base import TensorInfo
 
 from_h5 = [
     {"FlipAxis": {"apply_to": "ls", "axis": 2}},
-    {"Crop": {"apply_to": "ls", "crop": [[0, None], [0, None], [273, 1774], [123, 1924]]}},
+    {
+        "Crop": {"apply_to": "ls", "crop": [[0, None], [0, None], [273, 1774], [123, 1924]]}
+    },  # in matlab: 124, 274, 1800, 1500
 ]
 
 

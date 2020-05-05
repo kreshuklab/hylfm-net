@@ -151,10 +151,8 @@ class DatasetGroupSetup:
                 [
                     (
                         name,
-                        N5CachedDatasetFromInfoSubset(
-                            N5CachedDatasetFromInfo(get_dataset_from_info(dsinfo)),
-                            indices=dss.indices,
-                            filters=self.filters + dss.filters,
+                        get_dataset_from_info(
+                            dsinfo, cache=True, indices=dss.indices, filters=self.filters + dss.filters
                         ),
                     )
                     for name, dsinfo in dss.infos.items()
@@ -197,7 +195,9 @@ class DatasetSetup:
             if isinstance(info_name, str):
                 info_module_name, info_name = info_name.split(".")
                 info_module = import_module("." + info_module_name, "lnet.datasets")
-                info = deepcopy(getattr(info_module, info_name))
+                info = deepcopy(getattr(info_module, info_name, None))
+                if info is None:
+                    info = getattr(info_module, "get_tensor_info")(tag=info_name)
             elif isinstance(info_name, dict):
                 info = TensorInfo(**info_name)
             else:

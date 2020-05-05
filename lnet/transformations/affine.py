@@ -124,13 +124,15 @@ class AffineTransformation(torch.nn.Module):
 
         self.affine_grids = {}
 
-        self.forward = self.inverted if inverted else self._forward
+        self.forward = self._inverted if inverted else self._forward
 
         if ref_crop_in is None:
             ref_crop_in = tuple([(0, 0) for _ in range(len(ref_input_shape))])
-        elif len(ref_crop_in) == len(ref_input_shape) + 1:
-            assert ref_crop_in[0][0] == 0 and ref_crop_in[0][1] == 0, ref_crop_in
-            ref_crop_in = ref_crop_in[1:]
+        else:
+            assert len(ref_crop_in) == len(ref_input_shape)
+        # elif len(ref_crop_in) == len(ref_input_shape) + 1:
+        #     assert ref_crop_in[0][0] == 0 and ref_crop_in[0][1] == 0, ref_crop_in
+        #     ref_crop_in = ref_crop_in[1:]
 
         self.cropped_input_shape = tuple(
             [
@@ -185,6 +187,7 @@ class AffineTransformation(torch.nn.Module):
         crop_shift_out = numpy.eye(len(ref_output_shape) + 1, dtype=trf_matrix.dtype)
         crop_shift_out[:-1, -1] = [c[0] for c in ref_crop_out]
         self.trf_matrix = trf_matrix.dot(crop_shift_out)
+        self.trf_matrix_inv = numpy.linalg.inv(self.trf_matrix)
         self.order = order
 
     @staticmethod
@@ -295,14 +298,32 @@ class AffineTransformation(torch.nn.Module):
         else:
             raise TypeError(type(ipt))
 
-    def inverted(self, ipt: Union[torch.Tensor, numpy.ndarray], **kwargs) -> OrderedDict[str, Any]:
-        raise NotImplementedError
-        ipt = tensors[self.apply_to]
-        tgt = tensors[self.target_to_compare_to]
+    def _inverted(self, tensors: OrderedDict[str, Any]) -> OrderedDict[str, Any]:
+        if isinstance(self.target_to_compare_to, str):
+            z_slices = [m.get(self.target_to_compare_to, {}).get("z_slice", None) for m in tensors["meta"]]
+            output_sampling_shape = tensors[self.target_to_compare_to].shape[2:]
+        else:
+            z_slices = None
+            output_sampling_shape = tuple(self.target_to_compare_to)
 
-        return self._impl(
-            ipt, matrix=self.trf_matrix, trf_in_shape=self.output_shape, trf_out_shape=self.input_shape, **kwargs
-        )
+        assert 0 not in output_sampling_shape, output_sampling_shape
+        assert len(output_sampling_shape) == 3, output_sampling_shape
+
+        if output_sampling_shape[0] == 1:
+            # single z_slice:
+            output_sampling_shape = (self.cropped_input_shape[0],) + output_sampling_shape[1:]
+
+        for in_name, out_name in self.apply_to.items():
+            tensors[out_name] = self._impl(
+                ipt=tensors[in_name],
+                matrix=self.trf_matrix_inv,
+                trf_in_shape=self.cropped_output_shape,
+                trf_out_shape=self.cropped_input_shape,
+                order=self.order,
+                output_sampling_shape=output_sampling_shape,
+                z_slices=z_slices,
+            )
+        return tensors
 
     def _forward(self, tensors: OrderedDict[str, Any]) -> OrderedDict[str, Any]:
         if isinstance(self.target_to_compare_to, str):
@@ -313,8 +334,8 @@ class AffineTransformation(torch.nn.Module):
             output_sampling_shape = tuple(self.target_to_compare_to)
 
         assert 0 not in output_sampling_shape, output_sampling_shape
-
         assert len(output_sampling_shape) == 3, output_sampling_shape
+
         if output_sampling_shape[0] == 1:
             # single z_slice:
             output_sampling_shape = (self.cropped_output_shape[0],) + output_sampling_shape[1:]

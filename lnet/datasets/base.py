@@ -25,7 +25,7 @@ import z5py
 import lnet
 import lnet.datasets.filters
 from lnet import settings
-from lnet.datasets.utils import get_paths_and_numbers, get_gcamp_z_slice_from_path
+from lnet.datasets.utils import get_gcamp_z_slice_from_path, get_paths_and_numbers
 from lnet.stat import DatasetStat
 from lnet.transformations.base import ComposedTransformation
 
@@ -52,7 +52,7 @@ class TensorInfo:
         datasets_per_file: int = 1,
         samples_per_dataset: int = 1,
         insert_singleton_axes_at: Sequence[int] = tuple(),
-        z_slice: Optional[Union[str, int]] = None,
+        z_slice: Optional[Union[str, int, Callable[[int], int]]] = None,
         skip_indices: Sequence[int] = tuple(),
         meta: Optional[dict] = None,
         repeat: int = 1,
@@ -60,7 +60,11 @@ class TensorInfo:
         **kwargs,
     ):
         assert not location.endswith(".h5"), "h5 path to dataset missing .h5/Dataset"
+
+        # data specific asserts
         assert transformations or ".h5" not in location, ".h5 datasets require transformation!"
+        if "Heart_tightCrop" in location and z_slice is not None:
+            assert callable(z_slice) and z_slice(0), "z direction is inverted for 'Heart_tightCrop'"
 
         if z_slice is not None and skip_indices:
             warnings.warn(
@@ -100,7 +104,7 @@ class TensorInfo:
         assert isinstance(trfs, list)
         for trf in trfs:
             for kwargs in trf.values():
-                assert "apply_to" in kwargs and kwargs["apply_to"] == self.name, trf
+                assert "apply_to" in kwargs and kwargs["apply_to"] == self.name, (self.name, trf)
 
         self.__transformations = trfs
 
@@ -115,7 +119,7 @@ class TensorInfo:
                 "datasets_per_file": self.datasets_per_file,
                 "samples_per_dataset": self.samples_per_dataset,
                 "insert_singleton_axes_at": self.insert_singleton_axes_at,
-                "z_slice": self.z_slice,
+                "z_slice": str(self.z_slice) if callable(self.z_slice) else self.z_slice,
                 "skip_indices": list(self.skip_indices),
                 "meta": self.meta,
                 "kwargs": self.kwargs,
@@ -170,7 +174,7 @@ class DatasetFromInfo(torch.utils.data.Dataset):
             else:
                 raise NotImplementedError(info.z_slice)
         else:
-            raise NotImplementedError(info.z_slice)
+            self.get_z_slice = info.z_slice
 
     def get_z_slice(self, idx: int) -> Optional[int]:
         if self._z_slice_from_path is not None:
@@ -181,7 +185,7 @@ class DatasetFromInfo(torch.utils.data.Dataset):
             if self._z_slice_mod is None:
                 return None
             else:
-                return self._z_offset + (idx % self._z_slice_mod)
+                return abs(self._z_offset + (idx % self._z_slice_mod))
         else:
             if self._z_slice_mod is None:
                 return self._z_offset + self._z_slice
@@ -282,20 +286,6 @@ class H5Dataset(DatasetFromInfo):
             img = numpy.expand_dims(img, axis=axis)
 
         return self.transform(OrderedDict(**{self.tensor_name: img}))
-
-
-def get_dataset_from_info(info: TensorInfo) -> DatasetFromInfo:
-    if info.location.endswith(".tif"):
-        return TiffDataset(info=info)
-    elif ".h5" in info.location:
-        return H5Dataset(info=info)
-    else:
-        raise NotImplementedError
-
-
-# N5CachedDataset_submit_lock = torch.multiprocessing.Lock()
-# N5CachedDataset_executor = None
-# N5CachedDataset_executor_user_count = 0
 
 
 class DatasetFromInfoExtender(torch.utils.data.Dataset):
@@ -466,6 +456,15 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
         else:
             mask = numpy.zeros(len(dataset), dtype=bool)
             mask[numpy.asarray(indices)] = True
+            for name, kwargs in filters:
+                for k, v in kwargs.items():
+                    if isinstance(v, dict) and len(v) == 1:
+                        kk = v.keys()[0]
+                        if kk == "percentile":
+                            kwargs[k] = dataset.stat.get_percentiles(dataset.dataset.tensor_name, [v[kk]])
+                        else:
+                            raise NotImplementedError
+
             filters = [
                 partial(getattr(lnet.datasets.filters, name), dataset=dataset, **kwargs) for name, kwargs in filters
             ]
@@ -520,6 +519,33 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
                 assert idx_is == idx, f"expected existing idx to be equal to {idx} or none, but got {idx_is}"
 
         return super().update_meta(meta)
+
+
+def get_dataset_from_info(
+    info: TensorInfo,
+    transformations: Sequence[Dict[str, dict]] = tuple(),
+    cache: bool = False,
+    indices: Optional[Sequence[int]] = None,
+    filters: Sequence[Tuple[str, Dict[str, Any]]] = tuple(),
+) -> Union[DatasetFromInfo, N5CachedDatasetFromInfo, N5CachedDatasetFromInfoSubset]:
+    info.transformations += list(transformations)
+    if info.location.endswith(".tif"):
+        ds = TiffDataset(info=info)
+    elif ".h5" in info.location:
+        ds = H5Dataset(info=info)
+    else:
+        raise NotImplementedError
+
+    if cache:
+        ds = N5CachedDatasetFromInfo(dataset=ds)
+
+    if indices or filters:
+        if not cache:
+            raise NotImplementedError("subset only implemented for cached dataset")
+
+        ds = N5CachedDatasetFromInfoSubset(dataset=ds, indices=indices, filters=filters)
+
+    return ds
 
 
 class ZipDataset(torch.utils.data.Dataset):

@@ -35,3 +35,29 @@ def instensity_range(
                 valid = valid and tensor.max() > max_above
 
     return valid
+
+
+def signal_to_noise(
+    dataset: N5CachedDatasetFromInfo,
+    idx: int,
+    *,
+    apply_to: typing.Union[str, typing.Sequence[str]],
+    min_below: typing.Optional[float] = None,
+    max_above: typing.Optional[float] = None
+) -> bool:
+    assert min_below is not None or max_above is not None, "What's the point?"
+    if isinstance(apply_to, str):
+        apply_to = [apply_to]
+
+    sample = dataset[idx]
+    valid = True
+    for name, tensor in sample.items():
+        if name in apply_to:
+            if min_below is not None:
+                valid = valid and tensor.min() < min_below
+
+            if max_above is not None:
+                valid = valid and tensor.max() > max_above
+
+    return valid
+
