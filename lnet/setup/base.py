@@ -126,11 +126,13 @@ class TrainLogSetup(LogSetup):
 class DatasetGroupSetup:
     def __init__(
         self,
+        *,
         batch_size: int,
         interpolation_order: int,
         datasets: List[Dict[str, Any]],
         sample_preprocessing: List[Dict[str, Dict[str, Any]]],
         filters: Sequence[Tuple[str, Dict[str, Any]]] = tuple(),
+        sample_transformations: Sequence[Dict[str, Dict[str, Any]]] = tuple(),
     ):
         self.batch_size = batch_size
         self.interpolation_order = interpolation_order
@@ -143,6 +145,13 @@ class DatasetGroupSetup:
         self.sample_preprocessing = ComposedTransformation(*sample_prepr_trf_instances)
         self._dataset: Optional[ConcatDataset] = None
         self.filters = list(filters)
+        for ds in datasets:
+            if "interpolation_order" not in ds:
+                ds["interpolation_order"] = interpolation_order
+
+            if "sample_transformations" not in ds:
+                ds["sample_transformations"] = sample_transformations
+
         self.dataset_setups: List[DatasetSetup] = [DatasetSetup(**kwargs) for kwargs in datasets]
 
     def get_individual_dataset(self, dss: DatasetSetup) -> torch.utils.data.Dataset:
@@ -152,7 +161,7 @@ class DatasetGroupSetup:
                     (
                         name,
                         get_dataset_from_info(
-                            dsinfo, cache=True, indices=dss.indices, filters=self.filters + dss.filters
+                            dsinfo, cache=True, indices=dss.indices, filters=dss.filters + self.filters
                         ),
                     )
                     for name, dsinfo in dss.infos.items()
@@ -191,13 +200,19 @@ class DatasetSetup:
             raise ValueError(
                 f"Cannot apply transformations to unspecified tensors: {expected_tensor_names - found_tensor_names}"
             )
+        meta = tensors.get("meta", {})
         for name, info_name in tensors.items():
+            if name == "meta":
+                continue
+
             if isinstance(info_name, str):
-                info_module_name, info_name = info_name.split(".")
+                first_dot = info_name.find(".")
+                info_module_name = info_name[:first_dot]
+                info_name = info_name[1 + first_dot :]
                 info_module = import_module("." + info_module_name, "lnet.datasets")
                 info = deepcopy(getattr(info_module, info_name, None))
                 if info is None:
-                    info = getattr(info_module, "get_tensor_info")(tag=info_name)
+                    info = getattr(info_module, "get_tensor_info")(tag=info_name, name=name, meta=meta)
             elif isinstance(info_name, dict):
                 info = TensorInfo(**info_name)
             else:

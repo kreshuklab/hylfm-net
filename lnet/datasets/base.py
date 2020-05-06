@@ -355,7 +355,7 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
         #     else:
         #         idx += 1
 
-        self.stat = DatasetStat(path=data_file_path.with_suffix(".stat.yml"), dataset=self)
+        self.stat = DatasetStat(path=data_file_path.with_suffix(".stat_v1.yml"), dataset=self)
 
     def update_meta(self, meta: dict) -> dict:
         tensor_meta = meta[self.dataset.tensor_name]
@@ -459,9 +459,12 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
             for name, kwargs in filters:
                 for k, v in kwargs.items():
                     if isinstance(v, dict) and len(v) == 1:
-                        kk = v.keys()[0]
+                        kk = list(v.keys())[0]
                         if kk == "percentile":
                             kwargs[k] = dataset.stat.get_percentiles(dataset.dataset.tensor_name, [v[kk]])
+                        elif kk == "mean+xstd":
+                            mean, std = dataset.stat.get_mean_std(dataset.dataset.tensor_name, (5.0, 99.9))
+                            kwargs[k] = mean + std * v[kk]
                         else:
                             raise NotImplementedError
 
@@ -536,13 +539,11 @@ def get_dataset_from_info(
     else:
         raise NotImplementedError
 
+    if indices or filters and not cache:
+        raise NotImplementedError("subset only implemented for cached dataset")
+
     if cache:
         ds = N5CachedDatasetFromInfo(dataset=ds)
-
-    if indices or filters:
-        if not cache:
-            raise NotImplementedError("subset only implemented for cached dataset")
-
         ds = N5CachedDatasetFromInfoSubset(dataset=ds, indices=indices, filters=filters)
 
     return ds

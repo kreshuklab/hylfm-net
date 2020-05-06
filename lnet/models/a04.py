@@ -24,6 +24,7 @@ class A04(LnetModel):
         prediction_name: str,
         z_out: int,
         nnum: int,
+        scale: int,
         final_activation: Optional[str] = None,
         n_res2d: Sequence[int] = (976, 976, "u", 488, 488, "u", 244, 244),
         inplanes_3d: int = 7,
@@ -112,6 +113,10 @@ class A04(LnetModel):
             self.final_activation = torch.nn.Sigmoid()
         else:
             raise NotImplementedError(final_activation)
+
+        # consistency checks:
+        scale_is, _ = self.get_scaling()
+        assert scale == scale_is, (scale, scale_is)
 
     def forward(self, tensors: typing.OrderedDict[str, typing.Any]):
         x = tensors[self.input_name]

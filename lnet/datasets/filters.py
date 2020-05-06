@@ -3,6 +3,8 @@ from __future__ import annotations
 import sys
 import typing
 
+import numpy
+
 if typing.TYPE_CHECKING:
     from lnet.datasets import N5CachedDatasetFromInfo
 
@@ -18,46 +20,42 @@ def instensity_range(
     *,
     apply_to: typing.Union[str, typing.Sequence[str]],
     min_below: typing.Optional[float] = None,
-    max_above: typing.Optional[float] = None
+    max_above: typing.Optional[float] = None,
 ) -> bool:
     assert min_below is not None or max_above is not None, "What's the point?"
     if isinstance(apply_to, str):
         apply_to = [apply_to]
 
     sample = dataset[idx]
-    valid = True
     for name, tensor in sample.items():
         if name in apply_to:
-            if min_below is not None:
-                valid = valid and tensor.min() < min_below
+            if min_below is not None and tensor.min() > min_below:
+                return False
 
-            if max_above is not None:
-                valid = valid and tensor.max() > max_above
+            if max_above is not None and tensor.max() < max_above:
+                return False
 
-    return valid
+    return True
 
 
-def signal_to_noise(
+def signal2noise(
     dataset: N5CachedDatasetFromInfo,
     idx: int,
     *,
     apply_to: typing.Union[str, typing.Sequence[str]],
-    min_below: typing.Optional[float] = None,
-    max_above: typing.Optional[float] = None
+    signal_percentile: float,
+    noise_percentile: float,
+    ratio: float,
 ) -> bool:
-    assert min_below is not None or max_above is not None, "What's the point?"
     if isinstance(apply_to, str):
         apply_to = [apply_to]
 
     sample = dataset[idx]
-    valid = True
     for name, tensor in sample.items():
         if name in apply_to:
-            if min_below is not None:
-                valid = valid and tensor.min() < min_below
+            signal = numpy.percentile(tensor, signal_percentile)
+            noise = numpy.percentile(tensor, noise_percentile)
+            if signal / noise < ratio:
+                return False
 
-            if max_above is not None:
-                valid = valid and tensor.max() > max_above
-
-    return valid
-
+    return True
