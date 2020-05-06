@@ -338,7 +338,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     ]:
         transformations = get_transformations(name, "staticHeartFOV", meta=meta)
         location = (
-            f"LenseLeNet_Microscope/20191208_dynamic_static_heart/fish3/static/staticHeartFOV/20steps_stepsize5/{tag}/"
+            f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish3/static/staticHeartFOV/20steps_stepsize5/{tag}/"
         )
         if name == "lf":
             location += "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif"
@@ -556,6 +556,11 @@ def check_data():
         "2019-12-09_02.42.03",
         "2019-12-09_02.48.24",
         "2019-12-09_02.54.46",
+        "2019-12-10_04.24.29",
+        "2019-12-10_05.14.57",
+        "2019-12-10_05.41.48",
+        "2019-12-10_06.03.37",
+        "2019-12-10_06.25.14",
     ]:
         lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta))
         ls = get_dataset_from_info(get_tensor_info(tag, "ls_trf", meta=meta))
