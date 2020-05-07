@@ -6,7 +6,7 @@ toolbox: # defines yaml placeholders
   scale: &scale 4
   interpol: &interpol 2
   lf_crop: &lf_crop [[0, null], [0, null], [0, null]]  # static
-  ls_trf_crop: &ls_trf_crop [[0, null], [0, null], [0, null], [0, null]]  # static
+  ls_trf_crop: &ls_trf_crop [[0, null], [0, null], [8, -8], [8, -8]]  # static
 
   metrics: &metrics
     MSSSIM: {tensor_names: {y_pred: pred, y: ls_trf}, window_size: 11, size_average: true, val_range: null, normalize: false}

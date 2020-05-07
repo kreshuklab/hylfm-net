@@ -25,6 +25,7 @@ dependencies:
   - torchvision>=0.2.1
   - typing_extensions  # for python <3.7
   - z5py>=1.4.1
+  - jupyterthemes
   - pip:
     - gputil>=1.4.0
     - imagecodecs

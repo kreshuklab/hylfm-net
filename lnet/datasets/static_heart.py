@@ -1,189 +1,6 @@
-from typing import Tuple, List
-
+# todo: rename file to heart_static.py
 from lnet.datasets.base import TensorInfo, get_dataset_from_info
-
-
-def get_lf_shape(crop_name: str) -> List[int]:
-    if crop_name == "Heart_tightCrop":
-        return [1273, 1463]
-    elif crop_name == "staticHeartFOV":
-        return [1178, 1767]
-    else:
-        raise NotImplementedError(crop_name)
-
-
-def get_ls_shape(crop_name: str) -> List[int]:
-    if crop_name == "Heart_tightCrop":
-        return [241, 1451, 1651]
-    elif crop_name == "staticHeartFOV":
-        return [241, 1451, 1951]
-    else:
-        raise NotImplementedError(crop_name)
-
-
-def get_transformations(name: str, crop_name: str, meta: dict):
-    Heart_tightCrop = "Heart_tightCrop"
-    staticHeartFOV = "staticHeartFOV"
-    assert crop_name in [Heart_tightCrop, staticHeartFOV]
-    if name == "lf":
-        if crop_name == Heart_tightCrop:
-            return [{"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_lf_shape(crop_name)}}]
-        elif crop_name == staticHeartFOV:
-            return [
-                # crop on raw in matplab: rect_LF = [100, 400, 1850, 1250]; %[xmin, ymin, width, height]
-                {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_lf_shape(crop_name)}}
-            ]
-    elif name in ["ls", "ls_trf"]:
-        trf = [
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 241, 2048, 2060]}},
-            {"FlipAxis": {"apply_to": name, "axis": 2}},
-            {"FlipAxis": {"apply_to": name, "axis": 1}},
-        ]
-        if crop_name == Heart_tightCrop:
-            trf += [
-                # crop in matlab: 200, 250, 1650, 1450
-                {"Crop": {"apply_to": name, "crop": [[0, None], [0, None], [249, 1700], [199, 1850]]}},
-                {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_ls_shape(crop_name)}},
-            ]
-            if name == "ls_trf":
-                trf += [
-                    {
-                        "AffineTransformation": {
-                            "apply_to": name,
-                            "target_to_compare_to": [meta["z_out"]]
-                            + [round(xy / meta["nnum"] * meta["scale"]) for xy in get_lf_shape(crop_name)],
-                            "order": 2,
-                            "ref_input_shape": [838] + get_lf_shape(crop_name),
-                            "bdv_affine_transformations": [
-                                [
-                                    0.97945,
-                                    0.0048391,
-                                    -0.096309,
-                                    -88.5296,
-                                    -0.0074754,
-                                    0.98139,
-                                    0.15814,
-                                    -91.235,
-                                    0.016076,
-                                    0.0061465,
-                                    4.0499,
-                                    -102.0931,
-                                ]
-                            ],
-                            "ref_output_shape": get_ls_shape(crop_name),
-                            "ref_crop_in": [[0, None], [0, None], [0, None]],
-                            "ref_crop_out": [[0, None], [0, None], [0, None]],
-                            "inverted": True,
-                            "padding_mode": "border",
-                        }
-                    }
-                ]
-            else:
-                trf += [
-                    # crop in matlab: 200, 250, 1650, 1450
-                    {"Crop": {"apply_to": name, "crop": [[0, None], [0, None], [249, 1700], [199, 1850]]}},
-                    {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_ls_shape(crop_name)}},
-                ]
-        elif crop_name == staticHeartFOV:
-            trf += [
-                # crop in matlab: 50, 300, 1950, 1450
-                {"Crop": {"apply_to": name, "crop": [[0, None], [0, None], [299, 1750], [49, 2000]]}},
-                {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_ls_shape(crop_name)}},
-            ]
-            if name == "ls_trf":
-                trf += [
-                    {
-                        "AffineTransformation": {
-                            "apply_to": name,
-                            "target_to_compare_to": [meta["z_out"]]
-                            + [round(xy / meta["nnum"] * meta["scale"]) for xy in get_lf_shape(crop_name)],
-                            "order": 2,
-                            "ref_input_shape": [838] + get_lf_shape(crop_name),
-                            "bdv_affine_transformations": [
-                                [
-                                    1.000045172184472,
-                                    -6.440948265626484e-4,
-                                    -0.0037246544505502403,
-                                    1.6647525184522693,
-                                    -3.741111751453333e-4,
-                                    0.9997241695263583,
-                                    -7.727988497216694e-6,
-                                    0.5482936082360137,
-                                    6.417439009031318e-4,
-                                    7.834754261221826e-5,
-                                    1.0024816523664135,
-                                    -2.0884853522301463,
-                                ],
-                                [
-                                    1.0031348487012806,
-                                    -2.4393612341215746e-4,
-                                    -0.022354095904371995,
-                                    5.848116160919745,
-                                    -5.688306131898453e-4,
-                                    1.0035215202352126,
-                                    0.005454826549562322,
-                                    -2.643832484309726,
-                                    0.009525454800378438,
-                                    -0.0040831532456764375,
-                                    1.0083740999442286,
-                                    -4.757593435405894,
-                                ],
-                                [
-                                    0.97669,
-                                    0.0076755,
-                                    0.0042258,
-                                    -95.112,
-                                    -0.0061276,
-                                    0.97912,
-                                    0.03892,
-                                    -134.1098,
-                                    0.007308,
-                                    0.0073582,
-                                    1.1682,
-                                    -92.7323,
-                                ],
-                                [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0],
-                            ],
-                            "ref_output_shape": get_ls_shape(crop_name),
-                            "ref_crop_in": [[0, None], [0, None], [0, None]],
-                            "ref_crop_out": [[0, None], [0, None], [0, None]],
-                            "inverted": True,
-                            "padding_mode": "border",
-                        }
-                    }
-                ]
-        else:
-            raise NotImplementedError(crop_name)
-
-        return trf
-    elif name in ["ls_slice", "ls_fake_slice"]:
-        trf = [
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 1, 2048, 2060]}},
-            {"FlipAxis": {"apply_to": name, "axis": 2}},
-        ]
-        if crop_name == Heart_tightCrop:
-            trf += [
-                # crop in matlab: 200, 250, 1650, 1450
-                {"Crop": {"apply_to": name, "crop": [[0, None], [0, None], [249, 1700], [199, 1850]]}}
-            ]
-        elif crop_name == staticHeartFOV:
-            trf += [
-                # crop in matlab: 50, 300, 1950, 1450
-                {"Crop": {"apply_to": name, "crop": [[0, None], [0, None], [299, 1750], [49, 2000]]}}
-            ]
-        else:
-            raise NotImplementedError(crop_name)
-
-        trf += [{"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 1] + get_ls_shape(crop_name)[1:]}}]
-        return trf
-    elif name == "lr":
-        return [{"Assert": {"apply_to": name, "expected_tensor_shape": [1, 49] + get_lf_shape(crop_name)}}]
-
-    raise NotImplementedError(f"name: {name}, crop name: {crop_name}")
-
-
-def idx2z_slice_241(idx: int) -> int:
-    return 240 - (idx % 241)
+from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241
 
 
 def get_tensor_info(tag: str, name: str, meta: dict):
@@ -240,6 +57,29 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
 
+    elif tag in [
+        "2019-12-09_02.16.30",
+        "2019-12-09_02.23.01",
+        "2019-12-09_02.29.34",
+        "2019-12-09_02.35.49",
+        "2019-12-09_02.42.03",
+        "2019-12-09_02.48.24",
+        "2019-12-09_02.54.46",
+    ]:
+        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/{tag}/"
+        if name == "lf":
+            location += "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif"
+        elif name == "lr":
+            location = location.replace("LF_partially_restored/", "LF_computed/")
+            location += "stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif"
+        elif name == "ls" or name == "ls_trf":
+            location += "stack_4_channel_1/Cam_Left_*.h5/Data"
+        elif name == "ls_fake_slice":
+            location += "stack_4_channel_1/Cam_Left_*.h5/Data"
+            samples_per_dataset = 241
+            z_slice = idx2z_slice_241
+
     elif tag in ["2019-12-08_06.59.59", "2019-12-08_10.32.03"]:
         transformations = get_transformations(name, "staticHeartFOV", meta=meta)
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191207_StaticHeart/fish1/static/staticHeartFOV/Sliding_stepsize2_CompleteSlide/{tag}/"
@@ -255,20 +95,20 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
 
-    elif tag in ["2019-12-09_09.52.38"]:
-        transformations = get_transformations(name, "staticHeartFOV", meta=meta)
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/staticHeartFOV/completeSlideThrough_125steps_stepsize2/{tag}/"
+    elif tag in ["2019-12-09_07.42.47"]:  # note: for testing dynamic training?
+        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_05.41.14_theGoldenOne/staticHeart_samePos/{tag}/stack_1_channel_3"
         if name == "lf":
-            location += "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif"
-        elif name == "lr":
-            location = location.replace("LF_partially_restored/", "LF_computed/")
-            location += "stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif"
+            location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+        # elif name == "lr":
+        #     location = location.replace("LF_partially_restored/", "LF_computed/")
+        #     location += "TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls" or name == "ls_trf":
-            location += "stack_4_channel_1/Cam_Left_*.h5/Data"
-        elif name == "ls_fake_slice":
-            location += "stack_4_channel_1/Cam_Left_*.h5/Data"
-            samples_per_dataset = 241
-            z_slice = idx2z_slice_241
+            location += "Cam_Left_*.h5/Data"
+        # elif name == "ls_slice":
+        #     location += "Cam_Left_*.h5/Data"
+        #     samples_per_dataset = 241
+        #     z_slice = idx2z_slice_241
 
     elif tag in [
         "2019-12-09_08.34.44",
@@ -307,17 +147,9 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
 
-    elif tag in [
-        "2019-12-09_02.16.30",
-        "2019-12-09_02.23.01",
-        "2019-12-09_02.29.34",
-        "2019-12-09_02.35.49",
-        "2019-12-09_02.42.03",
-        "2019-12-09_02.48.24",
-        "2019-12-09_02.54.46",
-    ]:
-        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/static/Heart_tightCrop/centered_5steps_stepsize8/{tag}/"
+    elif tag in ["2019-12-09_09.52.38"]:
+        transformations = get_transformations(name, "staticHeartFOV", meta=meta)
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/static/staticHeartFOV/completeSlideThrough_125steps_stepsize2/{tag}/"
         if name == "lf":
             location += "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif"
         elif name == "lr":
@@ -329,6 +161,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
+
     elif tag in [
         "2019-12-10_04.24.29",
         "2019-12-10_05.14.57",
@@ -337,9 +170,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         "2019-12-10_06.25.14",
     ]:
         transformations = get_transformations(name, "staticHeartFOV", meta=meta)
-        location = (
-            f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish3/static/staticHeartFOV/20steps_stepsize5/{tag}/"
-        )
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish3/static/staticHeartFOV/20steps_stepsize5/{tag}/"
         if name == "lf":
             location += "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif"
         elif name == "lr":
@@ -351,6 +182,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
+
     else:
         raise NotImplementedError(tag)
 
@@ -373,11 +205,6 @@ def get_tensor_info(tag: str, name: str, meta: dict):
 
 
 def debug():
-    import imageio
-    import matplotlib.pyplot as plt
-    import numpy
-    from lnet.datasets import ZipDataset
-
     tight_heart_bdv = [
         [
             0.97945,
@@ -521,7 +348,7 @@ def debug():
 
 
 def check_data():
-    meta = {"z_out": 49, "nnum": 19, "scale": 4}
+    meta = {"z_out": 49, "nnum": 19, "scale": 4, "interpolation_order": 2}
     for tag in [
         "2019-12-08_06.57.57",
         "2019-12-08_06.59.59",
@@ -561,12 +388,23 @@ def check_data():
         "2019-12-10_05.41.48",
         "2019-12-10_06.03.37",
         "2019-12-10_06.25.14",
+        "2019-12-09_07.42.47",  # for dynamic testing
     ]:
         lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta))
+        lr = get_dataset_from_info(get_tensor_info(tag, "lr", meta=meta))
         ls = get_dataset_from_info(get_tensor_info(tag, "ls_trf", meta=meta))
+
         assert len(lf) == len(ls), (tag, len(lf), len(ls))
+        assert len(lf) == len(lr), (tag, len(lf), len(lr))
         assert len(lf) > 0, tag
         print(tag, len(lf))
+        lf = lf[0]["lf"]
+        lr = lr[0]["lr"]
+        ls = ls[0]["ls_trf"]
+        print("\tlf", lf.shape)
+        print("\tlr", lr.shape)
+        print("\tpr", [s / 19 * 4 - 16 for s in lf.shape[-2:]])
+        print("\tls", ls.shape, [s - 2 * 38 for s in ls.shape[-2:]])
 
 
 if __name__ == "__main__":

@@ -63,7 +63,7 @@ class TensorInfo:
 
         # data specific asserts
         assert transformations or ".h5" not in location, ".h5 datasets require transformation!"
-        if "Heart_tightCrop" in location and z_slice is not None:
+        if "Heart_tightCrop" in location and z_slice is not None and not isinstance(z_slice, int):
             assert callable(z_slice) and z_slice(0), "z direction is inverted for 'Heart_tightCrop'"
 
         if z_slice is not None and skip_indices:
@@ -195,7 +195,7 @@ class DatasetFromInfo(torch.utils.data.Dataset):
     def update_meta(self, meta: dict) -> dict:
         tmeta = meta.get(self.tensor_name, {})
         has_z_slice = tmeta.get("z_slice", None)
-        z_slice = self.get_z_slice(tmeta["idx"])
+        z_slice = self.get_z_slice(tmeta.get("idx", meta["idx"]))
         if z_slice is not None:
             assert has_z_slice is None or has_z_slice == z_slice
             tmeta["z_slice"] = z_slice
@@ -317,7 +317,7 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
         )
         data_file_path.with_suffix(".txt").write_text(description)
 
-        logger.info("cache %s_%s to %s", dataset.info.tag, dataset.tensor_name, data_file_path)
+        logger.warning("cache %s_%s to %s", dataset.info.tag, dataset.tensor_name, data_file_path)
         tensor_name = self.dataset.tensor_name
         self.data_file = data_file = z5py.File(path=str(data_file_path), mode="a", use_zarr_format=False)
         shape = data_file[tensor_name].shape if tensor_name in data_file else None
@@ -554,19 +554,21 @@ class ZipDataset(torch.utils.data.Dataset):
 
     def __init__(
         self,
-        datasets: typing.OrderedDict[str, N5CachedDatasetFromInfoSubset],
+        datasets: typing.OrderedDict[str, Union[N5CachedDatasetFromInfoSubset, DatasetFromInfo]],
         transformation: Callable[[typing.OrderedDict], typing.OrderedDict] = lambda x: x,
         join_dataset_masks: bool = True,
     ):
         super().__init__()
         datasets: typing.OrderedDict[str, N5CachedDatasetFromInfoSubset] = OrderedDict(**datasets)
         assert len(datasets) > 0
+
         if join_dataset_masks:
             base_len = len(list(datasets.values())[0].dataset)
             assert all([len(ds.dataset) == base_len for ds in datasets.values()]), (
                 [len(ds.dataset) for ds in datasets.values()],
                 [ds.description for ds in datasets.values()],
             )
+            assert all([isinstance(ds, N5CachedDatasetFromInfoSubset) for ds in datasets]), "can only join N5CachedDatasetFromInfoSubset"
             joined_mask = numpy.logical_and.reduce(numpy.stack([ds.mask for ds in datasets.values()]))
             for ds in datasets.values():
                 ds.mask = joined_mask

@@ -20,12 +20,12 @@ def get_paths_and_numbers(location: Path):
         assert folder.exists(), folder.absolute()
         found_paths = list(folder.glob(glob_expr))
         glob_numbers = [nr for nr in re.findall(r"\d+", glob_expr)]
-        logger.info("found %d numbers in glob_exp %s", len(glob_numbers), glob_expr)
+        logger.debug("found %d numbers in glob_exp %s", len(glob_numbers), glob_expr)
         numbers = [
             tuple(int(nr) for nr in re.findall(r"\d+", p.relative_to(folder).as_posix()) if nr not in glob_numbers)
             for p in found_paths
         ]
-        logger.info("found %d number tuples in folder %s", len(numbers), folder)
+        logger.debug("found %d number tuples in folder %s", len(numbers), folder)
     else:
         assert location.exists(), location.absolute()
         found_paths = [location]

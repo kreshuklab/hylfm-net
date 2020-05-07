@@ -1,8 +1,9 @@
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union, Any
 
 import numpy
 import logging
 import torch
+import typing
 from scipy.ndimage import zoom
 
 from lnet.transformations.base import Transform
@@ -14,8 +15,10 @@ logger = logging.getLogger(__name__)
 class Crop(Transform):
     def __init__(
         self,
-        crop: Optional[Tuple[Tuple[int, Optional[int]], ...]] = None,
-        crop_fn: Optional[Callable[[Tuple[int, ...]], Tuple[Tuple[int, Optional[int]], ...]]] = None,
+        crop: Optional[Tuple[Tuple[Union[int, float], Optional[Union[int, float]]], ...]] = None,
+        crop_fn: Optional[
+            Callable[[Tuple[int, ...]], Tuple[Tuple[Union[int, float], Optional[Union[int, float]]], ...]]
+        ] = None,
         **super_kwargs,
     ):
         super().__init__(**super_kwargs)
@@ -34,9 +37,53 @@ class Crop(Transform):
     ) -> Union[numpy.ndarray, torch.Tensor]:
         crop = self.crop or self.crop_fn(tensor.shape[2:])
         assert len(tensor.shape) - 1 == len(crop), (tensor.shape, crop)
+        int_crop = [[None if cc is None else int(cc) for cc in c] for c in crop]
+        if any([crop[i][j] is not None and crop[i][j] != cc for i, c in enumerate(int_crop) for j, cc in enumerate(c)]):
+            raise ValueError(f"Crop contains fractions: {crop}")
+
         out = tensor[(slice(None),) + tuple(slice(c[0], c[1]) for c in crop)]
         logger.debug("Crop tensor: %s %s by %s to %s", name, tensor.shape, crop, out.shape)
         return out
+
+
+class Pad(Transform):
+    def __init__(
+        self, pad_width: Sequence[Sequence[int]], pad_mode: str = "lenslets", nnum: Optional[int] = None, **super_kwargs
+    ):
+        super().__init__(**super_kwargs)
+        if any([len(p) != 2 for p in pad_width]) or any([pw < 0 for p in pad_width for pw in p]):
+            raise ValueError(f"invalid pad_width sequence: {pad_width}")
+
+        if pad_mode == "lenslets":
+            if nnum is None:
+                raise ValueError("nnum required to pad lenslets")
+        else:
+            raise NotImplementedError(pad_mode)
+
+        self.pad_width = pad_width
+        self.pad_mode = pad_mode
+        self.nnum = nnum
+
+    def apply_to_tensor(
+        self, tensor: typing.Any, *, name: str, idx: int, meta: typing.List[dict]
+    ) -> typing.Union[numpy.ndarray, torch.Tensor]:
+        assert len(tensor.shape) - 1 == len(self.pad_width)
+        if isinstance(tensor, numpy.ndarray):
+            if self.pad_mode == "lenslets":
+                for i, (pw0, pw1) in enumerate(self.pad_width):
+                    if pw0:
+                        border_lenslets = tensor[(slice(None),) * (i + 1) + (slice(0, pw0 * self.nnum),)]
+                        tensor = numpy.concatenate([border_lenslets, tensor], axis=i + 1)
+                    if pw1:
+                        border_lenslets = tensor[(slice(None),) * (i + 1) + (slice(-pw1 * self.nnum),)]
+                        tensor = numpy.concatenate([border_lenslets, tensor], axis=i + 1)
+
+                return tensor
+            else:
+                raise NotImplementedError(self.pad_mode)
+                # return numpy.pad(tensor, pad_width=)
+        else:
+            NotImplementedError(type(tensor))
 
 
 class FlipAxis(Transform):
@@ -174,3 +221,16 @@ class Resize(Transform):
         out = zoom(sample, zoom_factors, order=self.order)
         logger.debug("Resize sample: %s %s by %s to %s", tensor_name, sample.shape, zoom_factors, out.shape)
         return out
+
+
+# for debugging purposes:
+class SetPixelValue(Transform):
+    def __init__(self, value: float, **super_kwargs):
+        super().__init__(**super_kwargs)
+        self.value = value
+
+    def apply_to_tensor(
+        self, tensor: typing.Any, *, name: str, idx: int, meta: typing.List[dict]
+    ) -> typing.Union[numpy.ndarray, torch.Tensor]:
+        tensor[...] = self.value
+        return tensor

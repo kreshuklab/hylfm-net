@@ -1,7 +1,6 @@
 import typing
 import warnings
 from collections import OrderedDict
-from typing import Any, Optional, Sequence, Union
 
 import numpy
 import torch
@@ -15,7 +14,9 @@ except ImportError:
 class Transform:
     randomly_changes_shape: bool = False
 
-    def __init__(self, apply_to: Optional[Union[str, Sequence[str], typing.Dict[str, str]]] = None):
+    def __init__(
+        self, apply_to: typing.Optional[typing.Union[str, typing.Sequence[str], typing.Dict[str, str]]] = None
+    ):
         self.io_mapping = {}
         if isinstance(apply_to, (int, str)):
             self.apply_to = [str(apply_to)]
@@ -35,7 +36,7 @@ class Transform:
     # def clear_random_variables(self):
     #     self._random_variables = {}
 
-    def __call__(self, tensors: typing.OrderedDict[str, Any]) -> typing.OrderedDict[str, Any]:
+    def __call__(self, tensors: typing.OrderedDict[str, typing.Any]) -> typing.OrderedDict[str, typing.Any]:
         if self.apply_to is not None:
             cant_apply = [at for at in self.apply_to if at not in tensors]
             if cant_apply:
@@ -66,7 +67,7 @@ class Transform:
     def edit_meta_before(self, meta: typing.List[dict]) -> typing.List[dict]:
         return meta
 
-    def apply(self, tensors: typing.OrderedDict[str, Any]) -> typing.OrderedDict[str, Any]:
+    def apply(self, tensors: typing.OrderedDict[str, typing.Any]) -> typing.OrderedDict[str, typing.Any]:
         apply_to = tensors.keys() if self.apply_to is None else self.apply_to
         ret = OrderedDict(tensors)
         metas: typing.List[dict] = tensors["meta"]
@@ -91,8 +92,8 @@ class Transform:
         return ret
 
     def apply_to_tensor(
-        self, tensor: Any, *, name: str, idx: int, meta: typing.List[dict]
-    ) -> Union[numpy.ndarray, torch.Tensor]:
+        self, tensor: typing.Any, *, name: str, idx: int, meta: typing.List[dict]
+    ) -> typing.Union[numpy.ndarray, torch.Tensor]:
 
         if isinstance(tensor, numpy.ndarray):
             return numpy.stack(
@@ -106,18 +107,18 @@ class Transform:
 
     def apply_to_sample(
         self,
-        sample: Union[numpy.ndarray, torch.Tensor],
+        sample: typing.Union[numpy.ndarray, torch.Tensor],
         *,
         tensor_name: str,
         tensor_idx: int,
         batch_idx: int,
         meta: dict,
-    ) -> Union[numpy.ndarray, torch.Tensor]:
+    ) -> typing.Union[numpy.ndarray, torch.Tensor]:
         raise NotImplementedError
 
 
 class TransformLike(Protocol):
-    def __call__(self, tensors: typing.OrderedDict[str, Any]) -> typing.OrderedDict[str, Any]:
+    def __call__(self, tensors: typing.OrderedDict[str, typing.Any]) -> typing.OrderedDict[str, typing.Any]:
         pass
 
 
@@ -143,7 +144,7 @@ class ComposedTransformation(Transform):
 
         return self
 
-    def apply(self, tensors: typing.OrderedDict[str, Any]):
+    def apply(self, tensors: typing.OrderedDict[str, typing.Any]):
         for transform in self.transforms:
             tensors = transform(tensors)
             assert isinstance(tensors, OrderedDict), transform

@@ -4,7 +4,6 @@ import logging
 import shutil
 import typing
 from collections import OrderedDict
-from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
 from importlib import import_module
@@ -22,12 +21,13 @@ import lnet.metrics
 import lnet.optimizers
 import lnet.transformations
 from lnet import settings
-from lnet.datasets import ConcatDataset, N5CachedDatasetFromInfo, ZipDataset, get_collate_fn, get_dataset_from_info
-from lnet.datasets.base import TensorInfo, N5CachedDatasetFromInfoSubset
+from lnet.datasets import ConcatDataset, ZipDataset, get_collate_fn, get_dataset_from_info, get_tensor_info
+from lnet.datasets.base import TensorInfo
 from lnet.models import LnetModel
 from lnet.setup._utils import indice_string_to_list
 from lnet.step import inference_step, training_step
 from lnet.transformations import ComposedTransformation, Transform
+from lnet.transformations.utils import get_composed_transformation_from_config
 from lnet.utils import Period, PeriodUnit
 from lnet.utils.batch_sampler import NoCrossBatchSampler
 from lnet.utils.general import delete_empty_dirs
@@ -137,12 +137,7 @@ class DatasetGroupSetup:
         self.batch_size = batch_size
         self.interpolation_order = interpolation_order
 
-        sample_prepr_trf_instances: List[Transform] = [
-            getattr(lnet.transformations, name)(**kwargs)
-            for trf in sample_preprocessing
-            for name, kwargs in trf.items()
-        ]
-        self.sample_preprocessing = ComposedTransformation(*sample_prepr_trf_instances)
+        self.sample_preprocessing = get_composed_transformation_from_config(sample_preprocessing)
         self._dataset: Optional[ConcatDataset] = None
         self.filters = list(filters)
         for ds in datasets:
@@ -200,19 +195,10 @@ class DatasetSetup:
             raise ValueError(
                 f"Cannot apply transformations to unspecified tensors: {expected_tensor_names - found_tensor_names}"
             )
-        meta = tensors.get("meta", {})
+        meta = tensors.pop("meta", {})
         for name, info_name in tensors.items():
-            if name == "meta":
-                continue
-
             if isinstance(info_name, str):
-                first_dot = info_name.find(".")
-                info_module_name = info_name[:first_dot]
-                info_name = info_name[1 + first_dot :]
-                info_module = import_module("." + info_module_name, "lnet.datasets")
-                info = deepcopy(getattr(info_module, info_name, None))
-                if info is None:
-                    info = getattr(info_module, "get_tensor_info")(tag=info_name, name=name, meta=meta)
+                info = get_tensor_info(info_name=info_name, name=name, meta=meta)
             elif isinstance(info_name, dict):
                 info = TensorInfo(**info_name)
             else:
@@ -579,7 +565,7 @@ class TrainStage(Stage):
         elif self.validate.period.unit == PeriodUnit.iteration:
             event = ignite.engine.Events.ITERATION_COMPLETED
         else:
-            raise NotImplementedError
+            raise NotImplementedError(self.validate.period.unit)
 
         @engine.on(event(every=self.validate.period.value))
         def validate(e: ignite.engine.Engine):

@@ -1,10 +1,12 @@
 import logging
-from typing import Any, List, Optional, OrderedDict, Sequence, Tuple, Union, Dict
+from typing import Any, Dict, List, Optional, OrderedDict, Sequence, Tuple, Union
 
 import numpy
 import torch.nn.functional
 import torch.nn.functional
 from scipy.ndimage import affine_transform
+
+from lnet.transformations.affine_utils import get_bdv_affine_transformations_by_name
 
 logger = logging.getLogger(__name__)
 
@@ -88,13 +90,13 @@ class AffineTransformation(torch.nn.Module):
         target_to_compare_to: Union[str, Tuple[int, int, int]],
         order: int,
         ref_input_shape: Sequence[int],
-        bdv_affine_transformations: List[
-            List[float]
+        bdv_affine_transformations: Union[
+            str, List[List[float]]
         ],  # Fiij's big data viewer affine transformations: each affine transformation as a list of 12 floats.
         # affine_matrices: List[List[float]],
         ref_output_shape: Sequence[int],
-        ref_crop_in: Optional[Tuple[Tuple[int, int], ...]] = None,
-        ref_crop_out: Optional[Tuple[Tuple[int, int], ...]] = None,
+        ref_crop_in: Optional[Tuple[Tuple[int, Optional[int]], ...]] = None,
+        ref_crop_out: Optional[Tuple[Tuple[int, Optional[int]], ...]] = None,
         inverted: bool = False,
         padding_mode: str = "border",
     ):
@@ -110,11 +112,14 @@ class AffineTransformation(torch.nn.Module):
 
         self.apply_to: Dict[str, str] = apply_to
         self.target_to_compare_to = target_to_compare_to
-        self.input_shape = ref_input_shape
-        self.output_shape = ref_output_shape
+        self.input_shape = tuple(ref_input_shape)
+        self.output_shape = tuple(ref_output_shape)
 
         self.mode = self.mode_from_order[order]
         self.padding_mode = padding_mode
+
+        if isinstance(bdv_affine_transformations, str):
+            bdv_affine_transformations = get_bdv_affine_transformations_by_name(bdv_affine_transformations)
 
         assert len(bdv_affine_transformations) >= 1
         trf_matrices = [bdv_trafo_to_affine_matrix(m) for m in bdv_affine_transformations]
@@ -127,7 +132,7 @@ class AffineTransformation(torch.nn.Module):
         self.forward = self._inverted if inverted else self._forward
 
         if ref_crop_in is None:
-            ref_crop_in = tuple([(0, 0) for _ in range(len(ref_input_shape))])
+            ref_crop_in = tuple([(0, None) for _ in range(len(ref_input_shape))])
         else:
             assert len(ref_crop_in) == len(ref_input_shape)
         # elif len(ref_crop_in) == len(ref_input_shape) + 1:
@@ -171,7 +176,7 @@ class AffineTransformation(torch.nn.Module):
             else:
                 raise NotImplementedError(roi_method)
 
-            logger.info("determined crop_out: %s", ref_crop_out)
+            logger.warning("determined crop_out: %s", ref_crop_out)
         elif len(ref_crop_out) == len(ref_output_shape) + 1:
             assert ref_crop_out[0][0] == 0 and ref_crop_out[0][1] is None or ref_crop_out[0][1] == 0, ref_crop_out
             ref_crop_out = ref_crop_out[1:]

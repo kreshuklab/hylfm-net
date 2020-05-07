@@ -106,11 +106,11 @@ class TqdmLogger(BaseLogger):
     _pbar = None
     _last_it: int = 0
 
-    @property
-    def pbar(self):
+
+    def get_pbar(self, engine: Engine):
         if self._pbar is None:
             self._pbar = tqdm(total=self.stage.epoch_length)
-            self.set_epoch(0)
+            self.set_epoch(engine.state.epoch)
 
         return self._pbar
 
@@ -135,17 +135,18 @@ class TqdmLogger(BaseLogger):
         it = engine.state.iteration
         its_passed = it - self._last_it
         self._last_it = it
-        self.pbar.update(its_passed)
+        self.get_pbar().update(its_passed)
 
-    def reset_progress(self, engine: Engine) -> None:
-        self.pbar.reset()
-        self.set_epoch(engine.state.epoch)
+    def reset_progress(self, _: typing.Optional[Engine] = None) -> None:
+        if self._pbar is not None:
+            self._pbar.close()
+            self._pbar = None
 
     def set_epoch(self, epoch: int):
-        self.pbar.set_description(f"epoch {epoch}")
+        self.get_pbar().set_description(f"epoch {epoch}")
 
     def shutdown(self) -> None:
-        self.pbar.close()
+        self.reset_progress()
         super().shutdown()
 
 
