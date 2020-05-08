@@ -539,7 +539,7 @@ def get_dataset_from_info(
     else:
         raise NotImplementedError
 
-    if indices or filters and not cache:
+    if (indices or filters) and not cache:
         raise NotImplementedError("subset only implemented for cached dataset")
 
     if cache:
