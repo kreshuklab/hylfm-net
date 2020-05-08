@@ -58,16 +58,17 @@ model:
     prediction_name: pred
     nnum: *nnum
     z_out: *z_out
+    n_res2d: [488, 488, u, 366, 366, u, 244, 244]
 #    n_res2d: [488, 488, u, 244, 244]
 #    n_res3d: [[7], [7], [7]]
-  checkpoint:
+  checkpoint: 
 
 stages:
   - train:
       max_epochs: 500
       metrics: {}
       log:
-        save_n_checkpoints: 3
+        save_n_checkpoints: 2
         TqdmLogger: {}
         TensorBoardLogger:
           scalars_every: {value: 10, unit: iteration}

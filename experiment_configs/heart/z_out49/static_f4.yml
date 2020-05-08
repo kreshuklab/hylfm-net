@@ -56,8 +56,10 @@ stages:
         FileLogger:
           scalars_every: {value: 1, unit: epoch}
       criterion:
-        name: WeightedSmoothL1Loss
-        kwargs: {threshold: 1.0, initial_weight: .1, apply_below_threshold: true, decay_by: .8, every_nth_epoch: 1}
+        name: MSELoss
+        kwargs: {}
+#         name: WeightedSmoothL1Loss
+#         kwargs: {threshold: 1.0, initial_weight: .1, apply_below_threshold: true, decay_by: .8, every_nth_epoch: 1}
         tensor_names: {input: pred, target: ls_trf}
 
       optimizer:
