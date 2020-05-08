@@ -16,7 +16,8 @@ def test_crop():
         raise NotImplementedError
 
     meta = {
-        "z_out": 48,
+        "z_out": 241,
+        "z_ls_rescaled": 241,
         "nnum": 19,
         "interpolation_order": 2,
         "scale": 2,
@@ -35,9 +36,11 @@ def test_crop():
     # [meta["z_out"]] + [round(xy / meta["nnum"] * meta["scale"]) for xy in get_lf_shape(crop_name)]
 
     ref_crop_in = (
-        (meta["pred_z_min"], meta["pred_z_max"]),
-        (round(meta["shrink"] * meta["nnum"] / meta["scale"]), -round(meta["shrink"] * meta["nnum"] / meta["scale"])),
-        (round(meta["shrink"] * meta["nnum"] / meta["scale"]), -round(meta["shrink"] * meta["nnum"] / meta["scale"])),
+        (meta["pred_z_min"], meta["pred_z_max"] - 838 or None),
+        (0, None),
+        (0, None)
+        # (meta["shrink"] * meta["nnum"] / meta["scale"], -meta["shrink"] * meta["nnum"] / meta["scale"]),
+        # (meta["shrink"] * meta["nnum"] / meta["scale"], -meta["shrink"] * meta["nnum"] / meta["scale"]),
     )
     ref_crop_out = get_ref_crop_out(crop_name, ref_crop_in, inverted=False)
 
@@ -45,24 +48,31 @@ def test_crop():
         {
             "Assert": {
                 "apply_to": target_to_compare_to,
-                "expected_tensor_shape": [None, 1, None]
-                + [round(s / meta["nnum"] * meta["scale"]) for s in get_ls_shape(crop_name)[1:]],
+                "expected_tensor_shape": [None, 1, get_ls_shape(crop_name)[0]]
+                + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]],
             }
         },
         {
             "Crop": {
                 "apply_to": target_to_compare_to,
-                "crop": [(0, None), [c * meta["z_out"] / get_ls_shape(crop_name)[0] for c in ref_crop_out[0]]]
-                + [[c // meta["nnum"] * meta["scale"] for c in rco] for rco in ref_crop_out[1:]],
+                "crop": [
+                    (0, None),
+                    [
+                        None if c is None else c * meta["z_ls_rescaled"] / get_ls_shape(crop_name)[0]
+                        for c in ref_crop_out[0]
+                    ],
+                ]
+                + [[None if c is None else c / meta["nnum"] * meta["scale"] for c in rco] for rco in ref_crop_out[1:]],
             }
         },
-        {
-            "Crop": {
-                "apply_to": "ls_trf",
-                "crop": [(0, None), (0, None), (meta["shrink"], -meta["shrink"]), (meta["shrink"], -meta["shrink"])],
-            }
-        },
+        # {
+        #     "Crop": {
+        #         "apply_to": "ls_trf",
+        #         "crop": [(0, None), (0, None), (meta["shrink"], -meta["shrink"]), (meta["shrink"], -meta["shrink"])],
+        #     }
+        # },
         # {"SetPixelValue": {"apply_to": "ls_trf", "value": 1.0}},
+        {"Cast": {"apply_to": "ls_trf", "dtype": "float32", "device": "cuda"}},
         {
             "AffineTransformation": {
                 "apply_to": {"ls_trf": "ls_trf_trf"},
@@ -79,6 +89,8 @@ def test_crop():
                 "padding_mode": "zeros",
             }
         },
+        {"Cast": {"apply_to": "ls_trf", "dtype": "float32", "device": "numpy"}},
+        {"Cast": {"apply_to": "ls_trf_trf", "dtype": "float32", "device": "numpy"}},
     ]
     trf = get_composed_transformation_from_config(trf_config)
 
@@ -105,7 +117,7 @@ def test_crop():
         fig, ax = plt.subplots(nrows=3)
         for i in range(3):
             ax[i].imshow(vol[0, 0].max(i))
-            ax[i].set_title(f"{name}_super_big{i}")
+            ax[i].set_title(f"{name}{i}")
 
         plt.show()
 

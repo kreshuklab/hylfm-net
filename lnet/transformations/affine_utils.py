@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Sequence
 
 
 def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
@@ -69,13 +69,16 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
     else:
         raise NotImplementedError(name)
 
-def get_ref_crop_out(affine_trf_name: str, ref_crop_in: Tuple[
-    Tuple[int, Optional[int]], Tuple[int, Optional[int]], Tuple[int, Optional[int]]], inverted: bool) -> Tuple[
-    Tuple[int, Optional[int]], Tuple[int, Optional[int]], Tuple[int, Optional[int]]]:
+
+def get_ref_crop_out(
+    affine_trf_name: str, ref_crop_in: Sequence[Sequence[Optional[int]]], inverted: bool
+) -> Tuple[Tuple[int, Optional[int]], Tuple[int, Optional[int]], Tuple[int, Optional[int]]]:
     if inverted:
         raise NotImplementedError
 
-    if affine_trf_name == "Heart_tightCrop" and ref_crop_in == ((0, 838), (57, -57), (57, -57)):
-        return ((19, -10), (152, -133), (171, -133))
+    if affine_trf_name == "Heart_tightCrop" and ref_crop_in == ((0, 0), (57, -57), (57, -57)):
+        return ((20, -10), (152, -133), (171, -133))  # (19, -10) in z ideally
+    elif affine_trf_name == "Heart_tightCrop" and ref_crop_in == ((0, None), (0, None), (0, None)):
+        return ((0, None), (0, None), (0, None))
     else:
         raise NotImplementedError((affine_trf_name, ref_crop_in))
