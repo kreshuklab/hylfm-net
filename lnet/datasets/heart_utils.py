@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional
+from typing import List, Optional
 
 Heart_tightCrop = "Heart_tightCrop"
 staticHeartFOV = "staticHeartFOV"
@@ -31,22 +31,22 @@ def get_raw_ls_crop(crop_name: str, *, for_slice: bool = False, wrt_ref: bool = 
         if crop_name == Heart_tightCrop:
             # crop in matlab: 200, 250, 1650, 1450 for ref shape
             # crop for ref shape + crop for divisibility
-            ret = [[0, 240], [3, 1700 - 249 - 4], [8, 1850 - 199 - 9]]
+            ret = [[0, None], [3, 1700 - 249 - 4], [8, 1850 - 199 - 9]]
         elif crop_name == staticHeartFOV:
             # crop in matlab: 50, 300, 1950, 1450 for ref shape
             # crop for ref shape + crop for divisibility
-            ret = [[0, 240], [3, 1750 - 299 - 4], [6, 2000 - 49 - 7]]
+            ret = [[0, None], [3, 1750 - 299 - 4], [6, 2000 - 49 - 7]]
         else:
             raise NotImplementedError(crop_name)
     else:
         if crop_name == Heart_tightCrop:
             # crop in matlab: 200, 250, 1650, 1450 for ref shape
             # crop for ref shape + crop for divisibility
-            ret = [[0, None], [0, 241 - 1], [249 + 3, 1700 - 4], [199 + 8, 1850 - 9]]
+            ret = [[0, None], [0, 241], [249 + 3, 1700 - 4], [199 + 8, 1850 - 9]]
         elif crop_name == staticHeartFOV:
             # crop in matlab: 50, 300, 1950, 1450 for ref shape
             # crop for ref shape + crop for divisibility
-            ret = [[0, None], [0, 241 - 1], [299 + 3, 1750 - 4], [49 + 6, 2000 - 7]]
+            ret = [[0, None], [0, 241], [299 + 3, 1750 - 4], [49 + 6, 2000 - 7]]
         else:
             raise NotImplementedError(crop_name)
 
@@ -56,20 +56,27 @@ def get_raw_ls_crop(crop_name: str, *, for_slice: bool = False, wrt_ref: bool = 
     return ret
 
 
-def get_ls_shape(crop_name: str) -> List[int]:
+def get_ls_shape(crop_name: str, for_slice: bool = False) -> List[int]:
     crop = get_raw_ls_crop(crop_name)
-    s = [c[1] - c[0] for c in crop[1:]]
-    assert len(s) == 3
-    assert s[0] == 240
-    assert s[1] % 19 == 0
-    assert s[2] % 19 == 0
+    if for_slice:
+        s = [c[1] - c[0] for c in crop[2:]]
+        assert len(s) == 2
+        assert s[0] % 19 == 0
+        assert s[1] % 19 == 0
+    else:
+        s = [c[1] - c[0] for c in crop[1:]]
+        assert len(s) == 3
+        assert s[0] == 241
+        assert s[1] % 19 == 0
+        assert s[2] % 19 == 0
+
     return s
 
 
 def get_transformations(name: str, crop_name: str, meta: dict):
     assert crop_name in [Heart_tightCrop, staticHeartFOV]
     if name == "lf":
-        return [{"Assert": {"apply_to": name, "expected_tensor_shape": (1, 1) + get_lf_shape(crop_name)}}]
+        return [{"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_lf_shape(crop_name)}}]
     elif name in ["ls", "ls_trf"]:
         trf = [
             {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 241, 2048, 2060]}},  # raw ls shape
@@ -90,7 +97,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                         "bdv_affine_transformations": crop_name,
                         "ref_output_shape": get_ref_ls_shape(crop_name),
                         "ref_crop_in": [[0, None], [0, None], [0, None]],
-                        "ref_crop_out": get_raw_ls_crop(crop_name),
+                        "ref_crop_out": get_raw_ls_crop(crop_name, wrt_ref=True),
                         "inverted": True,
                         "padding_mode": "border",
                     }
@@ -101,14 +108,14 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                 {
                     "Resize": {
                         "apply_to": name,
-                        "shape": [1.0, meta["z_out"], meta["scale"] / meta["nnum"], meta["scale"] / meta["nnum"]],
+                        "shape": [1.0, 1.0, meta["scale"] / meta["nnum"], meta["scale"] / meta["nnum"]],
                         "order": meta["interpolation_order"],
                     }
                 },
                 {
                     "Assert": {
                         "apply_to": name,
-                        "expected_tensor_shape": [None, 1, meta["z_out"]]
+                        "expected_tensor_shape": [None, 1, get_ls_shape(crop_name)[0]]
                         + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]],
                     }
                 },
@@ -120,15 +127,20 @@ def get_transformations(name: str, crop_name: str, meta: dict):
             {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 1, 2048, 2060]}},  # raw ls shape
             {"FlipAxis": {"apply_to": name, "axis": 2}},
             {"Crop": {"apply_to": name, "crop": get_raw_ls_crop(crop_name, for_slice=True)}},
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 1] + get_ls_shape(crop_name)[1:]}},
+            {
+                "Assert": {
+                    "apply_to": name,
+                    "expected_tensor_shape": [1, 1, 1] + get_ls_shape(crop_name, for_slice=True),
+                }
+            },
         ]
     elif name == "lr":
         return [
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 49] + get_lf_shape(crop_name)}},
+            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, meta["z_out"]] + get_lf_shape(crop_name)}},
             {
                 "Resize": {
                     "apply_to": name,
-                    "shape": [1.0, meta["z_out"], meta["scale"] / meta["nnum"], meta["scale"] / meta["nnum"]],
+                    "shape": [1.0, 1.0, meta["scale"] / meta["nnum"], meta["scale"] / meta["nnum"]],
                     "order": meta["interpolation_order"],
                 }
             },

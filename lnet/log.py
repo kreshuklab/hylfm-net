@@ -106,11 +106,10 @@ class TqdmLogger(BaseLogger):
     _pbar = None
     _last_it: int = 0
 
-
     def get_pbar(self, engine: Engine):
         if self._pbar is None:
             self._pbar = tqdm(total=self.stage.epoch_length)
-            self.set_epoch(engine.state.epoch)
+            self._pbar.set_description(f"epoch {self.stage.run_count * self.stage.max_epochs + engine.state.epoch}")
 
         return self._pbar
 
@@ -135,15 +134,12 @@ class TqdmLogger(BaseLogger):
         it = engine.state.iteration
         its_passed = it - self._last_it
         self._last_it = it
-        self.get_pbar().update(its_passed)
+        self.get_pbar(engine).update(its_passed)
 
     def reset_progress(self, _: typing.Optional[Engine] = None) -> None:
         if self._pbar is not None:
             self._pbar.close()
             self._pbar = None
-
-    def set_epoch(self, epoch: int):
-        self.get_pbar().set_description(f"epoch {epoch}")
 
     def shutdown(self) -> None:
         self.reset_progress()
@@ -172,14 +168,7 @@ class FileLogger(BaseLogger):
             futs = []
             for tn in tensor_names:
                 for tensor, tmeta in zip(tensors[tn], tensors["meta"]):
-                    futs.append(
-                        executor.submit(
-                            self._save_tensor,
-                            tn,
-                            tensor,
-                            tmeta["log_path"],
-                        )
-                    )
+                    futs.append(executor.submit(self._save_tensor, tn, tensor, tmeta["log_path"]))
             for fut in as_completed(futs):
                 e = fut.exception()
                 if e is not None:

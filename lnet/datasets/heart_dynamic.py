@@ -17,8 +17,36 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         repeat = 1
 
     if tag in ["2019-12-02_23.17.56", "2019-12-02_23.43.24", "2019-12-02_23.50.04", "2019-12-03_00.00.44"]:
-        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/Heart_tightCrop/dynamicImaging1_btw20to160planes/{tag}/stack_1_channel_3/"
+        if tag == "2019-12-03_00.00.44":
+            location = location.replace("stack_1_channel_3", "stack_1_channel_2")
+
+        if tag in ["2019-12-02_23.43.24", "2019-12-02_23.50.04", "2019-12-03_00.00.44"]:
+            if name == "lf":
+                if tag != "2019-12-03_00.00.44":
+                    location += "originalCrop/"
+
+                padding = [
+                    {
+                        "Pad": {
+                            "apply_to": name,
+                            "pad_width": [[0, 0], [0, 1], [0, 0]],
+                            "pad_mode": "lenslets",
+                            "nnum": meta["nnum"],
+                        }
+                    }
+                ]
+            elif name == "lr":
+                if tag != "2019-12-03_00.00.44":
+                    location += "originalCrop/"
+
+                raise NotImplementedError("padding for lr")
+            else:
+                padding = []
+        else:
+            padding = []
+
+        transformations = padding + get_transformations(name, "Heart_tightCrop", meta=meta)
         if name == "lf":
             location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         # elif name == "lr":
@@ -295,11 +323,16 @@ def debug():
 
 def check_data():
     meta = {"z_out": 49, "nnum": 19, "scale": 4}
+
+    # 2019-12-02_23.43.24 not matching! -> use 2019-12-02_23.43.24/stack_1_channel_3/originalCrop/TP_00000_originalCrop/ with 19px padding on rectified image on bottom (bead IMG is bigger)
+    # 2019-12-02_23.50.04 not matching! -> use 2019-12-02_23.50.04/stack_1_channel_3/originalCrop/TP_00000/ with 19px padding on rectified image on bottom (bead IMG is bigger)
+    # 2019-12-03_00.00.44/stack_1_channel_3/ not matching! -> use 2019-12-03_00.00.44/stack_1_channel_2/ with 19px padding on rectified image on bottom (bead IMG is bigger)
+
     for tag in [
         "2019-12-02_23.17.56",
-        "2019-12-02_23.43.24",  # were too small
-        "2019-12-02_23.50.04",   # were too small
-        # "2019-12-03_00.00.44",  # too small
+        "2019-12-02_23.43.24",  # were too small, now ok
+        "2019-12-02_23.50.04",   # were too small, now ok
+        "2019-12-03_00.00.44",  # were too small, now ok
         "2019-12-09_23.10.02",
         "2019-12-09_23.17.30",
         "2019-12-09_23.19.41",
@@ -324,12 +357,18 @@ def check_data():
         ls = ls[0]["ls_slice"]
         print("\tlf", lf.shape)
         print("\tls", ls.shape)
-
+        # imageio.imwrite(f"/g/kreshuk/LF_computed/lnet/padded_lf_{tag}_pad_at_1.tif", lf[0, 0])
+        # path = Path(f"/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/Heart_tightCrop/dynamicImaging1_btw20to160planes/{tag}/stack_1_channel_3/originalCrop/TP_00000/RC_rectified_padded/Cam_Right_001_rectified.tif")
+        # path.parent.mkdir(parents=True, exist_ok=True)
+        # imageio.imwrite(path, lf[0, 0])
 
 def search_data():
-    path = Path("/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/Heart_tightCrop/dynamicImaging1_btw20to160planes/2019-12-03_00.00.44/stack_1_channel_2")
+    path = Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/Heart_tightCrop/dynamicImaging1_btw20to160planes/2019-12-03_00.00.44/stack_1_channel_2"
+    )
     for dir in path.glob("*/RC_rectified/"):
         print(dir.parent.name, len(list(dir.glob("*.tif"))))
+
 
 if __name__ == "__main__":
     # depug()

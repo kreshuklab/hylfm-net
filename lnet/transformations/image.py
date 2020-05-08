@@ -41,14 +41,14 @@ class Crop(Transform):
         if any([crop[i][j] is not None and crop[i][j] != cc for i, c in enumerate(int_crop) for j, cc in enumerate(c)]):
             raise ValueError(f"Crop contains fractions: {crop}")
 
-        out = tensor[(slice(None),) + tuple(slice(c[0], c[1]) for c in crop)]
+        out = tensor[(slice(None),) + tuple(slice(c[0], c[1]) for c in int_crop)]
         logger.debug("Crop tensor: %s %s by %s to %s", name, tensor.shape, crop, out.shape)
         return out
 
 
 class Pad(Transform):
     def __init__(
-        self, pad_width: Sequence[Sequence[int]], pad_mode: str = "lenslets", nnum: Optional[int] = None, **super_kwargs
+        self, pad_width: Sequence[Sequence[int]], pad_mode: str, nnum: Optional[int] = None, **super_kwargs
     ):
         super().__init__(**super_kwargs)
         if any([len(p) != 2 for p in pad_width]) or any([pw < 0 for p in pad_width for pw in p]):
@@ -75,8 +75,8 @@ class Pad(Transform):
                         border_lenslets = tensor[(slice(None),) * (i + 1) + (slice(0, pw0 * self.nnum),)]
                         tensor = numpy.concatenate([border_lenslets, tensor], axis=i + 1)
                     if pw1:
-                        border_lenslets = tensor[(slice(None),) * (i + 1) + (slice(-pw1 * self.nnum),)]
-                        tensor = numpy.concatenate([border_lenslets, tensor], axis=i + 1)
+                        border_lenslets = tensor[(slice(None),) * (i + 1) + (slice(-pw1 * self.nnum, None),)]
+                        tensor = numpy.concatenate([tensor, border_lenslets], axis=i + 1)
 
                 return tensor
             else:

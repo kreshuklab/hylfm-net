@@ -60,7 +60,7 @@ class TensorInfo:
         **kwargs,
     ):
         assert not location.endswith(".h5"), "h5 path to dataset missing .h5/Dataset"
-
+        assert all([len(trf) == 1 for trf in transformations]), [list(trf.keys()) for trf in transformations]
         # data specific asserts
         assert transformations or ".h5" not in location, ".h5 datasets require transformation!"
         if "Heart_tightCrop" in location and z_slice is not None and not isinstance(z_slice, int):
@@ -526,6 +526,7 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
 
 def get_dataset_from_info(
     info: TensorInfo,
+    *,
     transformations: Sequence[Dict[str, dict]] = tuple(),
     cache: bool = False,
     indices: Optional[Sequence[int]] = None,
@@ -568,7 +569,9 @@ class ZipDataset(torch.utils.data.Dataset):
                 [len(ds.dataset) for ds in datasets.values()],
                 [ds.description for ds in datasets.values()],
             )
-            assert all([isinstance(ds, N5CachedDatasetFromInfoSubset) for ds in datasets]), "can only join N5CachedDatasetFromInfoSubset"
+            assert all(
+                [isinstance(ds, N5CachedDatasetFromInfoSubset) for ds in datasets.values()]
+            ), f"can only join N5CachedDatasetFromInfoSubset, {[type(ds) for ds in datasets.values()]}"
             joined_mask = numpy.logical_and.reduce(numpy.stack([ds.mask for ds in datasets.values()]))
             for ds in datasets.values():
                 ds.mask = joined_mask

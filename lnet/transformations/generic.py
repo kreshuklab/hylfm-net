@@ -28,7 +28,7 @@ class Cast(Transform, DTypeMapping):
         non_blocking: bool = False,
         **super_kwargs,
     ):
-        assert device in ("cpu", "cuda"), device
+        assert device in ("cpu", "cuda", "numpy"), device
         if device == "cpu" and numpy_kwargs:
             raise ValueError(f"got numpy kwargs {numpy_kwargs}, but device != 'cpu'")
 
