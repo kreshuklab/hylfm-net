@@ -9,4 +9,4 @@
 #SBATCH --mail-user=beuttenm@embl.de # send-to address
 #SBATCH -J heart_dynamic_prep
 
-/g/kreshuk/beuttenm/miniconda3/envs/llnet/bin/python /g/kreshuk/beuttenm/repos/lnet/datasets/heart_dynamic.py $1
+/g/kreshuk/beuttenm/miniconda3/envs/llnet/bin/python $1 $2

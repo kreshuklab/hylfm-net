@@ -1,4 +1,6 @@
 # todo: rename file to heart_static.py
+import argparse
+
 from lnet.datasets.base import TensorInfo, get_dataset_from_info
 from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241
 
@@ -380,9 +382,53 @@ def debug():
     #     plt.show()
 
 
-def check_data():
+def check_data(tag: str, comment: str):
     meta = {"z_out": 49, "nnum": 19, "scale": 4, "interpolation_order": 2}
-    for tag in """
+
+    print("get lf")
+    lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
+    print("get lr")
+    lr = get_dataset_from_info(get_tensor_info(tag, "lr", meta=meta))
+    print("get ls")
+    ls = get_dataset_from_info(get_tensor_info(tag, "ls", meta=meta), cache=True)
+    print("get ls_trf")
+    ls_trf = get_dataset_from_info(get_tensor_info(tag, "ls_trf", meta=meta))
+
+    print(tag, len(lf), comment)
+    assert len(lf) == len(lr), (tag, len(lf), len(lr))
+    assert len(lf) == len(ls), (tag, len(lf), len(ls))
+    assert len(lf) == len(ls_trf), (tag, len(lf), len(ls_trf))
+    assert len(lf) > 0, tag
+
+    print("get lr_repeat")
+    lf_repeat = get_dataset_from_info(get_tensor_info(tag, "lf_repeat241", meta=meta), cache=True)
+    print("get ls_fake_slice")
+    ls_fake_slice = get_dataset_from_info(get_tensor_info(tag, "ls_fake_slice", meta=meta))
+
+    assert len(lf_repeat) == len(ls_fake_slice), (tag, len(lf_repeat), len(ls_fake_slice))
+    assert len(lf_repeat) > 0, tag
+    # print(tag, len(lf), comment)
+
+    # lf = lf[0]["lf"]
+    # lr = lr[0]["lr"]
+    # ls = ls[0]["ls_trf"]
+    # print("\tlf", lf.shape)
+    # print("\tlr", lr.shape)
+    # print("\tpr", [s / 19 * 4 - 16 for s in lf.shape[-2:]])
+    # print("\tls", ls.shape, [s - 2 * 38 for s in ls.shape[-2:]])
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="heart_dynamic")
+    parser.add_argument("idx", type=int)
+
+    args = parser.parse_args()
+    idx = args.idx
+
+    # depug()
+    # search_data()
+
+    tags = """
 # beads_ref_Heart_tightCrop
 # beads_should_fit_Heart_tightCrop_0
 2019-12-08_06.57.57  # fish5 val
@@ -427,49 +473,21 @@ def check_data():
 2019-12-10_06.25.14  # fish2 test
 """.split(
         "\n"
-    ):
-        if not tag or tag.startswith("#"):
-            continue
+    )
 
-        if "#" in tag:
-            tag, comment = tag.split("#")
+    full_tags = [tag for tag in tags if tag and not tag.startswith("#")]
+    tags = []
+    comments = []
+
+    for full_tag in full_tags:
+        if "#" in full_tag:
+            tag, comment = full_tag.split("#")
             tag = tag.strip()
         else:
+            tag = full_tag
             comment = ""
 
-        print("get lf")
-        lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
-        print("get lr")
-        lr = get_dataset_from_info(get_tensor_info(tag, "lr", meta=meta))
-        print("get ls")
-        ls = get_dataset_from_info(get_tensor_info(tag, "ls", meta=meta), cache=True)
-        print("get ls_trf")
-        ls_trf = get_dataset_from_info(get_tensor_info(tag, "ls_trf", meta=meta))
+        tags.append(tag)
+        comments.append(comment)
 
-        print(tag, len(lf), comment)
-        assert len(lf) == len(lr), (tag, len(lf), len(lr))
-        assert len(lf) == len(ls), (tag, len(lf), len(ls))
-        assert len(lf) == len(ls_trf), (tag, len(lf), len(ls_trf))
-        assert len(lf) > 0, tag
-
-        print("get lr_repeat")
-        lf_repeat = get_dataset_from_info(get_tensor_info(tag, "lf_repeat241", meta=meta), cache=True)
-        print("get ls_fake_slice")
-        ls_fake_slice = get_dataset_from_info(get_tensor_info(tag, "ls_fake_slice", meta=meta))
-
-        assert len(lf_repeat) == len(ls_fake_slice), (tag, len(lf_repeat), len(ls_fake_slice))
-        assert len(lf_repeat) > 0, tag
-        # print(tag, len(lf), comment)
-
-        # lf = lf[0]["lf"]
-        # lr = lr[0]["lr"]
-        # ls = ls[0]["ls_trf"]
-        # print("\tlf", lf.shape)
-        # print("\tlr", lr.shape)
-        # print("\tpr", [s / 19 * 4 - 16 for s in lf.shape[-2:]])
-        # print("\tls", ls.shape, [s - 2 * 38 for s in ls.shape[-2:]])
-
-
-if __name__ == "__main__":
-    # depug()
-    check_data()
+    check_data(tags[idx], comments[idx])
