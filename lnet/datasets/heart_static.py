@@ -15,7 +15,25 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     else:
         repeat = 1
 
-    if tag in ["2019-12-08_06.57.57", "2019-12-08_06.59.59", "2019-12-08_10.32.03"]:
+    if tag == "beads_ref_Heart_tightCrop":
+        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
+        location = "LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/Heart_tightCrop/200msExp/2019-12-09_22.23.27/"
+        if name == "lf":
+            location += "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+        elif name == "ls" or name == "ls_trf":
+            location += "stack_1_channel_1/Cam_Left_*.h5/Data"
+        elif name == "ls_reg":
+            location += "*Cam_Left_registered.tif"
+
+    elif tag == "beads_should_fit_Heart_tightCrop_0":
+        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
+        location = "LF_partially_restored/LenseLeNet_Microscope/20191207_StaticHeart/Beads/Heart_tightCrop/2019-12-08_05.10.30/"
+        if name == "lf":
+            location += "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+        if name == "ls" or name == "ls_trf":
+            location += "stack_1_channel_1/Cam_Left_*.h5/Data"
+
+    elif tag in ["2019-12-08_06.57.57", "2019-12-08_06.59.59", "2019-12-08_10.32.03"]:
         transformations = get_transformations(name, "staticHeartFOV", meta=meta)
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191207_StaticHeart/fish1/static/staticHeartFOV/Sliding_stepsize2_CompleteSlide/{tag}/"
         if name == "lf":
@@ -95,9 +113,9 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
 
-    elif tag in ["2019-12-09_07.42.47"]:  # note: for testing dynamic training?
+    elif tag in ["2019-12-09_07.42.47"]:
         transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_05.41.14_theGoldenOne/staticHeart_samePos/{tag}/stack_1_channel_3"
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_05.41.14_theGoldenOne/staticHeart_samePos/{tag}/stack_1_channel_3/"
         if name == "lf":
             location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         # elif name == "lr":
@@ -189,7 +207,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     if location is None or location.endswith("/"):
         raise NotImplementedError(f"tag: {tag}, name: {name}")
 
-    assert tag in location, (tag, name, location)
+    assert "beads" in tag or tag in location, (tag, name, location)
     return TensorInfo(
         name=name,
         root=root,
@@ -349,62 +367,74 @@ def debug():
 
 def check_data():
     meta = {"z_out": 49, "nnum": 19, "scale": 4, "interpolation_order": 2}
-    for tag in [
-        "2019-12-08_06.57.57",
-        "2019-12-08_06.59.59",
-        "2019-12-08_10.32.03",
-        "2019-12-08_06.35.52",
-        "2019-12-08_06.38.47",
-        "2019-12-08_06.10.34",
-        "2019-12-08_06.41.39",
-        "2019-12-08_06.18.09",
-        "2019-12-08_06.46.09",
-        "2019-12-08_06.23.13",
-        "2019-12-08_06.49.08",
-        "2019-12-08_06.25.02",
-        "2019-12-08_06.51.57",
-        "2019-12-08_06.30.40",
-        "2019-12-08_06.59.59",
-        "2019-12-08_10.32.03",
-        "2019-12-09_09.52.38",
-        "2019-12-09_08.34.44",
-        "2019-12-09_08.41.41",
-        "2019-12-09_08.51.01",
-        "2019-12-09_09.01.28",
-        "2019-12-09_09.11.59",
-        "2019-12-09_09.18.01",
-        "2019-12-09_08.15.07",
-        "2019-12-09_08.19.40",
-        "2019-12-09_08.27.14",
-        "2019-12-09_02.16.30",
-        "2019-12-09_02.23.01",
-        "2019-12-09_02.29.34",
-        "2019-12-09_02.35.49",
-        "2019-12-09_02.42.03",
-        "2019-12-09_02.48.24",
-        "2019-12-09_02.54.46",
-        "2019-12-10_04.24.29",
-        "2019-12-10_05.14.57",
-        "2019-12-10_05.41.48",
-        "2019-12-10_06.03.37",
-        "2019-12-10_06.25.14",
-        "2019-12-09_07.42.47",  # for dynamic testing
-    ]:
+    for tag in """
+beads_ref_Heart_tightCrop
+2019-12-08_06.57.57  # fish5 val
+2019-12-08_06.59.59  # fish5 val
+2019-12-08_10.32.03  # fish5 val
+2019-12-08_06.35.52  # fish5 val
+2019-12-08_06.38.47  # fish5 val
+2019-12-08_06.10.34  # fish5 val
+2019-12-08_06.41.39  # fish5 val
+2019-12-08_06.18.09  # fish5 val
+2019-12-08_06.46.09  # fish5 val
+2019-12-08_06.23.13  # fish5 val
+2019-12-08_06.49.08  # fish5 val
+2019-12-08_06.25.02  # fish5 val
+2019-12-08_06.51.57  # fish5 val
+2019-12-08_06.30.40  # fish5 val
+2019-12-08_06.59.59  # fish5
+2019-12-08_10.32.03  # fish5
+2019-12-09_09.52.38  # fish2 test
+2019-12-09_08.34.44  # fish2 test 
+2019-12-09_08.41.41  # fish2 test 
+2019-12-09_08.51.01  # fish2 test 
+2019-12-09_09.01.28  # fish2 test 
+2019-12-09_09.11.59  # fish2 test 
+2019-12-09_09.18.01  # fish2 test 
+2019-12-09_08.15.07  # fish2 test
+2019-12-09_08.19.40  # fish2 test
+2019-12-09_08.27.14  # fish2 test
+2019-12-09_02.16.30  # fish1
+2019-12-09_02.23.01  # fish1
+2019-12-09_02.29.34  # fish1
+2019-12-09_02.35.49  # fish1
+2019-12-09_02.42.03  # fish1
+2019-12-09_02.48.24  # fish1
+2019-12-09_02.54.46  # fish1
+2019-12-09_07.42.47  # fish2 test
+2019-12-10_04.24.29  # fish2 test
+2019-12-10_05.14.57  # fish2 test
+2019-12-10_05.41.48  # fish2 test
+2019-12-10_06.03.37  # fish2 test
+2019-12-10_06.25.14  # fish2 test
+""".split(
+        "\n"
+    ):
+        if not tag or tag.startswith("#"):
+            continue
+
+        if "#" in tag:
+            tag, comment = tag.split("#")
+            tag = tag.strip()
+        else:
+            comment = ""
+
         lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta))
-        lr = get_dataset_from_info(get_tensor_info(tag, "lr", meta=meta))
-        ls = get_dataset_from_info(get_tensor_info(tag, "ls_trf", meta=meta))
+        # lr = get_dataset_from_info(get_tensor_info(tag, "lr", meta=meta))
+        ls = get_dataset_from_info(get_tensor_info(tag, "ls", meta=meta))
 
         assert len(lf) == len(ls), (tag, len(lf), len(ls))
-        assert len(lf) == len(lr), (tag, len(lf), len(lr))
+        # assert len(lf) == len(lr), (tag, len(lf), len(lr))
         assert len(lf) > 0, tag
-        print(tag, len(lf))
-        lf = lf[0]["lf"]
-        lr = lr[0]["lr"]
-        ls = ls[0]["ls_trf"]
-        print("\tlf", lf.shape)
-        print("\tlr", lr.shape)
-        print("\tpr", [s / 19 * 4 - 16 for s in lf.shape[-2:]])
-        print("\tls", ls.shape, [s - 2 * 38 for s in ls.shape[-2:]])
+        print(tag, len(lf), comment, ls.info.location)
+        # lf = lf[0]["lf"]
+        # lr = lr[0]["lr"]
+        # ls = ls[0]["ls_trf"]
+        # print("\tlf", lf.shape)
+        # print("\tlr", lr.shape)
+        # print("\tpr", [s / 19 * 4 - 16 for s in lf.shape[-2:]])
+        # print("\tls", ls.shape, [s - 2 * 38 for s in ls.shape[-2:]])
 
 
 if __name__ == "__main__":

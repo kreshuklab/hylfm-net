@@ -17,7 +17,6 @@ import h5py
 import imageio
 import numpy
 
-# import torch.multiprocessing
 import torch.utils.data
 import yaml
 import z5py
@@ -538,7 +537,7 @@ def get_dataset_from_info(
     elif ".h5" in info.location:
         ds = H5Dataset(info=info)
     else:
-        raise NotImplementedError
+        raise NotImplementedError(info.location)
 
     if (indices or filters) and not cache:
         raise NotImplementedError("subset only implemented for cached dataset")

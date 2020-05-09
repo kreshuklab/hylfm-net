@@ -1,14 +1,19 @@
 from typing import List, Optional
 
+from lnet.transformations.affine_utils import get_bdv_affine_transformations_by_name
+
 Heart_tightCrop = "Heart_tightCrop"
 staticHeartFOV = "staticHeartFOV"
+wholeFOV = "wholeFOV"
 
 
 def get_lf_shape(crop_name: str) -> List[int]:
     if crop_name == Heart_tightCrop:
         return [1273, 1463]  # crop on raw (1551,1351) in matlab:
     elif crop_name == staticHeartFOV:
-        return [1178, 1767]  # crop on raw in matplab: rect_LF = [100, 400, 1850, 1250]; %[xmin, ymin, width, height]
+        return [1178, 1767]  # crop on raw in matlab: rect_LF = [100, 400, 1850, 1250]; %[xmin, ymin, width, height]
+    elif crop_name == wholeFOV:
+        return [1064, 1083]  # crop on raw in matlab: rect_LF = [450, 450, 1150, 1150]; %[xmin, ymin, width, height];
     else:
         raise NotImplementedError(crop_name)
 
@@ -18,6 +23,8 @@ def get_ref_ls_shape(crop_name: str) -> List[int]:
         return [241, 1451, 1651]
     elif crop_name == staticHeartFOV:
         return [241, 1451, 1951]
+    elif crop_name == wholeFOV:
+        return [241, 1351, 1351]
     else:
         raise NotImplementedError(crop_name)
 
@@ -36,6 +43,10 @@ def get_raw_ls_crop(crop_name: str, *, for_slice: bool = False, wrt_ref: bool = 
             # crop in matlab: 50, 300, 1950, 1450 for ref shape
             # crop for ref shape + crop for divisibility
             ret = [[0, None], [3, 1750 - 299 - 4], [6, 2000 - 49 - 7]]
+        elif crop_name == wholeFOV:
+            # crop in matlab: # rect_LS = [350, 350, 1350, 1350]; %[xmin, ymin, width, height];
+            # crop for ref shape + crop for divisibility
+            ret = [[0, None], [1, 1700 - 349 - 1], [1, 1700 - 349 - 1]]
         else:
             raise NotImplementedError(crop_name)
     else:
@@ -47,6 +58,10 @@ def get_raw_ls_crop(crop_name: str, *, for_slice: bool = False, wrt_ref: bool = 
             # crop in matlab: 50, 300, 1950, 1450 for ref shape
             # crop for ref shape + crop for divisibility
             ret = [[0, None], [0, 241], [299 + 3, 1750 - 4], [49 + 6, 2000 - 7]]
+        elif crop_name == wholeFOV:
+            # crop in matlab: # rect_LS = [350, 350, 1350, 1350]; %[xmin, ymin, width, height];
+            # crop for ref shape + crop for divisibility
+            ret = [[0, None], [0, 241], [349 + 1, 1700 - 1], [349 + 1, 1700 - 1]]
         else:
             raise NotImplementedError(crop_name)
 
@@ -61,20 +76,20 @@ def get_ls_shape(crop_name: str, for_slice: bool = False) -> List[int]:
     if for_slice:
         s = [c[1] - c[0] for c in crop[2:]]
         assert len(s) == 2
-        assert s[0] % 19 == 0
-        assert s[1] % 19 == 0
+        assert s[0] % 19 == 0, (s[0], s[0] % 19)
+        assert s[1] % 19 == 0, (s[1], s[1] % 19)
     else:
         s = [c[1] - c[0] for c in crop[1:]]
         assert len(s) == 3
         assert s[0] == 241
-        assert s[1] % 19 == 0
-        assert s[2] % 19 == 0
+        assert s[1] % 19 == 0, (s[1], s[1] % 19)
+        assert s[2] % 19 == 0, (s[2], s[2] % 19)
 
     return s
 
 
 def get_transformations(name: str, crop_name: str, meta: dict):
-    assert crop_name in [Heart_tightCrop, staticHeartFOV]
+    assert crop_name in [Heart_tightCrop, staticHeartFOV, wholeFOV]
     if name == "lf":
         return [{"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_lf_shape(crop_name)}}]
     elif name in ["ls", "ls_trf"]:
@@ -91,10 +106,10 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                     "AffineTransformation": {
                         "apply_to": name,
                         "target_to_compare_to": [meta["z_out"]]
-                        + [xy // meta["nnum"] * meta["scale"] for xy in get_lf_shape(crop_name)],
+                        + [xy / meta["nnum"] * meta["scale"] for xy in get_lf_shape(crop_name)],
                         "order": meta["interpolation_order"],
                         "ref_input_shape": [838] + get_lf_shape(crop_name),
-                        "bdv_affine_transformations": crop_name,
+                        "bdv_affine_transformations": get_bdv_affine_transformations_by_name(crop_name),
                         "ref_output_shape": get_ref_ls_shape(crop_name),
                         "ref_crop_in": [[0, None], [0, None], [0, None]],
                         "ref_crop_out": get_raw_ls_crop(crop_name, wrt_ref=True),

@@ -87,19 +87,21 @@ class AffineTransformation(torch.nn.Module):
         self,
         *,
         apply_to: Union[str, Dict[str, str]],
-        target_to_compare_to: Union[str, Tuple[int, int, int]],
+        target_to_compare_to: Union[str, Tuple[Union[int, float], Union[int, float], Union[int, float]]],
         order: int,
-        ref_input_shape: Sequence[int],
+        ref_input_shape: Union[str, Sequence[int]],
         bdv_affine_transformations: Union[
             str, List[List[float]]
         ],  # Fiij's big data viewer affine transformations: each affine transformation as a list of 12 floats.
         # affine_matrices: List[List[float]],
-        ref_output_shape: Sequence[int],
+        ref_output_shape: Union[str, Sequence[int]],
         ref_crop_in: Optional[Tuple[Tuple[int, Optional[int]], ...]] = None,
         ref_crop_out: Optional[Tuple[Tuple[int, Optional[int]], ...]] = None,
         inverted: bool = False,
         padding_mode: str = "border",
     ):
+        if isinstance(ref_input_shape, str):
+            ref_input_shape = [838] + get_lf_shape()
         if len(ref_input_shape) not in (2, 3):
             raise NotImplementedError
 
@@ -111,6 +113,12 @@ class AffineTransformation(torch.nn.Module):
             apply_to = {apply_to: apply_to}
 
         self.apply_to: Dict[str, str] = apply_to
+        if not isinstance(target_to_compare_to, str):
+            target_to_compare_to_float = tuple(target_to_compare_to)
+            target_to_compare_to = tuple([int(t) for t in target_to_compare_to])
+            assert all(
+                [tf == ti for tf, ti in zip(target_to_compare_to_float, target_to_compare_to)]
+            ), target_to_compare_to_float
         self.target_to_compare_to = target_to_compare_to
         self.input_shape = tuple(ref_input_shape)
         self.output_shape = tuple(ref_output_shape)

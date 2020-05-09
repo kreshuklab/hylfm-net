@@ -16,7 +16,7 @@ def test_crop():
         raise NotImplementedError
 
     meta = {
-        "z_out": 241,
+        "z_out": 49,
         "z_ls_rescaled": 241,
         "nnum": 19,
         "interpolation_order": 2,
@@ -37,10 +37,8 @@ def test_crop():
 
     ref_crop_in = (
         (meta["pred_z_min"], meta["pred_z_max"] - 838 or None),
-        (0, None),
-        (0, None)
-        # (meta["shrink"] * meta["nnum"] / meta["scale"], -meta["shrink"] * meta["nnum"] / meta["scale"]),
-        # (meta["shrink"] * meta["nnum"] / meta["scale"], -meta["shrink"] * meta["nnum"] / meta["scale"]),
+        (meta["shrink"] * meta["nnum"] / meta["scale"], -meta["shrink"] * meta["nnum"] / meta["scale"]),
+        (meta["shrink"] * meta["nnum"] / meta["scale"], -meta["shrink"] * meta["nnum"] / meta["scale"]),
     )
     ref_crop_out = get_ref_crop_out(crop_name, ref_crop_in, inverted=False)
 
@@ -48,7 +46,7 @@ def test_crop():
         {
             "Assert": {
                 "apply_to": target_to_compare_to,
-                "expected_tensor_shape": [None, 1, get_ls_shape(crop_name)[0]]
+                "expected_tensor_shape": [None, 1, meta["z_ls_rescaled"]]
                 + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]],
             }
         },
@@ -65,12 +63,12 @@ def test_crop():
                 + [[None if c is None else c / meta["nnum"] * meta["scale"] for c in rco] for rco in ref_crop_out[1:]],
             }
         },
-        # {
-        #     "Crop": {
-        #         "apply_to": "ls_trf",
-        #         "crop": [(0, None), (0, None), (meta["shrink"], -meta["shrink"]), (meta["shrink"], -meta["shrink"])],
-        #     }
-        # },
+        {
+            "Crop": {
+                "apply_to": "ls_trf",
+                "crop": [(0, None), (0, None), (meta["shrink"], -meta["shrink"]), (meta["shrink"], -meta["shrink"])],
+            }
+        },
         # {"SetPixelValue": {"apply_to": "ls_trf", "value": 1.0}},
         {"Cast": {"apply_to": "ls_trf", "dtype": "float32", "device": "cuda"}},
         {
@@ -79,7 +77,7 @@ def test_crop():
                 "target_to_compare_to": target_to_compare_to,
                 "order": meta["interpolation_order"],
                 "ref_input_shape": [838] + get_lf_shape(crop_name),
-                "bdv_affine_transformations": crop_name,
+                "bdv_affine_transformations": crop_name,# "bead_ref0",  # todo: change back to crop_name
                 "ref_output_shape": get_ls_shape(crop_name),
                 "ref_crop_in": ref_crop_in,
                 "ref_crop_out": ref_crop_out,
