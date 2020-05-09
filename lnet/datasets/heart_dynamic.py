@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 
 import imageio
@@ -334,14 +335,46 @@ def debug():
     #     plt.show()
 
 
-def check_data():
+def check_data(tag: str, comment: str):
     meta = {"z_out": 49, "nnum": 19, "scale": 4}
 
     # 2019-12-02_23.43.24 not matching! -> use 2019-12-02_23.43.24/stack_1_channel_3/originalCrop/TP_00000_originalCrop/ with 19px padding on rectified image on bottom (bead IMG is bigger)
     # 2019-12-02_23.50.04 not matching! -> use 2019-12-02_23.50.04/stack_1_channel_3/originalCrop/TP_00000/ with 19px padding on rectified image on bottom (bead IMG is bigger)
     # 2019-12-03_00.00.44/stack_1_channel_3/ not matching! -> use 2019-12-03_00.00.44/stack_1_channel_2/ with 19px padding on rectified image on bottom (bead IMG is bigger)
 
-    for tag in """
+    lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=False)
+    ls = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
+    assert len(lf) == len(ls), (tag, len(lf), len(ls))
+    assert len(lf) > 0, tag
+    print(tag, len(lf), comment)
+    # lf = lf[0]["lf"]
+    # ls = ls[0]["ls_slice"]
+    # print("\tlf", lf.shape)
+    # print("\tls", ls.shape)
+    # imageio.imwrite(f"/g/kreshuk/LF_computed/lnet/padded_lf_{tag}_pad_at_1.tif", lf[0, 0])
+    # path = Path(f"/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191202_staticHeart_dynamicHeart/data/{tag}/stack_1_channel_3/TP_00000/RC_rectified_cropped0/Cam_Right_001_rectified.tif")
+    # path.parent.mkdir(parents=True, exist_ok=True)
+    # imageio.imwrite(path, lf[0, 0])
+
+
+def search_data():
+    path = Path(
+        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/Heart_tightCrop/dynamicImaging1_btw20to160planes/2019-12-03_00.00.44/stack_1_channel_2"
+    )
+    for dir in path.glob("*/RC_rectified/"):
+        print(dir.parent.name, len(list(dir.glob("*.tif"))))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="heart_dynamic")
+    parser.add_argument("idx", type=int)
+
+    args = parser.parse_args()
+    idx = args.idx
+    # depug()
+    # search_data()
+
+    tags = """
 2019-12-02_04.12.36_10msExp  # fish4 quality 4
 2019-12-02_23.17.56  # fish4 quality 3
 2019-12-02_23.43.24  # fish4 quality 3
@@ -362,40 +395,20 @@ def check_data():
 2019-12-10_02.13.34  # fish3
 """.split(
         "\n"
-    ):
-        if not tag or tag.startswith("#"):
-            continue
+    )
+    full_tags = [tag for tag in tags if tag and not tag.startswith("#")]
+    tags = []
+    comments = []
 
-        if "#" in tag:
-            tag, comment = tag.split("#")
+    for full_tag in full_tags:
+        if "#" in full_tag:
+            tag, comment = full_tag.split("#")
             tag = tag.strip()
         else:
+            tag = full_tag
             comment = ""
 
-        lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=False)
-        ls = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
-        assert len(lf) == len(ls), (tag, len(lf), len(ls))
-        assert len(lf) > 0, tag
-        print(tag, len(lf), comment)
-        # lf = lf[0]["lf"]
-        # ls = ls[0]["ls_slice"]
-        # print("\tlf", lf.shape)
-        # print("\tls", ls.shape)
-        # imageio.imwrite(f"/g/kreshuk/LF_computed/lnet/padded_lf_{tag}_pad_at_1.tif", lf[0, 0])
-        # path = Path(f"/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191202_staticHeart_dynamicHeart/data/{tag}/stack_1_channel_3/TP_00000/RC_rectified_cropped0/Cam_Right_001_rectified.tif")
-        # path.parent.mkdir(parents=True, exist_ok=True)
-        # imageio.imwrite(path, lf[0, 0])
+        tags.append(tag)
+        comments.append(comment)
 
-
-def search_data():
-    path = Path(
-        "/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/Heart_tightCrop/dynamicImaging1_btw20to160planes/2019-12-03_00.00.44/stack_1_channel_2"
-    )
-    for dir in path.glob("*/RC_rectified/"):
-        print(dir.parent.name, len(list(dir.glob("*.tif"))))
-
-
-if __name__ == "__main__":
-    # depug()
-    check_data()
-    # search_data()
+    check_data(tags[idx], comments[idx])
