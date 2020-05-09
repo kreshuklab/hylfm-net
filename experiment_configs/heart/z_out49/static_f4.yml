@@ -170,4 +170,8 @@ stages:
           sample_preprocessing: *eval_sample_prepr
           filters: []
           datasets:
-            - {tensors: {lf: static_heart.2019-12-10_04.24.29, ls_trf: static_heart.2019-12-10_04.24.29, meta: {nnum: *nnum, z_out: *z_out, scale: *scale}}, indices: null}
+            - {tensors: {lf: heart_static.2019-12-09_08.41.41, ls: heart_static.2019-12-09_08.41.41, meta: *meta}}
+
+
+
+- {tensors: {lf: static_heart.2019-12-10_04.24.29, ls_trf: static_heart.2019-12-10_04.24.29, meta: {nnum: *nnum, z_out: *z_out, scale: *scale}}, indices: null}

@@ -132,19 +132,6 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             z_slice = 140
             assert z_slice == idx2z_slice_241(100), (z_slice, idx2z_slice_241(100))
 
-    elif tag in ["2019-12-09_07.50.24"]:
-        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_05.41.14_theGoldenOne/staticHeart_samePos/{tag}/"
-        if name == "lf":
-            location += "stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
-        # elif name == "lr":
-        #     location = location.replace("LF_partially_restored/", "LF_computed/")
-        #     location += "stack_1_channel_3/TP_*/RCout/Cam_Right_001.tif"
-        elif name == "ls_slice":
-            location += "stack_1_channel_3/Cam_Left_*.h5/Data"
-            samples_per_dataset = 241
-            z_slice = idx2z_slice_241
-
     elif tag in [
         "2019-12-09_23.10.02",
         "2019-12-09_23.17.30",
@@ -178,6 +165,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_1_channel_3/Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
+
     else:
         raise NotImplementedError(tag)
 
@@ -360,7 +348,6 @@ def check_data():
 2019-12-09_05.21.16  # fish2 test
 2019-12-09_05.41.14_theGoldenOne  # fish2 test
 2019-12-09_05.55.26  # fish2 test
-2019-12-09_07.50.24  # fish2 test
 2019-12-09_23.10.02  # fish3
 2019-12-09_23.17.30  # fish3
 2019-12-09_23.19.41  # fish3

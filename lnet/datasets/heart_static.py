@@ -118,15 +118,30 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_05.41.14_theGoldenOne/staticHeart_samePos/{tag}/stack_1_channel_3/"
         if name == "lf":
             location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
-        # elif name == "lr":
-        #     location = location.replace("LF_partially_restored/", "LF_computed/")
-        #     location += "TP_*/RCout/Cam_Right_001.tif"
+        elif name == "lr":
+            location = location.replace("LF_partially_restored/", "LF_computed/")
+            location += "TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls" or name == "ls_trf":
             location += "Cam_Left_*.h5/Data"
-        # elif name == "ls_slice":
-        #     location += "Cam_Left_*.h5/Data"
-        #     samples_per_dataset = 241
-        #     z_slice = idx2z_slice_241
+        elif name == "ls_fake_slice":
+            location += "Cam_Left_*.h5/Data"
+            samples_per_dataset = 241
+            z_slice = idx2z_slice_241
+
+    elif tag in ["2019-12-09_07.50.24"]:
+        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_05.41.14_theGoldenOne/staticHeart_samePos/{tag}/stack_1_channel_3/"
+        if name == "lf":
+            location += "TP_*/RC_rectified/Cam_Right_001_rectified.tif"
+        elif name == "lr":
+            location = location.replace("LF_partially_restored/", "LF_computed/")
+            location += "TP_*/RCout/Cam_Right_001.tif"
+        elif name == "ls" or name == "ls_trf":
+            location += "Cam_Left_*.h5/Data"
+        elif name == "ls_fake_slice":
+            location += "Cam_Left_*.h5/Data"
+            samples_per_dataset = 241
+            z_slice = idx2z_slice_241
 
     elif tag in [
         "2019-12-09_08.34.44",
@@ -368,7 +383,8 @@ def debug():
 def check_data():
     meta = {"z_out": 49, "nnum": 19, "scale": 4, "interpolation_order": 2}
     for tag in """
-beads_ref_Heart_tightCrop
+# beads_ref_Heart_tightCrop
+# beads_should_fit_Heart_tightCrop_0
 2019-12-08_06.57.57  # fish5 val
 2019-12-08_06.59.59  # fish5 val
 2019-12-08_10.32.03  # fish5 val
@@ -403,6 +419,7 @@ beads_ref_Heart_tightCrop
 2019-12-09_02.48.24  # fish1
 2019-12-09_02.54.46  # fish1
 2019-12-09_07.42.47  # fish2 test
+2019-12-09_07.50.24  # fish2 test
 2019-12-10_04.24.29  # fish2 test
 2019-12-10_05.14.57  # fish2 test
 2019-12-10_05.41.48  # fish2 test
@@ -420,14 +437,30 @@ beads_ref_Heart_tightCrop
         else:
             comment = ""
 
-        lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta))
-        # lr = get_dataset_from_info(get_tensor_info(tag, "lr", meta=meta))
+        print("get lf")
+        lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
+        print("get lr")
+        lr = get_dataset_from_info(get_tensor_info(tag, "lr", meta=meta))
+        print("get ls")
         ls = get_dataset_from_info(get_tensor_info(tag, "ls", meta=meta))
+        print("get ls_trf")
+        ls_trf = get_dataset_from_info(get_tensor_info(tag, "ls_trf", meta=meta))
 
+        print(tag, len(lf), comment)
+        assert len(lf) == len(lr), (tag, len(lf), len(lr))
         assert len(lf) == len(ls), (tag, len(lf), len(ls))
-        # assert len(lf) == len(lr), (tag, len(lf), len(lr))
+        assert len(lf) == len(ls_trf), (tag, len(lf), len(ls_trf))
         assert len(lf) > 0, tag
-        print(tag, len(lf), comment, ls.info.location)
+
+        print("get lr_repeat")
+        lf_repeat = get_dataset_from_info(get_tensor_info(tag, "lf_repeat241", meta=meta), cache=True)
+        print("get ls_fake_slice")
+        ls_fake_slice = get_dataset_from_info(get_tensor_info(tag, "ls_fake_slice", meta=meta))
+
+        assert len(lf_repeat) == len(ls_fake_slice), (tag, len(lf_repeat), len(ls_fake_slice))
+        assert len(lf_repeat) > 0, tag
+        # print(tag, len(lf), comment)
+
         # lf = lf[0]["lf"]
         # lr = lr[0]["lr"]
         # ls = ls[0]["ls_trf"]

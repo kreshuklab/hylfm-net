@@ -406,6 +406,7 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
             # fut.set_result(idx)
             return idx
         else:
+            assert self.repeat == 1, "could write same idx in parallel"
             return self.process(idx)
             # with N5CachedDataset_submit_lock:
             # fut = self.futures.get(idx, None)
@@ -439,7 +440,6 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
                 {
                     "indices": None if indices is None else list(indices),
                     "filters": [list(fil) for fil in filters],
-                    "repeat": dataset.repeat,
                 }
             )
         )
@@ -451,8 +451,9 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
             mask_description_file_path.write_text(description)
 
         if mask_file_path.exists():
-            mask: numpy.ndarray = numpy.load(str(mask_file_path))
+            mask: numpy.ndarray = numpy.repeat(numpy.load(str(mask_file_path)), dataset.repeat)
         else:
+            assert dataset.repeat == 1, "don't compute anything on the repeated dataset!"
             mask = numpy.zeros(len(dataset), dtype=bool)
             mask[numpy.asarray(indices)] = True
             for name, kwargs in filters:
