@@ -372,8 +372,8 @@ def check_data():
         else:
             comment = ""
 
-        lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
-        ls = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta))
+        lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=False)
+        ls = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
         assert len(lf) == len(ls), (tag, len(lf), len(ls))
         assert len(lf) > 0, tag
         print(tag, len(lf), comment)
