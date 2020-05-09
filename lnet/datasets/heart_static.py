@@ -118,9 +118,9 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_05.41.14_theGoldenOne/staticHeart_samePos/{tag}/stack_1_channel_3/"
         if name == "lf":
             location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
-        elif name == "lr":
-            location = location.replace("LF_partially_restored/", "LF_computed/")
-            location += "TP_*/RCout/Cam_Right_001.tif"
+        # elif name == "lr":
+        #     location = location.replace("LF_partially_restored/", "LF_computed/")
+        #     location += "TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls" or name == "ls_trf":
             location += "Cam_Left_*.h5/Data"
         elif name == "ls_fake_slice":
@@ -133,9 +133,9 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_05.41.14_theGoldenOne/staticHeart_samePos/{tag}/stack_1_channel_3/"
         if name == "lf":
             location += "TP_*/RC_rectified/Cam_Right_001_rectified.tif"
-        elif name == "lr":
-            location = location.replace("LF_partially_restored/", "LF_computed/")
-            location += "TP_*/RCout/Cam_Right_001.tif"
+        # elif name == "lr":
+        #     location = location.replace("LF_partially_restored/", "LF_computed/")
+        #     location += "TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls" or name == "ls_trf":
             location += "Cam_Left_*.h5/Data"
         elif name == "ls_fake_slice":
@@ -442,7 +442,7 @@ def check_data():
         print("get lr")
         lr = get_dataset_from_info(get_tensor_info(tag, "lr", meta=meta))
         print("get ls")
-        ls = get_dataset_from_info(get_tensor_info(tag, "ls", meta=meta))
+        ls = get_dataset_from_info(get_tensor_info(tag, "ls", meta=meta), cache=True)
         print("get ls_trf")
         ls_trf = get_dataset_from_info(get_tensor_info(tag, "ls_trf", meta=meta))
 

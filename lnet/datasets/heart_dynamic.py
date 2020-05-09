@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import imageio
+
 from lnet.datasets.base import TensorInfo, get_dataset_from_info
 from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241
 
@@ -23,11 +25,12 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     meta["quality"] = 2
 
     if tag in ["2019-12-02_04.12.36_10msExp"]:
+        transformations = []
         meta["quality"] = 4
-        transformations = get_transformations(name, "wholeFOV", meta=meta)
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191202_staticHeart_dynamicHeart/data/{tag}/"
         if name == "lf":
             location += "stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+            transformations += [{"Crop": {"apply_to": name, "crop": [(0, None), (19, None), (0, None)]}}]
         # elif name == "lr":
         #     location = location.replace("LF_partially_restored/", "LF_computed/")
         #     location += "stack_1_channel_3/TP_*/RCout/Cam_Right_001.tif"
@@ -35,6 +38,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_1_channel_3/Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
+        transformations += get_transformations(name, "wholeFOV", meta=meta)
     elif tag in ["2019-12-02_23.17.56", "2019-12-02_23.43.24", "2019-12-02_23.50.04", "2019-12-03_00.00.44"]:
         meta["quality"] = 3
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/Heart_tightCrop/dynamicImaging1_btw20to160planes/{tag}/stack_1_channel_3/"
@@ -368,7 +372,7 @@ def check_data():
         else:
             comment = ""
 
-        lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta))
+        lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
         ls = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta))
         assert len(lf) == len(ls), (tag, len(lf), len(ls))
         assert len(lf) > 0, tag
@@ -378,7 +382,7 @@ def check_data():
         # print("\tlf", lf.shape)
         # print("\tls", ls.shape)
         # imageio.imwrite(f"/g/kreshuk/LF_computed/lnet/padded_lf_{tag}_pad_at_1.tif", lf[0, 0])
-        # path = Path(f"/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/Heart_tightCrop/dynamicImaging1_btw20to160planes/{tag}/stack_1_channel_3/originalCrop/TP_00000/RC_rectified_padded/Cam_Right_001_rectified.tif")
+        # path = Path(f"/g/kreshuk/LF_partially_restored/LenseLeNet_Microscope/20191202_staticHeart_dynamicHeart/data/{tag}/stack_1_channel_3/TP_00000/RC_rectified_cropped0/Cam_Right_001_rectified.tif")
         # path.parent.mkdir(parents=True, exist_ok=True)
         # imageio.imwrite(path, lf[0, 0])
 
