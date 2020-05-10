@@ -8,6 +8,10 @@ from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241
 
 
 def get_tensor_info(tag: str, name: str, meta: dict):
+    assert "z_out" in meta
+    assert "nnum" in meta
+    assert "interpolation_order" in meta
+    assert "scale" in meta
     root = "GKRESHUK"
     insert_singleton_axes_at = [0, 0]
     z_slice = None
@@ -350,7 +354,7 @@ def debug():
 
 
 def check_filter(tag: str, comment: str):
-    meta = {"z_out": 49, "nnum": 19, "scale": 4}
+    meta = {"z_out": 49, "nnum": 19, "scale": 4, "interpolation_order": 2}
     lf_crops = {"Heart_tightCrop": [[0, None], [0, None], [0, None]],
     "wholeFOV": [[0, None], [0, None], [0, None]]}
 
@@ -441,4 +445,3 @@ if __name__ == "__main__":
 
     # check_data(tags[idx], comments[idx])
     check_filter(tags[idx], comments[idx])
-

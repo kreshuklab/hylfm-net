@@ -109,6 +109,13 @@ class TensorInfo:
 
     @property
     def description(self):
+        # filter out meta keys that do not influence data in cache
+        relevant_meta = {
+            k: v for k, v in self.meta.items() if k not in ["crop_names", "crop_name", "quality", "shrink"]
+        }
+        if self.name == "lf" or "slice" in self.name:
+            relevant_meta.pop("z_out", None)
+
         return yaml.safe_dump(
             {
                 "name": self.name,
@@ -118,11 +125,9 @@ class TensorInfo:
                 "datasets_per_file": self.datasets_per_file,
                 "samples_per_dataset": self.samples_per_dataset,
                 "insert_singleton_axes_at": self.insert_singleton_axes_at,
-                "z_slice": str(self.z_slice) if callable(self.z_slice) else self.z_slice,
+                "z_slice": self.z_slice.__name__ if callable(self.z_slice) else self.z_slice,
                 "skip_indices": list(self.skip_indices),
-                "meta": {
-                    k: v for k, v in self.meta.items() if k not in ["crop_names", "crop_name", "quality"]
-                },  # filter out meta keys that do not influence data in cache
+                "meta": relevant_meta,
                 "kwargs": self.kwargs,
             }
         )
