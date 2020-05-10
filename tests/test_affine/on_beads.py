@@ -29,7 +29,7 @@ ref0_ls_reg = TensorInfo(
 def on_beads():
     import matplotlib.pyplot as plt
 
-    setting_name = "double_trf"
+    setting_name = "double_beads"
 
     def plot_vol(name):
         vol = sample[name]

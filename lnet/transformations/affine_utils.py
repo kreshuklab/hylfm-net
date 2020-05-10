@@ -1,8 +1,8 @@
-from typing import List, Tuple, Optional, Sequence
+from typing import List, Optional, Sequence, Tuple
 
 
 def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
-    if name == "Heart_tightCrop":  # "bead_ref0":
+    if name == "bead_ref0":
         return [
             [
                 0.98048,
@@ -20,23 +20,23 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
             ]
         ]
 
-    # elif name == "Heart_tightCrop":
-    #     return [
-    #         [
-    #             0.97945,
-    #             0.0048391,
-    #             -0.096309,
-    #             -88.5296,
-    #             -0.0074754,
-    #             0.98139,
-    #             0.15814,
-    #             -91.235,
-    #             0.016076,
-    #             0.0061465,
-    #             4.0499,
-    #             -102.0931,
-    #         ]
-    #     ]
+    elif name == "Heart_tightCrop":
+        return [
+            [
+                0.97945,
+                0.0048391,
+                -0.096309,
+                -88.5296,
+                -0.0074754,
+                0.98139,
+                0.15814,
+                -91.235,
+                0.016076,
+                0.0061465,
+                4.0499,
+                -102.0931,
+            ]
+        ]
 
     elif name == "staticHeartFOV":
         return [
@@ -86,148 +86,278 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
         ]
     elif name == "wholeFOV":
         return [
-        [
-            1.0000330417435905,
-            0.0013576823539939468,
-            -0.004114761682115554,
-            0.5965954463114479,
-            -2.608162465935266e-4,
-            0.9997237146596126,
-            -0.0012405487854156773,
-            0.6049313296603196,
-            -0.007468326192493499,
-            -0.006393449585647912,
-            1.0139671972757003,
-            4.030886094615941,
-        ],
-        [
-            1.0000195897268394,
-            -0.001326713750716928,
-            0.003542923090774597,
-            -0.45057279277200163,
-            1.959813002048347e-4,
-            1.000282458610685,
-            0.001418849770725325,
-            -0.6307709082217439,
-            0.007605383948124034,
-            0.006427628247973187,
-            0.9844683934402705,
-            -3.5619099663579843,
-        ],
-        [
-            1.0002542885875119,
-            0.001640391796268422,
-            -0.004916804343382724,
-            0.7943935244074773,
-            -0.0011763878931262618,
-            0.9996893129866766,
-            0.0020015643710407914,
-            0.23570851330359974,
-            -0.008752090572813771,
-            -0.0064692182918879015,
-            0.9973676871201351,
-            8.374516246903323,
-        ],
-        [
-            0.9987648848651456,
-            -7.348386539296854e-4,
-            -0.010270040762137386,
-            15.90851688342657,
-            5.988465343535266e-4,
-            1.0031490069810332,
-            1.7766079327323015e-4,
-            -16.00168945475245,
-            -0.0010431335860339346,
-            0.01921986326427179,
-            1.02866818001188,
-            -24.853086195115633,
-        ],
-        [
-            0.9998763934501763,
-            -0.0010891310450819906,
-            0.00253370847820035,
-            -0.6115113860549377,
-            7.675130470486004e-4,
-            0.9983682901916651,
-            -7.40670235632776e-4,
-            0.8275234429996294,
-            -0.00947710327402089,
-            0.0038009121698615866,
-            0.9993213751411238,
-            3.1765203213020143,
-        ],
-        [
-            1.0001499960607572,
-            0.0014027361439267177,
-            -0.0017760750843483504,
-            -0.10921947468546678,
-            -1.4673922853670316e-4,
-            0.9992407191400258,
-            -0.0017297884331933565,
-            0.9394132446795214,
-            0.024767938375552963,
-            -0.00398032235341257,
-            0.9783021841535382,
-            -7.444609223601558,
-        ],
-        [
-            1.0003559629383398,
-            2.9327823350429983e-4,
-            6.428006590138689e-4,
-            -0.5171440459931798,
-            -4.050787570647998e-4,
-            0.9996835486510609,
-            -2.6101507441633878e-5,
-            0.3307699115452033,
-            -0.007875800046626481,
-            -0.002452377176303182,
-            0.9930269401854842,
-            7.089568501996945,
-        ],
-        [
-            1.0008586374814403,
-            0.0017016621421833808,
-            0.0011200077040748062,
-            -0.2440484013785469,
-            4.817641577129386e-4,
-            0.9983909483762317,
-            0.002322117596739517,
-            -1.191038991556635,
-            -0.012612826427677736,
-            0.0017988091415114254,
-            1.0142720444336737,
-            6.527121708955718,
-        ],
-        [
-            0.97958,
-            0.0047483,
-            -0.01109,
-            -151.2572,
-            -0.0074967,
-            0.98373,
-            0.049058,
-            -134.7033,
-            0.013631,
-            -0.0030357,
-            1.1662,
-            -75.4176,
-        ],
-        [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0],
-    ]
+            [
+                1.0000330417435905,
+                0.0013576823539939468,
+                -0.004114761682115554,
+                0.5965954463114479,
+                -2.608162465935266e-4,
+                0.9997237146596126,
+                -0.0012405487854156773,
+                0.6049313296603196,
+                -0.007468326192493499,
+                -0.006393449585647912,
+                1.0139671972757003,
+                4.030886094615941,
+            ],
+            [
+                1.0000195897268394,
+                -0.001326713750716928,
+                0.003542923090774597,
+                -0.45057279277200163,
+                1.959813002048347e-4,
+                1.000282458610685,
+                0.001418849770725325,
+                -0.6307709082217439,
+                0.007605383948124034,
+                0.006427628247973187,
+                0.9844683934402705,
+                -3.5619099663579843,
+            ],
+            [
+                1.0002542885875119,
+                0.001640391796268422,
+                -0.004916804343382724,
+                0.7943935244074773,
+                -0.0011763878931262618,
+                0.9996893129866766,
+                0.0020015643710407914,
+                0.23570851330359974,
+                -0.008752090572813771,
+                -0.0064692182918879015,
+                0.9973676871201351,
+                8.374516246903323,
+            ],
+            [
+                0.9987648848651456,
+                -7.348386539296854e-4,
+                -0.010270040762137386,
+                15.90851688342657,
+                5.988465343535266e-4,
+                1.0031490069810332,
+                1.7766079327323015e-4,
+                -16.00168945475245,
+                -0.0010431335860339346,
+                0.01921986326427179,
+                1.02866818001188,
+                -24.853086195115633,
+            ],
+            [
+                0.9998763934501763,
+                -0.0010891310450819906,
+                0.00253370847820035,
+                -0.6115113860549377,
+                7.675130470486004e-4,
+                0.9983682901916651,
+                -7.40670235632776e-4,
+                0.8275234429996294,
+                -0.00947710327402089,
+                0.0038009121698615866,
+                0.9993213751411238,
+                3.1765203213020143,
+            ],
+            [
+                1.0001499960607572,
+                0.0014027361439267177,
+                -0.0017760750843483504,
+                -0.10921947468546678,
+                -1.4673922853670316e-4,
+                0.9992407191400258,
+                -0.0017297884331933565,
+                0.9394132446795214,
+                0.024767938375552963,
+                -0.00398032235341257,
+                0.9783021841535382,
+                -7.444609223601558,
+            ],
+            [
+                1.0003559629383398,
+                2.9327823350429983e-4,
+                6.428006590138689e-4,
+                -0.5171440459931798,
+                -4.050787570647998e-4,
+                0.9996835486510609,
+                -2.6101507441633878e-5,
+                0.3307699115452033,
+                -0.007875800046626481,
+                -0.002452377176303182,
+                0.9930269401854842,
+                7.089568501996945,
+            ],
+            [
+                1.0008586374814403,
+                0.0017016621421833808,
+                0.0011200077040748062,
+                -0.2440484013785469,
+                4.817641577129386e-4,
+                0.9983909483762317,
+                0.002322117596739517,
+                -1.191038991556635,
+                -0.012612826427677736,
+                0.0017988091415114254,
+                1.0142720444336737,
+                6.527121708955718,
+            ],
+            [
+                0.97958,
+                0.0047483,
+                -0.01109,
+                -151.2572,
+                -0.0074967,
+                0.98373,
+                0.049058,
+                -134.7033,
+                0.013631,
+                -0.0030357,
+                1.1662,
+                -75.4176,
+            ],
+            [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0],
+        ]
     else:
         raise NotImplementedError(name)
 
 
-def get_ref_crop_out(
-    affine_trf_name: str, ref_crop_in: Sequence[Sequence[Optional[int]]], inverted: bool
-) -> Tuple[Tuple[int, Optional[int]], Tuple[int, Optional[int]], Tuple[int, Optional[int]]]:
-    if inverted:
-        raise NotImplementedError
+Heart_tightCrop = "Heart_tightCrop"
+staticHeartFOV = "staticHeartFOV"
+wholeFOV = "wholeFOV"
 
-    if affine_trf_name == "Heart_tightCrop" and ref_crop_in == ((0, None), (57, -57), (57, -57)):
-        return ((19, -10), (152, -133), (171, -133))
+
+def get_lf_shape(crop_name: str) -> List[int]:
+    if crop_name == Heart_tightCrop:
+        return [1273, 1463]  # crop on raw (1551,1351) in matlab:
+    elif crop_name == staticHeartFOV:
+        return [1178, 1767]  # crop on raw in matlab: rect_LF = [100, 400, 1850, 1250]; %[xmin, ymin, width, height]
+    elif crop_name == wholeFOV:
+        return [1064, 1083]  # crop on raw in matlab: rect_LF = [450, 450, 1150, 1150]; %[xmin, ymin, width, height];
+    else:
+        raise NotImplementedError(crop_name)
+
+
+def get_ref_ls_shape(crop_name: str) -> List[int]:
+    if crop_name == Heart_tightCrop:
+        return [241, 1451, 1651]
+    elif crop_name == staticHeartFOV:
+        return [241, 1451, 1951]
+    elif crop_name == wholeFOV:
+        return [241, 1351, 1351]
+    else:
+        raise NotImplementedError(crop_name)
+
+
+def get_raw_ls_crop(crop_name: str, *, for_slice: bool = False, wrt_ref: bool = False) -> List[List[Optional[int]]]:
+    """
+    crop raw ls shape to be divisible by nnum=19 in yx in order to avoid rounding errors when resizing with scale/nnum
+    crop 1 in z, to have many divisors for 240 z planes. (241 is prime)
+    """
+    if wrt_ref:
+        if crop_name == Heart_tightCrop:
+            # crop in matlab: 200, 250, 1650, 1450 for ref shape
+            # crop for ref shape + crop for divisibility
+            ret = [[0, 241], [3, 1700 - 249 - 4], [8, 1850 - 199 - 9]]
+        elif crop_name == staticHeartFOV:
+            # crop in matlab: 50, 300, 1950, 1450 for ref shape
+            # crop for ref shape + crop for divisibility
+            ret = [[0, 241], [3, 1750 - 299 - 4], [6, 2000 - 49 - 7]]
+        elif crop_name == wholeFOV:
+            # crop in matlab: # rect_LS = [350, 350, 1350, 1350]; %[xmin, ymin, width, height];
+            # crop for ref shape + crop for divisibility
+            ret = [[0, 241], [1, 1700 - 349 - 1], [1, 1700 - 349 - 1]]
+        else:
+            raise NotImplementedError(crop_name)
+    else:
+        if crop_name == Heart_tightCrop:
+            # crop in matlab: 200, 250, 1650, 1450 for ref shape
+            # crop for ref shape + crop for divisibility
+            ret = [[0, None], [0, 241], [249 + 3, 1700 - 4], [199 + 8, 1850 - 9]]
+        elif crop_name == staticHeartFOV:
+            # crop in matlab: 50, 300, 1950, 1450 for ref shape
+            # crop for ref shape + crop for divisibility
+            ret = [[0, None], [0, 241], [299 + 3, 1750 - 4], [49 + 6, 2000 - 7]]
+        elif crop_name == wholeFOV:
+            # crop in matlab: # rect_LS = [350, 350, 1350, 1350]; %[xmin, ymin, width, height];
+            # crop for ref shape + crop for divisibility
+            ret = [[0, None], [0, 241], [349 + 1, 1700 - 1], [349 + 1, 1700 - 1]]
+        else:
+            raise NotImplementedError(crop_name)
+
+    if for_slice:
+        ret[1] = (0, None)
+
+    return ret
+
+
+def get_ls_shape(crop_name: str, for_slice: bool = False) -> List[int]:
+    crop = get_raw_ls_crop(crop_name)
+    s = [c[1] - c[0] for c in crop[1:]]
+    assert len(s) == 3
+    assert s[0] == 241
+    assert s[1] % 19 == 0, (s[1], s[1] % 19)
+    assert s[2] % 19 == 0, (s[2], s[2] % 19)
+
+    if for_slice:
+        s[0] = 1
+
+    return s
+
+
+def get_crops(
+    affine_trf_name: str, lf_crop: Sequence[Sequence[Optional[int]]], meta: dict, for_slice: bool = False
+) -> Tuple[Sequence[Sequence[Optional[int]]], Sequence[Sequence[Optional[int]]], Sequence[Sequence[Optional[int]]]]:
+
+    scale: int = meta["scale"]
+    nnum: int = meta["nnum"]
+    z_ls_rescaled: int = meta["z_ls_rescaled"]
+    shrink: int = meta["shrink"]
+
+    assert len(lf_crop) == 3, "cyx"
+    assert lf_crop[0][0] == 0, "dont crop lf channel"
+    assert lf_crop[0][1] is None, "dont crop lf channel"
+    assert all([len(lfc) == 2 for lfc in lf_crop])
+
+    ref_crop_in = [
+        [meta["pred_z_min"], meta["pred_z_max"]],
+        [shrink * nnum / scale, -shrink * nnum / scale],
+        [shrink * nnum / scale, -shrink * nnum / scale],
+    ]
+
+    for i, lfc in enumerate(lf_crop):
+        ref_crop_in[i][0] += lfc[0]
+        if lfc[1] is not None:
+            if not (lfc[1] < 0):
+                raise NotImplementedError
+
+            ref_crop_in[i][1] += lfc[1]
+
+    mini_crop = get_raw_ls_crop(affine_trf_name, wrt_ref=True)
+
+    if ref_crop_in == ((0, 838), (0, None), (0, None)):
+        ls_crop = [[0, None]] * 3
+    elif affine_trf_name == "Heart_tightCrop" and ref_crop_in == ((0, 838), (57, -57), (57, -57)):
+        ls_crop = (19, -10), (152, -133), (171, -133)
     else:
         raise NotImplementedError((affine_trf_name, ref_crop_in))
+
+    lower = [mc[0] + a[0] for mc, a in zip(mini_crop, ls_crop)]
+    upper = [
+        None if mc[1] is None and a[1] is None else mc[1] if a[1] is None else a[1] if mc[1] is None else a[1] + mc[1]
+        for mc, a in zip(mini_crop, ls_crop)
+    ]
+
+    ref_crop_out = [(low, up) for low, up in zip(lower, upper)]
+
+    ls_crop_float = [[zc * z_ls_rescaled / get_ls_shape(affine_trf_name)[0] for zc in ls_crop[0]]] + [
+        (lsc[0] / nnum * scale, lsc[1] / nnum * scale) for lsc in ls_crop[1:]
+    ]
+    ls_crop = [[zc * z_ls_rescaled // get_ls_shape(affine_trf_name)[0] for zc in ls_crop[0]]] + [
+        (lsc[0] // nnum * scale, lsc[1] // nnum * scale) for lsc in ls_crop[1:]
+    ]
+    assert ls_crop_float == ls_crop
+    assert len(ls_crop) == 3
+    if for_slice:
+        ls_crop[0] = [0, None]
+
+    return ref_crop_in, ref_crop_out, [[0, None]] + ls_crop
 
 
 if __name__ == "__main__":

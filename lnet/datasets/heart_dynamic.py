@@ -39,7 +39,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_1_channel_3/Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
-        transformations += get_transformations(name, "wholeFOV", meta=meta)
+        crop_name = "wholeFOV"
+        transformations += get_transformations(name, crop_name, meta=meta)
     elif tag in ["2019-12-02_23.17.56", "2019-12-02_23.43.24", "2019-12-02_23.50.04", "2019-12-03_00.00.44"]:
         meta["quality"] = 3
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/Heart_tightCrop/dynamicImaging1_btw20to160planes/{tag}/stack_1_channel_3/"
@@ -72,7 +73,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         else:
             padding = []
 
-        transformations = padding + get_transformations(name, "Heart_tightCrop", meta=meta)
+        crop_name = "Heart_tightCrop"
+        transformations = padding + get_transformations(name, crop_name, meta=meta)
         if name == "lf":
             location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         # elif name == "lr":
@@ -85,7 +87,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
 
     elif tag in ["2019-12-08_23.43.42"]:
         meta["quality"] = 1
-        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
+        crop_name = "Heart_tightCrop"
+        transformations = get_transformations(name, crop_name, meta=meta)
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/dynamic/Heart_tightCrop/SlideThroughCompleteStack/{tag}/"
         if name == "lf":
             location += "stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
@@ -98,7 +101,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             z_slice = idx2z_slice_241
 
     elif tag in ["2019-12-09_04.54.38", "2019-12-09_05.21.16"]:
-        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
+        crop_name = "Heart_tightCrop"
+        transformations = get_transformations(name, crop_name, meta=meta)
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/{tag}/"
         if name == "lf":
             location += "stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
@@ -111,7 +115,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             z_slice = idx2z_slice_241
 
     elif tag in ["2019-12-09_05.41.14_theGoldenOne"]:
-        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
+        crop_name = "Heart_tightCrop"
+        transformations = get_transformations(name, crop_name, meta=meta)
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/{tag}/"
         if name == "lf":
             location += "stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
@@ -124,7 +129,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             z_slice = idx2z_slice_241
 
     elif tag in ["2019-12-09_05.55.26"]:
-        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
+        crop_name = "Heart_tightCrop"
+        transformations = get_transformations(name, crop_name, meta=meta)
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_05.41.14_theGoldenOne/singlePlane_samePos/plane_100/{tag}/"
         if name == "lf":
             location += "stack_2_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
@@ -146,7 +152,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         "2019-12-10_01.03.50",
         "2019-12-10_01.25.44",
     ]:
-        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
+        crop_name = "Heart_tightCrop"
+        transformations = get_transformations(name, crop_name, meta=meta)
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish3/dynamic/Heart_tightCrop/slideThroughStack/{tag}/"
         if name == "lf":
             location += "stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
@@ -159,7 +166,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             z_slice = idx2z_slice_241
 
     elif tag in ["2019-12-10_02.13.34"]:
-        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
+        crop_name = "Heart_tightCrop"
+        transformations = get_transformations(name, crop_name, meta=meta)
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish3/dynamic/Heart_tightCrop/theGoldenExperiment/SlidingThroughStack_samePos/{tag}/"
         if name == "lf":
             location += "stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
@@ -178,6 +186,12 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         raise NotImplementedError(f"tag: {tag}, name: {name}")
 
     assert tag in location, (tag, name, location)
+    if "crop_names" in meta:
+        assert crop_name in meta["crop_names"]
+
+    assert "crop_name" not in meta
+    meta["crop_name"] = crop_name
+
     return TensorInfo(
         name=name,
         root=root,
@@ -335,6 +349,20 @@ def debug():
     #     plt.show()
 
 
+def check_filter(tag: str, comment: str):
+    meta = {"z_out": 49, "nnum": 19, "scale": 4}
+    lf_crops = {"Heart_tightCrop": [[0, None], [0, None], [0, None]],
+    "wholeFOV": [[0, None], [0, None], [0, None]]}
+
+    filters = [("z_range", {"lf_crops": lf_crops}), ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 2.0})]
+
+    ds_unfiltered = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
+    print('unfiltered', len(ds_unfiltered))
+    ds = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), filters=filters)
+
+    print('ds', len(ds))
+
+
 def check_data(tag: str, comment: str):
     meta = {"z_out": 49, "nnum": 19, "scale": 4}
 
@@ -411,4 +439,6 @@ if __name__ == "__main__":
         tags.append(tag)
         comments.append(comment)
 
-    check_data(tags[idx], comments[idx])
+    # check_data(tags[idx], comments[idx])
+    check_filter(tags[idx], comments[idx])
+

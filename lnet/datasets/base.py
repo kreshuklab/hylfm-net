@@ -120,7 +120,9 @@ class TensorInfo:
                 "insert_singleton_axes_at": self.insert_singleton_axes_at,
                 "z_slice": str(self.z_slice) if callable(self.z_slice) else self.z_slice,
                 "skip_indices": list(self.skip_indices),
-                "meta": self.meta,
+                "meta": {
+                    k: v for k, v in self.meta.items() if k not in ["crop_names", "crop_name", "quality"]
+                },  # filter out meta keys that do not influence data in cache
                 "kwargs": self.kwargs,
             }
         )
@@ -193,6 +195,12 @@ class DatasetFromInfo(torch.utils.data.Dataset):
 
     def update_meta(self, meta: dict) -> dict:
         tmeta = meta.get(self.tensor_name, {})
+        for k, v in self.info.meta:
+            if k in tmeta:
+                assert tmeta[k] == v, (tmeta[k], v)
+            else:
+                tmeta[k] = v
+
         has_z_slice = tmeta.get("z_slice", None)
         z_slice = self.get_z_slice(tmeta.get("idx", meta["idx"]))
         if z_slice is not None:
@@ -437,10 +445,7 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
             dataset.dataset.description
             + "\n"
             + yaml.safe_dump(
-                {
-                    "indices": None if indices is None else list(indices),
-                    "filters": [list(fil) for fil in filters],
-                }
+                {"indices": None if indices is None else list(indices), "filters": [list(fil) for fil in filters]}
             )
         )
         self.description = description

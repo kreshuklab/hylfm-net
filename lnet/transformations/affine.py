@@ -6,7 +6,12 @@ import torch.nn.functional
 import torch.nn.functional
 from scipy.ndimage import affine_transform
 
-from lnet.transformations.affine_utils import get_bdv_affine_transformations_by_name
+from lnet.transformations.affine_utils import (
+    get_bdv_affine_transformations_by_name,
+    get_lf_shape,
+    get_ref_ls_shape,
+    get_crops,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -101,10 +106,12 @@ class AffineTransformation(torch.nn.Module):
         padding_mode: str = "border",
     ):
         if isinstance(ref_input_shape, str):
-            ref_input_shape = [838] + get_lf_shape()
+            ref_input_shape = [838] + get_lf_shape(ref_input_shape)
         if len(ref_input_shape) not in (2, 3):
             raise NotImplementedError
 
+        if isinstance(ref_output_shape, str):
+            ref_output_shape = get_ref_ls_shape(ref_output_shape)
         if len(ref_output_shape) not in (2, 3):
             raise NotImplementedError
 
@@ -364,6 +371,38 @@ class AffineTransformation(torch.nn.Module):
                 z_slices=z_slices,
             )
         return tensors
+
+
+class AffineTransformationDynamicTraining(torch.nn.Module):
+    def __init__(
+        self,
+        apply_to: Union[str, Dict[str, str]],
+        lf_crops: Sequence[Sequence[Optional[int]]],
+        target_to_compare_to: str,
+        meta: dict,
+    ):
+        super().__init__()
+
+        ops = {}
+        for crop_name in meta["crop_names"]:
+            ref_crop_in, ref_crop_out, _ = get_crops(crop_name, lf_crop=lf_crops[crop_name], meta=meta)
+            ops[crop_name] = AffineTransformation(
+                apply_to=apply_to,
+                target_to_compare_to=target_to_compare_to,
+                order=meta["interpolation_order"],
+                ref_input_shape=[838] + get_lf_shape(meta["crop_name"]),
+                bdv_affine_transformations=meta["crop_name"],
+                ref_output_shape=get_ref_ls_shape(meta["crop_name"]),
+                ref_crop_in=ref_crop_in,  # noqa
+                ref_crop_out=ref_crop_out,  # noqa
+                inverted=False,
+                padding_mode="border",
+            )
+
+        self.ops = torch.nn.ModuleDict(ops)
+
+    def forward(self, tensors: OrderedDict[str, Any]) -> OrderedDict[str, Any]:
+        return self.ops[tensors["meta"][0]["crop_name"]](tensors)
 
 
 def static():

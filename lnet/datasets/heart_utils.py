@@ -1,91 +1,13 @@
-from typing import List, Optional
-
-from lnet.transformations.affine_utils import get_bdv_affine_transformations_by_name
-
-Heart_tightCrop = "Heart_tightCrop"
-staticHeartFOV = "staticHeartFOV"
-wholeFOV = "wholeFOV"
-
-
-def get_lf_shape(crop_name: str) -> List[int]:
-    if crop_name == Heart_tightCrop:
-        return [1273, 1463]  # crop on raw (1551,1351) in matlab:
-    elif crop_name == staticHeartFOV:
-        return [1178, 1767]  # crop on raw in matlab: rect_LF = [100, 400, 1850, 1250]; %[xmin, ymin, width, height]
-    elif crop_name == wholeFOV:
-        return [1064, 1083]  # crop on raw in matlab: rect_LF = [450, 450, 1150, 1150]; %[xmin, ymin, width, height];
-    else:
-        raise NotImplementedError(crop_name)
-
-
-def get_ref_ls_shape(crop_name: str) -> List[int]:
-    if crop_name == Heart_tightCrop:
-        return [241, 1451, 1651]
-    elif crop_name == staticHeartFOV:
-        return [241, 1451, 1951]
-    elif crop_name == wholeFOV:
-        return [241, 1351, 1351]
-    else:
-        raise NotImplementedError(crop_name)
-
-
-def get_raw_ls_crop(crop_name: str, *, for_slice: bool = False, wrt_ref: bool = False) -> List[List[Optional[int]]]:
-    """
-    crop raw ls shape to be divisible by nnum=19 in yx in order to avoid rounding errors when resizing with scale/nnum
-    crop 1 in z, to have many divisors for 240 z planes. (241 is prime)
-    """
-    if wrt_ref:
-        if crop_name == Heart_tightCrop:
-            # crop in matlab: 200, 250, 1650, 1450 for ref shape
-            # crop for ref shape + crop for divisibility
-            ret = [[0, None], [3, 1700 - 249 - 4], [8, 1850 - 199 - 9]]
-        elif crop_name == staticHeartFOV:
-            # crop in matlab: 50, 300, 1950, 1450 for ref shape
-            # crop for ref shape + crop for divisibility
-            ret = [[0, None], [3, 1750 - 299 - 4], [6, 2000 - 49 - 7]]
-        elif crop_name == wholeFOV:
-            # crop in matlab: # rect_LS = [350, 350, 1350, 1350]; %[xmin, ymin, width, height];
-            # crop for ref shape + crop for divisibility
-            ret = [[0, None], [1, 1700 - 349 - 1], [1, 1700 - 349 - 1]]
-        else:
-            raise NotImplementedError(crop_name)
-    else:
-        if crop_name == Heart_tightCrop:
-            # crop in matlab: 200, 250, 1650, 1450 for ref shape
-            # crop for ref shape + crop for divisibility
-            ret = [[0, None], [0, 241], [249 + 3, 1700 - 4], [199 + 8, 1850 - 9]]
-        elif crop_name == staticHeartFOV:
-            # crop in matlab: 50, 300, 1950, 1450 for ref shape
-            # crop for ref shape + crop for divisibility
-            ret = [[0, None], [0, 241], [299 + 3, 1750 - 4], [49 + 6, 2000 - 7]]
-        elif crop_name == wholeFOV:
-            # crop in matlab: # rect_LS = [350, 350, 1350, 1350]; %[xmin, ymin, width, height];
-            # crop for ref shape + crop for divisibility
-            ret = [[0, None], [0, 241], [349 + 1, 1700 - 1], [349 + 1, 1700 - 1]]
-        else:
-            raise NotImplementedError(crop_name)
-
-    if for_slice:
-        ret[1] = (0, None)
-
-    return ret
-
-
-def get_ls_shape(crop_name: str, for_slice: bool = False) -> List[int]:
-    crop = get_raw_ls_crop(crop_name)
-    if for_slice:
-        s = [c[1] - c[0] for c in crop[2:]]
-        assert len(s) == 2
-        assert s[0] % 19 == 0, (s[0], s[0] % 19)
-        assert s[1] % 19 == 0, (s[1], s[1] % 19)
-    else:
-        s = [c[1] - c[0] for c in crop[1:]]
-        assert len(s) == 3
-        assert s[0] == 241
-        assert s[1] % 19 == 0, (s[1], s[1] % 19)
-        assert s[2] % 19 == 0, (s[2], s[2] % 19)
-
-    return s
+from lnet.transformations.affine_utils import (
+    Heart_tightCrop,
+    get_bdv_affine_transformations_by_name,
+    get_lf_shape,
+    get_ls_shape,
+    get_raw_ls_crop,
+    get_ref_ls_shape,
+    staticHeartFOV,
+    wholeFOV,
+)
 
 
 def get_transformations(name: str, crop_name: str, meta: dict):
@@ -145,7 +67,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1, 1, 1] + get_ls_shape(crop_name, for_slice=True),
+                    "expected_tensor_shape": [1, 1] + get_ls_shape(crop_name, for_slice=True),
                 }
             },
         ]

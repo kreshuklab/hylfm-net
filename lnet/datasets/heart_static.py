@@ -2,7 +2,7 @@
 import argparse
 
 from lnet.datasets.base import TensorInfo, get_dataset_from_info
-from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241
+from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241, get_raw_ls_crop, get_ls_shape, get_lf_shape
 
 
 def get_tensor_info(tag: str, name: str, meta: dict):
@@ -24,8 +24,47 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         elif name == "ls" or name == "ls_trf":
             location += "stack_1_channel_1/Cam_Left_*.h5/Data"
+
+    elif tag == "beads_ref_Heart_tightCrop_tif":
+        location = "LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/Heart_tightCrop/200msExp/2019-12-09_22.23.27/"
+        if name == "ls":
+            location += "*Cam_Left.tif"
+            transformations = [
+                {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 241, 1451, 1651]}},  # raw tif
+                {"Crop": {"apply_to": name, "crop": [[0, None]] + get_raw_ls_crop("Heart_tightCrop", wrt_ref=True)}},
+                {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_ls_shape("Heart_tightCrop")}},
+                {
+                    "Resize": {
+                        "apply_to": name,
+                        "shape": [1.0, 1.0, meta["scale"] / meta["nnum"], meta["scale"] / meta["nnum"]],
+                        "order": meta["interpolation_order"],
+                    }
+                },
+                {
+                    "Assert": {
+                        "apply_to": name,
+                        "expected_tensor_shape": [None, 1, get_ls_shape("Heart_tightCrop")[0]]
+                        + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape("Heart_tightCrop")[1:]],
+                    }
+                },
+            ]
         elif name == "ls_reg":
             location += "*Cam_Left_registered.tif"
+            transformations = [
+                {
+                    "Assert": {
+                        "apply_to": name,
+                        "expected_tensor_shape": [1, 1, 838] + get_lf_shape("Heart_tightCrop"),
+                    }  # raw tif
+                },
+                {
+                    "Resize": {
+                        "apply_to": name,
+                        "shape": [1.0, meta["z_out"] / 838, meta["scale"] / meta["nnum"], meta["scale"] / meta["nnum"]],
+                        "order": meta["interpolation_order"],
+                    }
+                },
+            ]
 
     elif tag == "beads_should_fit_Heart_tightCrop_0":
         transformations = get_transformations(name, "Heart_tightCrop", meta=meta)

@@ -6,6 +6,7 @@ import torch
 import typing
 from scipy.ndimage import zoom
 
+from lnet.transformations.affine_utils import get_crops
 from lnet.transformations.base import Transform
 
 
@@ -46,10 +47,38 @@ class Crop(Transform):
         return out
 
 
+class CropByCropName(Transform):
+    def __init__(self, apply_to: str, crops: typing.Dict[str, Sequence[Sequence[Optional[int]]]], meta: dict):
+        super().__init__(apply_to=apply_to)
+        self.crops = {}
+        for crop_name, crop in crops.items():
+            assert crop_name in meta["crop_names"], (crop_name, meta["crop_names"])
+            self.crops[crop_name] = Crop(apply_to=apply_to, crop=crop)
+
+    def apply(self, tensors: typing.OrderedDict[str, typing.Any]) -> typing.OrderedDict[str, typing.Any]:
+        crop_name = tensors["meta"][0]["crop_name"]
+        assert all([tmeta["crop_name"] == crop_name for tmeta in tensors["meta"]]), tensors["meta"]
+        return self.crops[crop_name].apply(tensors)
+
+
+class CropLSforDynamicTraining(Transform):
+    def __init__(self, apply_to: str, lf_crops: typing.Dict[str, Sequence[Sequence[Optional[int]]]], meta: dict):
+        assert isinstance(apply_to, str), "for slice check"
+        super().__init__(apply_to=apply_to)
+        self.crops = {}
+        for crop_name, lf_crop in lf_crops.items():
+            assert crop_name in meta["crop_names"], (crop_name, meta["crop_names"])
+            _, _, ls_out = get_crops(crop_name, lf_crop=lf_crop, meta=meta, for_slice="slice" in apply_to)
+            self.crops[crop_name] = Crop(apply_to=apply_to, crop=ls_out)
+
+    def apply(self, tensors: typing.OrderedDict[str, typing.Any]) -> typing.OrderedDict[str, typing.Any]:
+        crop_name = tensors["meta"][0]["crop_name"]
+        assert all([tmeta["crop_name"] == crop_name for tmeta in tensors["meta"]]), tensors["meta"]
+        return self.crops[crop_name].apply(tensors)
+
+
 class Pad(Transform):
-    def __init__(
-        self, pad_width: Sequence[Sequence[int]], pad_mode: str, nnum: Optional[int] = None, **super_kwargs
-    ):
+    def __init__(self, pad_width: Sequence[Sequence[int]], pad_mode: str, nnum: Optional[int] = None, **super_kwargs):
         super().__init__(**super_kwargs)
         if any([len(p) != 2 for p in pad_width]) or any([pw < 0 for p in pad_width for pw in p]):
             raise ValueError(f"invalid pad_width sequence: {pad_width}")

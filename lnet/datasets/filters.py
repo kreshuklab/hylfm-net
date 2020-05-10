@@ -5,13 +5,48 @@ import typing
 
 import numpy
 
+from lnet.transformations.affine_utils import get_crops, get_ls_shape
+
 if typing.TYPE_CHECKING:
     from lnet.datasets import N5CachedDatasetFromInfo
 
 
-def z_range(dataset: N5CachedDatasetFromInfo, idx: int, z_min: int = 0, z_max: int = sys.maxsize) -> bool:
+def z_range(
+    dataset: N5CachedDatasetFromInfo,
+    idx: int,
+    *,
+    meta: dict,
+    z_min: int = None,
+    z_max: int = None,
+    lf_crops: typing.Dict[str, typing.Sequence[typing.Sequence[typing.Optional[int]]]] = None,
+) -> bool:
     z_slice = dataset.dataset.get_z_slice(idx)
-    return z_slice is None or z_min <= z_slice < z_max
+    if z_slice is None:
+        return True
+
+    if lf_crops is None:
+        if z_min is None:
+            z_min = 0
+
+        if z_max is None:
+            z_max = sys.maxsize
+
+    else:
+        assert z_min is None
+        assert z_max is None
+        crop_name = dataset.dataset.info.meta["crop_name"]
+        _, _, ls_crop = get_crops(crop_name, lf_crop=lf_crops[crop_name], meta=meta, for_slice=False)
+        z_min = ls_crop[0][0]
+        z = get_ls_shape(crop_name, for_slice=False)[0]
+        z_crop_up = ls_crop[0][1]
+        if z_crop_up is None:
+            z_max = z
+        elif z_crop_up < 0:
+            z_max = z + z_crop_up
+        else:
+            z_max = z_crop_up
+
+    return z_min <= z_slice < z_max
 
 
 def instensity_range(
