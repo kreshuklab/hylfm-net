@@ -133,6 +133,9 @@ class A04(LnetModel):
             x = self.final_activation(x)
 
         tensors[self.prediction_name] = x
+        for bmeta in tensors["meta"]:
+            bmeta[self.prediction_name] = bmeta[self.input_name]
+
         return tensors
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
