@@ -48,11 +48,15 @@ class Crop(Transform):
 
 
 class CropByCropName(Transform):
-    def __init__(self, apply_to: str, crops: typing.Dict[str, Sequence[Sequence[Optional[int]]]], meta: dict):
+    def __init__(self, apply_to: str, crops: typing.Dict[str, Sequence[Sequence[Optional[int]]]]):
         super().__init__(apply_to=apply_to)
         self.crops = {}
         for crop_name, crop in crops.items():
-            assert crop_name in meta["crop_names"], (crop_name, meta["crop_names"])
+            if apply_to == "ls_trf":
+                # add z axis
+                crop = list(crop)
+                crop.insert(1, [0, None])
+
             self.crops[crop_name] = Crop(apply_to=apply_to, crop=crop)
 
     def apply_to_tensor(

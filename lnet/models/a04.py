@@ -25,6 +25,7 @@ class A04(LnetModel):
         z_out: int,
         nnum: int,
         scale: int,
+        shrink: int,
         final_activation: Optional[str] = None,
         n_res2d: Sequence[int] = (976, 976, "u", 488, 488, "u", 244, 244),
         inplanes_3d: int = 7,
@@ -117,6 +118,8 @@ class A04(LnetModel):
         # consistency checks:
         scale_is, _ = self.get_scaling()
         assert scale == scale_is, (scale, scale_is)
+        shrink_is, _ = self.get_shrinkage()
+        assert shrink == shrink_is, (shrink, shrink_is)
 
     def forward(self, tensors: typing.OrderedDict[str, typing.Any]):
         x = tensors[self.input_name]

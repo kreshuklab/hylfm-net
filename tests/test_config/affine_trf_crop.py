@@ -41,48 +41,8 @@ def test_ls_vs_ls_tif():
     )
 
 
-def test_crop(crop_name: str, meta: dict):
-    pred = "ls_reg"
-    target_to_compare_to = "ls"
-    if crop_name == "Heart_tightCrop":
-        info_name = "heart_static.beads_ref_Heart_tightCrop_tif"
-    elif crop_name == "staticHeartFOV":
-        info_name = "heart_static.2019-12-08_06.57.57"
-    elif crop_name == "wholeFOV":
-        info_name = "heart_dynamic.2019-12-02_04.12.36_10msExp"
-        target_to_compare_to = "fake_ls"
-    else:
-        raise NotImplementedError
-
+def test_crop(crop_name: str, pred: str, target_to_compare_to: str, sample: dict, meta: dict):
     setting_name = f"f4_{crop_name}"
-
-    # f2:
-    # Heart_tightCrop ref_crop_out: auto: [(18, -157), (139, -111), (145, -119)]
-
-    # [meta["z_out"]] + [round(xy / meta["nnum"] * meta["scale"]) for xy in get_lf_shape(crop_name)]
-
-    # ds = ZipDataset(
-    #     OrderedDict(
-    #         [
-    #             (pred, get_dataset_from_info(get_tensor_info(info_name, pred, meta), cache=True)),
-    #             (
-    #                 target_to_compare_to,
-    #                 get_dataset_from_info(get_tensor_info(info_name, target_to_compare_to, meta), cache=True),
-    #             ),
-    #         ]
-    #     ),
-    #     join_dataset_masks=False,
-    # )
-
-    # sample = ds[0]
-    sample = {}
-    sample[pred] = numpy.ones(
-        [1, 1, meta["z_out"]] + [s // meta["nnum"] * meta["scale"] for s in get_lf_shape(crop_name)]
-    )
-    sample[target_to_compare_to] = numpy.ones(
-        [1, 1, meta["z_ls_rescaled"]] + [s // meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]]
-    )
-    sample["meta"] = [{pred: {"crop_name": crop_name}, target_to_compare_to: {"crop_name": crop_name}}]
 
     # fake network shrinkage:
     sample = Crop(
@@ -168,47 +128,7 @@ def test_crop(crop_name: str, meta: dict):
         plot_vol(name)
 
 
-def find_crop(crop_name: str, meta: dict):
-    pred = "ls_reg"
-    target_to_compare_to = "ls"
-    if crop_name == "Heart_tightCrop":
-        info_name = "heart_static.beads_ref_Heart_tightCrop_tif"
-    elif crop_name == "staticHeartFOV":
-        info_name = "heart_static.2019-12-08_06.57.57"
-    elif crop_name == "wholeFOV":
-        info_name = "heart_dynamic.2019-12-02_04.12.36_10msExp"
-        target_to_compare_to = "fake_ls"
-    else:
-        raise NotImplementedError
-
-    setting_name = f"find_f4_tiny_{crop_name}"
-
-    # f2:
-    # Heart_tightCrop ref_crop_out: auto: [(18, -157), (139, -111), (145, -119)]
-
-    # [meta["z_out"]] + [round(xy / meta["nnum"] * meta["scale"]) for xy in get_lf_shape(crop_name)]
-
-    # ds = ZipDataset(
-    #     OrderedDict(
-    #         [
-    #             # (pred, get_dataset_from_info(get_tensor_info(info_name, pred, meta), cache=True)),
-    #             (
-    #                 target_to_compare_to,
-    #                 get_dataset_from_info(get_tensor_info(info_name, target_to_compare_to, meta), cache=False),
-    #             )
-    #         ]
-    #     ),
-    #     join_dataset_masks=False,
-    # )
-
-    # sample = ds[0]
-    sample = {}
-    sample[pred] = numpy.ones(
-        [1, 1, meta["z_out"]] + [s // meta["nnum"] * meta["scale"] for s in get_lf_shape(crop_name)]
-    )
-    sample[target_to_compare_to] = numpy.ones(
-        [1, 1, meta["z_ls_rescaled"]] + [s // meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]]
-    )
+def find_crop(crop_name: str, pred: str, target_to_compare_to: str, sample: dict, meta: dict):
     # fake network shrinkage:
     sample = Crop(
         apply_to=pred, crop=[(0, None), (0, None), (meta["shrink"], -meta["shrink"]), (meta["shrink"], -meta["shrink"])]
@@ -282,6 +202,8 @@ def find_crop(crop_name: str, meta: dict):
 
 
 if __name__ == "__main__":
+    crop_name = "wholeFOV"  # "Heart_tightCrop"
+    fake_data = False
     meta = {
         "z_out": 49,
         "nnum": 19,
@@ -293,7 +215,46 @@ if __name__ == "__main__":
         "crop_names": ["Heart_tightCrop", "wholeFOV"],
         "shrink": 8,
     }
-    crop_name = "wholeFOV"  # "Heart_tightCrop"
+
+    pred = "ls_reg"
+    target_to_compare_to = "ls"
+    if crop_name == "Heart_tightCrop":
+        info_name = "heart_static.beads_ref_Heart_tightCrop_tif"
+    elif crop_name == "staticHeartFOV":
+        info_name = "heart_static.2019-12-08_06.57.57"
+    elif crop_name == "wholeFOV":
+        info_name = "heart_dynamic.2019-12-02_04.12.36_10msExp"
+        target_to_compare_to = "fake_ls"
+    else:
+        raise NotImplementedError
+
+    setting_name = f"find_f4_tiny_{crop_name}"
+
+    if fake_data:
+        sample = {}
+        sample[pred] = numpy.ones(
+            [1, 1, meta["z_out"]] + [s // meta["nnum"] * meta["scale"] for s in get_lf_shape(crop_name)]
+        )
+        sample[target_to_compare_to] = numpy.ones(
+            [1, 1, meta["z_ls_rescaled"]] + [s // meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]]
+        )
+        sample["meta"] = [{pred: {"crop_name": crop_name}, target_to_compare_to: {"crop_name": crop_name}}]
+
+    else:
+        ds = ZipDataset(
+            OrderedDict(
+                [
+                    (pred, get_dataset_from_info(get_tensor_info(info_name, pred, meta), cache=True)),
+                    (
+                        target_to_compare_to,
+                        get_dataset_from_info(get_tensor_info(info_name, target_to_compare_to, meta), cache=False),
+                    ),
+                ]
+            ),
+            join_dataset_masks=False,
+        )
+        sample = ds[0]
+
     # test_ls_vs_ls_tif()
-    # find_crop(crop_name, meta)
-    test_crop(crop_name, meta)
+    find_crop(crop_name, pred=pred, target_to_compare_to=target_to_compare_to, sample=sample, meta=meta)
+    test_crop(crop_name, pred=pred, target_to_compare_to=target_to_compare_to, sample=sample, meta=meta)

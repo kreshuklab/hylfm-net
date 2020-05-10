@@ -447,9 +447,7 @@ def debug():
     #     plt.show()
 
 
-def check_data(tag: str, comment: str):
-    meta = {"z_out": 49, "nnum": 19, "scale": 4, "interpolation_order": 2}
-
+def check_data(tag: str, comment: str, meta: dict):
     print("get lf")
     lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
     print("get lr")
@@ -490,52 +488,64 @@ if __name__ == "__main__":
     args = parser.parse_args()
     idx = args.idx
 
+    meta = {
+        "z_out": 49,
+        "nnum": 19,
+        "scale": 4,
+        "interpolation_order": 2,
+        "z_ls_rescaled": 241,
+        "pred_z_min": 0,
+        "pred_z_max": 838,
+        "crop_names": ["Heart_tightCrop"],  # staticHeartFOV
+        "shrink": 8,
+    }
+
     # depug()
     # search_data()
 
     tags = """
 # beads_ref_Heart_tightCrop
 # beads_should_fit_Heart_tightCrop_0
-2019-12-08_06.57.57  # fish5 val
-2019-12-08_06.59.59  # fish5 val
-2019-12-08_10.32.03  # fish5 val
-2019-12-08_06.35.52  # fish5 val
-2019-12-08_06.38.47  # fish5 val
-2019-12-08_06.10.34  # fish5 val
-2019-12-08_06.41.39  # fish5 val
-2019-12-08_06.18.09  # fish5 val
-2019-12-08_06.46.09  # fish5 val
-2019-12-08_06.23.13  # fish5 val
-2019-12-08_06.49.08  # fish5 val
-2019-12-08_06.25.02  # fish5 val
-2019-12-08_06.51.57  # fish5 val
-2019-12-08_06.30.40  # fish5 val
-2019-12-08_06.59.59  # fish5
-2019-12-08_10.32.03  # fish5
-2019-12-09_09.52.38  # fish2 test
-2019-12-09_08.34.44  # fish2 test 
-2019-12-09_08.41.41  # fish2 test 
-2019-12-09_08.51.01  # fish2 test 
-2019-12-09_09.01.28  # fish2 test 
-2019-12-09_09.11.59  # fish2 test 
-2019-12-09_09.18.01  # fish2 test 
-2019-12-09_08.15.07  # fish2 test
-2019-12-09_08.19.40  # fish2 test
-2019-12-09_08.27.14  # fish2 test
-2019-12-09_02.16.30  # fish1
-2019-12-09_02.23.01  # fish1
-2019-12-09_02.29.34  # fish1
-2019-12-09_02.35.49  # fish1
-2019-12-09_02.42.03  # fish1
-2019-12-09_02.48.24  # fish1
-2019-12-09_02.54.46  # fish1
-2019-12-09_07.42.47  # fish2 test
-2019-12-09_07.50.24  # fish2 test
-2019-12-10_04.24.29  # fish2 test
-2019-12-10_05.14.57  # fish2 test
-2019-12-10_05.41.48  # fish2 test
-2019-12-10_06.03.37  # fish2 test
-2019-12-10_06.25.14  # fish2 test
+# 2019-12-08_06.57.57  # fish5 val
+# 2019-12-08_06.59.59  # fish5 val
+# 2019-12-08_10.32.03  # fish5 val
+2019-12-08_06.35.52  # fish5 val selected
+2019-12-08_06.38.47  # fish5 val selected
+2019-12-08_06.10.34  # fish5 val selected
+2019-12-08_06.41.39  # fish5 val selected
+2019-12-08_06.18.09  # fish5 val selected
+2019-12-08_06.46.09  # fish5 val selected
+2019-12-08_06.23.13  # fish5 val selected
+2019-12-08_06.49.08  # fish5 val selected
+2019-12-08_06.25.02  # fish5 val selected
+2019-12-08_06.51.57  # fish5 val selected
+2019-12-08_06.30.40  # fish5 val selected
+# 2019-12-08_06.59.59  # fish5 val
+# 2019-12-08_10.32.03  # fish5 val
+# 2019-12-09_09.52.38  # fish2 test
+# 2019-12-09_08.34.44  # fish2 test 
+# 2019-12-09_08.41.41  # fish2 test 
+# 2019-12-09_08.51.01  # fish2 test 
+# 2019-12-09_09.01.28  # fish2 test 
+# 2019-12-09_09.11.59  # fish2 test 
+# 2019-12-09_09.18.01  # fish2 test 
+# 2019-12-09_08.15.07  # fish2 test
+# 2019-12-09_08.19.40  # fish2 test
+# 2019-12-09_08.27.14  # fish2 test
+# 2019-12-09_02.16.30  # fish1
+# 2019-12-09_02.23.01  # fish1
+# 2019-12-09_02.29.34  # fish1
+# 2019-12-09_02.35.49  # fish1
+# 2019-12-09_02.42.03  # fish1
+# 2019-12-09_02.48.24  # fish1
+# 2019-12-09_02.54.46  # fish1
+# 2019-12-09_07.42.47  # fish2 test
+# 2019-12-09_07.50.24  # fish2 test
+# 2019-12-10_04.24.29  # fish2 test
+# 2019-12-10_05.14.57  # fish2 test
+# 2019-12-10_05.41.48  # fish2 test
+# 2019-12-10_06.03.37  # fish2 test
+# 2019-12-10_06.25.14  # fish2 test
 """.split(
         "\n"
     )
@@ -555,4 +565,4 @@ if __name__ == "__main__":
         tags.append(tag)
         comments.append(comment)
 
-    check_data(tags[idx], comments[idx])
+    check_data(tags[idx], comments[idx], meta=meta)

@@ -3,6 +3,7 @@ from .base import ComposedTransformation, Transform, TransformLike
 from .generic import Assert, Cast, Clip
 from .image import (
     Crop,
+    CropByCropName,
     CropLSforDynamicTraining,
     FlipAxis,
     Pad,

@@ -335,10 +335,13 @@ def get_crops(
         ls_crop = [[0, None]] * 3
     elif affine_trf_name == "Heart_tightCrop" and ref_crop_in == [[0, 838], [57, -57], [57, -57]]:
         ls_crop = (19, -10), (152, -133), (171, -133)
-    elif affine_trf_name == "Heart_tightCrop" and ref_crop_in == [[0, 838], [38.0, -38.0], [38.0, -38.0]]:
-        ls_crop = (18, -12), (57+3*19, -57-2*19), (95+19, -57-19)
-    elif affine_trf_name == "wholeFOV" and ref_crop_in == [[0, 838], [38.0, -38.0], [38.0, -38.0]]:
-        ls_crop = (19, -13), (114+3*19, -114-3*19), (133+2*19, -95-2*19)
+    elif affine_trf_name == "Heart_tightCrop" and ref_crop_in == [[0, 838], [38, -38], [38, -38]]:
+        ls_crop = (18, -12), (57 + 3 * 19, -57 - 2 * 19), (95 + 19, -57 - 19)
+    elif affine_trf_name == "Heart_tightCrop" and ref_crop_in == [[0, 838], [19, -19], [19, -19]]:
+        raise NotImplementedError("Heart_tightCrop and ref_crop_in == [[0, 838], [19, -19], [19, -19]]:")
+        # ls_crop =
+    elif affine_trf_name == "wholeFOV" and ref_crop_in == [[0, 838], [38, -38], [38, -38]]:
+        ls_crop = (19, -13), (114 + 3 * 19, -114 - 3 * 19), (133 + 2 * 19, -95 - 2 * 19)
     else:
         raise NotImplementedError((affine_trf_name, ref_crop_in))
 
