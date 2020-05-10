@@ -443,7 +443,7 @@ if __name__ == "__main__":
         "interpolation_order": 2,
         "z_ls_rescaled": 241,
         "pred_z_min": 0,
-        "pred_zmax": 838,
+        "pred_z_max": 838,
         "crop_names": ["Heart_tightCrop", "wholeFOV"],
         "shrink": 8,
     }
