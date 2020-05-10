@@ -8,11 +8,14 @@ from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241
 
 
 def get_tensor_info(tag: str, name: str, meta: dict):
+    meta = dict(meta)
     assert "z_out" in meta
     assert "nnum" in meta
     assert "interpolation_order" in meta
     assert "scale" in meta
     assert "z_ls_rescaled" in meta
+    assert "pred_z_min" in meta
+    assert "pred_z_max" in meta
 
     root = "GKRESHUK"
     insert_singleton_axes_at = [0, 0]
@@ -198,7 +201,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         assert crop_name in meta["crop_names"]
 
     if "crop_name" in meta:
-        assert meta["crop_name"] == crop_name
+        assert meta["crop_name"] == crop_name, (meta["crop_name"], crop_name)
     else:
         meta["crop_name"] = crop_name
 

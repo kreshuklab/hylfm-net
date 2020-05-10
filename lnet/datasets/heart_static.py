@@ -6,6 +6,15 @@ from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241, get_
 
 
 def get_tensor_info(tag: str, name: str, meta: dict):
+    meta = dict(meta)
+    assert "z_out" in meta
+    assert "nnum" in meta
+    assert "interpolation_order" in meta
+    assert "scale" in meta
+    assert "z_ls_rescaled" in meta
+    assert "pred_z_min" in meta
+    assert "pred_z_max" in meta
+
     root = "GKRESHUK"
     insert_singleton_axes_at = [0, 0]
     z_slice = None
@@ -506,9 +515,6 @@ if __name__ == "__main__":
     tags = """
 # beads_ref_Heart_tightCrop
 # beads_should_fit_Heart_tightCrop_0
-# 2019-12-08_06.57.57  # fish5 val
-# 2019-12-08_06.59.59  # fish5 val
-# 2019-12-08_10.32.03  # fish5 val
 2019-12-08_06.35.52  # fish5 val selected
 2019-12-08_06.38.47  # fish5 val selected
 2019-12-08_06.10.34  # fish5 val selected
@@ -520,6 +526,7 @@ if __name__ == "__main__":
 2019-12-08_06.25.02  # fish5 val selected
 2019-12-08_06.51.57  # fish5 val selected
 2019-12-08_06.30.40  # fish5 val selected
+# 2019-12-08_06.57.57  # fish5 val
 # 2019-12-08_06.59.59  # fish5 val
 # 2019-12-08_10.32.03  # fish5 val
 # 2019-12-09_09.52.38  # fish2 test
@@ -541,11 +548,11 @@ if __name__ == "__main__":
 # 2019-12-09_02.54.46  # fish1
 # 2019-12-09_07.42.47  # fish2 test
 # 2019-12-09_07.50.24  # fish2 test
-# 2019-12-10_04.24.29  # fish2 test
-# 2019-12-10_05.14.57  # fish2 test
-# 2019-12-10_05.41.48  # fish2 test
-# 2019-12-10_06.03.37  # fish2 test
-# 2019-12-10_06.25.14  # fish2 test
+# 2019-12-10_04.24.29  # fish3
+# 2019-12-10_05.14.57  # fish3
+# 2019-12-10_05.41.48  # fish3
+# 2019-12-10_06.03.37  # fish3
+# 2019-12-10_06.25.14  # fish3
 """.split(
         "\n"
     )
