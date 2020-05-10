@@ -62,7 +62,7 @@ def bdv_trafo_to_affine_matrix(trafo):
 
         shift = [trafo[11], trafo[7], trafo[3]]
 
-        matrix = numpy.zeros((4, 4))
+        matrix = numpy.zeros((4, 4), dtype="float64")
         matrix[:3, :3] = sub_matrix
         matrix[:3, 3] = shift
         matrix[3, 3] = 1
@@ -254,6 +254,7 @@ class AffineTransformation(torch.nn.Module):
             logger.debug("trf_out_shape -> output_sampling %s %s %s", trf_out_shape, output_sampling_shape, out_scaling)
             matrix = matrix.dot(numpy.diag(out_scaling))
 
+        matrix = matrix.astype("float32")
         if isinstance(ipt, numpy.ndarray):
             assert len(ipt.shape) in [4, 5], ipt.shape
             ret = numpy.stack(

@@ -70,6 +70,20 @@ def get_transformations(name: str, crop_name: str, meta: dict):
             {"FlipAxis": {"apply_to": name, "axis": 2}},
             {"Crop": {"apply_to": name, "crop": get_raw_ls_crop(crop_name, for_slice=True)}},
             {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_ls_shape(crop_name, for_slice=True)}},
+            {
+                "Resize": {
+                    "apply_to": name,
+                    "shape": [1.0, 1.0, meta["scale"] / meta["nnum"], meta["scale"] / meta["nnum"]],
+                    "order": meta["interpolation_order"],
+                }
+            },
+            {
+                "Assert": {
+                    "apply_to": name,
+                    "expected_tensor_shape": [None, 1, 1]
+                    + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name, for_slice=True)[1:]],
+                }
+            },
         ]
     elif name == "lr":
         return [

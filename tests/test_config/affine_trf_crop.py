@@ -9,6 +9,28 @@ from lnet.datasets import ZipDataset, get_dataset_from_info, get_tensor_info
 from lnet.transformations.affine_utils import get_crops, get_lf_shape, get_ls_shape, get_ref_ls_shape
 from lnet.transformations.utils import get_composed_transformation_from_config
 
+import matplotlib.pyplot as plt
+
+
+def save_vol(sample, name, setting_name):
+    vol = sample[name]
+    Path(f"/g/kreshuk/LF_computed/lnet/verify_affine_trf_on_beads/{setting_name}").mkdir(parents=True, exist_ok=True)
+    imageio.volsave(
+        f"/g/kreshuk/LF_computed/lnet/verify_affine_trf_on_beads/{setting_name}/{name}.tif",
+        numpy.squeeze(vol),
+        bigtiff=True,
+    )
+
+
+def plot_vol(sample, name):
+    vol = sample[name]
+    fig, ax = plt.subplots(nrows=3)
+    for i in range(3):
+        ax[i].imshow(vol[0, 0].max(i))
+        ax[i].set_title(f"{name}{i}")
+
+    plt.show()
+
 
 def test_ls_vs_ls_tif():
     meta = {
@@ -100,32 +122,42 @@ def test_crop(crop_name: str, pred: str, target_to_compare_to: str, sample: dict
     trf = get_composed_transformation_from_config(trf_config)
     sample = trf(sample)
 
-    def save_vol(name):
-        vol = sample[name]
-        Path(f"/g/kreshuk/LF_computed/lnet/verify_affine_trf_on_beads/{setting_name}").mkdir(
-            parents=True, exist_ok=True
-        )
-        imageio.volsave(
-            f"/g/kreshuk/LF_computed/lnet/verify_affine_trf_on_beads/{setting_name}/{name}.tif",
-            numpy.squeeze(vol),
-            bigtiff=True,
-        )
-
-    import matplotlib.pyplot as plt
-
-    def plot_vol(name):
-        vol = sample[name]
-        fig, ax = plt.subplots(nrows=3)
-        for i in range(3):
-            ax[i].imshow(vol[0, 0].max(i))
-            ax[i].set_title(f"{name}{i}")
-
-        plt.show()
-
     for name in [pred, target_to_compare_to, pred + "_trf"]:
         print(name, sample[name].shape)
-        save_vol(name)
-        plot_vol(name)
+        save_vol(sample, name, setting_name)
+        plot_vol(sample, name)
+
+
+def test_inverse_trf(crop_name: str, meta: dict):
+    ls_reg = "ls_reg"
+    ls_trf = "ls_trf"
+    ds = ZipDataset(
+        OrderedDict(
+            [
+                (
+                    ls_reg,
+                    get_dataset_from_info(
+                        get_tensor_info("heart_static.beads_ref_Heart_tightCrop_tif", ls_reg, meta), cache=True
+                    ),
+                ),
+                (
+                    ls_trf,
+                    get_dataset_from_info(
+                        get_tensor_info("heart_static.beads_ref_Heart_tightCrop", ls_trf, meta), cache=False
+                    ),
+                ),
+            ]
+        ),
+        join_dataset_masks=False,
+    )
+    sample = ds[0]
+
+    setting_name = f"inverse_trf_test_2_{crop_name}"
+
+    for name in [ls_reg, ls_trf]:
+        print(name, sample[name].shape)
+        save_vol(sample, name, setting_name)
+        plot_vol(sample, name)
 
 
 def find_crop(crop_name: str, pred: str, target_to_compare_to: str, sample: dict, meta: dict):
@@ -173,41 +205,19 @@ def find_crop(crop_name: str, pred: str, target_to_compare_to: str, sample: dict
     trf = get_composed_transformation_from_config(trf_config)
     sample = trf(sample)
 
-    def save_vol(name):
-        vol = sample[name]
-        Path(f"/g/kreshuk/LF_computed/lnet/verify_affine_trf_on_beads/{setting_name}").mkdir(
-            parents=True, exist_ok=True
-        )
-        imageio.volsave(
-            f"/g/kreshuk/LF_computed/lnet/verify_affine_trf_on_beads/{setting_name}/{name}.tif",
-            numpy.squeeze(vol),
-            bigtiff=True,
-        )
-
-    import matplotlib.pyplot as plt
-
-    def plot_vol(name):
-        vol = sample[name]
-        fig, ax = plt.subplots(nrows=3)
-        for i in range(3):
-            ax[i].imshow(vol[0, 0].max(i))
-            ax[i].set_title(f"{name}{i}")
-
-        plt.show()
-
     for name in [pred, target_to_compare_to, pred + "_trf"]:
         print(name, sample[name].shape)
-        save_vol(name)
-        plot_vol(name)
+        save_vol(sample, name, setting_name)
+        plot_vol(sample, name)
 
 
 if __name__ == "__main__":
-    crop_name = "wholeFOV"  # "Heart_tightCrop"
-    fake_data = False
+    crop_name = "Heart_tightCrop"  # "wholeFOV" "Heart_tightCrop"
+    fake_data = True
     meta = {
-        "z_out": 49,
+        "z_out": 419,
         "nnum": 19,
-        "scale": 4,
+        "scale": 8,
         "interpolation_order": 2,
         "z_ls_rescaled": 241,
         "pred_z_min": 0,
@@ -247,7 +257,7 @@ if __name__ == "__main__":
                     (pred, get_dataset_from_info(get_tensor_info(info_name, pred, meta), cache=True)),
                     (
                         target_to_compare_to,
-                        get_dataset_from_info(get_tensor_info(info_name, target_to_compare_to, meta), cache=False),
+                        get_dataset_from_info(get_tensor_info(info_name, target_to_compare_to, meta), cache=True),
                     ),
                 ]
             ),
@@ -256,5 +266,6 @@ if __name__ == "__main__":
         sample = ds[0]
 
     # test_ls_vs_ls_tif()
-    find_crop(crop_name, pred=pred, target_to_compare_to=target_to_compare_to, sample=sample, meta=meta)
-    test_crop(crop_name, pred=pred, target_to_compare_to=target_to_compare_to, sample=sample, meta=meta)
+    # find_crop(crop_name, pred=pred, target_to_compare_to=target_to_compare_to, sample=sample, meta=meta)
+    # test_crop(crop_name, pred=pred, target_to_compare_to=target_to_compare_to, sample=sample, meta=meta)
+    test_inverse_trf(crop_name, meta=meta)

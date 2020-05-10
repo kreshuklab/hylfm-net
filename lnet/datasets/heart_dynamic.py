@@ -371,10 +371,10 @@ def check_filter(tag: str, comment: str, meta: dict):
     ]
 
     ds_unfiltered = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
-    print("unfiltered", len(ds_unfiltered))
+    print(" unfiltered", len(ds_unfiltered))
     ds = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True, filters=filters)
 
-    print("ds", len(ds))
+    print("ds filtered", len(ds))
 
 
 def check_data(tag: str, comment: str, meta: dict):
@@ -465,4 +465,4 @@ if __name__ == "__main__":
         comments.append(comment)
 
     check_filter(tags[idx], comments[idx], meta=meta)
-    check_data(tags[idx], comments[idx], meta=meta)
+    # check_data(tags[idx], comments[idx], meta=meta)
