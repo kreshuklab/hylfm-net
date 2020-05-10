@@ -15,7 +15,6 @@ def z_range(
     dataset: N5CachedDatasetFromInfo,
     idx: int,
     *,
-    meta: dict,
     z_min: int = None,
     z_max: int = None,
     lf_crops: typing.Dict[str, typing.Sequence[typing.Sequence[typing.Optional[int]]]] = None,
@@ -35,7 +34,9 @@ def z_range(
         assert z_min is None
         assert z_max is None
         crop_name = dataset.dataset.info.meta["crop_name"]
-        _, _, ls_crop = get_crops(crop_name, lf_crop=lf_crops[crop_name], meta=meta, for_slice=False)
+        _, _, ls_crop = get_crops(
+            crop_name, lf_crop=lf_crops[crop_name], meta=dataset.dataset.info.meta, for_slice=False
+        )
         z_min = ls_crop[0][0]
         z = get_ls_shape(crop_name, for_slice=False)[0]
         z_crop_up = ls_crop[0][1]

@@ -12,6 +12,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     assert "nnum" in meta
     assert "interpolation_order" in meta
     assert "scale" in meta
+    assert "z_ls_rescaled" in meta
+
     root = "GKRESHUK"
     insert_singleton_axes_at = [0, 0]
     z_slice = None
@@ -356,16 +358,18 @@ def debug():
 
 
 def check_filter(tag: str, comment: str, meta: dict):
-    lf_crops = {"Heart_tightCrop": [[0, None], [0, None], [0, None]],
-    "wholeFOV": [[0, None], [0, None], [0, None]]}
+    lf_crops = {"Heart_tightCrop": [[0, None], [0, None], [0, None]], "wholeFOV": [[0, None], [0, None], [0, None]]}
 
-    filters = [("z_range", {"lf_crops": lf_crops}), ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 2.0})]
+    filters = [
+        ("z_range", {"lf_crops": lf_crops}),
+        ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 2.0}),
+    ]
 
     ds_unfiltered = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
-    print('unfiltered', len(ds_unfiltered))
+    print("unfiltered", len(ds_unfiltered))
     ds = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True, filters=filters)
 
-    print('ds', len(ds))
+    print("ds", len(ds))
 
 
 def check_data(tag: str, comment: str, meta: dict):
@@ -432,7 +436,17 @@ if __name__ == "__main__":
     tags = []
     comments = []
 
-    meta = {"z_out": 49, "nnum": 19, "scale": 4, "interpolation_order": 2}
+    meta = {
+        "z_out": 49,
+        "nnum": 19,
+        "scale": 4,
+        "interpolation_order": 2,
+        "z_ls_rescaled": 241,
+        "pred_z_min": 0,
+        "pred_zmax": 838,
+        "crop_names": ["Heart_tightCrop", "wholeFOV"],
+        "shrink": 8,
+    }
 
     for full_tag in full_tags:
         if "#" in full_tag:
@@ -445,5 +459,5 @@ if __name__ == "__main__":
         tags.append(tag)
         comments.append(comment)
 
-    # check_data(tags[idx], comments[idx], meta=meta)
     check_filter(tags[idx], comments[idx], meta=meta)
+    check_data(tags[idx], comments[idx], meta=meta)

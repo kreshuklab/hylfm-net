@@ -115,6 +115,7 @@ class TensorInfo:
         }
         if self.name == "lf" or "slice" in self.name:
             relevant_meta.pop("z_out", None)
+            relevant_meta.pop("z_ls_rescaled", None)
 
         return yaml.safe_dump(
             {
