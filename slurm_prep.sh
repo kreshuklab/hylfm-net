@@ -1,6 +1,6 @@
 #!/bin/bash
-for i in {1..5}
+for i in {1..$2}
 do
-  echo 'submit $1 $i'
+  echo "submit $1 $i"
 #  sbatch prep.sh $1 $i
 done
