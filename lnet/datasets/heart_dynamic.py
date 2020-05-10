@@ -193,8 +193,10 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     if "crop_names" in meta:
         assert crop_name in meta["crop_names"]
 
-    assert "crop_name" not in meta
-    meta["crop_name"] = crop_name
+    if "crop_name" in meta:
+        assert meta["crop_name"] == crop_name
+    else:
+        meta["crop_name"] = crop_name
 
     return TensorInfo(
         name=name,
@@ -353,8 +355,7 @@ def debug():
     #     plt.show()
 
 
-def check_filter(tag: str, comment: str):
-    meta = {"z_out": 49, "nnum": 19, "scale": 4, "interpolation_order": 2}
+def check_filter(tag: str, comment: str, meta: dict):
     lf_crops = {"Heart_tightCrop": [[0, None], [0, None], [0, None]],
     "wholeFOV": [[0, None], [0, None], [0, None]]}
 
@@ -367,8 +368,7 @@ def check_filter(tag: str, comment: str):
     print('ds', len(ds))
 
 
-def check_data(tag: str, comment: str):
-    meta = {"z_out": 49, "nnum": 19, "scale": 4}
+def check_data(tag: str, comment: str, meta: dict):
 
     # 2019-12-02_23.43.24 not matching! -> use 2019-12-02_23.43.24/stack_1_channel_3/originalCrop/TP_00000_originalCrop/ with 19px padding on rectified image on bottom (bead IMG is bigger)
     # 2019-12-02_23.50.04 not matching! -> use 2019-12-02_23.50.04/stack_1_channel_3/originalCrop/TP_00000/ with 19px padding on rectified image on bottom (bead IMG is bigger)
@@ -432,6 +432,8 @@ if __name__ == "__main__":
     tags = []
     comments = []
 
+    meta = {"z_out": 49, "nnum": 19, "scale": 4, "interpolation_order": 2}
+
     for full_tag in full_tags:
         if "#" in full_tag:
             tag, comment = full_tag.split("#")
@@ -443,5 +445,5 @@ if __name__ == "__main__":
         tags.append(tag)
         comments.append(comment)
 
-    # check_data(tags[idx], comments[idx])
-    check_filter(tags[idx], comments[idx])
+    # check_data(tags[idx], comments[idx], meta=meta)
+    check_filter(tags[idx], comments[idx], meta=meta)
