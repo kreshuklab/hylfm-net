@@ -116,8 +116,8 @@ class TensorInfo:
         if self.name == "lf" or "slice" in self.name:
             relevant_meta.pop("z_out", None)
             relevant_meta.pop("z_ls_rescaled", None)
-            relevant_meta.pop(" pred_z_min", None)
-            relevant_meta.pop(" pred_z_max", None)
+            relevant_meta.pop("pred_z_min", None)
+            relevant_meta.pop("pred_z_max", None)
 
         return yaml.safe_dump(
             {
