@@ -383,7 +383,7 @@ def check_data(tag: str, comment: str, meta: dict):
     # 2019-12-02_23.50.04 not matching! -> use 2019-12-02_23.50.04/stack_1_channel_3/originalCrop/TP_00000/ with 19px padding on rectified image on bottom (bead IMG is bigger)
     # 2019-12-03_00.00.44/stack_1_channel_3/ not matching! -> use 2019-12-03_00.00.44/stack_1_channel_2/ with 19px padding on rectified image on bottom (bead IMG is bigger)
 
-    lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=False)
+    lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
     ls = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
     assert len(lf) == len(ls), (tag, len(lf), len(ls))
     assert len(lf) > 0, tag
