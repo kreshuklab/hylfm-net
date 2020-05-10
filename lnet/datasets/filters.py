@@ -37,9 +37,10 @@ def z_range(
         _, _, ls_crop = get_crops(
             crop_name, lf_crop=lf_crops[crop_name], meta=dataset.dataset.info.meta, for_slice=False
         )
-        z_min = ls_crop[0][0]
+        z_crop = ls_crop[1]
+        z_min = z_crop[0]
+        z_crop_up = z_crop[1]
         z = get_ls_shape(crop_name, for_slice=False)[0]
-        z_crop_up = ls_crop[0][1]
         if z_crop_up is None:
             z_max = z
         elif z_crop_up < 0:
