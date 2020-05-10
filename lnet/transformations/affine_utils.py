@@ -333,8 +333,12 @@ def get_crops(
 
     if ref_crop_in == ((0, 838), (0, None), (0, None)):
         ls_crop = [[0, None]] * 3
-    elif affine_trf_name == "Heart_tightCrop" and ref_crop_in == ((0, 838), (57, -57), (57, -57)):
+    elif affine_trf_name == "Heart_tightCrop" and ref_crop_in == [[0, 838], [57, -57], [57, -57]]:
         ls_crop = (19, -10), (152, -133), (171, -133)
+    elif affine_trf_name == "Heart_tightCrop" and ref_crop_in == [[0, 838], [38.0, -38.0], [38.0, -38.0]]:
+        ls_crop = (18, -12), (57+3*19, -57-2*19), (95+19, -57-19)
+    elif affine_trf_name == "wholeFOV" and ref_crop_in == [[0, 838], [38.0, -38.0], [38.0, -38.0]]:
+        ls_crop = (19, -13), (114+3*19, -114-3*19), (133+2*19, -95-2*19)
     else:
         raise NotImplementedError((affine_trf_name, ref_crop_in))
 
@@ -352,7 +356,7 @@ def get_crops(
     ls_crop = [[zc * z_ls_rescaled // get_ls_shape(affine_trf_name)[0] for zc in ls_crop[0]]] + [
         (lsc[0] // nnum * scale, lsc[1] // nnum * scale) for lsc in ls_crop[1:]
     ]
-    assert ls_crop_float == ls_crop
+    assert ls_crop_float == ls_crop, (ls_crop_float, ls_crop)
     assert len(ls_crop) == 3
     if for_slice:
         ls_crop[0] = [0, None]

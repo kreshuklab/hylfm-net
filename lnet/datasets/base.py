@@ -201,7 +201,7 @@ class DatasetFromInfo(torch.utils.data.Dataset):
 
     def update_meta(self, meta: dict) -> dict:
         tmeta = meta.get(self.tensor_name, {})
-        for k, v in self.info.meta:
+        for k, v in self.info.meta.items():
             if k in tmeta:
                 assert tmeta[k] == v, (tmeta[k], v)
             else:

@@ -34,7 +34,7 @@ class Crop(Transform):
             self.crop_fn = crop_fn
 
     def apply_to_tensor(
-        self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: Optional[dict]
+        self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: List[dict]
     ) -> Union[numpy.ndarray, torch.Tensor]:
         crop = self.crop or self.crop_fn(tensor.shape[2:])
         assert len(tensor.shape) - 1 == len(crop), (tensor.shape, crop)
@@ -55,10 +55,12 @@ class CropByCropName(Transform):
             assert crop_name in meta["crop_names"], (crop_name, meta["crop_names"])
             self.crops[crop_name] = Crop(apply_to=apply_to, crop=crop)
 
-    def apply(self, tensors: typing.OrderedDict[str, typing.Any]) -> typing.OrderedDict[str, typing.Any]:
-        crop_name = tensors["meta"][0]["crop_name"]
-        assert all([tmeta["crop_name"] == crop_name for tmeta in tensors["meta"]]), tensors["meta"]
-        return self.crops[crop_name].apply(tensors)
+    def apply_to_tensor(
+        self, tensor: typing.Any, *, name: str, idx: int, meta: typing.List[dict]
+    ) -> typing.Union[numpy.ndarray, torch.Tensor]:
+        crop_name = meta[0][name]["crop_name"]
+        assert all([tmeta[name]["crop_name"] == crop_name for tmeta in meta]), meta
+        return self.crops[crop_name].apply_to_tensor(tensor=tensor, name=name, idx=idx, meta=meta)
 
 
 class CropLSforDynamicTraining(Transform):
@@ -71,10 +73,12 @@ class CropLSforDynamicTraining(Transform):
             _, _, ls_out = get_crops(crop_name, lf_crop=lf_crop, meta=meta, for_slice="slice" in apply_to)
             self.crops[crop_name] = Crop(apply_to=apply_to, crop=ls_out)
 
-    def apply(self, tensors: typing.OrderedDict[str, typing.Any]) -> typing.OrderedDict[str, typing.Any]:
-        crop_name = tensors["meta"][0]["crop_name"]
-        assert all([tmeta["crop_name"] == crop_name for tmeta in tensors["meta"]]), tensors["meta"]
-        return self.crops[crop_name].apply(tensors)
+    def apply_to_tensor(
+        self, tensor: typing.Any, *, name: str, idx: int, meta: typing.List[dict]
+    ) -> typing.Union[numpy.ndarray, torch.Tensor]:
+        crop_name = meta[0][name]["crop_name"]
+        assert all([tmeta[name]["crop_name"] == crop_name for tmeta in meta]), meta
+        return self.crops[crop_name].apply_to_tensor(tensor=tensor, name=name, idx=idx, meta=meta)
 
 
 class Pad(Transform):

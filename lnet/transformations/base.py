@@ -70,23 +70,18 @@ class Transform:
     def apply(self, tensors: typing.OrderedDict[str, typing.Any]) -> typing.OrderedDict[str, typing.Any]:
         apply_to = tensors.keys() if self.apply_to is None else self.apply_to
         ret = OrderedDict(tensors)
-        metas: typing.List[dict] = tensors["meta"]
         for i, (n, t) in enumerate(tensors.items()):
-            tmetas = [m.get(n, {}) for m in metas]
-            out_name = self.io_mapping.get(n, n)
-            for meta, tmeta in zip(metas, tmetas):
-                if out_name == n:
-                    meta[out_name] = tmeta
-                else:
-                    existing_out_meta = meta.get(out_name, {})
-                    if existing_out_meta:
-                        warnings.warn(
-                            f"overwriting existing tensor meta {existing_out_meta} for {out_name} with {tmeta}"
-                        )
-
-                    meta[out_name] = dict(tmeta)
-
             if n in apply_to:
+                out_name = self.io_mapping.get(n, n)
+                if out_name != n:
+                    for meta in tensors["meta"]:
+                        if out_name in meta:
+                            warnings.warn(
+                                f"overwriting existing tensor meta {meta[out_name]} for {out_name} with {meta[n]}"
+                            )
+
+                        meta[out_name] = dict(meta[n])
+
                 ret[out_name] = self.apply_to_tensor(t, name=n, idx=i, meta=tensors["meta"])
 
         return ret

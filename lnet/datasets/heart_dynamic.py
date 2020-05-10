@@ -41,6 +41,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         # elif name == "lr":
         #     location = location.replace("LF_partially_restored/", "LF_computed/")
         #     location += "stack_1_channel_3/TP_*/RCout/Cam_Right_001.tif"
+        elif name == "fake_ls":
+            location += "stack_1_channel_3/Cam_Left_*.h5/Data"
         elif name == "ls_slice":
             location += "stack_1_channel_3/Cam_Left_*.h5/Data"
             samples_per_dataset = 241

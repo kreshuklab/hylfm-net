@@ -14,7 +14,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
     assert crop_name in [Heart_tightCrop, staticHeartFOV, wholeFOV]
     if name == "lf":
         return [{"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_lf_shape(crop_name)}}]
-    elif name in ["ls", "ls_trf"]:
+    elif name in ["fake_ls", "ls", "ls_trf"]:
         trf = [
             {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 241, 2048, 2060]}},  # raw ls shape
             {"FlipAxis": {"apply_to": name, "axis": 2}},
@@ -45,7 +45,12 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                 {
                     "Resize": {
                         "apply_to": name,
-                        "shape": [1.0, 1.0, meta["scale"] / meta["nnum"], meta["scale"] / meta["nnum"]],
+                        "shape": [
+                            1.0,
+                            meta["z_ls_rescaled"],
+                            meta["scale"] / meta["nnum"],
+                            meta["scale"] / meta["nnum"],
+                        ],
                         "order": meta["interpolation_order"],
                     }
                 },
@@ -64,12 +69,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
             {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 1, 2048, 2060]}},  # raw ls shape
             {"FlipAxis": {"apply_to": name, "axis": 2}},
             {"Crop": {"apply_to": name, "crop": get_raw_ls_crop(crop_name, for_slice=True)}},
-            {
-                "Assert": {
-                    "apply_to": name,
-                    "expected_tensor_shape": [1, 1] + get_ls_shape(crop_name, for_slice=True),
-                }
-            },
+            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_ls_shape(crop_name, for_slice=True)}},
         ]
     elif name == "lr":
         return [
