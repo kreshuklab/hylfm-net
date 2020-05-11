@@ -1,14 +1,13 @@
-from typing import Callable, List, Optional, Sequence, Tuple, Union, Any
+import logging
+import typing
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy
-import logging
+import skimage.transform
 import torch
-import typing
-from scipy.ndimage import zoom
 
 from lnet.transformations.affine_utils import get_crops
 from lnet.transformations.base import Transform
-
 
 logger = logging.getLogger(__name__)
 
@@ -246,17 +245,23 @@ class Resize(Transform):
         batch_idx: int,
         meta: dict,
     ):
-
-        # tmeta = meta.get(tensor_name, {})
-        # assert "shape_before_resize" not in tmeta
-        # tmeta["shape_before_resize"] = sample.shape
-        # meta[tensor_name] = tmeta
-
         assert len(sample.shape) == len(self.shape), (sample.shape, self.shape)
 
-        zoom_factors = [sout if isinstance(sout, float) else sout / sin for sin, sout in zip(sample.shape, self.shape)]
-        out = zoom(sample, zoom_factors, order=self.order)
-        logger.debug("Resize sample: %s %s by %s to %s", tensor_name, sample.shape, zoom_factors, out.shape)
+        out_shape_float = [
+            sout * sin if isinstance(sout, float) else sout for sin, sout in zip(sample.shape, self.shape)
+        ]
+        out_shape = [round(s) for s in out_shape_float]
+        if out_shape_float != out_shape:
+            logger.warning(
+                "Resize sample %s (orig. size: %s) to rounded %s = %s",
+                tensor_name,
+                sample.shape,
+                out_shape_float,
+                out_shape,
+            )
+
+        logger.debug("Resize sample: %s %s by %s to %s", tensor_name, sample.shape, self.shape, out_shape)
+        out = skimage.transform.resize(sample, out_shape, order=self.order)
         return out
 
 
