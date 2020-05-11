@@ -109,19 +109,6 @@ class TensorInfo:
 
     @property
     def description(self):
-        # filter out meta keys that do not influence data in cache
-        relevant_meta = {
-            k: v for k, v in self.meta.items() if k not in ["crop_names", "crop_name", "quality", "shrink"]
-        }
-        if self.name == "lf" or "slice" in self.name:
-            relevant_meta.pop("z_out", None)
-            relevant_meta.pop("z_ls_rescaled", None)
-            relevant_meta.pop("pred_z_min", None)
-            relevant_meta.pop("pred_z_max", None)
-
-        if not "slice" in self.name:
-            relevant_meta.pop("ls_slice_scale", None)
-
         return yaml.safe_dump(
             {
                 "name": self.name,
@@ -133,7 +120,6 @@ class TensorInfo:
                 "insert_singleton_axes_at": self.insert_singleton_axes_at,
                 "z_slice": self.z_slice.__name__ if callable(self.z_slice) else self.z_slice,
                 "skip_indices": list(self.skip_indices),
-                "meta": relevant_meta,  # todo: remove meta from description alltogether! (it's in the trfs already!)
                 "kwargs": self.kwargs,
             }
         )
