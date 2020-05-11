@@ -73,7 +73,12 @@ def get_transformations(name: str, crop_name: str, meta: dict):
             {
                 "Resize": {
                     "apply_to": name,
-                    "shape": [1.0, 1.0, meta["scale"] / meta["nnum"], meta["scale"] / meta["nnum"]],
+                    "shape": [
+                        1.0,
+                        1.0,
+                        meta.get("ls_slice_scale", meta["scale"]) / meta["nnum"],
+                        meta.get("ls_slice_scale", meta["scale"]) / meta["nnum"],
+                    ],
                     "order": meta["interpolation_order"],
                 }
             },
@@ -81,7 +86,10 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                 "Assert": {
                     "apply_to": name,
                     "expected_tensor_shape": [None, 1, 1]
-                    + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name, for_slice=True)[1:]],
+                    + [
+                        s / meta["nnum"] * meta.get("ls_slice_scale", meta["scale"])
+                        for s in get_ls_shape(crop_name, for_slice=True)[1:]
+                    ],
                 }
             },
         ]

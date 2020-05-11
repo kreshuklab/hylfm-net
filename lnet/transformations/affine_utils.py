@@ -353,6 +353,9 @@ def get_crops(
 
     ref_crop_out = [(low, up) for low, up in zip(lower, upper)]
 
+    if for_slice:
+        scale = meta.get("ls_slice_scale", scale)
+
     ls_crop_float = [[zc * z_ls_rescaled / get_ls_shape(affine_trf_name)[0] for zc in ls_crop[0]]] + [
         (lsc[0] / nnum * scale, lsc[1] / nnum * scale) for lsc in ls_crop[1:]
     ]
