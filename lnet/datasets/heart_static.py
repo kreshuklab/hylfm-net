@@ -462,9 +462,9 @@ def check_data(tag: str, comment: str, meta: dict):
     print("get lr")
     lr = get_dataset_from_info(get_tensor_info(tag, "lr", meta=meta))
     print("get ls")
-    ls = get_dataset_from_info(get_tensor_info(tag, "ls", meta=meta), cache=True)
+    ls = get_dataset_from_info(get_tensor_info(tag, "ls", meta=meta), cache=False)
     print("get ls_trf")
-    ls_trf = get_dataset_from_info(get_tensor_info(tag, "ls_trf", meta=meta))
+    ls_trf = get_dataset_from_info(get_tensor_info(tag, "ls_trf", meta=meta), cache=True)
 
     print(tag, len(lf), comment)
     assert len(lf) == len(lr), (tag, len(lf), len(lr))
@@ -531,7 +531,7 @@ if __name__ == "__main__":
 # 2019-12-08_10.32.03  # fish5 val
 # 2019-12-09_09.52.38  # fish2 test
 # 2019-12-09_08.34.44  # fish2 test 
-# 2019-12-09_08.41.41  # fish2 test 
+2019-12-09_08.41.41  # fish2 test
 # 2019-12-09_08.51.01  # fish2 test 
 # 2019-12-09_09.01.28  # fish2 test 
 # 2019-12-09_09.11.59  # fish2 test 
