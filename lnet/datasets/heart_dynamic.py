@@ -441,18 +441,6 @@ if __name__ == "__main__":
     tags = []
     comments = []
 
-    meta = {
-        "z_out": 49,
-        "nnum": 19,
-        "scale": 4,
-        "interpolation_order": 2,
-        "z_ls_rescaled": 241,
-        "pred_z_min": 0,
-        "pred_z_max": 838,
-        "crop_names": ["Heart_tightCrop", "wholeFOV"],
-        "shrink": 8,
-    }
-
     for full_tag in full_tags:
         if "#" in full_tag:
             tag, comment = full_tag.split("#")
@@ -464,5 +452,21 @@ if __name__ == "__main__":
         tags.append(tag)
         comments.append(comment)
 
+    meta = {
+        "z_out": 49,
+        "nnum": 19,
+        "scale": 4,
+        "ls_slice_scale": 4,
+        "interpolation_order": 2,
+        "z_ls_rescaled": 241,
+        "pred_z_min": 0,
+        "pred_z_max": 838,
+        "crop_names": ["Heart_tightCrop", "wholeFOV"],
+        "shrink": 8,
+    }
+
     check_filter(tags[idx], comments[idx], meta=meta)
-    # check_data(tags[idx], comments[idx], meta=meta)
+    check_data(tags[idx], comments[idx], meta=meta)
+    meta["scale"] = 8
+    check_filter(tags[idx], comments[idx], meta=meta)
+    check_data(tags[idx], comments[idx], meta=meta)

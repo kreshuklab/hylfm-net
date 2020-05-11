@@ -472,13 +472,13 @@ def check_data(tag: str, comment: str, meta: dict):
     assert len(lf) == len(ls_trf), (tag, len(lf), len(ls_trf))
     assert len(lf) > 0, tag
 
-    print("get lr_repeat")
-    lf_repeat = get_dataset_from_info(get_tensor_info(tag, "lf_repeat241", meta=meta), cache=True)
-    print("get ls_fake_slice")
-    ls_fake_slice = get_dataset_from_info(get_tensor_info(tag, "ls_fake_slice", meta=meta))
-
-    assert len(lf_repeat) == len(ls_fake_slice), (tag, len(lf_repeat), len(ls_fake_slice))
-    assert len(lf_repeat) > 0, tag
+    # print("get lr_repeat")
+    # lf_repeat = get_dataset_from_info(get_tensor_info(tag, "lf_repeat241", meta=meta), cache=True)
+    # print("get ls_fake_slice")
+    # ls_fake_slice = get_dataset_from_info(get_tensor_info(tag, "ls_fake_slice", meta=meta))
+    #
+    # assert len(lf_repeat) == len(ls_fake_slice), (tag, len(lf_repeat), len(ls_fake_slice))
+    # assert len(lf_repeat) > 0, tag
     # print(tag, len(lf), comment)
 
     # lf = lf[0]["lf"]
@@ -496,18 +496,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     idx = args.idx
-
-    meta = {
-        "z_out": 49,
-        "nnum": 19,
-        "scale": 4,
-        "interpolation_order": 2,
-        "z_ls_rescaled": 241,
-        "pred_z_min": 0,
-        "pred_z_max": 838,
-        "crop_names": ["Heart_tightCrop"],  # staticHeartFOV
-        "shrink": 8,
-    }
 
     # depug()
     # search_data()
@@ -572,4 +560,18 @@ if __name__ == "__main__":
         tags.append(tag)
         comments.append(comment)
 
+    meta = {
+        "z_out": 49,
+        "nnum": 19,
+        "scale": 4,
+        "ls_slice_scale": 4,
+        "interpolation_order": 2,
+        "z_ls_rescaled": 241,
+        "pred_z_min": 0,
+        "pred_z_max": 838,
+        "crop_names": ["Heart_tightCrop"],  # staticHeartFOV
+        "shrink": 8,
+    }
+    check_data(tags[idx], comments[idx], meta=meta)
+    meta["scale"] = 8
     check_data(tags[idx], comments[idx], meta=meta)
