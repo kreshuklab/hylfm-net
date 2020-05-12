@@ -24,6 +24,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
         ]
         if name == "ls_trf":
             trf += [
+                {"Cast": {"apply_to": name, "dtype": "float32", "device": "cpu"}},
                 {
                     "AffineTransformation": {
                         "apply_to": name,
@@ -37,8 +38,11 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                         "ref_crop_out": get_raw_ls_crop(crop_name, wrt_ref=True),
                         "inverted": True,
                         "padding_mode": "border",
+                        "align_corners": meta["align_corners"],
+                        "subtract_one_when_scale": meta["subtract_one_when_scale"],
                     }
-                }
+                },
+                {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},
             ]
         else:
             trf += [
@@ -54,10 +58,11 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                         "order": meta["interpolation_order"],
                     }
                 },
+                {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},
                 {
                     "Assert": {
                         "apply_to": name,
-                        "expected_tensor_shape": [None, 1, get_ls_shape(crop_name)[0]]
+                        "expected_tensor_shape": [None, 1, meta["z_ls_rescaled"]]
                         + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]],
                     }
                 },
@@ -82,6 +87,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                     "order": meta["interpolation_order"],
                 }
             },
+            {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},
             {
                 "Assert": {
                     "apply_to": name,
@@ -103,6 +109,19 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                     "order": meta["interpolation_order"],
                 }
             },
+            {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},
+        ]
+    elif name == "ls_reg":
+        return [
+            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 838] + get_lf_shape(crop_name)}},  # raw tif
+            {
+                "Resize": {
+                    "apply_to": name,
+                    "shape": [1.0, meta["z_out"], meta["scale"] / meta["nnum"], meta["scale"] / meta["nnum"]],
+                    "order": meta["interpolation_order"],
+                }
+            },
+            {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},
         ]
 
     raise NotImplementedError(f"name: {name}, crop name: {crop_name}")

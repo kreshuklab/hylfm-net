@@ -94,6 +94,8 @@ class AffineTransformation(torch.nn.Module):
         apply_to: Union[str, Dict[str, str]],
         target_to_compare_to: Union[str, Tuple[Union[int, float], Union[int, float], Union[int, float]]],
         order: int,
+        align_corners: bool,
+        # subtract_one_when_scale: str,
         ref_input_shape: Union[str, Sequence[int]],
         bdv_affine_transformations: Union[
             str, List[List[float]]
@@ -105,6 +107,8 @@ class AffineTransformation(torch.nn.Module):
         inverted: bool = False,
         padding_mode: str = "border",
     ):
+        self.align_corners = align_corners
+        # self.subtract_one_when_scale = subtract_one_when_scale
         if isinstance(ref_input_shape, str):
             ref_input_shape = [838] + get_lf_shape(ref_input_shape)
         if len(ref_input_shape) not in (2, 3):
@@ -212,13 +216,13 @@ class AffineTransformation(torch.nn.Module):
         self.order = order
 
     @staticmethod
-    def get_affine_grid(scipy_form, ipt_shape, out_shape):
+    def get_affine_grid(scipy_form, ipt_shape, out_shape, align_corners):
         assert len(scipy_form.shape) == 2, scipy_form.shape
         assert len(ipt_shape) in (2, 3)
         assert len(ipt_shape) == len(out_shape), (ipt_shape, out_shape)
         theta = scipy_form2torch_theta(scipy_form, ipt_shape, out_shape)
         affine_grid_size = (1, 1) + tuple(out_shape)
-        return torch.nn.functional.affine_grid(theta=theta, size=affine_grid_size, align_corners=False)
+        return torch.nn.functional.affine_grid(theta=theta, size=affine_grid_size, align_corners=align_corners)
 
     def _impl(
         self,
@@ -243,6 +247,89 @@ class AffineTransformation(torch.nn.Module):
                 z_slices,
                 self.z_offset,
             )
+
+        # if self.subtract_one_when_scale == "src":
+        #     if trf_in_shape != ipt.shape[2:]:
+        #         in_scaling = (
+        #             [(ipt.shape[2] - 1) / trf_in_shape[0]]
+        #             + [ipts / trf_in for ipts, trf_in in zip(ipt.shape[3:], trf_in_shape[1:])]
+        #             + [1.0]
+        #         )
+        #         logger.debug("ipt.shape -> trf_in_shape %s %s %s", ipt.shape[2:], trf_in_shape, in_scaling)
+        #         matrix = numpy.diag(in_scaling).dot(matrix)
+        #
+        #     if trf_out_shape != output_sampling_shape:
+        #         out_scaling = (
+        #             [(trf_out_shape[0] - 1) / output_sampling_shape[0]]
+        #             + [trf_out / outs for trf_out, outs in zip(trf_out_shape[1:], output_sampling_shape[1:])]
+        #             + [1.0]
+        #         )
+        #         logger.debug(
+        #             "trf_out_shape -> output_sampling %s %s %s", trf_out_shape, output_sampling_shape, out_scaling
+        #         )
+        #         matrix = matrix.dot(numpy.diag(out_scaling))
+        # elif self.subtract_one_when_scale == "both":
+        #     if trf_in_shape != ipt.shape[2:]:
+        #         in_scaling = (
+        #             [(ipt.shape[2] - 1) / (trf_in_shape[0] - 1)]
+        #             + [ipts / trf_in for ipts, trf_in in zip(ipt.shape[3:], trf_in_shape[1:])]
+        #             + [1.0]
+        #         )
+        #         logger.debug("ipt.shape -> trf_in_shape %s %s %s", ipt.shape[2:], trf_in_shape, in_scaling)
+        #         matrix = numpy.diag(in_scaling).dot(matrix)
+        #
+        #     if trf_out_shape != output_sampling_shape:
+        #         out_scaling = (
+        #             [(trf_out_shape[0] - 1) / (output_sampling_shape[0] - 1)]
+        #             + [trf_out / outs for trf_out, outs in zip(trf_out_shape[1:], output_sampling_shape[1:])]
+        #             + [1.0]
+        #         )
+        #         logger.debug(
+        #             "trf_out_shape -> output_sampling %s %s %s", trf_out_shape, output_sampling_shape, out_scaling
+        #         )
+        #         matrix = matrix.dot(numpy.diag(out_scaling))
+        # elif self.subtract_one_when_scale == "tgt":
+        #     if trf_in_shape != ipt.shape[2:]:
+        #         in_scaling = (
+        #             [ipt.shape[2] / (trf_in_shape[0] - 1)]
+        #             + [ipts / trf_in for ipts, trf_in in zip(ipt.shape[3:], trf_in_shape[1:])]
+        #             + [1.0]
+        #         )
+        #         logger.debug("ipt.shape -> trf_in_shape %s %s %s", ipt.shape[2:], trf_in_shape, in_scaling)
+        #         matrix = numpy.diag(in_scaling).dot(matrix)
+        #
+        #     if trf_out_shape != output_sampling_shape:
+        #         out_scaling = (
+        #             [trf_out_shape[0] / (output_sampling_shape[0] - 1)]
+        #             + [trf_out / outs for trf_out, outs in zip(trf_out_shape[1:], output_sampling_shape[1:])]
+        #             + [1.0]
+        #         )
+        #         logger.debug(
+        #             "trf_out_shape -> output_sampling %s %s %s", trf_out_shape, output_sampling_shape, out_scaling
+        #         )
+        #         matrix = matrix.dot(numpy.diag(out_scaling))
+        # elif self.subtract_one_when_scale is None:
+        #     if trf_in_shape != ipt.shape[2:]:
+        #         in_scaling = (
+        #             [ipt.shape[2] / trf_in_shape[0]]
+        #             + [ipts / trf_in for ipts, trf_in in zip(ipt.shape[3:], trf_in_shape[1:])]
+        #             + [1.0]
+        #         )
+        #         logger.debug("ipt.shape -> trf_in_shape %s %s %s", ipt.shape[2:], trf_in_shape, in_scaling)
+        #         matrix = numpy.diag(in_scaling).dot(matrix)
+        #
+        #     if trf_out_shape != output_sampling_shape:
+        #         out_scaling = (
+        #             [trf_out_shape[0] / output_sampling_shape[0]]
+        #             + [trf_out / outs for trf_out, outs in zip(trf_out_shape[1:], output_sampling_shape[1:])]
+        #             + [1.0]
+        #         )
+        #         logger.debug(
+        #             "trf_out_shape -> output_sampling %s %s %s", trf_out_shape, output_sampling_shape, out_scaling
+        #         )
+        #         matrix = matrix.dot(numpy.diag(out_scaling))
+        # else:
+        #     raise NotImplementedError(self.subtract_one_when_scale)
 
         if trf_in_shape != ipt.shape[2:]:
             in_scaling = [ipts / trf_in for ipts, trf_in in zip(ipt.shape[2:], trf_in_shape)] + [1.0]
@@ -290,7 +377,7 @@ class AffineTransformation(torch.nn.Module):
             affine_grid_key = (matrix.tostring(), ipt.shape[2:], output_sampling_shape)
             affine_grid = self.affine_grids.get(affine_grid_key, None)
             if affine_grid is None:
-                affine_grid = self.get_affine_grid(matrix, ipt.shape[2:], output_sampling_shape)
+                affine_grid = self.get_affine_grid(matrix, ipt.shape[2:], output_sampling_shape, self.align_corners)
                 affine_grid.to(ipt)
                 self.affine_grids[affine_grid_key] = affine_grid
 
@@ -308,7 +395,7 @@ class AffineTransformation(torch.nn.Module):
                 )
 
             ret = torch.nn.functional.grid_sample(
-                ipt, affine_grid, align_corners=False, mode=self.mode, padding_mode=self.padding_mode
+                ipt, affine_grid, align_corners=self.align_corners, mode=self.mode, padding_mode=self.padding_mode
             )
 
             if on_cuda == ipt_was_cuda:
@@ -400,6 +487,8 @@ class AffineTransformationDynamicTraining(torch.nn.Module):
                 ref_crop_out=ref_crop_out,  # noqa
                 inverted=False,
                 padding_mode=padding_mode,
+                align_corners=meta.get("align_corners", False),
+                # subtract_one_when_scale=meta["subtract_one_when_scale"],
             )
 
         self.ops = torch.nn.ModuleDict(ops)

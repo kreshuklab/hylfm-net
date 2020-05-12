@@ -1,4 +1,5 @@
-from typing import Dict, Iterable, Sequence, OrderedDict
+import logging
+from typing import Dict, Iterable, Sequence, OrderedDict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy
@@ -8,6 +9,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from lnet.utils.turbo_colormap import turbo_colormap
 
+
+logger = logging.getLogger(__name__)
 
 class Box:
     def __init__(self, slice_x: slice, slice_y: slice, color: str):
@@ -35,7 +38,7 @@ class ColorSelection:
         return self.colors[item % len(self.colors)]
 
 
-def get_batch_figure(*, tensors: OrderedDict[str, numpy.ndarray], return_array: bool = False):
+def get_batch_figure(*, tensors: OrderedDict[str, numpy.ndarray], return_array: bool = False, meta: Optional[dict] = None):
     ncols = len(tensors)
     nrows = tensors[list(tensors.keys())[0]].shape[0]
 
@@ -91,7 +94,16 @@ def get_batch_figure(*, tensors: OrderedDict[str, numpy.ndarray], return_array: 
                 raise NotImplementedError(t.shape)
                 # side_view = vl.max(axis=0).max(axis=2).T
 
-            make_subplot(ax[r, c], name, img, side_view=side_view)
+            title = name
+            if "slice" in name:
+                try:
+                    z_slice = meta[name]["z_slice"] #
+                    title = f"{name} z: {z_slice}"
+                except Exception as e:
+                    logger.error(e)
+                    raise e
+
+            make_subplot(ax[r, c], title=title, img=img, side_view=side_view)
 
     fig.subplots_adjust(hspace=0, wspace=0, bottom=0, top=1, left=0, right=1)
     fig.tight_layout()

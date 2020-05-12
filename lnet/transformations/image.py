@@ -5,6 +5,7 @@ from typing import Callable, List, Optional, Sequence, Tuple, Union
 import numpy
 import skimage.transform
 import torch
+from scipy.ndimage import zoom
 
 from lnet.transformations.affine_utils import get_crops
 from lnet.transformations.base import Transform
@@ -68,7 +69,7 @@ class CropByCropName(Transform):
 
 class CropLSforDynamicTraining(Transform):
     def __init__(self, apply_to: str, lf_crops: typing.Dict[str, Sequence[Sequence[Optional[int]]]], meta: dict):
-        assert isinstance(apply_to, str), "for slice check"
+        assert isinstance(apply_to, str), "str to check if tensor is a slice (needed for get_crops)"
         super().__init__(apply_to=apply_to)
         self.crops = {}
         for crop_name, lf_crop in lf_crops.items():
@@ -229,6 +230,29 @@ class RandomRotate90(Transform):
         return numpy.rot90(sample, k=meta[self.meta_key], axes=self.sample_axes)
 
 
+class Zoom(Transform):
+    def __init__(self, shape: Sequence[Union[int, float]], order: int, **super_kwargs):
+        super().__init__(**super_kwargs)
+        self.shape = shape
+        assert 0 <= order <= 5, order
+        self.order = order
+
+    def apply_to_sample(
+        self,
+        sample: typing.Union[numpy.ndarray, torch.Tensor],
+        *,
+        tensor_name: str,
+        tensor_idx: int,
+        batch_idx: int,
+        meta: dict,
+    ) -> typing.Union[numpy.ndarray, torch.Tensor]:
+
+        zoom_factors = [sout if isinstance(sout, float) else sout / sin for sin, sout in zip(sample.shape, self.shape)]
+        out = zoom(sample, zoom_factors, order=self.order)
+        logger.debug("Resize sample: %s %s by %s to %s", tensor_name, sample.shape, zoom_factors, out.shape)
+        return out
+
+
 class Resize(Transform):
     def __init__(self, shape: Sequence[Union[int, float]], order: int, **super_kwargs):
         super().__init__(**super_kwargs)
@@ -261,7 +285,7 @@ class Resize(Transform):
             )
 
         logger.debug("Resize sample: %s %s by %s to %s", tensor_name, sample.shape, self.shape, out_shape)
-        out = skimage.transform.resize(sample, out_shape, order=self.order)
+        out = skimage.transform.resize(sample, out_shape, order=self.order, preserve_range=True)
         return out
 
 

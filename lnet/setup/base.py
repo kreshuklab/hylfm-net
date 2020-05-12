@@ -208,6 +208,9 @@ class DatasetSetup:
                 trf for trf in sample_transformations if any([kwargs["apply_to"] == name for kwargs in trf.values()])
             ]
             info.transformations += trfs_for_name
+            if "_repeat" in name:
+                name, _ = name.split("_repeat")
+
             self.infos[name] = info
 
         self.interpolation_order = interpolation_order
@@ -620,7 +623,6 @@ class Setup:
         self.nnum = nnum
         self.z_out = z_out
         self.config_path = config_path
-        self.data_cache_path = self.get_data_cache_path() if data_cache_path is None else Path(data_cache_path)
         self.log_path = self.get_log_path() if log_path is None else Path(log_path)
         if isinstance(device, int) or "cuda" in device:
             cuda_device_count = torch.cuda.device_count()
@@ -650,12 +652,6 @@ class Setup:
             config = yaml.safe_load(f)
 
         return cls(**config, config_path=yaml_path)
-
-    def get_data_cache_path(self) -> Path:
-        data_cache_path = Path(__file__).parent / "../../data"
-        data_cache_path.mkdir(exist_ok=True)
-
-        return data_cache_path
 
     def get_log_path(self) -> Path:
         log_sub_dir: List[str] = self.config_path.with_suffix("").resolve().as_posix().split("/experiment_configs/")

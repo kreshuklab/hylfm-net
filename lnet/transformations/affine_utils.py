@@ -1,3 +1,4 @@
+import warnings
 from typing import List, Optional, Sequence, Tuple
 
 
@@ -317,8 +318,8 @@ def get_crops(
 
     ref_crop_in = [
         [meta["pred_z_min"], meta["pred_z_max"]],
-        [shrink * nnum / scale, -shrink * nnum / scale],
-        [shrink * nnum / scale, -shrink * nnum / scale],
+        [shrink * nnum / scale, None if shrink == 0 else -shrink * nnum / scale],
+        [shrink * nnum / scale, None if shrink == 0 else -shrink * nnum / scale],
     ]
 
     for i, lfc in enumerate(lf_crop):
@@ -331,7 +332,7 @@ def get_crops(
 
     mini_crop = get_raw_ls_crop(affine_trf_name, wrt_ref=True)
 
-    if ref_crop_in == ((0, 838), (0, None), (0, None)):
+    if ref_crop_in == [[0, 838], [0, None], [0, None]]:
         ls_crop = [[0, None]] * 3
     elif affine_trf_name == "Heart_tightCrop" and ref_crop_in == [[0, 838], [57, -57], [57, -57]]:
         ls_crop = (19, -10), (152, -133), (171, -133)
@@ -357,16 +358,18 @@ def get_crops(
     if for_slice:
         scale = meta.get("ls_slice_scale", scale)
 
-    ls_crop_float = [[zc * z_ls_rescaled / get_ls_shape(affine_trf_name)[0] for zc in ls_crop[0]]] + [
-        (lsc[0] / nnum * scale, lsc[1] / nnum * scale) for lsc in ls_crop[1:]
+    ls_crop_float = [[None if zc is None else zc * z_ls_rescaled / get_ls_shape(affine_trf_name)[0] for zc in ls_crop[0]]] + [
+        (lsc[0] / nnum * scale, None if lsc[1] is None else lsc[1] / nnum * scale) for lsc in ls_crop[1:]
     ]
-    ls_crop = [[zc * z_ls_rescaled // get_ls_shape(affine_trf_name)[0] for zc in ls_crop[0]]] + [
-        (lsc[0] // nnum * scale, lsc[1] // nnum * scale) for lsc in ls_crop[1:]
+    ls_crop = [[None if zc is None else zc * z_ls_rescaled // get_ls_shape(affine_trf_name)[0] for zc in ls_crop[0]]] + [
+        (round(lsc[0] / nnum * scale), None if lsc[1] is None else round(lsc[1] / nnum * scale)) for lsc in ls_crop[1:]
     ]
-    assert ls_crop_float == ls_crop, (ls_crop_float, ls_crop)
     assert len(ls_crop) == 3
     if for_slice:
         ls_crop[0] = [0, None]
+
+    if ls_crop_float != ls_crop:
+        warnings.warn(f"rounded ls crop from {ls_crop_float} to {ls_crop}")
 
     return ref_crop_in, ref_crop_out, [[0, None]] + ls_crop
 

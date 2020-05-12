@@ -114,7 +114,7 @@ class TensorInfo:
                 "name": self.name,
                 "root": self.root,
                 "location": self.location,
-                "transformations": self.transformations,
+                "transformations": [trf for trf in self.transformations if "Assert" not in trf],
                 "datasets_per_file": self.datasets_per_file,
                 "samples_per_dataset": self.samples_per_dataset,
                 "insert_singleton_axes_at": self.insert_singleton_axes_at,
@@ -429,7 +429,6 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
 
 class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
     dataset: N5CachedDatasetFromInfo
-
     def __init__(
         self,
         dataset: N5CachedDatasetFromInfo,
@@ -452,6 +451,7 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
         if not mask_description_file_path.exists():
             mask_description_file_path.write_text(description)
 
+        logger.info("using dataset mask %s", mask_description_file_path)
         if mask_file_path.exists():
             mask: numpy.ndarray = numpy.repeat(numpy.load(str(mask_file_path)), dataset.repeat)
         else:
@@ -490,7 +490,6 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
 
             numpy.save(str(mask_file_path), mask)
 
-        logger.info("using dataset mask %s", mask_description_file_path)
         self.mask = mask
 
     def shutdown(self):

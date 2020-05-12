@@ -3,7 +3,7 @@ from pathlib import Path
 
 import imageio
 
-from lnet.datasets.base import TensorInfo, get_dataset_from_info
+from lnet.datasets.base import TensorInfo, get_dataset_from_info, N5CachedDatasetFromInfoSubset
 from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241
 
 
@@ -117,11 +117,25 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/{tag}/"
         if name == "lf":
             location += "stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
-        # elif name == "lr":
-        #     location = location.replace("LF_partially_restored/", "LF_computed/")
-        #     location += "stack_1_channel_3/TP_*/RCout/Cam_Right_001.tif"
+        elif name == "lr":
+            location = location.replace("LF_partially_restored/", "LF_computed/")
+            location += "stack_1_channel_3/TP_*/RCout/Cam_Right_*.tif"
         elif name == "ls_slice":
             location += "stack_1_channel_3/Cam_Left_*.h5/Data"
+            samples_per_dataset = 241
+            z_slice = idx2z_slice_241
+
+    elif tag in ["2019-12-09_04.54.38_short"]:  #  "2019-12-09_05.21.16_short"
+        crop_name = "Heart_tightCrop"
+        transformations = get_transformations(name, crop_name, meta=meta)
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/{tag}/"
+        if name == "lf":
+            location += "stack_1_channel_3/TP_00000/RC_rectified/Cam_Right_*_rectified.tif"
+        elif name == "lr":
+            location = location.replace("LF_partially_restored/", "LF_computed/")
+            location += "stack_1_channel_3/TP_00000/RCout/Cam_Right_*.tif"
+        elif name == "ls_slice":
+            location += "stack_1_channel_3/Cam_Left_00000.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
 
@@ -361,6 +375,10 @@ def debug():
     #     ax[1].set_title(f"lr_trf idx: {idx}")
     #     plt.show()
 
+# def get_z_hist(ds: N5CachedDatasetFromInfoSubset):
+#     z_slices =
+#
+#     numpy.histogram(a
 
 def check_filter(tag: str, comment: str, meta: dict):
     lf_crops = {"Heart_tightCrop": [[0, None], [0, None], [0, None]], "wholeFOV": [[0, None], [0, None], [0, None]]}
@@ -375,6 +393,7 @@ def check_filter(tag: str, comment: str, meta: dict):
     ds = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True, filters=filters)
 
     print("ds filtered", len(ds))
+
 
 
 def check_data(tag: str, comment: str, meta: dict):
@@ -467,6 +486,4 @@ if __name__ == "__main__":
 
     check_filter(tags[idx], comments[idx], meta=meta)
     check_data(tags[idx], comments[idx], meta=meta)
-    meta["scale"] = 8
-    check_filter(tags[idx], comments[idx], meta=meta)
-    check_data(tags[idx], comments[idx], meta=meta)
+

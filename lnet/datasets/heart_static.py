@@ -34,6 +34,12 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         elif name == "ls" or name == "ls_trf":
             location += "stack_1_channel_1/Cam_Left_*.h5/Data"
+        elif name == "ls_slice":
+            location += "stack_1_channel_1/Cam_Left_*.h5/Data"
+            samples_per_dataset = 241
+            z_slice = idx2z_slice_241
+        elif name == "ls_reg":
+            location += "*Cam_Left_registered.tif"
 
     elif tag == "beads_ref_Heart_tightCrop_tif":
         crop_name = "Heart_tightCrop"
@@ -63,23 +69,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
                         + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape("Heart_tightCrop")[1:]],
                     }
                 },
-            ]
-        elif name == "ls_reg":
-            location += "*Cam_Left_registered.tif"
-            transformations = [
-                {
-                    "Assert": {
-                        "apply_to": name,
-                        "expected_tensor_shape": [1, 1, 838] + get_lf_shape("Heart_tightCrop"),
-                    }  # raw tif
-                },
-                {
-                    "Resize": {
-                        "apply_to": name,
-                        "shape": [1.0, meta["z_out"] / 838, meta["scale"] / meta["nnum"], meta["scale"] / meta["nnum"]],
-                        "order": meta["interpolation_order"],
-                    }
-                },
+                {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},
             ]
 
     elif tag == "beads_should_fit_Heart_tightCrop_0":
@@ -102,7 +92,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls" or name == "ls_trf":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
-        elif name == "ls_fake_slice":
+        elif name == "ls_slice":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
@@ -130,7 +120,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls" or name == "ls_trf":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
-        elif name == "ls_fake_slice":
+        elif name == "ls_slice":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
@@ -154,7 +144,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls" or name == "ls_trf":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
-        elif name == "ls_fake_slice":
+        elif name == "ls_slice":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
@@ -170,7 +160,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls" or name == "ls_trf":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
-        elif name == "ls_fake_slice":
+        elif name == "ls_slice":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
@@ -186,7 +176,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         #     location += "TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls" or name == "ls_trf":
             location += "Cam_Left_*.h5/Data"
-        elif name == "ls_fake_slice":
+        elif name == "ls_slice":
             location += "Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
@@ -202,7 +192,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         #     location += "TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls" or name == "ls_trf":
             location += "Cam_Left_*.h5/Data"
-        elif name == "ls_fake_slice":
+        elif name == "ls_slice":
             location += "Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
@@ -225,10 +215,13 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls" or name == "ls_trf":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
-        elif name == "ls_fake_slice":
+        elif name == "ls_slice":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
+        elif name == "ls_reg":
+            location = location.replace("LF_partially_restored/", "LF_computed/")
+            location += "stack_4_channel_1/TP_*/LC/Cam_Left_registered.tif"
 
     elif tag in ["2019-12-09_08.15.07", "2019-12-09_08.19.40", "2019-12-09_08.27.14"]:
         crop_name = "Heart_tightCrop"
@@ -241,7 +234,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls" or name == "ls_trf":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
-        elif name == "ls_fake_slice":
+        elif name == "ls_slice":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
@@ -257,7 +250,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls" or name == "ls_trf":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
-        elif name == "ls_fake_slice":
+        elif name == "ls_slice":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
@@ -279,7 +272,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls" or name == "ls_trf":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
-        elif name == "ls_fake_slice":
+        elif name == "ls_slice":
             location += "stack_4_channel_1/Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
@@ -459,25 +452,25 @@ def debug():
 def check_data(tag: str, comment: str, meta: dict):
     print("get lf")
     lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
-    print("get lr")
-    lr = get_dataset_from_info(get_tensor_info(tag, "lr", meta=meta))
-    print("get ls")
-    ls = get_dataset_from_info(get_tensor_info(tag, "ls", meta=meta), cache=False)
+    # print("get lr")
+    # lr = get_dataset_from_info(get_tensor_info(tag, "lr", meta=meta))
+    # print("get ls")
+    # ls = get_dataset_from_info(get_tensor_info(tag, "ls", meta=meta), cache=False)
     print("get ls_trf")
     ls_trf = get_dataset_from_info(get_tensor_info(tag, "ls_trf", meta=meta), cache=True)
 
     print(tag, len(lf), comment)
-    assert len(lf) == len(lr), (tag, len(lf), len(lr))
-    assert len(lf) == len(ls), (tag, len(lf), len(ls))
+    # assert len(lf) == len(lr), (tag, len(lf), len(lr))
+    # assert len(lf) == len(ls), (tag, len(lf), len(ls))
     assert len(lf) == len(ls_trf), (tag, len(lf), len(ls_trf))
     assert len(lf) > 0, tag
 
     # print("get lr_repeat")
     # lf_repeat = get_dataset_from_info(get_tensor_info(tag, "lf_repeat241", meta=meta), cache=True)
-    # print("get ls_fake_slice")
-    # ls_fake_slice = get_dataset_from_info(get_tensor_info(tag, "ls_fake_slice", meta=meta))
+    # print("get ls_slice")
+    # ls_slice = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta))
     #
-    # assert len(lf_repeat) == len(ls_fake_slice), (tag, len(lf_repeat), len(ls_fake_slice))
+    # assert len(lf_repeat) == len(ls_slice), (tag, len(lf_repeat), len(ls_slice))
     # assert len(lf_repeat) > 0, tag
     # print(tag, len(lf), comment)
 

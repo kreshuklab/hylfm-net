@@ -32,4 +32,3 @@ class Settings:
     def __post_init__(self):
         assert self.reserved_workers_per_dataset_for_getitem <= self.max_workers_per_dataset
         assert self.cache_path.exists(), self.cache_path.absolute()
-
