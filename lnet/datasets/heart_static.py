@@ -566,5 +566,3 @@ if __name__ == "__main__":
         "shrink": 8,
     }
     check_data(tags[idx], comments[idx], meta=meta)
-    meta["scale"] = 8
-    check_data(tags[idx], comments[idx], meta=meta)
