@@ -128,7 +128,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     elif tag in ["2019-12-09_04.54.38_short"]:  #  "2019-12-09_05.21.16_short"
         crop_name = "Heart_tightCrop"
         transformations = get_transformations(name, crop_name, meta=meta)
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/{tag}/"
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/{tag.replace('_short', '')}/"
         if name == "lf":
             location += "stack_1_channel_3/TP_00000/RC_rectified/Cam_Right_*_rectified.tif"
         elif name == "lr":
@@ -210,7 +210,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     if location is None or location.endswith("/"):
         raise NotImplementedError(f"tag: {tag}, name: {name}")
 
-    assert tag in location, (tag, name, location)
+    assert tag.replace('_short', '') in location, (tag, name, location)
     if "crop_names" in meta:
         assert crop_name in meta["crop_names"]
 

@@ -38,8 +38,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                         "ref_crop_out": get_raw_ls_crop(crop_name, wrt_ref=True),
                         "inverted": True,
                         "padding_mode": "border",
-                        "align_corners": meta["align_corners"],
-                        "subtract_one_when_scale": meta["subtract_one_when_scale"],
+                        "align_corners": meta.get("align_corners", False),
                     }
                 },
                 {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},
