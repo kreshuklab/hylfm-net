@@ -24,7 +24,7 @@ import z5py
 import lnet
 import lnet.datasets.filters
 from lnet import settings
-from lnet.datasets.utils import get_gcamp_z_slice_from_path, get_paths_and_numbers
+from lnet.datasets.utils import get_gcamp_z_slice_from_path, get_paths
 from lnet.stat import DatasetStat
 from lnet.transformations.base import ComposedTransformation
 
@@ -218,9 +218,8 @@ class TiffDataset(DatasetFromInfo):
 
         assert not info.kwargs, info.kwargs
         super().__init__(info=info)
-        paths, numbers = get_paths_and_numbers(info.path)
+        paths = get_paths(info.path)
         self.paths = [p for i, p in enumerate(paths) if i not in info.skip_indices]
-        self.numbers = numbers
 
     def __len__(self):
         return len(self.paths) * self.info.datasets_per_file * self.info.samples_per_dataset
@@ -257,9 +256,8 @@ class H5Dataset(DatasetFromInfo):
         file_path_glob, within_pattern = info.path.as_posix().split(h5_ext)
         within_pattern = within_pattern.strip("/")
         file_path_glob += h5_ext
-        paths, numbers = get_paths_and_numbers(Path(file_path_glob))
+        paths = get_paths(Path(file_path_glob))
         self.paths = [p for i, p in enumerate(paths) if i not in info.skip_indices]
-        self.numbers = numbers
         self.dataset_paths = []
         for p in paths:
             with h5py.File(p, mode="r") as hf:
@@ -429,6 +427,7 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
 
 class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
     dataset: N5CachedDatasetFromInfo
+
     def __init__(
         self,
         dataset: N5CachedDatasetFromInfo,

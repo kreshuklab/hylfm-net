@@ -159,9 +159,9 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_05.41.14_theGoldenOne/singlePlane_samePos/plane_100/{tag}/"
         if name == "lf":
             location += "stack_2_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
-        # elif name == "lr":
-        #     location = location.replace("LF_partially_restored/", "LF_computed/")
-        #     location += "stack_1_channel_3/TP_*/RCout/Cam_Right_001.tif"
+        elif name == "lr":
+            location = location.replace("LF_partially_restored/", "LF_computed/")
+            location += "stack_1_channel_3/TP_*/RCout/Cam_Right_001.tif"
         elif name == "ls_slice":
             location += "stack_2_channel_3/Cam_Left_*.h5/Data"
             samples_per_dataset = 200
@@ -486,4 +486,3 @@ if __name__ == "__main__":
 
     check_filter(tags[idx], comments[idx], meta=meta)
     check_data(tags[idx], comments[idx], meta=meta)
-

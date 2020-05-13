@@ -5,6 +5,7 @@ import time
 import typing
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from math import ceil
 from pathlib import Path
 
 import numpy
@@ -108,7 +109,7 @@ class TqdmLogger(BaseLogger):
 
     def get_pbar(self, engine: Engine):
         if self._pbar is None:
-            self._pbar = tqdm(total=self.stage.epoch_length)
+            self._pbar = tqdm(total=self.stage.epoch_length, unit="sample")
             self._pbar.set_description(f"epoch {self.stage.run_count * self.stage.max_epochs + engine.state.epoch}")
 
         return self._pbar
@@ -134,7 +135,7 @@ class TqdmLogger(BaseLogger):
         it = engine.state.iteration
         its_passed = it - self._last_it
         self._last_it = it
-        self.get_pbar(engine).update(its_passed)
+        self.get_pbar(engine).update(its_passed * len(engine.state.output["meta"]))
 
     def reset_progress(self, _: typing.Optional[Engine] = None) -> None:
         if self._pbar is not None:
@@ -167,8 +168,8 @@ class FileLogger(BaseLogger):
         with ThreadPoolExecutor(max_workers=settings.max_workers_file_logger) as executor:
             futs = []
             for tn in tensor_names:
-                for tensor, tmeta in zip(tensors[tn], tensors["meta"]):
-                    futs.append(executor.submit(self._save_tensor, tn, tensor, tmeta["log_path"]))
+                for tensor, bmeta in zip(tensors[tn], tensors["meta"]):
+                    futs.append(executor.submit(self._save_tensor, bmeta["idx"], tensor, bmeta[tn]["log_path"]))
             for fut in as_completed(futs):
                 e = fut.exception()
                 if e is not None:
@@ -177,7 +178,7 @@ class FileLogger(BaseLogger):
         return unit, step
 
     @staticmethod
-    def _save_tensor(name: str, tensor: typing.Any, folder: Path):
+    def _save_tensor(idx: int, tensor: typing.Any, folder: Path):
         assert len(tensor.shape) in (3, 4), f"expected tensor without batch dim, but got {tensor.shape}"
         folder.mkdir(parents=True, exist_ok=True)
         if isinstance(tensor, torch.Tensor):
@@ -187,7 +188,7 @@ class FileLogger(BaseLogger):
         dtype_map = {"float64": "float32"}
         tensor = tensor.astype(dtype_map.get(str(tensor.dtype), tensor.dtype))
 
-        folder = folder / name
+        folder = folder / f"{idx:05}"
         if isinstance(tensor, numpy.ndarray):
             try:
                 imwrite(str(folder.with_suffix(".tif")), tensor, compress=2)

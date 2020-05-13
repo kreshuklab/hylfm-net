@@ -14,11 +14,12 @@ if typing.TYPE_CHECKING:
 def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.Any], train: bool):
     stage: typing.Union[EvalStage, TrainStage] = engine.state.stage
     model: torch.nn.Module = engine.state.model
-    for tmeta in tensors["meta"]:
-        tmeta["log_path"] = (
-            stage.log_path / f"ds{'-'.join([f'{didx:01}' for didx in tmeta['dataset_idx']])}" / f"{tmeta['idx']:05}"
-        )
-        tmeta["log_path"].mkdir(exist_ok=True, parents=True)
+    for bmeta in tensors["meta"]:
+        for tensor_name, tmeta in bmeta.items():
+            tmeta["log_path"] = (
+                stage.log_path / f"ds{'-'.join([f'{didx:01}' for didx in bmeta['dataset_idx']])}" / tensor_name
+            )
+            tmeta["log_path"].mkdir(exist_ok=True, parents=True)
 
     tensors = stage.batch_preprocessing_in_step(tensors)
     model.train(train)

@@ -13,7 +13,7 @@ def split_off_glob(path: Path) -> Tuple[Path, str]:
     return valid_path, glob_str
 
 
-def get_paths_and_numbers(location: Path):
+def get_paths(location: Path):
     if "*" in str(location):
         folder, glob_expr = split_off_glob(location)
         logger.debug("split data location into %s and %s", folder, glob_expr)
@@ -26,12 +26,12 @@ def get_paths_and_numbers(location: Path):
             for p in found_paths
         ]
         logger.debug("found %d number tuples in folder %s", len(numbers), folder)
+        # todo: check numbers for completeness
     else:
         assert location.exists(), location.absolute()
         found_paths = [location]
-        numbers = []
 
-    return found_paths, numbers
+    return sorted(found_paths)
 
 
 def get_gcamp_z_slice_from_path(ls_path_with_glob: Path):

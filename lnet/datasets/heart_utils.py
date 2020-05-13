@@ -14,7 +14,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
     assert crop_name in [Heart_tightCrop, staticHeartFOV, wholeFOV]
     if name == "lf":
         return [{"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_lf_shape(crop_name)}}]
-    elif name in ["fake_ls", "ls", "ls_trf"]:
+    elif name in ["ls", "ls_trf"]:
         trf = [
             {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 241, 2048, 2060]}},  # raw ls shape
             {"FlipAxis": {"apply_to": name, "axis": 2}},
