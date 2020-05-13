@@ -215,6 +215,8 @@ class FileLogger(BaseLogger):
             self._executor.shutdown()
             self._executor = None
 
+        super().shutdown()
+
 
 class TensorBoardLogger(BaseLogger):
     _writer = None
