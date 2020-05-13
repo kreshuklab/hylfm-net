@@ -148,6 +148,17 @@ class TqdmLogger(BaseLogger):
 
 
 class FileLogger(BaseLogger):
+    def __init__(self, **super_kwargs):
+        super().__init__(**super_kwargs)
+        self._executor = None
+
+    @property
+    def executor(self):
+        if self._executor is None:
+            self._executor = ThreadPoolExecutor(max_workers=settings.max_workers_file_logger)
+
+        return self._executor
+
     def _log_metric(self, engine: Engine, name: str, unit: str, step: int):
         metric_log_file = self.stage.log_path / f"{name}.txt"
         with metric_log_file.open(mode="a") as file:
@@ -165,42 +176,44 @@ class FileLogger(BaseLogger):
         tensor_names = self.get_tensor_names(engine)
         tensors: typing.OrderedDict[str, typing.Any] = engine.state.output
 
-        with ThreadPoolExecutor(max_workers=settings.max_workers_file_logger) as executor:
-            futs = []
-            for tn in tensor_names:
-                for tensor, bmeta in zip(tensors[tn], tensors["meta"]):
-                    futs.append(executor.submit(self._save_tensor, bmeta["idx"], tensor, bmeta[tn]["log_path"]))
-            for fut in as_completed(futs):
-                e = fut.exception()
-                if e is not None:
-                    logger.error(e, exc_info=True)
+        for tn in tensor_names:
+            for tensor, bmeta in zip(tensors[tn], tensors["meta"]):
+                self.executor.submit(self._save_tensor, bmeta["idx"], tensor, bmeta[tn]["log_path"])
 
         return unit, step
 
     @staticmethod
     def _save_tensor(idx: int, tensor: typing.Any, folder: Path):
-        assert len(tensor.shape) in (3, 4), f"expected tensor without batch dim, but got {tensor.shape}"
-        folder.mkdir(parents=True, exist_ok=True)
-        if isinstance(tensor, torch.Tensor):
-            tensor = tensor.detach().cpu().numpy()
+        try:
+            assert len(tensor.shape) in (3, 4), f"expected tensor without batch dim, but got {tensor.shape}"
+            folder.mkdir(parents=True, exist_ok=True)
+            if isinstance(tensor, torch.Tensor):
+                tensor = tensor.detach().cpu().numpy()
 
-        tensor = numpy.moveaxis(tensor, 0, -1)  # save channel last
-        dtype_map = {"float64": "float32"}
-        tensor = tensor.astype(dtype_map.get(str(tensor.dtype), tensor.dtype))
+            tensor = numpy.moveaxis(tensor, 0, -1)  # save channel last
+            dtype_map = {"float64": "float32"}
+            tensor = tensor.astype(dtype_map.get(str(tensor.dtype), tensor.dtype))
 
-        folder = folder / f"{idx:05}"
-        if isinstance(tensor, numpy.ndarray):
-            try:
-                imwrite(str(folder.with_suffix(".tif")), tensor, compress=2)
-            except Exception as e:
-                logger.error(e, exc_info=True)
-                imwrite(str(folder.with_suffix(".tif")), tensor, compress=2, bigtiff=True)
+            folder = folder / f"{idx:05}"
+            if isinstance(tensor, numpy.ndarray):
+                try:
+                    imwrite(str(folder.with_suffix(".tif")), tensor, compress=2)
+                except Exception as e:
+                    logger.error(e, exc_info=True)
+                    imwrite(str(folder.with_suffix(".tif")), tensor, compress=2, bigtiff=True)
 
-        elif isinstance(tensor, dict):
-            with folder.with_suffix(".yml").open("w") as f:
-                yaml.dump(tensor, f)
-        else:
-            raise NotImplementedError(type(tensor))
+            elif isinstance(tensor, dict):
+                with folder.with_suffix(".yml").open("w") as f:
+                    yaml.dump(tensor, f)
+            else:
+                raise NotImplementedError(type(tensor))
+        except Exception as e:
+            logger.error(e, exc_info=True)
+
+    def shutdown(self) -> None:
+        if self._executor is not None:
+            self._executor.shutdown()
+            self._executor = None
 
 
 class TensorBoardLogger(BaseLogger):
