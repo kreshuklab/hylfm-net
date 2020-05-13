@@ -38,17 +38,17 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     if tag in ["2019-12-02_04.12.36_10msExp"]:
         transformations = []
         meta["quality"] = 4
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191202_staticHeart_dynamicHeart/data/{tag}/"
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191202_staticHeart_dynamicHeart/data/{tag}/stack_1_channel_3/"
         if name == "lf":
-            location += "stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+            location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
             transformations += [{"Crop": {"apply_to": name, "crop": [(0, None), (19, None), (0, None)]}}]
         # elif name == "lr":
         #     location = location.replace("LF_partially_restored/", "LF_computed/")
-        #     location += "stack_1_channel_3/TP_*/RCout/Cam_Right_001.tif"
+        #     location += "TP_*/RCout/Cam_Right_*.tif"
         elif name == "fake_ls":
-            location += "stack_1_channel_3/Cam_Left_*.h5/Data"
+            location += "Cam_Left_*.h5/Data"
         elif name == "ls_slice":
-            location += "stack_1_channel_3/Cam_Left_*.h5/Data"
+            location += "Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
         crop_name = "wholeFOV"
@@ -91,7 +91,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         # elif name == "lr":
         #     location = location.replace("LF_partially_restored/", "LF_computed/")
-        #     location += "TP_*/RCout/Cam_Right_001.tif"
+        #     location += "TP_*/RCout/Cam_Right_*.tif"
         elif name == "ls_slice":
             location += "Cam_Left_*.h5/Data"
             samples_per_dataset = 241
@@ -101,73 +101,88 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         meta["quality"] = 1
         crop_name = "Heart_tightCrop"
         transformations = get_transformations(name, crop_name, meta=meta)
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/dynamic/Heart_tightCrop/SlideThroughCompleteStack/{tag}/"
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish1/dynamic/Heart_tightCrop/SlideThroughCompleteStack/{tag}/stack_1_channel_3/"
         if name == "lf":
-            location += "stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+            location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         # elif name == "lr":
         #     location = location.replace("LF_partially_restored/", "LF_computed/")
-        #     location += "stack_1_channel_3/TP_*/RCout/Cam_Right_001.tif"
+        #     location += "TP_*/RCout/Cam_Right_*.tif"
         elif name == "ls_slice":
-            location += "stack_1_channel_3/Cam_Left_*.h5/Data"
+            location += "Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
 
     elif tag in ["2019-12-09_04.54.38", "2019-12-09_05.21.16"]:
         crop_name = "Heart_tightCrop"
         transformations = get_transformations(name, crop_name, meta=meta)
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/{tag}/"
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/{tag}/stack_1_channel_3/"
         if name == "lf":
-            location += "stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+            location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         elif name == "lr":
             location = location.replace("LF_partially_restored/", "LF_computed/")
-            location += "stack_1_channel_3/TP_*/RCout/Cam_Right_*.tif"
+            location += "TP_*/RCout/Cam_Right_*.tif"
         elif name == "ls_slice":
-            location += "stack_1_channel_3/Cam_Left_*.h5/Data"
+            location += "Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
 
     elif tag in ["2019-12-09_04.54.38_short"]:  #  "2019-12-09_05.21.16_short"
         crop_name = "Heart_tightCrop"
         transformations = get_transformations(name, crop_name, meta=meta)
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/{tag.replace('_short', '')}/"
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/{tag.replace('_short', '')}/stack_1_channel_3/"
         if name == "lf":
-            location += "stack_1_channel_3/TP_00000/RC_rectified/Cam_Right_*_rectified.tif"
+            location += "TP_00000/RC_rectified/Cam_Right_*_rectified.tif"
         elif name == "lr":
             location = location.replace("LF_partially_restored/", "LF_computed/")
-            location += "stack_1_channel_3/TP_00000/RCout/Cam_Right_*.tif"
+            location += "TP_00000/RCout/Cam_Right_*.tif"
         elif name == "ls_slice":
-            location += "stack_1_channel_3/Cam_Left_00000.h5/Data"
+            location += "Cam_Left_00000.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
 
     elif tag in ["2019-12-09_05.41.14_theGoldenOne"]:
         crop_name = "Heart_tightCrop"
         transformations = get_transformations(name, crop_name, meta=meta)
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/{tag}/"
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/{tag}/stack_1_channel_3/"
         if name == "lf":
-            location += "stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+            location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         # elif name == "lr":
         #     location = location.replace("LF_partially_restored/", "LF_computed/")
-        #     location += "stack_1_channel_3/TP_*/RCout/Cam_Right_001.tif"
+        #     location += "TP_*/RCout/Cam_Right_*.tif"
         elif name == "ls_slice":
-            location += "stack_1_channel_3/Cam_Left_*.h5/Data"
+            location += "Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
 
-    elif tag in ["2019-12-09_05.55.26"]:
+    elif tag in ["plane_100/2019-12-09_05.55.26", "plane_120/2019-12-09_05.53.55"]:
         crop_name = "Heart_tightCrop"
         transformations = get_transformations(name, crop_name, meta=meta)
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_05.41.14_theGoldenOne/singlePlane_samePos/plane_100/{tag}/"
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_05.41.14_theGoldenOne/singlePlane_samePos/{tag}/stack_2_channel_3/"
         if name == "lf":
-            location += "stack_2_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+            location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         elif name == "lr":
             location = location.replace("LF_partially_restored/", "LF_computed/")
-            location += "stack_1_channel_3/TP_*/RCout/Cam_Right_001.tif"
+            location += "TP_*/RCout/Cam_Right_*.tif"
         elif name == "ls_slice":
-            location += "stack_2_channel_3/Cam_Left_*.h5/Data"
+            location += "Cam_Left_*.h5/Data"
             samples_per_dataset = 200
-            z_slice = 140
-            assert z_slice == idx2z_slice_241(100), (z_slice, idx2z_slice_241(100))
+            plane = int(tag.split("/")[0].split("_")[1])
+            z_slice = idx2z_slice_241(plane)
+
+    elif tag in ["plane_100/2019-12-09_05.55.26_short", "plane_120/2019-12-09_05.53.55_short"]:
+        crop_name = "Heart_tightCrop"
+        transformations = get_transformations(name, crop_name, meta=meta)
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_05.41.14_theGoldenOne/singlePlane_samePos/{tag.replace('_short', '')}/stack_2_channel_3/"
+        if name == "lf":
+            location += "TP_00000/RC_rectified/Cam_Right_*_rectified.tif"
+        elif name == "lr":
+            location = location.replace("LF_partially_restored/", "LF_computed/")
+            location += "TP_00000/RCout/Cam_Right_*.tif"
+        elif name == "ls_slice":
+            location += "*Cam_Left_00000.h5/Data"
+            samples_per_dataset = 200
+            plane = int(tag.split("/")[0].split("_")[1])
+            z_slice = idx2z_slice_241(plane)
 
     elif tag in [
         "2019-12-09_23.10.02",
@@ -180,28 +195,28 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     ]:
         crop_name = "Heart_tightCrop"
         transformations = get_transformations(name, crop_name, meta=meta)
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish3/dynamic/Heart_tightCrop/slideThroughStack/{tag}/"
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish3/dynamic/Heart_tightCrop/slideThroughStack/{tag}/stack_1_channel_3/"
         if name == "lf":
-            location += "stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+            location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         # elif name == "lr":
         #     location = location.replace("LF_partially_restored/", "LF_computed/")
-        #     location += "stack_1_channel_3/TP_*/RCout/Cam_Right_001.tif"
+        #     location += "TP_*/RCout/Cam_Right_*.tif"
         elif name == "ls_slice":
-            location += "stack_1_channel_3/Cam_Left_*.h5/Data"
+            location += "Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
 
     elif tag in ["2019-12-10_02.13.34"]:
         crop_name = "Heart_tightCrop"
         transformations = get_transformations(name, crop_name, meta=meta)
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish3/dynamic/Heart_tightCrop/theGoldenExperiment/SlidingThroughStack_samePos/{tag}/"
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish3/dynamic/Heart_tightCrop/theGoldenExperiment/SlidingThroughStack_samePos/{tag}/stack_1_channel_3/"
         if name == "lf":
-            location += "stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+            location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         # elif name == "lr":
         #     location = location.replace("LF_partially_restored/", "LF_computed/")
-        #     location += "stack_1_channel_3/TP_*/RCout/Cam_Right_001.tif"
+        #     location += "TP_*/RCout/Cam_Right_*.tif"
         elif name == "ls_slice":
-            location += "stack_1_channel_3/Cam_Left_*.h5/Data"
+            location += "Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
 
@@ -212,6 +227,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         raise NotImplementedError(f"tag: {tag}, name: {name}")
 
     assert tag.replace("_short", "") in location, (tag, name, location)
+    tag = tag.replace("/", "_")
     if "crop_names" in meta:
         assert crop_name in meta["crop_names"]
 
