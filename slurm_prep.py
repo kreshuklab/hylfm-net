@@ -26,8 +26,10 @@ if __name__ == "__main__":
 
     reply = input(f"submit (y/[n])?").strip().lower()
     if reply[:1] == "y":
-        for script_path, tag in prep.items():
-            subprocess.run(["sbatch", "prep.sh", str(script_path), tag, meta_path], check=True)
+        for script_path, tags in prep.items():
+            for tag in tags:
+                subprocess.run(["sbatch", "prep.sh", str(script_path), tag, str(args.meta_path)], check=True)
+#                 subprocess.run(["./prep.sh", str(script_path), tag, str(args.meta_path)], check=True)
 
         time.sleep(10)
 
