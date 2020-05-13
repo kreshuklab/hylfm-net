@@ -16,9 +16,7 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
     model: torch.nn.Module = engine.state.model
     for bmeta in tensors["meta"]:
         for tensor_name, tmeta in bmeta.items():
-            tmeta["log_path"] = (
-                stage.log_path / f"ds{'-'.join([f'{didx:01}' for didx in bmeta['dataset_idx']])}" / tensor_name
-            )
+            tmeta["log_path"] = stage.log_path / f"ds{'-'.join([str(bidx) for bidx in bmeta['dataset_idx']])}" / tensor_name
             tmeta["log_path"].mkdir(exist_ok=True, parents=True)
 
     tensors = stage.batch_preprocessing_in_step(tensors)
