@@ -109,7 +109,7 @@ class TqdmLogger(BaseLogger):
 
     def get_pbar(self, engine: Engine):
         if self._pbar is None:
-            self._pbar = tqdm(total=self.stage.epoch_length, unit="sample")
+            self._pbar = tqdm(total=len(self.stage.data), unit="sample")
             self._pbar.set_description(f"epoch {self.stage.run_count * self.stage.max_epochs + engine.state.epoch}")
 
         return self._pbar

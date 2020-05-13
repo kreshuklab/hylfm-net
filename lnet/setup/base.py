@@ -340,7 +340,7 @@ class Stage:
     @property
     def epoch_length(self):
         if self._epoch_length is None:
-            self._epoch_length = len(self.data)
+            self._epoch_length = len(self.data_loader)
 
         return self._epoch_length
 
