@@ -128,21 +128,17 @@ class DatasetGroupSetup:
         self,
         *,
         batch_size: int,
-        interpolation_order: int,
         datasets: List[Dict[str, Any]],
         sample_preprocessing: List[Dict[str, Dict[str, Any]]],
         filters: Sequence[Tuple[str, Dict[str, Any]]] = tuple(),
         sample_transformations: Sequence[Dict[str, Dict[str, Any]]] = tuple(),
     ):
         self.batch_size = batch_size
-        self.interpolation_order = interpolation_order
 
         self.sample_preprocessing = get_composed_transformation_from_config(sample_preprocessing)
         self._dataset: Optional[ConcatDataset] = None
         self.filters = list(filters)
         for ds in datasets:
-            if "interpolation_order" not in ds:
-                ds["interpolation_order"] = interpolation_order
 
             if "sample_transformations" not in ds:
                 ds["sample_transformations"] = sample_transformations
@@ -179,7 +175,6 @@ class DatasetSetup:
         self,
         *,
         tensors: Dict[str, Union[str, dict]],
-        interpolation_order: int,
         indices: Optional[Union[str, int, List[int]]] = None,
         filters: Sequence[Tuple[str, Dict[str, Any]]] = tuple(),
         sample_transformations: Sequence[Dict[str, Dict[str, Any]]] = tuple(),
@@ -213,7 +208,6 @@ class DatasetSetup:
 
             self.infos[name] = info
 
-        self.interpolation_order = interpolation_order
 
         if isinstance(indices, list):
             assert all(isinstance(i, int) for i in indices)

@@ -45,6 +45,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         # elif name == "lr":
         #     location = location.replace("LF_partially_restored/", "LF_computed/")
         #     location += "TP_*/RCout/Cam_Right_*.tif"
+        #     transformations += [{"Crop": {"apply_to": name, "crop": [(0, None), (0, None), (19, None), (0, None)]}}]
         elif name == "fake_ls":
             location += "Cam_Left_*.h5/Data"
         elif name == "ls_slice":
@@ -53,6 +54,26 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             z_slice = idx2z_slice_241
         crop_name = "wholeFOV"
         transformations += get_transformations(name, crop_name, meta=meta)
+    if tag in ["2019-12-02_04.12.36_10msExp_short"]:
+        transformations = []
+        meta["quality"] = 4
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191202_staticHeart_dynamicHeart/data/{tag.replace('_short', '')}/stack_1_channel_3/"
+        if name == "lf":
+            location += "TP_00000/RC_rectified/Cam_Right_*_rectified.tif"
+            transformations += [{"Crop": {"apply_to": name, "crop": [(0, None), (19, None), (0, None)]}}]
+        elif name == "lr":
+            location = location.replace("LF_partially_restored/", "LF_computed/")
+            location += "TP_00000/RCout/Cam_Right_*.tif"
+            transformations += [{"Crop": {"apply_to": name, "crop": [(0, None), (0, None), (19, None), (0, None)]}}]
+        elif name == "fake_ls":
+            location += "Cam_Left_00000.h5/Data"
+        elif name == "ls_slice":
+            location += "Cam_Left_00000.h5/Data"
+            samples_per_dataset = 241
+            z_slice = idx2z_slice_241
+        crop_name = "wholeFOV"
+        transformations += get_transformations(name, crop_name, meta=meta)
+
     elif tag in ["2019-12-02_23.17.56", "2019-12-02_23.43.24", "2019-12-02_23.50.04", "2019-12-03_00.00.44"]:
         meta["quality"] = 3
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/Heart_tightCrop/dynamicImaging1_btw20to160planes/{tag}/stack_1_channel_3/"

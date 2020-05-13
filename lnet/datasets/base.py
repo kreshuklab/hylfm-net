@@ -147,7 +147,8 @@ class DatasetFromInfo(torch.utils.data.Dataset):
         self._z_slice_mod: Optional[int] = None
         self._z_slice: Optional[int] = None
         self._z_offset = 0
-        self._z_slice_from_path: Optional[Callable[[Path], int]] = None
+        self._z_step: int = 1
+        # self._z_slice_from_path: Optional[Callable[[Path], int]] = None
         if info.z_slice is None:
             pass
         elif isinstance(info.z_slice, int):
@@ -160,30 +161,27 @@ class DatasetFromInfo(torch.utils.data.Dataset):
                 z_slice_str = info.z_slice
 
             if z_slice_str.startswith("idx%"):
-                self._z_slice_mod = int(z_slice_str[len("idx%") :])
-            elif z_slice_str.startswith("from_gcamp_path_"):
-                assert info.name == "ls"
-                self._z_slice = int(z_slice_str[len("from_gcamp_path_") :])
-                retrieved_z_slice = get_gcamp_z_slice_from_path(info.path)
-                assert retrieved_z_slice == self._z_slice, (retrieved_z_slice, self._z_slice)
-            elif z_slice_str.startswith("from_gcamp_path"):
-                self._z_slice_from_path = get_gcamp_z_slice_from_path
-
+                if "*" in z_slice_str:
+                    mod_str, step_str = z_slice_str[len("idx%"):].split("*")
+                    self._z_slice_mod = int(mod_str)
+                    self._z_step = int(step_str)
+                else:
+                    self._z_slice_mod = int(z_slice_str[len("idx%") :])
             else:
                 raise NotImplementedError(info.z_slice)
         else:
             self.get_z_slice = info.z_slice
 
     def get_z_slice(self, idx: int) -> Optional[int]:
-        if self._z_slice_from_path is not None:
-            path_idx = idx // self.info.datasets_per_file
-            idx %= self.info.datasets_per_file
-            return self._z_slice_from_path(self.paths[path_idx])
-        elif self._z_slice is None:
+        # if self._z_slice_from_path is not None:
+        #     path_idx = idx // self.info.datasets_per_file
+        #     idx %= self.info.datasets_per_file
+        #     return self._z_slice_from_path(self.paths[path_idx])
+        if self._z_slice is None:
             if self._z_slice_mod is None:
                 return None
             else:
-                return abs(self._z_offset + (idx % self._z_slice_mod))
+                return abs(self._z_offset + (idx % self._z_slice_mod) * self._z_step)
         else:
             if self._z_slice_mod is None:
                 return self._z_offset + self._z_slice

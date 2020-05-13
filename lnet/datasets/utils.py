@@ -34,22 +34,6 @@ def get_paths(location: Path):
     return sorted(found_paths)
 
 
-def get_gcamp_z_slice_from_path(ls_path_with_glob: Path):
-    folder, _ = split_off_glob(ls_path_with_glob)
-    folder = Path(
-        folder.as_posix().replace(
-            "LF_partially_restored/LenseLeNet_Microscope/",
-            "LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/",
-        )
-    )
-    assert folder.exists(), folder
-    subfolder = next(folder.glob("*/")).name
-    regular_exp_LS_pos = "SinglePlane_(-[0-9]{3})"
-    LS_stack_range_start = -450
-    LS_stack_range_end = -210
-    return int(re.search(regular_exp_LS_pos, subfolder).group(1)) - LS_stack_range_start
-
-
 # regular_exp_h5 = "TestOutputGcamp(.*)SinglePlane_-[0-9]{3}"
 # regular_exp_TP = "TP_([0-9]{5})"
 #

@@ -192,25 +192,15 @@ def test_trf(crop_name: str, meta: dict):
             meta["align_corners"] = ac
             meta["subtract_one_when_scale"] = sows
 
-            # ds = ZipDataset(
-            #     OrderedDict(
-            #         [
-            #             (
-            #                 ls_reg,
-            #                 get_dataset_from_info(
-            #                     get_tensor_info("heart_static.beads_ref_Heart_tightCrop_tif", ls_reg, meta), cache=True
-            #                 ),
-            #             ),
-            #             (
-            #                 ls,
-            #                 get_dataset_from_info(
-            #                     get_tensor_info("heart_static.beads_ref_Heart_tightCrop", ls, meta), cache=True
-            #                 ),
-            #             ),
-            #         ]
-            #     ),
-            #     join_dataset_masks=False,
-            # )
+            if crop_name == "Heart_tightCrop":
+                ls_reg_tag = "heart_static.2019-12-09_08.41.41"  # heart_static.beads_ref_Heart_tightCrop_tif
+                ls_tag = "heart_static.2019-12-09_08.41.41"  # heart_static.beads_ref_Heart_tightCrop
+            # elif: crop_name == "wholeFOV":
+            #     ls_reg_tag = ""
+            #     ls_tag = "
+            else:
+                raise NotImplementedError(crop_name)
+
             ds = ZipDataset(
                 OrderedDict(
                     [
@@ -285,68 +275,70 @@ def test_inverse_trf(crop_name: str, meta: dict, with_shrinkage_crop: bool = Tru
     ls_trf = "ls_trf"
 
     for ac in [False]:
-        for sows in [None]:  # ["tgt", "src", "both"]: # [None, "tgt", "src", "both"]:
-            meta["align_corners"] = ac
-            meta["subtract_one_when_scale"] = sows
+        meta["align_corners"] = ac
 
-            ds = ZipDataset(
-                OrderedDict(
-                    [
-                        (
-                            ls_reg,
-                            get_dataset_from_info(
-                                get_tensor_info("heart_static.beads_ref_Heart_tightCrop_tif", ls_reg, meta), cache=True
-                            ),
+        ls_reg_tag = f"heart_static.beads_ref_{crop_name}"
+        ls_trf_tag = f"heart_static.beads_ref_{crop_name}"
+
+        ds = ZipDataset(
+            OrderedDict(
+                [
+                    (
+                        ls_reg,
+                        get_dataset_from_info(
+                            get_tensor_info(ls_reg_tag, ls_reg, meta), cache=True
                         ),
-                        (
-                            ls_trf,
-                            get_dataset_from_info(
-                                get_tensor_info("heart_static.beads_ref_Heart_tightCrop", ls_trf, meta), cache=False
-                            ),
+                    ),
+                    (
+                        ls_trf,
+                        get_dataset_from_info(
+                            get_tensor_info(ls_trf_tag, ls_trf, meta), cache=False
                         ),
-                    ]
-                ),
-                join_dataset_masks=False,
-            )
-            sample = ds[0]
+                    ),
+                ]
+            ),
+            join_dataset_masks=False,
+        )
+        sample = ds[0]
 
-            if with_shrinkage_crop:
-                # fake network shrinkage:
-                sample = Crop(
-                    apply_to=ls_reg,
-                    crop=[(0, None), (0, None), (meta["shrink"], -meta["shrink"]), (meta["shrink"], -meta["shrink"])],
-                )(sample)
+        if with_shrinkage_crop:
+            # fake network shrinkage:
+            sample = Crop(
+                apply_to=ls_reg,
+                crop=[(0, None), (0, None), (meta["shrink"], -meta["shrink"]), (meta["shrink"], -meta["shrink"])],
+            )(sample)
 
-                # account for network shrinkage:
-                sample = Crop(
-                    apply_to=ls_trf,
-                    crop=[(0, None), (0, None), (meta["shrink"], -meta["shrink"]), (meta["shrink"], -meta["shrink"])],
-                )(sample)
+            # account for network shrinkage:
+            sample = Crop(
+                apply_to=ls_trf,
+                crop=[(0, None), (0, None), (meta["shrink"], -meta["shrink"]), (meta["shrink"], -meta["shrink"])],
+            )(sample)
 
-            setting_name = f"inverse_trf_test_wskimage_with_crop/z_out{meta['z_out']}_{crop_name}/{meta['subtract_one_when_scale']}_ac{meta['align_corners']}_cuda"
+        # setting_name = f"inverse_trf_test_wskimage_with_crop/z_out{meta['z_out']}_{crop_name}/{meta['subtract_one_when_scale']}_ac{meta['align_corners']}_cuda"
+        setting_name = f"inverse_trf_test_once_more/z_out{meta['z_out']}_{crop_name}/ac{meta['align_corners']}_cpu"
 
-            for name in [ls_reg, ls_trf]:
-                print(name, sample[name].shape)
-                save_vol(sample, name, setting_name)
-                # plot_vol(sample, name)
+        for name in [ls_reg, ls_trf]:
+            print(name, sample[name].shape)
+            save_vol(sample, name, setting_name)
+            # plot_vol(sample, name)
 
 
 if __name__ == "__main__":
-    crop_name = "Heart_tightCrop"  # "wholeFOV" "Heart_tightCrop"
+    crop_name = "staticHeartFOV"  # "staticHeartFOV" "wholeFOV" "Heart_tightCrop"
     meta = {
         "z_out": 49,
         "nnum": 19,
-        "scale": 8,
+        "scale": 4,
         "interpolation_order": 2,
         "z_ls_rescaled": 241,
         "pred_z_min": 0,
         "pred_z_max": 838,
-        "crop_names": ["Heart_tightCrop", "wholeFOV"],
+        "crop_names": ["Heart_tightCrop", "wholeFOV", "staticHeartFOV"],
         "shrink": 8,
     }
     # test_ls_vs_ls_tif()
-    # test_inverse_trf(crop_name, meta=meta)
-    test_trf(crop_name, meta=meta)
+    test_inverse_trf(crop_name, meta=meta)
+    # test_trf(crop_name, meta=meta)
 
     # pred = "ls_reg"
     # target_to_compare_to = "ls"

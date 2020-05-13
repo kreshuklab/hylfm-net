@@ -14,9 +14,9 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     assert "nnum" in meta
     assert "interpolation_order" in meta
     assert "scale" in meta
-    assert "z_ls_rescaled" in meta
-    assert "pred_z_min" in meta
-    assert "pred_z_max" in meta
+    # assert "z_ls_rescaled" in meta
+    # assert "pred_z_min" in meta
+    # assert "pred_z_max" in meta
 
     root = "GKRESHUK"
     insert_singleton_axes_at = [0, 0]
@@ -29,10 +29,10 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     else:
         repeat = 1
 
-    if tag == "beads_ref_Heart_tightCrop":
-        crop_name = "Heart_tightCrop"
-        transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
-        location = "LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/Heart_tightCrop/200msExp/2019-12-09_22.23.27/"
+    if tag in ["beads_ref_Heart_tightCrop", "beads_ref_staticHeartFOV"]:
+        crop_name = tag.replace("beads_ref_", "")
+        transformations = get_transformations(name, crop_name, meta=meta)
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/{tag.replace('beads_ref_', '')}/200msExp/2019-12-09_22.23.27/"
         if name == "lf":
             location += "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         elif name == "ls" or name == "ls_trf":
@@ -42,17 +42,22 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
         elif name == "ls_reg":
-            location += "*Cam_Left_registered.tif"
+            if crop_name == "staticHeartFOV":
+                location.replace("LF_partially_restored", "LF_computed")
 
-    elif tag == "beads_ref_Heart_tightCrop_tif":
-        crop_name = "Heart_tightCrop"
-        location = "LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/Heart_tightCrop/200msExp/2019-12-09_22.23.27/"
+            location += "*Cam_Left_registered.tif"
+        else:
+            raise NotImplementedError((tag, name))
+
+    elif tag in ["beads_ref_Heart_tightCrop_tif", "beads_ref_staticHeartFOV_tif"]:
+        crop_name = tag.replace("beads_ref_", "")
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/beads/after_fish2/definitelyNotMoving/{tag.replace('beads_ref_', '')}/200msExp/2019-12-09_22.23.27/"
         if name == "ls":
             location += "*Cam_Left.tif"
             transformations = [
                 {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 241, 1451, 1651]}},  # raw tif
-                {"Crop": {"apply_to": name, "crop": [[0, None]] + get_raw_ls_crop("Heart_tightCrop", wrt_ref=True)}},
-                {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_ls_shape("Heart_tightCrop")}},
+                {"Crop": {"apply_to": name, "crop": [[0, None]] + get_raw_ls_crop(crop_name, wrt_ref=True)}},
+                {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_ls_shape(crop_name)}},
                 {
                     "Resize": {
                         "apply_to": name,
@@ -69,7 +74,53 @@ def get_tensor_info(tag: str, name: str, meta: dict):
                     "Assert": {
                         "apply_to": name,
                         "expected_tensor_shape": [None, 1, meta["z_ls_rescaled"]]
-                        + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape("Heart_tightCrop")[1:]],
+                        + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]],
+                    }
+                },
+                {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},
+            ]
+
+    elif tag in ["beads_ref_wholeFOV"]:
+        crop_name = tag.replace("beads_ref_", "")
+        transformations = get_transformations(name, crop_name, meta=meta)
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/beads_afterStaticHeart/{tag.replace('beads_ref_', '')}/2019-12-03_10.43.05/"
+        if name == "lf":
+            location += "stack_0_channel_0/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+        elif name == "ls" or name == "ls_trf":
+            location += "stack_1_channel_1/Cam_Left_*.h5/Data"
+        elif name == "ls_slice":
+            location += "stack_1_channel_1/Cam_Left_*.h5/Data"
+            samples_per_dataset = 241
+            z_slice = idx2z_slice_241
+        elif name == "ls_reg":
+            location += "*Cam_Left_registered.tif"
+
+    elif tag in ["beads_ref_wholeFOV_tif"]:
+        crop_name = tag.replace("beads_ref_", "")
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/beads_afterStaticHeart/{tag.replace('beads_ref_' '')}/2019-12-03_10.43.05/"
+        if name == "ls":
+            location += "*Cam_Left.tif"
+            transformations = [
+                {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 241, 1451, 1651]}},  # raw tif
+                {"Crop": {"apply_to": name, "crop": [[0, None]] + get_raw_ls_crop(crop_name, wrt_ref=True)}},
+                {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_ls_shape(crop_name)}},
+                {
+                    "Resize": {
+                        "apply_to": name,
+                        "shape": [
+                            1.0,
+                            meta["z_ls_rescaled"],
+                            meta["scale"] / meta["nnum"],
+                            meta["scale"] / meta["nnum"],
+                        ],
+                        "order": meta["interpolation_order"],
+                    }
+                },
+                {
+                    "Assert": {
+                        "apply_to": name,
+                        "expected_tensor_shape": [None, 1, meta["z_ls_rescaled"]]
+                        + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]],
                     }
                 },
                 {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},
@@ -487,24 +538,45 @@ def check_data(tag: str, comment: str, meta: dict):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("tag", type=str)
-    parser.add_argument("meta_path", type=Path)
-
-    args = parser.parse_args()
-
-    tag = args.tag
-    comment = str(args.meta_path)
-    with args.meta_path.open() as f:
-        meta = yaml.safe_load(f)
-
-    check_data(tag, comment, meta=meta)
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("tag", type=str)
+    # parser.add_argument("meta_path", type=Path)
+    #
+    # args = parser.parse_args()
+    #
+    # tag = args.tag
+    # comment = str(args.meta_path)
+    # with args.meta_path.open() as f:
+    #     meta = yaml.safe_load(f)
+    #
+    # check_data(tag, comment, meta=meta)
     # depug()
     # search_data()
+    meta = {
+        "z_out": 49,
+        "nnum": 19,
+        "scale": 4,
+        "interpolation_order": 2,
+        "z_ls_rescaled": 241,
+        "pred_z_min": 0,
+        "pred_z_max": 838,
+    }
 
-#     tags = """
-# # beads_ref_Heart_tightCrop
-# # beads_should_fit_Heart_tightCrop_0
+    tags = """
+# beads_ref_Heart_tightCrop
+# beads_should_fit_Heart_tightCrop_0
+# 2019-12-09_02.16.30  # fish1
+# 2019-12-09_02.23.01  # fish1
+# 2019-12-09_02.29.34  # fish1
+# 2019-12-09_02.35.49  # fish1
+# 2019-12-09_02.42.03  # fish1
+# 2019-12-09_02.48.24  # fish1
+# 2019-12-09_02.54.46  # fish1
+# 2019-12-10_04.24.29  # fish3
+# 2019-12-10_05.14.57  # fish3
+# 2019-12-10_05.41.48  # fish3
+# 2019-12-10_06.03.37  # fish3
+# 2019-12-10_06.25.14  # fish3
 # 2019-12-08_06.35.52  # fish5 val selected
 # 2019-12-08_06.38.47  # fish5 val selected
 # 2019-12-08_06.10.34  # fish5 val selected
@@ -516,51 +588,42 @@ if __name__ == "__main__":
 # 2019-12-08_06.25.02  # fish5 val selected
 # 2019-12-08_06.51.57  # fish5 val selected
 # 2019-12-08_06.30.40  # fish5 val selected
-# # 2019-12-08_06.57.57  # fish5 val
-# # 2019-12-08_06.59.59  # fish5 val
-# # 2019-12-08_10.32.03  # fish5 val
-# # 2019-12-09_09.52.38  # fish2 test
-# # 2019-12-09_08.34.44  # fish2 test
-# 2019-12-09_08.41.41  # fish2 test
+# 2019-12-08_06.57.57  # fish5 val
+# 2019-12-08_06.59.59  # fish5 val
+# 2019-12-08_10.32.03  # fish5 val
+# 2019-12-09_09.52.38  # fish2 test
+# 2019-12-09_08.34.44  # fish2 test
+2019-12-09_08.41.41  # fish2 test selected
 # 2019-12-09_08.51.01  # fish2 test
 # 2019-12-09_09.01.28  # fish2 test
-# # 2019-12-09_09.11.59  # fish2 test
-# # 2019-12-09_09.18.01  # fish2 test
-# # 2019-12-09_08.15.07  # fish2 test
-# # 2019-12-09_08.19.40  # fish2 test
-# # 2019-12-09_08.27.14  # fish2 test
-# # 2019-12-09_02.16.30  # fish1
-# # 2019-12-09_02.23.01  # fish1
-# # 2019-12-09_02.29.34  # fish1
-# # 2019-12-09_02.35.49  # fish1
-# # 2019-12-09_02.42.03  # fish1
-# # 2019-12-09_02.48.24  # fish1
-# # 2019-12-09_02.54.46  # fish1
+# 2019-12-09_09.11.59  # fish2 test
+# 2019-12-09_09.18.01  # fish2 test
+# 2019-12-09_08.15.07  # fish2 test
+# 2019-12-09_08.19.40  # fish2 test
+# 2019-12-09_08.27.14  # fish2 test
 # 2019-12-09_07.42.47  # fish2 test
 # 2019-12-09_07.50.24  # fish2 test
-# # 2019-12-10_04.24.29  # fish3
-# # 2019-12-10_05.14.57  # fish3
-# # 2019-12-10_05.41.48  # fish3
-# # 2019-12-10_06.03.37  # fish3
-# # 2019-12-10_06.25.14  # fish3
-# """.split(
-#         "\n"
-#     )
-#
-#     full_tags = [tag for tag in tags if tag and not tag.startswith("#")]
-#     tags = []
-#     comments = []
-#
-#     for full_tag in full_tags:
-#         if "#" in full_tag:
-#             tag, comment = full_tag.split("#")
-#             tag = tag.strip()
-#         else:
-#             tag = full_tag
-#             comment = ""
-#
-#         tags.append(tag)
-#         comments.append(comment)
-#
-#     print(tags)
-#     print(comments)
+""".split(
+        "\n"
+    )
+
+    full_tags = [tag for tag in tags if tag and not tag.startswith("#")]
+    tags = []
+    comments = []
+
+    for full_tag in full_tags:
+        if "#" in full_tag:
+            tag, comment = full_tag.split("#")
+            tag = tag.strip()
+        else:
+            tag = full_tag
+            comment = ""
+
+        tags.append(tag)
+        comments.append(comment)
+
+        check_data(tag, comment, meta=meta)
+        # lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=False)
+        # print(tag, comment, "length:", len(lf))
+    # print(tags)
+    # print(comments)

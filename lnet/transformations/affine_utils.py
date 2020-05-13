@@ -222,7 +222,7 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
 Heart_tightCrop = "Heart_tightCrop"
 staticHeartFOV = "staticHeartFOV"
 wholeFOV = "wholeFOV"
-
+gcamp = "gcamp"
 
 def get_lf_shape(crop_name: str) -> List[int]:
     if crop_name == Heart_tightCrop:
@@ -231,6 +231,8 @@ def get_lf_shape(crop_name: str) -> List[int]:
         return [1178, 1767]  # crop on raw in matlab: rect_LF = [100, 400, 1850, 1250]; %[xmin, ymin, width, height]
     elif crop_name == wholeFOV:
         return [1064, 1083]  # crop on raw in matlab: rect_LF = [450, 450, 1150, 1150]; %[xmin, ymin, width, height];
+    elif crop_name == gcamp:
+        return [1330, 1615]  # crop on raw in matlab: rect_LF = [174, 324, 1700, 1400]; %[250, 300, 1550, 1350]; %[xmin, ymin, width, height];
     else:
         raise NotImplementedError(crop_name)
 
