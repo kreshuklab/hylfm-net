@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 
 import imageio
+import yaml
 
 from lnet.datasets.base import TensorInfo, get_dataset_from_info, N5CachedDatasetFromInfoSubset
 from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241
@@ -210,7 +211,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     if location is None or location.endswith("/"):
         raise NotImplementedError(f"tag: {tag}, name: {name}")
 
-    assert tag.replace('_short', '') in location, (tag, name, location)
+    assert tag.replace("_short", "") in location, (tag, name, location)
     if "crop_names" in meta:
         assert crop_name in meta["crop_names"]
 
@@ -375,10 +376,12 @@ def debug():
     #     ax[1].set_title(f"lr_trf idx: {idx}")
     #     plt.show()
 
+
 # def get_z_hist(ds: N5CachedDatasetFromInfoSubset):
 #     z_slices =
 #
 #     numpy.histogram(a
+
 
 def check_filter(tag: str, comment: str, meta: dict):
     lf_crops = {"Heart_tightCrop": [[0, None], [0, None], [0, None]], "wholeFOV": [[0, None], [0, None], [0, None]]}
@@ -393,7 +396,6 @@ def check_filter(tag: str, comment: str, meta: dict):
     ds = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True, filters=filters)
 
     print("ds filtered", len(ds))
-
 
 
 def check_data(tag: str, comment: str, meta: dict):
@@ -426,63 +428,58 @@ def search_data():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="heart_dynamic")
-    parser.add_argument("idx", type=int)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("tag", type=str)
+    parser.add_argument("meta_path", type=Path)
 
     args = parser.parse_args()
-    idx = args.idx
+
+    tag = args.tag
+    comment = str(args.meta_path)
+    with args.meta_path.open() as f:
+        meta = yaml.safe_load(f)
+
+    check_filter(tag, comment, meta=meta)
+    check_data(tag, comment, meta=meta)
+
     # depug()
     # search_data()
 
-    tags = """
-2019-12-02_04.12.36_10msExp  # fish4 quality 4
-2019-12-02_23.17.56  # fish4 quality 3
-2019-12-02_23.43.24  # fish4 quality 3
-2019-12-02_23.50.04  # fish4 quality 3
-# 2019-12-03_00.00.44  # fish4 at the moment only with 5ms exp time, 10ms coming 
-2019-12-08_23.43.42  # fish1 quality 1
-2019-12-09_04.54.38  # fish2 test
-2019-12-09_05.21.16  # fish2 test
-2019-12-09_05.41.14_theGoldenOne  # fish2 test
-2019-12-09_05.55.26  # fish2 test
-2019-12-09_23.10.02  # fish3
-2019-12-09_23.17.30  # fish3
-2019-12-09_23.19.41  # fish3
-2019-12-10_00.40.09  # fish3
-2019-12-10_00.51.54  # fish3
-2019-12-10_01.03.50  # fish3
-2019-12-10_01.25.44  # fish3
-2019-12-10_02.13.34  # fish3
-""".split(
-        "\n"
-    )
-    full_tags = [tag for tag in tags if tag and not tag.startswith("#")]
-    tags = []
-    comments = []
-
-    for full_tag in full_tags:
-        if "#" in full_tag:
-            tag, comment = full_tag.split("#")
-            tag = tag.strip()
-        else:
-            tag = full_tag
-            comment = ""
-
-        tags.append(tag)
-        comments.append(comment)
-
-    meta = {
-        "z_out": 49,
-        "nnum": 19,
-        "scale": 4,
-        "ls_slice_scale": 4,
-        "interpolation_order": 2,
-        "z_ls_rescaled": 241,
-        "pred_z_min": 0,
-        "pred_z_max": 838,
-        "crop_names": ["Heart_tightCrop", "wholeFOV"],
-        "shrink": 8,
-    }
-
-    check_filter(tags[idx], comments[idx], meta=meta)
-    check_data(tags[idx], comments[idx], meta=meta)
+#     tags = """
+# 2019-12-02_04.12.36_10msExp  # fish4 quality 4
+# 2019-12-02_23.17.56  # fish4 quality 3
+# 2019-12-02_23.43.24  # fish4 quality 3
+# 2019-12-02_23.50.04  # fish4 quality 3
+# # 2019-12-03_00.00.44  # fish4 at the moment only with 5ms exp time, 10ms coming
+# 2019-12-08_23.43.42  # fish1 quality 1
+# 2019-12-09_04.54.38  # fish2 test
+# 2019-12-09_05.21.16  # fish2 test
+# 2019-12-09_05.41.14_theGoldenOne  # fish2 test
+# 2019-12-09_05.55.26  # fish2 test
+# 2019-12-09_23.10.02  # fish3
+# 2019-12-09_23.17.30  # fish3
+# 2019-12-09_23.19.41  # fish3
+# 2019-12-10_00.40.09  # fish3
+# 2019-12-10_00.51.54  # fish3
+# 2019-12-10_01.03.50  # fish3
+# 2019-12-10_01.25.44  # fish3
+# 2019-12-10_02.13.34  # fish3
+# """.split(
+#         "\n"
+#     )
+#     full_tags = [tag for tag in tags if tag and not tag.startswith("#")]
+#     tags = []
+#     comments = []
+#
+#     for full_tag in full_tags:
+#         if "#" in full_tag:
+#             tag, comment = full_tag.split("#")
+#             tag = tag.strip()
+#         else:
+#             tag = full_tag
+#             comment = ""
+#
+#         tags.append(tag)
+#         comments.append(comment)
+#
+#     print(tags, comments)
