@@ -14,10 +14,6 @@ if typing.TYPE_CHECKING:
 def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.Any], train: bool):
     stage: typing.Union[EvalStage, TrainStage] = engine.state.stage
     model: torch.nn.Module = engine.state.model
-    for bmeta in tensors["meta"]:
-        for tensor_name, tmeta in bmeta.items():
-            tmeta["log_path"] = stage.log_path / f"ds{'-'.join([str(bidx) for bidx in bmeta['dataset_idx']])}" / tensor_name
-            tmeta["log_path"].mkdir(exist_ok=True, parents=True)
 
     tensors = stage.batch_preprocessing_in_step(tensors)
     model.train(train)
@@ -37,6 +33,15 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
         loss = tensors[stage.criterion_setup.name]
         loss.backward()
         optimizer.step()
+
+    for bmeta in tensors["meta"]:  # todo: fix for bead precision and recall
+        for tensor_name in tensors:
+            if tensor_name == "meta":
+                continue
+
+            tmeta = bmeta[tensor_name]
+            tmeta["log_path"] = stage.log_path / f"ds{'-'.join([str(bidx) for bidx in bmeta['dataset_idx']])}" / tensor_name
+            tmeta["log_path"].mkdir(exist_ok=True, parents=True)
 
     return OrderedDict(
         [

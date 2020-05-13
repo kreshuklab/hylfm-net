@@ -24,6 +24,6 @@ class Dummy(LnetModel):
             ]
 
         for bmeta in tensors["meta"]:
-            bmeta[self.output_name] = bmeta[self.input_name]
+            bmeta[self.output_name] = dict(bmeta[self.input_name])
 
         return tensors
