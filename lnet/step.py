@@ -36,7 +36,7 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
 
     for bmeta in tensors["meta"]:  # todo: fix for bead precision and recall
         for tensor_name in tensors:
-            if tensor_name == "meta":
+            if tensor_name == "meta" or tensor_name not in bmeta:
                 continue
 
             tmeta = bmeta[tensor_name]
