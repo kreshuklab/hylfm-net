@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 import subprocess
 import time
@@ -21,14 +22,16 @@ if __name__ == "__main__":
     prep = {}
     for script_name, tags in raw_prep.items():
         script_path = Path(f"./lnet/datasets/{script_name}.py")
-        assert script_path.exists()
+        print(script_path)
+        print("\n".join([f"\t{t}" for t in tags]))
+        assert script_path.exists(), script_path
         prep[script_path] = tags
 
-    reply = input(f"submit (y/n): {prep}").strip().lower()
+    reply = input(f"submit (y/[n])?").strip().lower()
     if reply[:1] == "y":
         for script_path, tag in prep.items():
-            subprocess.run(["sbatch", "prep.sh", str(script_path), tag, meta], shell=True, check=True)
+            subprocess.run(["sbatch", "prep.sh", str(script_path), tag, meta], check=True)
 
         time.sleep(10)
 
-    subprocess.run(["squeue", "-u", "beuttenm"], shell=True, check=True)
+    subprocess.run(["squeue", "-u", "beuttenm"])
