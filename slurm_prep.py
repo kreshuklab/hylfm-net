@@ -16,9 +16,6 @@ if __name__ == "__main__":
     with args.prep_path.open() as f:
         raw_prep = yaml.safe_load(f)
 
-    with args.meta_path.open() as f:
-        meta = yaml.safe_load(f)
-
     prep = {}
     for script_name, tags in raw_prep.items():
         script_path = Path(f"./lnet/datasets/{script_name}.py")
@@ -30,7 +27,7 @@ if __name__ == "__main__":
     reply = input(f"submit (y/[n])?").strip().lower()
     if reply[:1] == "y":
         for script_path, tag in prep.items():
-            subprocess.run(["sbatch", "prep.sh", str(script_path), tag, meta], check=True)
+            subprocess.run(["sbatch", "prep.sh", str(script_path), tag, meta_path], check=True)
 
         time.sleep(10)
 
