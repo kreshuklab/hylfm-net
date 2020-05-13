@@ -8,6 +8,7 @@ logs/
 lnet/experiment_configs
 lnet/settings.py
 slurm_out/
+slurm_out_prep/
 
 notebooks/**/*.svg
 notebooks/**/*.npy
