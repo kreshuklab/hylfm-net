@@ -464,8 +464,6 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
                         elif kk == "mean+xstd":
                             mean, std = dataset.stat.get_mean_std(dataset.dataset.tensor_name, (5.0, 99.9))
                             kwargs[k] = mean + std * v[kk]
-                        else:
-                            raise NotImplementedError
 
             filters = [
                 partial(getattr(lnet.datasets.filters, name), dataset=dataset, **kwargs) for name, kwargs in filters

@@ -663,7 +663,7 @@ if __name__ == "__main__":
     for scale in [4, 8]:
         meta["scale"] = scale
 
-        check_data(tag, "", meta=meta)
+        # check_data(tag, "", meta=meta)
         check_filter(tag, "", meta=meta)
 
     # quick_check_all(meta=meta)
