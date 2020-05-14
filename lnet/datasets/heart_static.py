@@ -504,20 +504,21 @@ def debug():
 
 
 def check_data(tag: str, comment: str, meta: dict):
-    print("get lf")
-    lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
+#     print("get lf")
+#     lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
     # print("get lr")
     # lr = get_dataset_from_info(get_tensor_info(tag, "lr", meta=meta))
-    # print("get ls")
-    # ls = get_dataset_from_info(get_tensor_info(tag, "ls", meta=meta), cache=False)
+    print("get ls")
+    ls = get_dataset_from_info(get_tensor_info(tag, "ls", meta=meta), cache=True)
     print("get ls_trf")
     ls_trf = get_dataset_from_info(get_tensor_info(tag, "ls_trf", meta=meta), cache=True)
 
-    print(tag, len(lf), comment)
+#     print(tag, len(lf), comment)
     # assert len(lf) == len(lr), (tag, len(lf), len(lr))
-    # assert len(lf) == len(ls), (tag, len(lf), len(ls))
-    assert len(lf) == len(ls_trf), (tag, len(lf), len(ls_trf))
-    assert len(lf) > 0, tag
+#     assert len(lf) == len(ls), (tag, len(lf), len(ls))
+#     assert len(lf) == len(ls_trf), (tag, len(lf), len(ls_trf))
+#     assert len(lf) > 0, tag
+    assert len(ls) == len(ls_trf), (tag, len(ls), len(ls_trf))
 
     # print("get lr_repeat")
     # lf_repeat = get_dataset_from_info(get_tensor_info(tag, "lf_repeat241", meta=meta), cache=True)

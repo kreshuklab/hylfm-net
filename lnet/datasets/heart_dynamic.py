@@ -477,7 +477,7 @@ if __name__ == "__main__":
         meta = yaml.safe_load(f)
 
     check_filter(tag, comment, meta=meta)
-    check_data(tag, comment, meta=meta)
+#     check_data(tag, comment, meta=meta)
 
     # depug()
     # search_data()
