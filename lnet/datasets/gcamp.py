@@ -1,5 +1,8 @@
 import argparse
 import re
+from pathlib import Path
+
+import yaml
 
 from lnet.datasets.base import TensorInfo, get_dataset_from_info
 from lnet.settings import settings
@@ -18,6 +21,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     assert "nnum" in meta
     assert "interpolation_order" in meta
     assert "scale" in meta
+    meta["z_ls_rescaled"] = 241  # all gcamp data z_slices are conidered as one of 241 slices, 1mu apart, in a 241um volume
 
     root = "GKRESHUK"
     insert_singleton_axes_at = [0, 0]
@@ -404,7 +408,7 @@ def check_filter(tag: str, comment: str, meta: dict):
 
     filters = [
         ("z_range", {"lf_crops": lf_crops}),
-        ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 2.0}),
+        ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 1.5}),
     ]
 
     ds_unfiltered = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
@@ -653,18 +657,19 @@ def quick_check_all(meta: dict):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("tag", type=str)
+    parser.add_argument("meta_path", type=Path)
 
     args = parser.parse_args()
 
     tag = args.tag
+    comment = args.meta_path.name
+    with args.meta_path.open() as f:
+        meta = yaml.safe_load(f)
 
-    meta = {"nnum": 19, "interpolation_order": 2}
+    # meta = {"nnum": 19, "interpolation_order": 2, "pred_z_min": 152, "pred_z_max": 615, "shrink": 8}
 
-    for scale in [4, 8]:
-        meta["scale"] = scale
-
-        # check_data(tag, "", meta=meta)
-        check_filter(tag, "", meta=meta)
+    check_data(tag, comment, meta=meta)
+    check_filter(tag, comment, meta=meta)
 
     # quick_check_all(meta=meta)
 """
