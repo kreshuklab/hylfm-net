@@ -130,7 +130,6 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             "2020-03-09_07.26.02",
             "2020-03-09_07.26.02",
             "2020-03-09_07.30.14",
-            "2020-03-09_07.30.14",
             "2020-03-09_07.50.51",
             "2020-03-09_07.51.52",
         ]:
@@ -401,7 +400,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
 
 
 def check_filter(tag: str, comment: str, meta: dict):
-    lf_crops = {"Heart_tightCrop": [[0, None], [0, None], [0, None]], "wholeFOV": [[0, None], [0, None], [0, None]]}
+    lf_crops = {"gcamp": [[0, None], [0, None], [0, None]]}
 
     filters = [
         ("z_range", {"lf_crops": lf_crops}),
@@ -501,7 +500,6 @@ def quick_check_all(meta: dict):
 09_4__2020-03-09_07.14.47__SwipeThrough_-450_-210_nimages_241
 09_4__2020-03-09_07.26.02__SwipeThrough_-390_-270_nimages_13
 09_4__2020-03-09_07.26.02__SwipeThrough_-450_-210_nimages_241
-09_4__2020-03-09_07.30.14__SwipeThrough_-390_-270_nimages_13
 09_4__2020-03-09_07.30.14__SwipeThrough_-450_-210_nimages_241
 09_4__2020-03-09_07.50.51__SwipeThrough_-390_-270_nimages_13
 09_4__2020-03-09_07.51.52__SwipeThrough_-390_-270_nimages_13
@@ -603,9 +601,9 @@ def quick_check_all(meta: dict):
 11_2__2020-03-11_08.42.07__SwipeThrough_-390_-270_nimages_121
 11_2__2020-03-11_08.44.50__SwipeThrough_-390_-270_nimages_121
 11_2__2020-03-11_08.47.29__SwipeThrough_-390_-270_nimages_121
-11_2__2020-03-11_10.33.17__SinglePlane_-340
-11_2__2020-03-11_10.34.15__SinglePlane_-340
-11_2__2020-03-11_10.35.41__SinglePlane_-340
+# 11_2__2020-03-11_10.33.17__SinglePlane_-340  # different crop on camera
+# 11_2__2020-03-11_10.34.15__SinglePlane_-340  # different crop on camera
+# 11_2__2020-03-11_10.35.41__SinglePlane_-340  # different crop on camera
 11_2__2020-03-11_08.19.37__SwipeThrough_-390_-270_nimages_121
 11_2__2020-03-11_08.20.29__SwipeThrough_-390_-270_nimages_121
 11_2__2020-03-11_08.22.19__SwipeThrough_-390_-270_nimages_121
@@ -750,7 +748,6 @@ LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish4
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish4_promising/2020-03-09_07.14.47/stack_1_channel_3/SwipeThrough_-450_-210_nimages_241
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish4_promising/2020-03-09_07.26.02/stack_11_channel_4/SwipeThrough_-390_-270_nimages_13
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish4_promising/2020-03-09_07.26.02/stack_1_channel_4/SwipeThrough_-450_-210_nimages_241
-LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish4_promising/2020-03-09_07.30.14/stack_11_channel_4/SwipeThrough_-390_-270_nimages_13
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish4_promising/2020-03-09_07.30.14/stack_1_channel_4/SwipeThrough_-450_-210_nimages_241
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish4_promising/2020-03-09_07.50.51/stack_11_channel_3/SwipeThrough_-390_-270_nimages_13
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish4_promising/2020-03-09_07.51.52/stack_11_channel_3/SwipeThrough_-390_-270_nimages_13
