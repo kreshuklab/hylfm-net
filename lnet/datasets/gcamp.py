@@ -1,6 +1,9 @@
+import argparse
 import re
 
-from lnet.transformations.affine_utils import get_lf_shape, get_raw_ls_crop, get_ls_shape
+from lnet.datasets.base import TensorInfo, get_dataset_from_info
+from lnet.settings import settings
+from lnet.transformations.affine_utils import get_lf_shape, get_ls_shape, get_raw_ls_crop
 
 
 def get_gcamp_z_slice_from_tag2(tag2: str):
@@ -9,16 +12,15 @@ def get_gcamp_z_slice_from_tag2(tag2: str):
     # LS_stack_range_end = -210
     return int(re.search(regular_exp_LS_pos, tag2).group(1)) - LS_stack_range_start
 
+
 def get_tensor_info(tag: str, name: str, meta: dict):
     meta = dict(meta)
-    assert "z_out" in meta
     assert "nnum" in meta
     assert "interpolation_order" in meta
     assert "scale" in meta
 
     root = "GKRESHUK"
     insert_singleton_axes_at = [0, 0]
-    samples_per_dataset = 1
     if "_repeat" in name:
         name, repeat = name.split("_repeat")
         repeat = int(repeat)
@@ -45,11 +47,16 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         if "SinglePlane" in tag2:
             z_slice = get_gcamp_z_slice_from_tag2(tag2)
         elif "SwipeThrough" in tag2:
-            _, lower, upper, _, nimg = tag2.split("_")
-            step = (abs(upper - lower)  / (nimg - 1))
+            _, lower, upper, _, samples_per_dataset = tag2.split("_")
+            lower = int(lower)
+            upper = int(upper)
+            samples_per_dataset = int(samples_per_dataset)
+            step_float = abs(upper - lower) / (samples_per_dataset - 1)
+            step = int(step_float)
+            assert step == step_float, (step, step_float)
             offset = 450 + lower
             assert offset == -210 - upper, (upper, lower)
-            z_slice = f"{offset}+idx%{nimg}*{step}"
+            z_slice = f"{offset}+idx%{samples_per_dataset}*{step}"
         else:
             raise NotImplementedError((tag2, tag))
     else:
@@ -57,20 +64,64 @@ def get_tensor_info(tag: str, name: str, meta: dict):
 
     tag = f"{tag1}__{tag2}"
     if fish == "beads_after_fish":
-        location = f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/beads_after_fish/{tag1}/stack_*_channel_*/{tag2}/"
-        z_slice="idx%241"
-
-    if fish == "08_1":
+        location = (
+            f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/beads_after_fish/{tag1}/"
+        )
+    elif fish == "08_1":
         meta["quality"] = 1
-        location = f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200308_Gcamp/brain/{tag1}/stack_*_channel_*/{tag2}/"
+        location = f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200308_Gcamp/brain/{tag1}/"
+        if name == "ls_slice" and "SinglePlane" in tag2:
+            if tag1 == "2020-03-08_06.00.27":
+                samples_per_dataset = 250
+            elif tag1 == "2020-03-08_06.06.38":
+                samples_per_dataset = 250
+            elif tag1 == "2020-03-08_06.26.41":
+                samples_per_dataset = 300
+            elif tag1 == "2020-03-08_06.26.41":
+                samples_per_dataset = 300
+            elif tag1 == "2020-03-08_06.38.34":
+                samples_per_dataset = 300
+            elif tag1 == "2020-03-08_06.38.34":
+                samples_per_dataset = 300
+            elif tag1 == "2020-03-08_06.38.34":
+                samples_per_dataset = 300
+            elif tag1 == "2020-03-08_06.38.34":
+                samples_per_dataset = 300
+            elif tag1 == "2020-03-08_06.38.34":
+                samples_per_dataset = 300
+            elif tag1 == "2020-03-08_06.38.34":
+                samples_per_dataset = 300
+            elif tag1 == "2020-03-08_06.38.34":
+                samples_per_dataset = 300
+            elif tag1 == "2020-03-08_06.38.34":
+                samples_per_dataset = 300
+            elif tag1 == "2020-03-08_06.38.34":
+                samples_per_dataset = 300
+            else:
+                raise NotImplementedError((tag1, tag))
+
     elif fish == "09_1" and tag1 == "2020-03-09_04.35.55":
-        location = f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/{tag1}/stack_*_channel_*/{tag2}/"
+        location = f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish1_awesome/{tag1}/"
+        if name == "ls_slice" and "SinglePlane" in tag2:
+            samples_per_dataset = 600
+
     elif fish == "09_1" and tag1 == "2020-03-09_02.53.02":
-        location = f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/savedOnSSD/fish1/{tag1}/stack_*_channel_*/{tag2}/"
+        location = (
+            f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/savedOnSSD/fish1/{tag1}/"
+        )
+        if name == "ls_slice" and "SinglePlane" in tag2:
+            samples_per_dataset = 600
+
     elif fish == "09_2":
-        location = f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish2_kinda_crap/{tag1}/stack_*_channel_*/{tag2}/"
+        location = (
+            f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish2_kinda_crap/{tag1}/"
+        )
+
     elif fish == "09_3":
-        location = f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish3/{tag1}/stack_*_channel_*/{tag2}/"
+        location = f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish3/{tag1}/"
+        if name == "ls_slice" and "SinglePlane" in tag2:
+            samples_per_dataset = 600
+
     elif fish == "09_4":
         location = f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200309_Gcamp/fish4_promising/"
         if tag1 in [
@@ -138,8 +189,9 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         else:
             raise NotImplementedError((tag1, tag))
 
-        location += f"{tag1}/stack_*_channel_*/{tag2}/"
-
+        location += f"{tag1}/"
+        if name == "ls_slice" and "SinglePlane" in tag2:
+            samples_per_dataset = 600
     elif fish == "11_1":
         location = f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish1/5Hz/"
         if tag1 in [
@@ -149,13 +201,14 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             "2020-03-11_02.54.20",
             "2020-03-11_03.22.33",
             "2020-03-11_06.16.29",
+            "2020-03-11_02.43.33",
         ]:
             location += "longRun/"
         elif tag1 in ["2020-03-11_03.30.35", "2020-03-11_03.43.42", "2020-03-11_03.48.47", "2020-03-11_04.00.37"]:
             location += "longRun/niceOne/"
         elif tag1 in ["2020-03-11_04.03.27", "2020-03-11_04.17.17"]:
             location += "longRun/niceOne2/"
-        elif tag1 in ["/2020-03-11_04.25.22", "2020-03-11_04.27.34", "2020-03-11_04.28.39", "2020-03-11_04.35.02"]:
+        elif tag1 in ["2020-03-11_04.25.22", "2020-03-11_04.27.34", "2020-03-11_04.28.39", "2020-03-11_04.35.02"]:
             location += "longRun/niceOne3/"
         elif tag1 == "2020-03-11_04.47.24":
             location += "longRun/niceOne4/"
@@ -165,8 +218,31 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "longRun/slideThrough/"
         elif tag1 == "2020-03-11_06.07.48":
             location += "singlePlanes/"
+        else:
+            raise NotImplementedError((tag1, tag))
 
-        location += f"{tag1}/stack_*_channel_*/{tag2}/"
+        location += f"{tag1}/"
+        if name == "ls_slice" and "SinglePlane" in tag2:
+            if tag1 == "2020-03-11_02.34.23":
+                samples_per_dataset = 300
+            elif tag1 == "2020-03-11_03.22.33":
+                samples_per_dataset = 150
+            elif tag1 == "2020-03-11_02.00.31":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_04.25.22":
+                samples_per_dataset = 150
+            elif tag1 == "2020-03-11_03.43.42":
+                samples_per_dataset = 150
+            elif tag1 == "2020-03-11_03.48.47":
+                samples_per_dataset = 150
+            elif tag1 == "2020-03-11_04.00.37":
+                samples_per_dataset = 150
+            elif tag1 == "2020-03-11_06.07.48":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_06.07.48":
+                samples_per_dataset = 600
+            else:
+                raise NotImplementedError((tag1, tag))
 
     elif fish == "11_2":
         location = f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/"
@@ -207,15 +283,61 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         elif tag1 in ["2020-03-11_09.35.16", "2020-03-11_09.36.25", "2020-03-11_09.47.38", "2020-03-11_09.54.35"]:
             location += "opticTectum/10Hz/"
 
-        location += f"/{tag1}/stack_*_channel_*/{tag2}/"
+        location += f"/{tag1}/"
+        if name == "ls_slice" and "SinglePlane" in tag2:
+            if tag1 == "2020-03-11_07.30.39":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_07.30.39":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_10.13.20":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_10.13.20":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_10.25.41":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_10.25.41":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_10.25.41":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_10.17.34":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_10.17.34":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_10.21.14":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_10.21.14":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_10.33.17":
+                samples_per_dataset = 200
+            elif tag1 == "2020-03-11_10.34.15":
+                samples_per_dataset = 400
+            elif tag1 == "2020-03-11_10.35.41":
+                samples_per_dataset = 1000
+            elif tag1 == "2020-03-11_08.12.13":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_06.53.14":
+                samples_per_dataset = 150
+            elif tag1 == "2020-03-11_10.06.25":
+                samples_per_dataset = 600
+            elif tag1 == "2020-03-11_10.45.34":
+                samples_per_dataset = 5
+            else:
+                raise NotImplementedError((tag1, tag))
     else:
         raise NotImplementedError(tag)
 
-    # lf in fiji 1615x1330
+    # resolve stack_*_channel_* with tag2
+    root_path = getattr(settings.data_roots, root)
+    location_path = next((root_path / location).glob(f"stack_*_channel_*/{tag2}/"))
+    location = location_path.relative_to(root_path).parent.as_posix().strip("/") + "/"
+
     crop_name = "gcamp"
     if name == "lf":
         transformations = [{"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_lf_shape(crop_name)}}]
+        location += f"{tag2}/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+        samples_per_dataset = 1
     elif name == "ls_slice":
+        location = location.replace("TestOutputGcamp/", "")
         transformations = [
             {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 1, 2048, 2060]}},  # raw ls shape
             {"FlipAxis": {"apply_to": name, "axis": 2}},
@@ -245,34 +367,17 @@ def get_tensor_info(tag: str, name: str, meta: dict):
                 }
             },
         ]
-
-
-        transformations = [
-            {"FlipAxis": {"apply_to": "ls", "axis": 2}},
-            {
-                "Crop": {"apply_to": "ls", "crop": [[0, None], [0, None], [273, 1774], [123, 1924]]}
-            },  # in matlab: 124, 274, 1800, 1500
-        ]
-    else:
-        raise NotImplementedError
-
-    if name == "lf":
-        location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+        location += "Cam_Left_*.h5/Data"
     # elif name == "lr":
     #     location = location.replace("LF_partially_restored/", "LF_computed/")
     #     location += "TP_*/RCout/Cam_Right_*.tif"
-    elif name == "ls_slice":
-        location += "Cam_Left_*.h5/Data"
-        samples_per_dataset = 241
-        z_slice =
-    crop_name = "wholeFOV"
-    transformations += get_transformations(name, crop_name, meta=meta)
+    else:
+        raise NotImplementedError
 
     if location is None or location.endswith("/"):
         raise NotImplementedError(f"tag: {tag}, name: {name}")
 
-    assert tag.replace("_short", "") in location, (tag, name, location)
-    tag = tag.replace("/", "_")
+    # assert tag.replace("_short", "") in location, (tag, name, location)
     if "crop_names" in meta:
         assert crop_name in meta["crop_names"]
 
@@ -295,6 +400,275 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     )
 
 
+def check_filter(tag: str, comment: str, meta: dict):
+    lf_crops = {"Heart_tightCrop": [[0, None], [0, None], [0, None]], "wholeFOV": [[0, None], [0, None], [0, None]]}
+
+    filters = [
+        ("z_range", {"lf_crops": lf_crops}),
+        ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 2.0}),
+    ]
+
+    ds_unfiltered = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
+    print(" unfiltered", len(ds_unfiltered))
+    ds = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True, filters=filters)
+
+    print("ds filtered", len(ds))
+
+
+def check_data(tag: str, comment: str, meta: dict):
+    lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
+    ls_slice = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
+    assert len(lf) == len(ls_slice), (tag, len(lf), len(ls_slice))
+    assert len(lf) > 0, tag
+    print(tag, len(lf), comment)
+
+
+def quick_check_all(meta: dict):
+    tags = """
+# beads_after_fish__2020-03-11_10.45.34__SinglePlane_-450
+# beads_after_fish__2020-03-11_10.45.34__SwipeThrough_-450_-210_nimages_241
+# beads_after_fish__2020-03-11_10.45.34__SwipeThrough_-450_-210_nimages_121
+# beads_after_fish__2020-03-11_10.45.34__SwipeThrough_-390_-270_nimages_121
+# fish_08_1 	quality *
+08_1__2020-03-08_06.00.27__SinglePlane_-330
+08_1__2020-03-08_06.06.38__SinglePlane_-330
+08_1__2020-03-08_06.26.41__SwipeThrough_-450_-210_nimages_241
+08_1__2020-03-08_06.26.41__SinglePlane_-330
+08_1__2020-03-08_06.26.41__SinglePlane_-340
+08_1__2020-03-08_06.38.34__SinglePlane_-290
+08_1__2020-03-08_06.38.34__SwipeThrough_-450_-210_nimages_241
+08_1__2020-03-08_06.38.34__SinglePlane_-330
+08_1__2020-03-08_06.38.34__SinglePlane_-340
+08_1__2020-03-08_06.38.34__SinglePlane_-350
+08_1__2020-03-08_06.38.34__SinglePlane_-360
+08_1__2020-03-08_06.38.34__SinglePlane_-370
+08_1__2020-03-08_06.38.34__SinglePlane_-320
+08_1__2020-03-08_06.38.34__SinglePlane_-310
+08_1__2020-03-08_06.38.34__SinglePlane_-300
+# =========================================
+# fish_09_1, quality *** (double check), better for testing, as only single planes, traces possible
+09_1__2020-03-09_04.35.55__SinglePlane_-290
+09_1__2020-03-09_04.35.55__SinglePlane_-390
+09_1__2020-03-09_04.35.55__SinglePlane_-380
+09_1__2020-03-09_04.35.55__SinglePlane_-280
+09_1__2020-03-09_04.35.55__SinglePlane_-270
+09_1__2020-03-09_04.35.55__SinglePlane_-330
+09_1__2020-03-09_04.35.55__SinglePlane_-340
+09_1__2020-03-09_04.35.55__SinglePlane_-350
+09_1__2020-03-09_04.35.55__SinglePlane_-360
+09_1__2020-03-09_04.35.55__SinglePlane_-370
+09_1__2020-03-09_04.35.55__SinglePlane_-320
+09_1__2020-03-09_04.35.55__SinglePlane_-310
+09_1__2020-03-09_04.35.55__SinglePlane_-300
+# =========================================
+# fish_09_1
+# # 09_1__2020-03-09_02.53.02__SwipeThrough_-390_-300_nimages_10  # not easily usable due to asymmetric range limit in z
+09_1__2020-03-09_02.53.02__SinglePlane_-390
+09_1__2020-03-09_02.53.02__SinglePlane_-380
+09_1__2020-03-09_02.53.02__SwipeThrough_-450_-210_nimages_241
+09_1__2020-03-09_02.53.02__SinglePlane_-330
+09_1__2020-03-09_02.53.02__SinglePlane_-340
+09_1__2020-03-09_02.53.02__SinglePlane_-350
+09_1__2020-03-09_02.53.02__SinglePlane_-360
+# 09_1__2020-03-09_02.53.02__SinglePlane_-370
+# 09_1__2020-03-09_02.53.02__SinglePlane_-320
+# 09_1__2020-03-09_02.53.02__SinglePlane_-310
+# 09_1__2020-03-09_02.53.02__SinglePlane_-300
+# =========================================
+# fish_09_2, quality *** (fires like crazy)
+09_2__2020-03-09_06.05.11__SwipeThrough_-390_-270_nimages_13
+09_2__2020-03-09_06.05.11__SwipeThrough_-450_-210_nimages_241
+09_2__2020-03-09_06.15.03__SwipeThrough_-390_-270_nimages_13
+09_2__2020-03-09_06.15.03__SwipeThrough_-450_-210_nimages_241
+09_2__2020-03-09_06.17.56__SwipeThrough_-390_-270_nimages_13
+09_2__2020-03-09_06.17.56__SwipeThrough_-450_-210_nimages_241
+# =========================================
+# fish_09_3, quality ** (single neurons on a party, crazy crazy blinking, e.g. 2020-03-09_06.43.40/stack_2_channel_3/SinglePlane_-330/TP_00000/)
+09_3__2020-03-09_06.29.20__SwipeThrough_-390_-270_nimages_13
+09_3__2020-03-09_06.29.20__SwipeThrough_-450_-210_nimages_241
+09_3__2020-03-09_06.38.47__SwipeThrough_-390_-270_nimages_13
+09_3__2020-03-09_06.38.47__SwipeThrough_-450_-210_nimages_241
+09_3__2020-03-09_06.43.40__SwipeThrough_-390_-270_nimages_13
+09_3__2020-03-09_06.43.40__SwipeThrough_-450_-210_nimages_241
+09_3__2020-03-09_06.43.40__SinglePlane_-330
+09_3__2020-03-09_06.43.40__SinglePlane_-340
+09_3__2020-03-09_06.43.40__SinglePlane_-320
+09_3__2020-03-09_06.54.12__SwipeThrough_-390_-270_nimages_13
+09_3__2020-03-09_06.54.12__SwipeThrough_-450_-210_nimages_241
+# =========================================
+# fish_09_4, not so much going on ...
+09_4__2020-03-09_07.14.47__SwipeThrough_-390_-270_nimages_13
+09_4__2020-03-09_07.14.47__SwipeThrough_-450_-210_nimages_241
+09_4__2020-03-09_07.26.02__SwipeThrough_-390_-270_nimages_13
+09_4__2020-03-09_07.26.02__SwipeThrough_-450_-210_nimages_241
+09_4__2020-03-09_07.30.14__SwipeThrough_-390_-270_nimages_13
+09_4__2020-03-09_07.30.14__SwipeThrough_-450_-210_nimages_241
+09_4__2020-03-09_07.50.51__SwipeThrough_-390_-270_nimages_13
+09_4__2020-03-09_07.51.52__SwipeThrough_-390_-270_nimages_13
+09_4__2020-03-09_08.20.04__SwipeThrough_-390_-270_nimages_25
+09_4__2020-03-09_08.20.04__SwipeThrough_-450_-210_nimages_241
+09_4__2020-03-09_08.21.40__SwipeThrough_-390_-270_nimages_25
+09_4__2020-03-09_08.21.40__SwipeThrough_-450_-210_nimages_241
+09_4__2020-03-09_08.31.10__SwipeThrough_-450_-210_nimages_49
+09_4__2020-03-09_08.53.20__SwipeThrough_-450_-210_nimages_49
+09_4__2020-03-09_09.06.55__SwipeThrough_-450_-210_nimages_49
+09_4__2020-03-09_08.41.22__SinglePlane_-330
+09_4__2020-03-09_08.41.22__SinglePlane_-340
+09_4__2020-03-09_08.41.22__SinglePlane_-350
+09_4__2020-03-09_08.41.22__SinglePlane_-360
+09_4__2020-03-09_08.41.22__SinglePlane_-320
+09_4__2020-03-09_08.41.22__SinglePlane_-310
+09_4__2020-03-09_08.41.22__SinglePlane_-300
+09_4__2020-03-09_08.56.54__SinglePlane_-330
+09_4__2020-03-09_09.31.52__SinglePlane_-290
+09_4__2020-03-09_09.31.52__SinglePlane_-390
+09_4__2020-03-09_09.31.52__SinglePlane_-380
+09_4__2020-03-09_09.31.52__SinglePlane_-280
+09_4__2020-03-09_09.31.52__SinglePlane_-270
+09_4__2020-03-09_09.31.52__SinglePlane_-385
+09_4__2020-03-09_09.31.52__SinglePlane_-375
+09_4__2020-03-09_09.31.52__SinglePlane_-365
+09_4__2020-03-09_09.31.52__SinglePlane_-355
+09_4__2020-03-09_09.31.52__SinglePlane_-345
+09_4__2020-03-09_09.31.52__SinglePlane_-335
+09_4__2020-03-09_09.31.52__SinglePlane_-325
+09_4__2020-03-09_09.31.52__SinglePlane_-315
+09_4__2020-03-09_09.31.52__SinglePlane_-295
+09_4__2020-03-09_09.31.52__SinglePlane_-285
+09_4__2020-03-09_09.31.52__SinglePlane_-275
+09_4__2020-03-09_09.31.52__SinglePlane_-305
+09_4__2020-03-09_09.31.52__SinglePlane_-330
+09_4__2020-03-09_09.31.52__SinglePlane_-340
+09_4__2020-03-09_09.31.52__SinglePlane_-350
+09_4__2020-03-09_09.31.52__SinglePlane_-360
+09_4__2020-03-09_09.31.52__SinglePlane_-370
+09_4__2020-03-09_09.31.52__SinglePlane_-320
+09_4__2020-03-09_09.31.52__SinglePlane_-310
+09_4__2020-03-09_09.31.52__SinglePlane_-300
+09_4__2020-03-09_07.53.40__SinglePlane_-330
+# =========================================
+# fish_11_1,  have to double check, some move a lot....
+11_1__2020-03-11_02.34.23__SwipeThrough_-450_-210_nimages_121
+11_1__2020-03-11_02.34.23__SwipeThrough_-390_-270_nimages_121
+11_1__2020-03-11_02.34.23__SinglePlane_-330
+11_1__2020-03-11_02.43.33__SwipeThrough_-450_-210_nimages_121
+11_1__2020-03-11_02.43.33__SwipeThrough_-390_-270_nimages_121
+11_1__2020-03-11_02.48.29__SwipeThrough_-450_-210_nimages_121
+11_1__2020-03-11_02.48.29__SwipeThrough_-390_-270_nimages_121
+11_1__2020-03-11_02.49.27__SwipeThrough_-450_-210_nimages_121
+11_1__2020-03-11_02.49.27__SwipeThrough_-390_-270_nimages_121
+11_1__2020-03-11_02.54.20__SwipeThrough_-450_-210_nimages_121
+11_1__2020-03-11_02.54.20__SwipeThrough_-390_-270_nimages_121
+11_1__2020-03-11_03.22.33__SwipeThrough_-450_-210_nimages_121
+11_1__2020-03-11_03.22.33__SwipeThrough_-390_-270_nimages_121
+11_1__2020-03-11_03.22.33__SinglePlane_-330
+11_1__2020-03-11_06.16.29__SwipeThrough_-450_-210_nimages_121
+11_1__2020-03-11_04.03.27__SwipeThrough_-390_-270_nimages_121
+11_1__2020-03-11_04.17.17__SwipeThrough_-390_-270_nimages_121
+11_1__2020-03-11_04.25.22__SinglePlane_-330
+11_1__2020-03-11_04.27.34__SwipeThrough_-390_-270_nimages_121
+11_1__2020-03-11_04.28.39__SwipeThrough_-390_-270_nimages_121
+11_1__2020-03-11_04.35.02__SwipeThrough_-390_-270_nimages_121
+11_1__2020-03-11_04.47.24__SwipeThrough_-450_-210_nimages_121
+11_1__2020-03-11_05.53.13__SwipeThrough_-450_-210_nimages_121
+11_1__2020-03-11_03.30.35__SwipeThrough_-450_-210_nimages_121
+11_1__2020-03-11_03.30.35__SwipeThrough_-390_-270_nimages_121
+11_1__2020-03-11_03.43.42__SinglePlane_-330
+11_1__2020-03-11_03.48.47__SinglePlane_-330
+11_1__2020-03-11_04.00.37__SinglePlane_-330
+11_1__2020-03-11_05.26.26__SwipeThrough_-450_-210_nimages_121
+11_1__2020-03-11_05.36.29__SwipeThrough_-450_-210_nimages_121
+11_1__2020-03-11_06.07.48__SinglePlane_-330
+11_1__2020-03-11_06.07.48__SinglePlane_-340
+# =========================================
+# fish_11_2
+11_2__2020-03-11_07.34.47__SwipeThrough_-390_-270_nimages_121
+11_2__2020-03-11_08.52.33__SwipeThrough_-450_-210_nimages_241
+11_2__2020-03-11_09.08.00__SwipeThrough_-450_-210_nimages_241
+11_2__2020-03-11_07.30.39__SinglePlane_-320
+11_2__2020-03-11_07.30.39__SinglePlane_-310
+11_2__2020-03-11_10.13.20__SinglePlane_-290
+11_2__2020-03-11_10.13.20__SinglePlane_-315
+11_2__2020-03-11_10.25.41__SinglePlane_-295
+11_2__2020-03-11_10.25.41__SinglePlane_-305
+11_2__2020-03-11_10.25.41__SinglePlane_-340
+11_2__2020-03-11_10.17.34__SinglePlane_-280
+11_2__2020-03-11_10.17.34__SinglePlane_-330
+11_2__2020-03-11_10.21.14__SinglePlane_-295
+11_2__2020-03-11_10.21.14__SinglePlane_-305
+11_2__2020-03-11_08.30.21__SwipeThrough_-390_-270_nimages_121
+11_2__2020-03-11_08.34.19__SwipeThrough_-390_-270_nimages_121
+11_2__2020-03-11_08.36.58__SwipeThrough_-390_-270_nimages_121
+11_2__2020-03-11_08.39.31__SwipeThrough_-390_-270_nimages_121
+11_2__2020-03-11_08.42.07__SwipeThrough_-390_-270_nimages_121
+11_2__2020-03-11_08.44.50__SwipeThrough_-390_-270_nimages_121
+11_2__2020-03-11_08.47.29__SwipeThrough_-390_-270_nimages_121
+11_2__2020-03-11_10.33.17__SinglePlane_-340
+11_2__2020-03-11_10.34.15__SinglePlane_-340
+11_2__2020-03-11_10.35.41__SinglePlane_-340
+11_2__2020-03-11_08.19.37__SwipeThrough_-390_-270_nimages_121
+11_2__2020-03-11_08.20.29__SwipeThrough_-390_-270_nimages_121
+11_2__2020-03-11_08.22.19__SwipeThrough_-390_-270_nimages_121
+11_2__2020-03-11_08.12.13__SinglePlane_-310
+11_2__2020-03-11_06.53.14__SinglePlane_-330
+11_2__2020-03-11_06.55.38__SwipeThrough_-450_-210_nimages_121
+11_2__2020-03-11_06.57.26__SwipeThrough_-390_-270_nimages_121
+11_2__2020-03-11_09.35.16__SwipeThrough_-390_-270_nimages_121
+11_2__2020-03-11_09.36.25__SwipeThrough_-390_-270_nimages_121
+11_2__2020-03-11_09.47.38__SwipeThrough_-450_-210_nimages_121
+11_2__2020-03-11_09.54.35__SwipeThrough_-450_-210_nimages_121
+""".split(
+        "\n"
+    )
+    full_tags = [tag for tag in tags if tag and not tag.startswith("#")]
+    tags = []
+    comments = []
+
+    for full_tag in full_tags:
+        if "#" in full_tag:
+            tag, comment = full_tag.split("#")
+            tag = tag.strip()
+        else:
+            tag = full_tag
+            comment = ""
+
+        lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=False)
+        try:
+            ls_slice = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=False)
+        except Exception as e:
+            print(tag, e)
+            ls_slice = []
+
+        if len(lf) != len(ls_slice) or len(ls_slice) == 0:
+            print(tag, len(lf), len(ls_slice))
+
+        # assert len(lf) > 0, tag
+        # assert len(ls_slice) > 0, tag
+        # print(tag, len(lf), comment)
+
+        tags.append(tag)
+        comments.append(comment)
+
+    # print(tags, comments)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("tag", type=str)
+
+    args = parser.parse_args()
+
+    tag = args.tag
+
+    meta = {"nnum": 19, "interpolation_order": 2}
+
+    for scale in [4, 8]:
+        meta["scale"] = scale
+
+        check_data(tag, "", meta=meta)
+        check_filter(tag, "", meta=meta)
+
+    # quick_check_all(meta=meta)
 """
 single plane blinking, good for testing, traces:
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200308_Gcamp/brain/2020-03-08_06.06.38/stack_2_channel_3/SinglePlane_-330/TP_00001

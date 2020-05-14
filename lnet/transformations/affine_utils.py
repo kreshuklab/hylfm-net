@@ -266,6 +266,9 @@ def get_raw_ls_crop(crop_name: str, *, for_slice: bool = False, wrt_ref: bool = 
             # crop in matlab: # rect_LS = [350, 350, 1350, 1350]; %[xmin, ymin, width, height];
             # crop for ref shape + crop for divisibility
             ret = [[0, 241], [1, 1700 - 349 - 1], [1, 1700 - 349 - 1]]
+        elif crop_name == gcamp:
+            # in matlab: 124, 274, 1800, 1500
+            ret = [[0, 241], [0, 1774 - 273], [7, 1924 - 123 - 8]]
         else:
             raise NotImplementedError(crop_name)
     else:
@@ -281,6 +284,8 @@ def get_raw_ls_crop(crop_name: str, *, for_slice: bool = False, wrt_ref: bool = 
             # crop in matlab: # rect_LS = [350, 350, 1350, 1350]; %[xmin, ymin, width, height];
             # crop for ref shape + crop for divisibility
             ret = [[0, None], [0, 241], [349 + 1, 1700 - 1], [349 + 1, 1700 - 1]]
+        elif crop_name == gcamp:
+            ret = [[0, None], [0, 241], [273, 1774], [123 + 7, 1924 - 8]]
         else:
             raise NotImplementedError(crop_name)
 

@@ -24,7 +24,7 @@ import z5py
 import lnet
 import lnet.datasets.filters
 from lnet import settings
-from lnet.datasets.utils import get_gcamp_z_slice_from_path, get_paths
+from lnet.datasets.utils import get_paths
 from lnet.stat import DatasetStat
 from lnet.transformations.base import ComposedTransformation
 
@@ -74,7 +74,7 @@ class TensorInfo:
         assert isinstance(root, str)
         assert isinstance(location, str)
         assert isinstance(datasets_per_file, int)
-        assert isinstance(samples_per_dataset, int)
+        assert isinstance(samples_per_dataset, int), samples_per_dataset
         self.name = name
         if tag is None:
             self.tag = name
@@ -162,7 +162,7 @@ class DatasetFromInfo(torch.utils.data.Dataset):
 
             if z_slice_str.startswith("idx%"):
                 if "*" in z_slice_str:
-                    mod_str, step_str = z_slice_str[len("idx%"):].split("*")
+                    mod_str, step_str = z_slice_str[len("idx%") :].split("*")
                     self._z_slice_mod = int(mod_str)
                     self._z_step = int(step_str)
                 else:
