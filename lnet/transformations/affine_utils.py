@@ -374,17 +374,16 @@ def get_crops(
         ls_crop = [[0, None]] * 3
     elif affine_trf_name == "Heart_tightCrop" and ref_crop_in in [
         [[0, 838], [57, -57], [57, -57]],
-        [[0, 838], [57, 1197], [57, 1387]],
-    ]:
+        [[0, 838], [57, 1273-57], [57, 1463-57]]]:
         ls_crop = (19, -10), (152, -133), (171, -133)
     elif affine_trf_name == "Heart_tightCrop" and ref_crop_in in [
         [[0, 838], [38, -38], [38, -38]],
-        [[0, 838], [38, 1216], [38, 1406]],
+        [[0, 838], [38, 1273-38], [38, 1463-38]],
     ]:
         ls_crop = (18, -12), (57 + 3 * 19, -57 - 2 * 19), (95 + 19, -57 - 19)
     elif affine_trf_name == "Heart_tightCrop" and ref_crop_in in [
         [[0, 838], [19, -19], [19, -19]],
-        [[0, 838], [19, 1235], [19, 1425]],
+        [[0, 838], [19, 1273-19], [19, 1463-19]],
     ]:
         ls_crop = (18, -12), (57 + 3 * 19, -57 - 2 * 19), (95 + 19, -57 - 19)
     elif affine_trf_name == "wholeFOV" and ref_crop_in in [
