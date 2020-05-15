@@ -1,7 +1,10 @@
 tex
 
 data/
-data*/
+data1/
+data2/
+data3/
+data4/
 experiment_configs/
 ref_data/
 logs/

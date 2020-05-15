@@ -338,7 +338,7 @@ def get_lf_crop(crop_name: str, *, shrink: int, nnum: int, scale: int) -> List[L
     else:
         raise NotImplementedError(crop_name)
 
-    return crop
+    return [[0, None]] + crop  # add crop for channel
 
 
 def get_crops(
@@ -358,7 +358,7 @@ def get_crops(
 
     ref_crop_in = [[meta["pred_z_min"], meta["pred_z_max"]]] + get_lf_crop(
         affine_trf_name, shrink=shrink, nnum=nnum, scale=scale
-    )
+    )[1:]
 
     for i, lfc in enumerate(lf_crop):
         ref_crop_in[i][0] += lfc[0]

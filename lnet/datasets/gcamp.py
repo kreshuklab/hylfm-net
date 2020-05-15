@@ -67,10 +67,17 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         z_slice = None
 
     tag = f"{tag1}__{tag2}"
+    if tag1.endswith("_short"):
+        tag1 = tag1[:-len("_short")]
+        short = True
+    else:
+        short = False
+
     if fish == "beads_after_fish":
         location = (
             f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/beads_after_fish/{tag1}/"
         )
+
     elif fish == "08_1":
         meta["quality"] = 1
         location = f"LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200308_Gcamp/brain/{tag1}/"
@@ -337,7 +344,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     crop_name = "gcamp"
     if name == "lf":
         transformations = [{"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_lf_shape(crop_name)}}]
-        location += f"{tag2}/TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+        location += f"{tag2}/TP_{'00000' if short else '*'}/RC_rectified/Cam_Right_*_rectified.tif"
         samples_per_dataset = 1
     elif name == "ls_slice":
         location = location.replace("TestOutputGcamp/", "")
@@ -370,10 +377,10 @@ def get_tensor_info(tag: str, name: str, meta: dict):
                 }
             },
         ]
-        location += "Cam_Left_*.h5/Data"
-    # elif name == "lr":
-    #     location = location.replace("LF_partially_restored/", "LF_computed/")
-    #     location += "TP_*/RCout/Cam_Right_*.tif"
+        location += f"Cam_Left_{'00000' if short else '*'}.h5/Data"
+    elif name == "lr":
+        location = location.replace("LF_partially_restored/", "LF_computed/")
+        location += f"{tag2}/TP_{'00000' if short else '*'}/RCout/Cam_Right_*.tif"
     else:
         raise NotImplementedError
 

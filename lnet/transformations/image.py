@@ -7,7 +7,7 @@ import skimage.transform
 import torch
 from scipy.ndimage import zoom
 
-from lnet.transformations.affine_utils import get_crops
+from lnet.transformations.affine_utils import get_crops, get_lf_crop
 from lnet.transformations.base import Transform
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,21 @@ class Crop(Transform):
 
 
 class CropByCropName(Transform):
-    def __init__(self, apply_to: str, crops: typing.Dict[str, Sequence[Sequence[Optional[int]]]]):
+    def __init__(
+        self,
+        apply_to: str,
+        crops: typing.Dict[str, Sequence[Sequence[Optional[int]]]] = None,
+        meta: Optional[dict] = None,
+    ):
+        assert isinstance(apply_to, str), "str to check if tensor is a slice (needed for get_crops)"
+        if crops is None and apply_to == "lf":
+            assert meta is not None
+            crops = {
+                crop_name: get_lf_crop(crop_name, shrink=meta["shrink"], nnum=meta["nnum"], scale=meta["scale"])
+                for crop_name in meta["crop_names"]
+            }
+
+        assert crops is not None
         super().__init__(apply_to=apply_to)
         self.crops = {}
         for crop_name, crop in crops.items():
@@ -68,8 +82,17 @@ class CropByCropName(Transform):
 
 
 class CropLSforDynamicTraining(Transform):
-    def __init__(self, apply_to: str, lf_crops: typing.Dict[str, Sequence[Sequence[Optional[int]]]], meta: dict):
+    def __init__(
+        self, apply_to: str, lf_crops: typing.Dict[str, Sequence[Sequence[Optional[int]]]] = None, meta: dict = None
+    ):
+        assert meta is not None
         assert isinstance(apply_to, str), "str to check if tensor is a slice (needed for get_crops)"
+        if lf_crops is None:
+            lf_crops = {
+                crop_name: get_lf_crop(crop_name, shrink=meta["shrink"], nnum=meta["nnum"], scale=meta["scale"])
+                for crop_name in meta["crop_names"]
+            }
+
         super().__init__(apply_to=apply_to)
         self.crops = {}
         for crop_name, lf_crop in lf_crops.items():
