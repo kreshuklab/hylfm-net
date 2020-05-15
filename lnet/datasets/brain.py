@@ -290,6 +290,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "50Hz/"
         elif tag1 in ["2020-03-11_06.53.14", "2020-03-11_06.55.38", "2020-03-11_06.57.26"]:
             location += "5Hz/"
+        elif tag1 in ["2020-03-11_10.06.25"]:
+            location += "Heinbrain/"
         elif tag1 in ["2020-03-11_09.35.16", "2020-03-11_09.36.25", "2020-03-11_09.47.38", "2020-03-11_09.54.35"]:
             location += "opticTectum/10Hz/"
 
