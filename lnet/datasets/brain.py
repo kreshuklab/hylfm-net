@@ -21,7 +21,9 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     assert "nnum" in meta
     assert "interpolation_order" in meta
     assert "scale" in meta
-    meta["z_ls_rescaled"] = 241  # all gcamp data z_slices are conidered as one of 241 slices, 1mu apart, in a 241um volume
+    meta[
+        "z_ls_rescaled"
+    ] = 241  # all gcamp data z_slices are conidered as one of 241 slices, 1mu apart, in a 241um volume
 
     root = "GKRESHUK"
     insert_singleton_axes_at = [0, 0]
@@ -68,7 +70,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
 
     tag = f"{tag1}__{tag2}"
     if tag1.endswith("_short"):
-        tag1 = tag1[:-len("_short")]
+        tag1 = tag1[: -len("_short")]
         short = True
     else:
         short = False
@@ -439,6 +441,7 @@ def get_tags():
     with (Path(__file__).parent / "tags" / Path(__file__).with_suffix(".yml").name).open() as f:
         return [tag.strip() for tag in yaml.safe_load(f)]
 
+
 def quick_check_all(meta: dict):
     for tag in get_tags():
         try:
@@ -461,6 +464,7 @@ def quick_check_all(meta: dict):
 
 
 if __name__ == "__main__":
+    # try:
     parser = argparse.ArgumentParser()
     parser.add_argument("tagnr", type=int)
     parser.add_argument("meta_path", type=Path)
@@ -471,12 +475,13 @@ if __name__ == "__main__":
     with args.meta_path.open() as f:
         meta = yaml.safe_load(f)
 
-    # meta = {"nnum": 19, "interpolation_order": 2, "pred_z_min": 152, "pred_z_max": 615, "shrink": 8}
-
     check_data(tag, meta=meta)
     check_filter(tag, meta=meta)
+    # except:
+    #     print("quick check")
+    #     # meta = {"nnum": 19, "interpolation_order": 2, "pred_z_min": 152, "pred_z_max": 615, "shrink": 8, "scale": 8}
+    #     # quick_check_all(meta=meta)
 
-    # quick_check_all(meta=meta)
 """
 single plane blinking, good for testing, traces:
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200308_Gcamp/brain/2020-03-08_06.06.38/stack_2_channel_3/SinglePlane_-330/TP_00001
@@ -682,5 +687,4 @@ LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/opticTectum/10Hz/2020-03-11_09.36.25/stack_33_channel_3/SwipeThrough_-390_-270_nimages_121
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/opticTectum/10Hz/2020-03-11_09.47.38/stack_32_channel_3/SwipeThrough_-450_-210_nimages_121
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/opticTectum/10Hz/2020-03-11_09.54.35/stack_32_channel_3/SwipeThrough_-450_-210_nimages_121
-
 """
