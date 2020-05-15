@@ -215,6 +215,8 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
             ],
             [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0],
         ]
+    elif name == "gcamp":
+        return [[0.98048,0.004709,0.098297,-111.7542,7.6415e-05,0.97546,0.0030523,-20.1143,0.014629,8.2964e-06,-3.9928,846.8515]]
     else:
         raise NotImplementedError(name)
 
@@ -248,6 +250,8 @@ def get_ref_ls_shape(crop_name: str) -> List[int]:
         return [241, 1451, 1951]
     elif crop_name == wholeFOV:
         return [241, 1351, 1351]
+    elif crop_name == gcamp:
+        return [241, 1774, 1924]
     else:
         raise NotImplementedError(crop_name)
 
@@ -342,7 +346,7 @@ def get_lf_crop(crop_name: str, *, shrink: int, nnum: int, scale: int) -> List[L
 
 
 def get_crops(
-    affine_trf_name: str, lf_crop: Sequence[Sequence[Optional[int]]], meta: dict, for_slice: bool = False
+    affine_trf_name: str, lf_crop: Optional[Sequence[Sequence[Optional[int]]]], meta: dict, for_slice: bool = False
 ) -> Tuple[Sequence[Sequence[Optional[int]]], Sequence[Sequence[Optional[int]]], Sequence[Sequence[Optional[int]]]]:
 
     scale: int = meta["scale"]
@@ -351,22 +355,23 @@ def get_crops(
     assert for_slice or z_ls_rescaled, "invalid (=0) or missing 'z_ls_rescaled' in meta"
     shrink: int = meta["shrink"]
 
-    assert len(lf_crop) == 3, "cyx"
-    assert lf_crop[0][0] == 0, "dont crop lf channel"
-    assert lf_crop[0][1] is None, "dont crop lf channel"
-    assert all([len(lfc) == 2 for lfc in lf_crop])
 
     ref_crop_in = [[meta["pred_z_min"], meta["pred_z_max"]]] + get_lf_crop(
         affine_trf_name, shrink=shrink, nnum=nnum, scale=scale
     )[1:]
 
-    for i, lfc in enumerate(lf_crop):
-        ref_crop_in[i][0] += lfc[0]
-        if lfc[1] is not None:
-            if not (lfc[1] < 0):
-                raise NotImplementedError
+    if lf_crop is not None:
+        assert len(lf_crop) == 3, "cyx"
+        assert lf_crop[0][0] == 0, "dont crop lf channel"
+        assert lf_crop[0][1] is None, "dont crop lf channel"
+        assert all([len(lfc) == 2 for lfc in lf_crop])
+        for i, lfc in enumerate(lf_crop):
+            ref_crop_in[i][0] += lfc[0]
+            if lfc[1] is not None:
+                if not (lfc[1] < 0):
+                    raise NotImplementedError
 
-            ref_crop_in[i][1] += lfc[1]
+                ref_crop_in[i][1] += lfc[1]
 
     if ref_crop_in == [[0, 838], [0, None], [0, None]]:
         ls_crop = [[0, None]] * 3

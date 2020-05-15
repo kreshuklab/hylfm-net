@@ -473,17 +473,11 @@ class AffineTransformationDynamicTraining(torch.nn.Module):
         padding_mode: str = "border",
         lf_crops: Sequence[Sequence[Optional[int]]] = None,
     ):
-        if lf_crops is None:
-            lf_crops = {
-                crop_name: get_lf_crop(crop_name, shrink=meta["shrink"], nnum=meta["nnum"], scale=meta["scale"])
-                for crop_name in meta["crop_names"]
-            }
-
         super().__init__()
         self.apply_to = apply_to
         ops = {}
         for crop_name in meta["crop_names"]:
-            ref_crop_in, ref_crop_out, _ = get_crops(crop_name, lf_crop=lf_crops[crop_name], meta=meta)
+            ref_crop_in, ref_crop_out, _ = get_crops(crop_name, lf_crop=None if lf_crops is None else lf_crops[crop_name], meta=meta)
             ops[crop_name] = AffineTransformation(
                 apply_to=apply_to,
                 target_to_compare_to=target_to_compare_to,
