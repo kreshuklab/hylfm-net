@@ -434,8 +434,8 @@ def check_data(tag: str, meta: dict):
 
 
 def get_tags():
-    with (Path(__file__).parent / "tags" / f"{__file__}.yml").open() as f:
-        return yaml.safe_load(f)
+    with (Path(__file__).parent / "tags" / Path(__file__).with_suffix(".yml").name).open() as f:
+        return [tag.strip() for tag in yaml.safe_load(f)]
 
 def quick_check(meta: dict):
     tags = get_tags()
