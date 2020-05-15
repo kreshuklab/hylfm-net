@@ -316,7 +316,7 @@ def get_ls_shape(crop_name: str, for_slice: bool = False) -> List[int]:
 def get_lf_crop(crop_name: str, *, shrink: int, nnum: int, scale: int) -> List[List[int]]:
     if crop_name in [Heart_tightCrop, staticHeartFOV, wholeFOV]:
         crop_float = [
-            [shrink * nnum / scale, lfs - 2 * shrink * nnum / scale] for lfs in get_lf_shape(crop_name)
+            [shrink * nnum / scale, lfs - shrink * nnum / scale] for lfs in get_lf_shape(crop_name)
         ]  # loading precropped `rectified.tif`s
         crop = [[int(cc) for cc in c] for c in crop_float]
         assert crop_float == crop, (crop_float, crop)
@@ -368,8 +368,6 @@ def get_crops(
 
             ref_crop_in[i][1] += lfc[1]
 
-    mini_crop = get_raw_ls_crop(affine_trf_name, wrt_ref=True)
-
     if ref_crop_in == [[0, 838], [0, None], [0, None]]:
         ls_crop = [[0, None]] * 3
     elif affine_trf_name == "Heart_tightCrop" and ref_crop_in in [
@@ -383,7 +381,7 @@ def get_crops(
         ls_crop = (18, -12), (57 + 3 * 19, -57 - 2 * 19), (95 + 19, -57 - 19)
     elif affine_trf_name == "Heart_tightCrop" and ref_crop_in in [
         [[0, 838], [19, -19], [19, -19]],
-        [[0, 838], [19, 1273-19], [19, 1463-19]],
+        [[0, 838], [19, 1273-19], [19, 1463-19]],   #  [19, 1235], [19, 1425
     ]:
         ls_crop = (18, -12), (57 + 3 * 19, -57 - 2 * 19), (95 + 19, -57 - 19)
     elif affine_trf_name == "wholeFOV" and ref_crop_in in [
@@ -419,6 +417,7 @@ def get_crops(
     else:
         raise NotImplementedError((affine_trf_name, ref_crop_in))
 
+    mini_crop = get_raw_ls_crop(affine_trf_name, wrt_ref=True)
     lower = [mc[0] + a[0] for mc, a in zip(mini_crop, ls_crop)]
     upper = [
         None if mc[1] is None and a[1] is None else mc[1] if a[1] is None else a[1] if mc[1] is None else a[1] + mc[1]
