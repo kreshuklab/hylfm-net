@@ -437,21 +437,25 @@ def get_tags():
     with (Path(__file__).parent / "tags" / Path(__file__).with_suffix(".yml").name).open() as f:
         return [tag.strip() for tag in yaml.safe_load(f)]
 
-def quick_check(meta: dict):
-    tags = get_tags()
-    lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=False)
-    try:
-        ls_slice = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=False)
-    except Exception as e:
-        print(tag, e)
-        ls_slice = []
+def quick_check_all(meta: dict):
+    for tag in get_tags():
+        try:
+            lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=False)
+        except Exception as e:
+            print(tag, e)
+            lf = []
+        try:
+            ls_slice = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=False)
+        except Exception as e:
+            print(tag, e)
+            ls_slice = []
 
-    if len(lf) != len(ls_slice) or len(ls_slice) == 0:
-        print(tag, len(lf), len(ls_slice))
+        if len(lf) != len(ls_slice) or len(ls_slice) == 0:
+            print(tag, len(lf), len(ls_slice))
+        else:
+            print(tag, len(lf))
 
-    # assert len(lf) > 0, tag
-    # assert len(ls_slice) > 0, tag
-    # print(tag, len(lf))
+        # assert len(ls_slice) > 0, tag
 
 
 if __name__ == "__main__":
@@ -666,7 +670,7 @@ LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/5Hz/2020-03-11_06.53.14/stack_34_channel_4/SinglePlane_-330
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/5Hz/2020-03-11_06.55.38/stack_32_channel_4/SwipeThrough_-450_-210_nimages_121
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/5Hz/2020-03-11_06.57.26/stack_33_channel_4/SwipeThrough_-390_-270_nimages_121
-LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/Heinbrain/2020-03-11_10.06.25/stack_2_channel_3/SinglePlane_-330
+LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/Heinbrain/2020-03-11_10.06.25/stack_2_channel_3/SinglePlane_-330  # todo add to training
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/Heinbrain/2020-03-11_10.06.25/stack_33_channel_3/SwipeThrough_-390_-270_nimages_121
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/beads_after_fish/2020-03-11_10.45.34/stack_0_channel_0/SinglePlane_-450
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/beads_after_fish/2020-03-11_10.45.34/stack_1_channel_1/SwipeThrough_-450_-210_nimages_241
