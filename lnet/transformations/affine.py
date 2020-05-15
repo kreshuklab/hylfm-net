@@ -11,6 +11,7 @@ from lnet.transformations.affine_utils import (
     get_lf_shape,
     get_ref_ls_shape,
     get_crops,
+    get_lf_crop,
 )
 
 logger = logging.getLogger(__name__)
@@ -466,11 +467,18 @@ class AffineTransformationDynamicTraining(torch.nn.Module):
     def __init__(
         self,
         apply_to: Union[str, Dict[str, str]],
-        lf_crops: Sequence[Sequence[Optional[int]]],
+        *,
         target_to_compare_to: str,
         meta: dict,
         padding_mode: str = "border",
+        lf_crops: Sequence[Sequence[Optional[int]]] = None,
     ):
+        if lf_crops is None:
+            lf_crops = {
+                crop_name: get_lf_crop(crop_name, shrink=meta["shrink"], nnum=meta["nnum"], scale=meta["scale"])
+                for crop_name in meta["crop_names"]
+            }
+
         super().__init__()
         self.apply_to = apply_to
         ops = {}
