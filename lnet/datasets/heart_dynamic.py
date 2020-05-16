@@ -3,6 +3,7 @@ from pathlib import Path
 
 import imageio
 import yaml
+import warnings
 
 from lnet.datasets.base import TensorInfo, get_dataset_from_info, N5CachedDatasetFromInfoSubset
 from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241
@@ -425,13 +426,20 @@ def check_filter(tag: str, comment: str, meta: dict):
 
     filters = [
         ("z_range", {"lf_crops": lf_crops}),
-        ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 2.0}),
+        ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 1.5}),
     ]
 
     ds_unfiltered = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
     print(" unfiltered", len(ds_unfiltered))
     ds = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True, filters=filters)
 
+    print("ds filtered", len(ds))
+
+    filters = [
+        ("z_range", {"lf_crops": lf_crops}),
+        ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 2.0}),
+    ]
+    ds = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True, filters=filters)
     print("ds filtered", len(ds))
 
 
@@ -463,21 +471,29 @@ def search_data():
     for dir in path.glob("*/RC_rectified/"):
         print(dir.parent.name, len(list(dir.glob("*.tif"))))
 
+def get_tags():
+    with (Path(__file__).parent / "tags" / Path(__file__).with_suffix(".yml").name).open() as f:
+        return [tag.strip() for tag in yaml.safe_load(f)]
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("tag", type=str)
+    parser.add_argument("tagnr", type=int)
     parser.add_argument("meta_path", type=Path)
 
     args = parser.parse_args()
-
-    tag = args.tag
-    comment = str(args.meta_path)
+    tagnr = args.tagnr
+    tags = get_tags()
+    if tagnr >= len(tags):
+        warnings.warn(f"tagnr {tagnr} out if range")
+    
+    tag = tags[tagnr]
+    comment = ""
     with args.meta_path.open() as f:
         meta = yaml.safe_load(f)
 
     check_filter(tag, comment, meta=meta)
-#     check_data(tag, comment, meta=meta)
+    if meta["scale"] == 2:
+        check_data(tag, comment, meta=meta)
 
     # depug()
     # search_data()

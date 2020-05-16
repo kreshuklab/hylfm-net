@@ -1,6 +1,5 @@
 crop_names: [Heart_tightCrop, staticHeartFOV, wholeFOV]
 interpolation_order: 2
-ls_slice_scale: 8
 nnum: 19
 pred_z_max: 838
 pred_z_min: 0

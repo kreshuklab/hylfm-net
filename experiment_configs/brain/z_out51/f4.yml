@@ -3,58 +3,36 @@ nnum: &nnum 19
 z_out: &z_out 51
 
 toolbox: # defines yaml placeholders
-  interpol: &interpol 2
-  # lf_crop no shrinkage: &lf_crop [[0, null], [133, 1121], [323, 1596]]  # [133, 1121], [323, 1596] / 19 = [7, 59], [17, 84] # max: 70, 85
-#   lf_crop: &lf_crop [[0, null], [76, 1178], [266, 1615]]  # f2 shrinkage: 6/2*19 = 38; lenslets cut: (3, 3), (3, 1)
-  lf_crop: &lf_crop [[0, null], [95, 1159], [285, 1615]]  # f4 shrinkage: 8/4*19 = 38; lenslets cut: (2, 2), (2, 1)
-#   lf_crop: &lf_crop [[0, null], [114, 1140], [304, 1615]]  # f8 shrinkage: 8/8*19 = 19; lenslets cut: (1, 1), (1, 1)
-#   ls_crop: &ls_crop [[0, null], [0, null], [16, -36], [46, -10]] # f2
-  ls_crop: &ls_crop [[0, null], [0, null], [32, -72], [92, -20]]  # f4
-#   ls_crop: &ls_crop [[0, null], [0, null], [64, -144], [184, -40]]  # f8
-
   ls_z_min: &ls_z_min 60
   ls_z_max: &ls_z_max 181
+  meta: &meta {z_ls_rescaled: 241, pred_z_min: 152, pred_z_max: 615, scale: &scale 4, shrink: &shrink 8, interpolation_order: 2, nnum: *nnum, z_out: *z_out, crop_names: [gcamp]}
   metrics: &metrics
-    MSSSIM: {tensor_names: {y_pred: pred, y: ls}, window_size: 11, size_average: true, val_range: null, normalize: false}
-    SSIM: {tensor_names: {y_pred: pred, y: ls}, window_size: 11, window: null, size_average: true, full: false, val_range: null}
-    NRMSE: {tensor_names: {y_pred: pred, y: ls}}
-    PSNR: {tensor_names: {y_pred: pred, y: ls}, data_range: null}
-    SmoothL1Loss: {tensor_names: {y_pred: pred, y: ls}}
-    MSELoss: {tensor_names: {y_pred: pred, y: ls}}
+    MSSSIM: {tensor_names: {y_pred: pred, y: ls_slice}, window_size: 11, size_average: true, val_range: null, normalize: false}
+    SSIM: {tensor_names: {y_pred: pred, y: ls_slice}, window_size: 11, window: null, size_average: true, full: false, val_range: null}
+    NRMSE: {tensor_names: {y_pred: pred, y: ls_slice}}
+    PSNR: {tensor_names: {y_pred: pred, y: ls_slice}, data_range: null}
+    SmoothL1Loss: {tensor_names: {y_pred: pred, y: ls_slice}}
+    MSELoss: {tensor_names: {y_pred: pred, y: ls_slice}}
 
   eval_batch_size: &eval_batch_size 2
-  sample_trfs: &sample_trfs
-    - Assert: {apply_to: lf, expected_tensor_shape: [null, 1, null, null]}
-    - Resize: {apply_to: ls, shape: [1.0, 1.0, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947], order: 2}  # 2/19=0.10526315789473684210526315789474; 4/19=0.21052631578947368421052631578947; 8/19=0.42105263157894736842105263157895
-    - Assert: {apply_to: ls, expected_tensor_shape: [null, 1, 1, null, null]}    
-
   eval_sample_prepr: &eval_sample_prepr
-    - Crop: {apply_to: lf, crop: *lf_crop}
-    - Crop: {apply_to: ls, crop: *ls_crop}
+    - CropByCropName: {apply_to: lf, meta: *meta}
+    - CropLSforDynamicTraining: {apply_to: ls_slice, meta: *meta}
     - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
-    - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
+    - Normalize01: {apply_to: ls_slice, min_percentile: 5.0, max_percentile: 99.99}
     - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
   eval_batch_prepr: &eval_batch_prepr []
   batch_prepr_in_step: &batch_prepr_in_step
-    - Cast: {apply_to: [lfc, ls], dtype: *precision, device: cuda, non_blocking: true}
+    - Cast: {apply_to: [lfc, ls_slice], dtype: *precision, device: cuda, non_blocking: true}
   batch_postpr: &batch_postpr
     - Assert: {apply_to: pred, expected_tensor_shape: [null, 1, *z_out, null, null]}
-    - AffineTransformation:
-        apply_to: pred
-        target_to_compare_to: ls
-        order: 2
-        ref_input_shape: [838, 1330, 1615]
-        bdv_affine_transformations: [[0.98048,0.004709,0.098297,-111.7542,7.6415e-05,0.97546,0.0030523,-20.1143,0.014629,8.2964e-06,-3.9928,846.8515]]
-        ref_output_shape: [241, 1501, 1801]
-#         ref_crop_in: [[152, -223], [133, 1121], [323, 1596]]  # 463x988x1273 - 0x0x0 no excess shrinkage
-#         ref_crop_in: [[152, -223], [133, 1121], [323, 1558]]  # f2: shrinkage lnet: (0, 0)x(0, 0)x(0, -2); shrinkage: -2*19 = -38
-        ref_crop_in: [[152, -223], [133, 1121], [323, 1577]]  # f4: shrinkage lnet: (0, 0)x(0, 0)x(0, -1); shrinkage: -*19 = -19
-#         ref_crop_in: [[152, -223], [133, 1121], [323, 1596]]  # f8: shrinkage lnet: (0, 0)x(0, 0)x(0, 0)
-        ref_crop_out: [[*ls_z_min, *ls_z_max], [152, -323], [418, -57]]        
+    - AffineTransformationDynamicTraining: {apply_to: pred, target_to_compare_to: ls_slice, meta: *meta}
 
 model:
   name: A04
   kwargs:
+    scale: *scale
+    shrink: *shrink
     input_name: lfc
     prediction_name: pred
     nnum: *nnum
@@ -72,105 +50,119 @@ stages:
         TensorBoardLogger:
           scalars_every: {value: 10, unit: iteration}
           tensors_every: {value: 500, unit: iteration}
-          tensor_names: [lf, pred, ls]
+          tensor_names: [lf, pred, ls_slice]
         FileLogger:
           scalars_every: {value: 1, unit: epoch}
 
       criterion:
         name: WeightedSmoothL1Loss
-        kwargs: {threshold: 1.0, initial_weight: .1, apply_below_threshold: true, decay_by: .8, every_nth_epoch: 1}
-        tensor_names: {input: pred, target: ls}
+        kwargs: {threshold: 1.0, initial_weight: .05, apply_below_threshold: true, decay_by: .5, every_nth_epoch: 1}
+        tensor_names: {input: pred, target: ls_slice}
 
       optimizer:
         name: Adam
-        kwargs: {lr: 2.0e-4, eps: 1.0e-8}
+        kwargs: {lr: 1.0e-4, eps: 1.0e-8}
 
       sampler:
         base: RandomSampler
         drop_last: false
 
       batch_preprocessing:
-        - RandomRotate90: {apply_to: [lf, ls]}
+        - RandomRotate90: {apply_to: [lf, ls_slice]}
         - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
       batch_preprocessing_in_step: *batch_prepr_in_step
       batch_postprocessing: *batch_postpr
 
       data:
         - batch_size: 1
-          interpolation_order: *interpol
           sample_preprocessing:
-            - Crop: {apply_to: lf, crop: *lf_crop}
-            - Crop: {apply_to: ls, crop: *ls_crop}
+            - CropByCropName: {apply_to: lf, meta: *meta}
+            - CropLSforDynamicTraining: {apply_to: ls_slice, meta: *meta}
             - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
-            - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
+            - Normalize01: {apply_to: ls_slice, min_percentile: 5.0, max_percentile: 99.99}
             - AdditiveGaussianNoise: {apply_to: lf, sigma: 0.1}
-            - AdditiveGaussianNoise: {apply_to: ls, sigma: 0.05}
-            - RandomIntensityScale: {apply_to: [lf, ls], factor_min: .8, factor_max: 1.2}
-            - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -1}
-            - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -2}
-          filters: [[z_range, {z_min: *ls_z_min, z_max: *ls_z_max}], [instensity_range, {apply_to: ls, max_above: 0.3}]]
+            - AdditiveGaussianNoise: {apply_to: ls_slice, sigma: 0.05}
+            - RandomIntensityScale: {apply_to: [lf, ls_slice], factor_min: .8, factor_max: 1.2}
+            - RandomlyFlipAxis: {apply_to: [lf, ls_slice], axis: -1}
+            - RandomlyFlipAxis: {apply_to: [lf, ls_slice], axis: -2}
+          filters: [[z_range, {z_min: *ls_z_min, z_max: *ls_z_max}], [signal2noise, {apply_to: ls_slice, signal_percentile: 99.9, noise_percentile: 5.0, ratio: 1.3}]]
           datasets:
-            - {tensors: {lf: gcamp.g200311_085233_lf, ls: gcamp.g200311_085233_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-968}
-            - {tensors: {lf: gcamp.g200311_090800_lf, ls: gcamp.g200311_090800_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-968}
-            - {tensors: {lf: gcamp.g200311_083021_lf, ls: gcamp.g200311_083021_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_083419_lf, ls: gcamp.g200311_083419_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_083658_lf, ls: gcamp.g200311_083658_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_084207_lf, ls: gcamp.g200311_084207_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_084450_lf, ls: gcamp.g200311_084450_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-            - {tensors: {lf: gcamp.g200311_084729_lf, ls: gcamp.g200311_084729_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
-
-            - {tensors: {lf: gcamp.g20200311_073039_130_lf, ls: gcamp.g20200311_073039_130_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-60}
-            - {tensors: {lf: gcamp.g20200311_073039_140_lf, ls: gcamp.g20200311_073039_140_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-60}
-            - {tensors: {lf: gcamp.g20200311_101320_160_lf, ls: gcamp.g20200311_101320_160_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-60}
-            - {tensors: {lf: gcamp.g20200311_101320_135_lf, ls: gcamp.g20200311_101320_135_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-60}
-            - {tensors: {lf: gcamp.g20200311_102541_110_lf, ls: gcamp.g20200311_102541_110_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-60}
-            - {tensors: {lf: gcamp.g20200311_102541_155_lf, ls: gcamp.g20200311_102541_155_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-60}
-            - {tensors: {lf: gcamp.g20200311_102541_145_lf, ls: gcamp.g20200311_102541_145_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-60}
-            - {tensors: {lf: gcamp.g20200311_065726_lf, ls: gcamp.g20200311_065726_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-121|363-484|726-847|1089-1210|1452-1573}  # length=6534
-            - {tensors: {lf: gcamp.g20200311_073447_lf, ls: gcamp.g20200311_073447_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-121|363-484|726-847|1089-1210|1452-1573}  # length=9680
-            - {tensors: {lf: gcamp.g20200311_033035_lf, ls: gcamp.g20200311_033035_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-242|363-484|726-847|1089-1210}  # length=1331
-            - {tensors: {lf: gcamp.g20200311_040327_lf, ls: gcamp.g20200311_040327_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-121|363-484|726-847|1089-1210|1452-1573}  # length 2783
-            - {tensors: {lf: gcamp.g20200311_042734_lf, ls: gcamp.g20200311_042734_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-121} # length 121
-            - {tensors: {lf: gcamp.g20200311_042839_lf, ls: gcamp.g20200311_042839_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-121} # length 121
-            - {tensors: {lf: gcamp.g20200311_043502_lf, ls: gcamp.g20200311_043502_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-242|363-484|726-847|1089-1210} # length 1210
-            - {tensors: {lf: gcamp.g20200311_024927_lf, ls: gcamp.g20200311_024927_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-121} # length 121
-            - {tensors: {lf: gcamp.g20200309_043555_120_lf, ls: gcamp.g20200309_043555_120_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
-            - {tensors: {lf: gcamp.g20200309_043555_110_lf, ls: gcamp.g20200309_043555_110_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
-            - {tensors: {lf: gcamp.g20200309_043555_100_lf, ls: gcamp.g20200309_043555_100_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
-            - {tensors: {lf: gcamp.g20200309_043555_90_lf, ls: gcamp.g20200309_043555_90_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
-            - {tensors: {lf: gcamp.g20200309_043555_80_lf, ls: gcamp.g20200309_043555_80_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
-            - {tensors: {lf: gcamp.g20200309_043555_130_lf, ls: gcamp.g20200309_043555_130_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
-            - {tensors: {lf: gcamp.g20200309_043555_140_lf, ls: gcamp.g20200309_043555_140_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
-            - {tensors: {lf: gcamp.g20200309_043555_150_lf, ls: gcamp.g20200309_043555_150_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
-            - {tensors: {lf: gcamp.g20200309_043555_160_lf, ls: gcamp.g20200309_043555_160_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
-            - {tensors: {lf: gcamp.g20200309_043555_60_lf, ls: gcamp.g20200309_043555_60_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
-            - {tensors: {lf: gcamp.g20200309_043555_70_lf, ls: gcamp.g20200309_043555_70_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
-            - {tensors: {lf: gcamp.g20200309_043555_170_lf, ls: gcamp.g20200309_043555_170_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
-            - {tensors: {lf: gcamp.g20200309_043555_180_lf, ls: gcamp.g20200309_043555_180_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-600-10}
-
+            - {tensors: {meta: *meta, lf: brain.09_2__2020-03-09_06.05.11__SwipeThrough_-390_-270_nimages_13, ls_slice: brain.09_2__2020-03-09_06.05.11__SwipeThrough_-390_-270_nimages_13},indices: 0-13}  # 13 fish_09_2, quality *** (fires like crazy)
+            - {tensors: {meta: *meta, lf: brain.09_2__2020-03-09_06.05.11__SwipeThrough_-450_-210_nimages_241, ls_slice: brain.09_2__2020-03-09_06.05.11__SwipeThrough_-450_-210_nimages_241},indices: 0-482}  # 482
+            - {tensors: {meta: *meta, lf: brain.09_2__2020-03-09_06.15.03__SwipeThrough_-390_-270_nimages_13, ls_slice: brain.09_2__2020-03-09_06.15.03__SwipeThrough_-390_-270_nimages_13},indices: 0-26}  # 26
+            - {tensors: {meta: *meta, lf: brain.09_2__2020-03-09_06.15.03__SwipeThrough_-450_-210_nimages_241, ls_slice: brain.09_2__2020-03-09_06.15.03__SwipeThrough_-450_-210_nimages_241},indices: 0-723}  # 723
+            - {tensors: {meta: *meta, lf: brain.09_2__2020-03-09_06.17.56__SwipeThrough_-390_-270_nimages_13, ls_slice: brain.09_2__2020-03-09_06.17.56__SwipeThrough_-390_-270_nimages_13},indices: 0-39}  # 39
+            - {tensors: {meta: *meta, lf: brain.09_2__2020-03-09_06.17.56__SwipeThrough_-450_-210_nimages_241, ls_slice: brain.09_2__2020-03-09_06.17.56__SwipeThrough_-450_-210_nimages_241},indices: 1-723}  # 723
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_07.14.47__SwipeThrough_-390_-270_nimages_13, ls_slice: brain.09_4__2020-03-09_07.14.47__SwipeThrough_-390_-270_nimages_13},indices: 0-13}  # 13 fish_09_4, not so much going on  # ...
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_07.14.47__SwipeThrough_-450_-210_nimages_241, ls_slice: brain.09_4__2020-03-09_07.14.47__SwipeThrough_-450_-210_nimages_241},indices: 0-241}  # 241
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_07.26.02__SwipeThrough_-390_-270_nimages_13, ls_slice: brain.09_4__2020-03-09_07.26.02__SwipeThrough_-390_-270_nimages_13},indices: 0-13}  # 13
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_07.26.02__SwipeThrough_-450_-210_nimages_241, ls_slice: brain.09_4__2020-03-09_07.26.02__SwipeThrough_-450_-210_nimages_241},indices: 0-241}  # 241
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_07.30.14__SwipeThrough_-450_-210_nimages_241, ls_slice: brain.09_4__2020-03-09_07.30.14__SwipeThrough_-450_-210_nimages_241},indices: 0-241}  # 241
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_07.50.51__SwipeThrough_-390_-270_nimages_13, ls_slice: brain.09_4__2020-03-09_07.50.51__SwipeThrough_-390_-270_nimages_13},indices: 0-13}  # 13
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_07.51.52__SwipeThrough_-390_-270_nimages_13, ls_slice: brain.09_4__2020-03-09_07.51.52__SwipeThrough_-390_-270_nimages_13},indices: 0-13}  # 13
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_08.20.04__SwipeThrough_-390_-270_nimages_25, ls_slice: brain.09_4__2020-03-09_08.20.04__SwipeThrough_-390_-270_nimages_25},indices: 0-25}  # 25
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_08.20.04__SwipeThrough_-450_-210_nimages_241, ls_slice: brain.09_4__2020-03-09_08.20.04__SwipeThrough_-450_-210_nimages_241},indices: 0-241}  # 241
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_08.21.40__SwipeThrough_-390_-270_nimages_25, ls_slice: brain.09_4__2020-03-09_08.21.40__SwipeThrough_-390_-270_nimages_25},indices: 0-350}  # 350
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_08.21.40__SwipeThrough_-450_-210_nimages_241, ls_slice: brain.09_4__2020-03-09_08.21.40__SwipeThrough_-450_-210_nimages_241},indices: 0-300|300-1324-3|1325-2650-3|2651-3374-3}  # 3374
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_08.31.10__SwipeThrough_-450_-210_nimages_49, ls_slice: brain.09_4__2020-03-09_08.31.10__SwipeThrough_-450_-210_nimages_49},indices: 0-105|105-717-4|718-1329-4|1330-1941-4|1942-2450-4}  # 2450
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_08.53.20__SwipeThrough_-450_-210_nimages_49, ls_slice: brain.09_4__2020-03-09_08.53.20__SwipeThrough_-450_-210_nimages_49},indices: 0-49}  # 49
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.06.55__SwipeThrough_-450_-210_nimages_49, ls_slice: brain.09_4__2020-03-09_09.06.55__SwipeThrough_-450_-210_nimages_49},indices: 0-105|106-717-4|719-1329-4|1331-1941-4|1943-2450-4|2451-3267-3|3268-4083-3|4084-4900-3}  # 4900
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_08.41.22__SinglePlane_-330, ls_slice: brain.09_4__2020-03-09_08.41.22__SinglePlane_-330},indices: 0-10|10-600-10}  # 600
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_08.41.22__SinglePlane_-340, ls_slice: brain.09_4__2020-03-09_08.41.22__SinglePlane_-340},indices: 0-10|11-600-10}  # 600
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_08.41.22__SinglePlane_-350, ls_slice: brain.09_4__2020-03-09_08.41.22__SinglePlane_-350},indices: 0-10|12-600-10}  # 600
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_08.41.22__SinglePlane_-360, ls_slice: brain.09_4__2020-03-09_08.41.22__SinglePlane_-360},indices: 0-10|13-600-10}  # 600
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_08.41.22__SinglePlane_-320, ls_slice: brain.09_4__2020-03-09_08.41.22__SinglePlane_-320},indices: 0-10|14-600-10}  # 600
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_08.41.22__SinglePlane_-310, ls_slice: brain.09_4__2020-03-09_08.41.22__SinglePlane_-310},indices: 0-10|15-600-10}  # 600
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_08.41.22__SinglePlane_-300, ls_slice: brain.09_4__2020-03-09_08.41.22__SinglePlane_-300},indices: 0-10|16-600-10}  # 600
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_08.56.54__SinglePlane_-330, ls_slice: brain.09_4__2020-03-09_08.56.54__SinglePlane_-330},indices: 0-10|17-600-10}  # 600
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-290, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-290},indices: 0-10|18-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-390, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-390},indices: 0-10|19-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-380, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-380},indices: 0-10|10-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-280, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-280},indices: 0-10|11-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-270, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-270},indices: 0-10|12-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-385, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-385},indices: 0-10|13-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-375, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-375},indices: 0-10|14-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-365, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-365},indices: 0-10|15-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-355, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-355},indices: 0-10|16-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-345, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-345},indices: 0-10|17-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-335, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-335},indices: 0-10|18-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-325, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-325},indices: 0-10|19-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-315, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-315},indices: 0-10|20-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-295, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-295},indices: 0-10|21-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-285, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-285},indices: 0-10|22-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-275, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-275},indices: 0-10|23-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-305, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-305},indices: 0-10|24-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-330, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-330},indices: 0-10|25-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-340, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-340},indices: 0-10|26-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-350, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-350},indices: 0-10|27-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-360, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-360},indices: 0-10|28-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-370, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-370},indices: 0-10|29-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-320, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-320},indices: 0-10|10-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-310, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-310},indices: 0-10|13-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_09.31.52__SinglePlane_-300, ls_slice: brain.09_4__2020-03-09_09.31.52__SinglePlane_-300},indices: 0-10|16-1200-20}  # 1200
+            - {tensors: {meta: *meta, lf: brain.09_4__2020-03-09_07.53.40__SinglePlane_-330, ls_slice: brain.09_4__2020-03-09_07.53.40__SinglePlane_-330},indices: 0-10|19-600-10}  # 600
       validate:
         metrics: *metrics
         log:
           TqdmLogger: {}
           TensorBoardLogger:
-            scalars_every: {value: 1065, unit: iteration}
+            scalars_every: {value: 1, unit: iteration}
             tensors_every: {value: 1, unit: epoch}
             tensor_names: [lf, pred, ls]
           FileLogger:
-            scalars_every: {value: 1065, unit: iteration}
+            scalars_every: {value: 1, unit: epoch}
         score_metric: MSSSIM
-        period: {value: 1065, unit: iteration}
-        patience: 5
+        period: {value: 2000, unit: iteration}
+        patience: 10
         batch_preprocessing: *eval_batch_prepr
         batch_preprocessing_in_step: *batch_prepr_in_step
         batch_postprocessing: *batch_postpr
         data:
           - batch_size: *eval_batch_size
-            interpolation_order: *interpol
             sample_preprocessing: *eval_sample_prepr
             filters: [[z_range, {z_min: *ls_z_min, z_max: *ls_z_max}]]
             datasets:
-              - {tensors: {lf: gcamp.g200311_083931_lf, ls: gcamp.g200311_083931_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 484-968}
+              - {tensors: {meta: *meta, lf: brain.09_1__2020-03-09_02.53.02__SwipeThrough_-450_-210_nimages_241, ls_slice: brain.09_1__2020-03-09_02.53.02__SwipeThrough_-450_-210_nimages_241},indices: 0-241-5} # 1205
 
   - test:
       metrics: *metrics
@@ -182,19 +174,34 @@ stages:
         FileLogger:
           scalars_every: {value: 1, unit: epoch}
           tensors_every: {value: 1, unit: iteration}
-          tensor_names: {lf, ls, pred}
+          tensor_names: {lf, ls_slice, pred}
       batch_preprocessing: *eval_batch_prepr
       batch_preprocessing_in_step: *batch_prepr_in_step
       batch_postprocessing: *batch_postpr
       data:
         - batch_size: *eval_batch_size
-          interpolation_order: *interpol
           sample_preprocessing: *eval_sample_prepr
           filters: [[z_range, {z_min: *ls_z_min, z_max: *ls_z_max}]]
           datasets:
-            - {tensors: {lf: gcamp.g200311_083931_lf, ls: gcamp.g200311_083931_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs, indices: 0-484}
-            - {tensors: {lf: gcamp.g20200311_101734_170_lf, ls: gcamp.g20200311_101734_170_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}  # super nice for traces
-            - {tensors: {lf: gcamp.g20200311_101734_120_lf, ls: gcamp.g20200311_101734_120_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}  # super nice for traces
-            - {tensors: {lf: gcamp.g20200311_102114_155_lf, ls: gcamp.g20200311_102114_155_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}  # super nice for traces
-            - {tensors: {lf: gcamp.g20200311_102114_145_lf, ls: gcamp.g20200311_102114_145_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}  # super nice for traces
-            - {tensors: {lf: gcamp.g20200311_065314_120_lf, ls: gcamp.g20200311_065314_120_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+            - {tensors: {meta: *meta, lf: brain.09_3__2020-03-09_06.43.40__SinglePlane_-330, ls_slice: brain.09_3__2020-03-09_06.43.40__SinglePlane_-330},indices: 400-600}  # 1200 crazy crazy  # blinking
+
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_07.34.47__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_07.34.47__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 9680 fish_11_2
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_08.52.33__SwipeThrough_-450_-210_nimages_241, ls_slice: brain.11_2__2020-03-11_08.52.33__SwipeThrough_-450_-210_nimages_241},indices: 0-nan}  # 7230
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_09.08.00__SwipeThrough_-450_-210_nimages_241, ls_slice: brain.11_2__2020-03-11_09.08.00__SwipeThrough_-450_-210_nimages_241},indices: 0-nan}  # 3615
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_08.30.21__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_08.30.21__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 968
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_08.34.19__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_08.34.19__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 968
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_08.36.58__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_08.36.58__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 968
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_08.39.31__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_08.39.31__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 968
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_08.42.07__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_08.42.07__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 968
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_08.44.50__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_08.44.50__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 968
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_08.47.29__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_08.47.29__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 968
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_08.19.37__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_08.19.37__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 121
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_08.20.29__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_08.20.29__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 121
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_08.22.19__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_08.22.19__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 605
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_06.55.38__SwipeThrough_-450_-210_nimages_121, ls_slice: brain.11_2__2020-03-11_06.55.38__SwipeThrough_-450_-210_nimages_121},indices: 0-nan}  # 242
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_06.57.26__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_06.57.26__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 6534
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_10.06.25__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_10.06.25__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 121
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_09.35.16__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_09.35.16__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 121
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_09.36.25__SwipeThrough_-390_-270_nimages_121, ls_slice: brain.11_2__2020-03-11_09.36.25__SwipeThrough_-390_-270_nimages_121},indices: 0-nan}  # 2904
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_09.47.38__SwipeThrough_-450_-210_nimages_121, ls_slice: brain.11_2__2020-03-11_09.47.38__SwipeThrough_-450_-210_nimages_121},indices: 0-nan}  # 2904
+#- {tensors: {meta: *meta, lf: brain.11_2__2020-03-11_09.54.35__SwipeThrough_-450_-210_nimages_121, ls_slice: brain.11_2__2020-03-11_09.54.35__SwipeThrough_-450_-210_nimages_121},indices: 0-nan}  # 3630
