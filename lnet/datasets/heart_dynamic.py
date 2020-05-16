@@ -78,9 +78,9 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     elif tag in ["2019-12-02_23.17.56", "2019-12-02_23.43.24", "2019-12-02_23.50.04", "2019-12-03_00.00.44"]:
         meta["quality"] = 3
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/Heart_tightCrop/dynamicImaging1_btw20to160planes/{tag}/stack_1_channel_3/"
-        if tag == "2019-12-03_00.00.44":
-            raise NotImplementedError("10ms is coming, only 5ms available:")
-            # location = location.replace("stack_1_channel_3", "stack_1_channel_2")
+        # if tag == "2019-12-03_00.00.44":
+        #     raise NotImplementedError("10ms is coming, only 5ms available:")
+        # location = location.replace("stack_1_channel_3", "stack_1_channel_2")
 
         if tag in ["2019-12-02_23.43.24", "2019-12-02_23.50.04", "2019-12-03_00.00.44"]:
             if name == "lf":
@@ -471,9 +471,11 @@ def search_data():
     for dir in path.glob("*/RC_rectified/"):
         print(dir.parent.name, len(list(dir.glob("*.tif"))))
 
+
 def get_tags():
     with (Path(__file__).parent / "tags" / Path(__file__).with_suffix(".yml").name).open() as f:
         return [tag.strip() for tag in yaml.safe_load(f)]
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

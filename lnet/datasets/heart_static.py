@@ -1,5 +1,6 @@
 # todo: rename file to heart_static.py
 import argparse
+import warnings
 from pathlib import Path
 
 import yaml
@@ -503,128 +504,51 @@ def debug():
     #     plt.show()
 
 
-def check_data(tag: str, comment: str, meta: dict):
-#     print("get lf")
-#     lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
+def check_data(tag: str, meta: dict):
     # print("get lr")
     # lr = get_dataset_from_info(get_tensor_info(tag, "lr", meta=meta))
-    print("get ls")
-    ls = get_dataset_from_info(get_tensor_info(tag, "ls", meta=meta), cache=True)
+    # print("get ls")
+    # ls = get_dataset_from_info(get_tensor_info(tag, "ls", meta=meta), cache=True)
     print("get ls_trf")
     ls_trf = get_dataset_from_info(get_tensor_info(tag, "ls_trf", meta=meta), cache=True)
 
-#     print(tag, len(lf), comment)
-    # assert len(lf) == len(lr), (tag, len(lf), len(lr))
-#     assert len(lf) == len(ls), (tag, len(lf), len(ls))
-#     assert len(lf) == len(ls_trf), (tag, len(lf), len(ls_trf))
-#     assert len(lf) > 0, tag
-    assert len(ls) == len(ls_trf), (tag, len(ls), len(ls_trf))
+    if meta["scale"] == 4:
+        print("get lf")
+        lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
+        assert len(lf) == len(ls_trf)
 
-    # print("get lr_repeat")
-    # lf_repeat = get_dataset_from_info(get_tensor_info(tag, "lf_repeat241", meta=meta), cache=True)
-    # print("get ls_slice")
-    # ls_slice = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta))
-    #
-    # assert len(lf_repeat) == len(ls_slice), (tag, len(lf_repeat), len(ls_slice))
-    # assert len(lf_repeat) > 0, tag
-    # print(tag, len(lf), comment)
+    assert len(ls_trf), tag
 
-    # lf = lf[0]["lf"]
-    # lr = lr[0]["lr"]
-    # ls = ls[0]["ls_trf"]
-    # print("\tlf", lf.shape)
-    # print("\tlr", lr.shape)
-    # print("\tpr", [s / 19 * 4 - 16 for s in lf.shape[-2:]])
-    # print("\tls", ls.shape, [s - 2 * 38 for s in ls.shape[-2:]])
+
+def get_tags():
+    with (Path(__file__).parent / "tags" / Path(__file__).with_suffix(".yml").name).open() as f:
+        return [tag.strip() for tag in yaml.safe_load(f)]
 
 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("tag", type=str)
-    # parser.add_argument("meta_path", type=Path)
-    #
-    # args = parser.parse_args()
-    #
-    # tag = args.tag
-    # comment = str(args.meta_path)
-    # with args.meta_path.open() as f:
-    #     meta = yaml.safe_load(f)
-    #
-    # check_data(tag, comment, meta=meta)
-    # depug()
-    # search_data()
-    meta = {
-        "z_out": 49,
-        "nnum": 19,
-        "scale": 4,
-        "interpolation_order": 2,
-        "z_ls_rescaled": 241,
-        "pred_z_min": 0,
-        "pred_z_max": 838,
-    }
+    parser = argparse.ArgumentParser()
+    parser.add_argument("tagnr", type=int)
+    parser.add_argument("meta_path", type=Path)
 
-    tags = """
-# beads_ref_Heart_tightCrop
-# beads_should_fit_Heart_tightCrop_0
-# 2019-12-09_02.16.30  # fish1
-# 2019-12-09_02.23.01  # fish1
-# 2019-12-09_02.29.34  # fish1
-# 2019-12-09_02.35.49  # fish1
-# 2019-12-09_02.42.03  # fish1
-# 2019-12-09_02.48.24  # fish1
-# 2019-12-09_02.54.46  # fish1
-# 2019-12-10_04.24.29  # fish3
-# 2019-12-10_05.14.57  # fish3
-# 2019-12-10_05.41.48  # fish3
-# 2019-12-10_06.03.37  # fish3
-# 2019-12-10_06.25.14  # fish3
-# 2019-12-08_06.35.52  # fish5 val selected
-# 2019-12-08_06.38.47  # fish5 val selected
-# 2019-12-08_06.10.34  # fish5 val selected
-# 2019-12-08_06.41.39  # fish5 val selected
-# 2019-12-08_06.18.09  # fish5 val selected
-# 2019-12-08_06.46.09  # fish5 val selected
-# 2019-12-08_06.23.13  # fish5 val selected
-# 2019-12-08_06.49.08  # fish5 val selected
-# 2019-12-08_06.25.02  # fish5 val selected
-# 2019-12-08_06.51.57  # fish5 val selected
-# 2019-12-08_06.30.40  # fish5 val selected
-# 2019-12-08_06.57.57  # fish5 val
-# 2019-12-08_06.59.59  # fish5 val
-# 2019-12-08_10.32.03  # fish5 val
-# 2019-12-09_09.52.38  # fish2 test
-# 2019-12-09_08.34.44  # fish2 test
-2019-12-09_08.41.41  # fish2 test selected
-# 2019-12-09_08.51.01  # fish2 test
-# 2019-12-09_09.01.28  # fish2 test
-# 2019-12-09_09.11.59  # fish2 test
-# 2019-12-09_09.18.01  # fish2 test
-# 2019-12-09_08.15.07  # fish2 test
-# 2019-12-09_08.19.40  # fish2 test
-# 2019-12-09_08.27.14  # fish2 test
-# 2019-12-09_07.42.47  # fish2 test
-# 2019-12-09_07.50.24  # fish2 test
-""".split(
-        "\n"
-    )
+    args = parser.parse_args()
+    tagnr = args.tagnr
+    tags = get_tags()
+    if tagnr >= len(tags):
+        warnings.warn(f"tagnr {tagnr} out if range")
 
-    full_tags = [tag for tag in tags if tag and not tag.startswith("#")]
-    tags = []
-    comments = []
+    tag = tags[tagnr]
+    comment = ""
+    with args.meta_path.open() as f:
+        meta = yaml.safe_load(f)
 
-    for full_tag in full_tags:
-        if "#" in full_tag:
-            tag, comment = full_tag.split("#")
-            tag = tag.strip()
-        else:
-            tag = full_tag
-            comment = ""
+    # meta = {
+    #     "z_out": 49,
+    #     "nnum": 19,
+    #     "scale": 4,
+    #     "interpolation_order": 2,
+    #     "z_ls_rescaled": 241,
+    #     "pred_z_min": 0,
+    #     "pred_z_max": 838,
+    # }
 
-        tags.append(tag)
-        comments.append(comment)
-
-        check_data(tag, comment, meta=meta)
-        # lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=False)
-        # print(tag, comment, "length:", len(lf))
-    # print(tags)
-    # print(comments)
+    check_data(tag, meta=meta)
