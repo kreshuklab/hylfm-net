@@ -362,14 +362,17 @@ def get_crops(
 
     if lf_crop is not None:
         assert len(lf_crop) == 3, "cyx"
-        assert lf_crop[0][0] == 0, "dont crop lf channel"
-        assert lf_crop[0][1] is None, "dont crop lf channel"
+        assert lf_crop[0][0] == 0, "dont crop lf channel (here treated as z)"
+        assert lf_crop[0][1] is None, "dont crop lf channel (here treated as z)"
         assert all([len(lfc) == 2 for lfc in lf_crop])
+        lf_crop = [list(lfc) for lfc in lf_crop]
         for i, lfc in enumerate(lf_crop):
             ref_crop_in[i][0] += lfc[0]
             if lfc[1] is not None:
-                if not (lfc[1] < 0):
-                    raise NotImplementedError
+                if lfc[1] >= 0:
+                    lfc[1] = lfc[1] - get_lf_shape(affine_trf_name)[i-1]
+
+                assert lfc[1] < 0
 
                 ref_crop_in[i][1] += lfc[1]
 

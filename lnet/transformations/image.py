@@ -88,10 +88,7 @@ class CropLSforDynamicTraining(Transform):
         assert meta is not None
         assert isinstance(apply_to, str), "str to check if tensor is a slice (needed for get_crops)"
         if lf_crops is None:
-            lf_crops = {
-                crop_name: get_lf_crop(crop_name, shrink=meta["shrink"], nnum=meta["nnum"], scale=meta["scale"])
-                for crop_name in meta["crop_names"]
-            }
+            lf_crops = {crop_name: None for crop_name in meta["crop_names"]}
 
         super().__init__(apply_to=apply_to)
         self.crops = {}
