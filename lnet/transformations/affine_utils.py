@@ -393,14 +393,23 @@ def get_crops(
     ]:
         ls_crop = (18, -12), (57 + 3 * 19, -57 - 2 * 19), (95 + 19, -57 - 19)
     elif affine_trf_name == "wholeFOV" and ref_crop_in in [
+        [[0, 838], [57, -57], [57, -57]],
+        [[0, 838], [57, 1064 - 57], [57, 1083 - 57]],
+    ]:
+        ls_crop = (
+            (19, -13),
+            (114 + 4 * 19, -114 - 4 * 19),
+            (133 + 3 * 19, -95 - 3 * 19),
+        )
+    elif affine_trf_name == "wholeFOV" and ref_crop_in in [
         [[0, 838], [38, -38], [38, -38]],
         [[0, 838], [38, 1064 - 38], [38, 1083 - 38]],
     ]:
         ls_crop = (
             (19, -13),
-            (114 + 3 * 19, -114 - 3 * 19),
-            (133 + 2 * 19, -95 - 2 * 19),
-        )  # todo: optimize for f8 (from f4)
+            (114 + 4 * 19, -114 - 4 * 19),
+            (133 + 3 * 19, -95 - 3 * 19),
+        )
     elif affine_trf_name == "wholeFOV" and ref_crop_in in [
         [[0, 838], [19, -19], [19, -19]],
         [[0, 838], [19, 1064 - 19], [19, 1083 - 19]],
@@ -409,7 +418,7 @@ def get_crops(
             (19, -13),
             (114 + 3 * 19, -114 - 3 * 19),
             (133 + 2 * 19, -95 - 2 * 19),
-        )  # todo: optimize for f8 (from f4)
+        )
     elif affine_trf_name == "gcamp" and ref_crop_in == [[152, 615], [76, 1178], [266, 1615]]:
         assert scale == 2
         assert shrink == 6
