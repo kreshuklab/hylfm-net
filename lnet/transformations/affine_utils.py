@@ -447,6 +447,7 @@ def get_crops(
     ]
     assert len(ls_crop) == 3
     if for_slice:
+        ls_crop_float[0] = [0, None]
         ls_crop[0] = [0, None]
 
     if ls_crop_float != ls_crop:
