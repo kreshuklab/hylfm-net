@@ -49,6 +49,12 @@ def get_tensor_info(tag: str, name: str, meta: dict):
 
     fish, tag1, tag2 = tag.split("__")
 
+    tag = f"{tag1}__{tag2}"
+    if "_TP" in tag2:
+        tag2, TP = tag2.split("_TP")
+    else:
+        TP = ""
+
     if name == "ls_slice":
         if "SinglePlane" in tag2:
             z_slice = get_gcamp_z_slice_from_tag2(tag2)
@@ -67,13 +73,6 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             raise NotImplementedError((tag2, tag))
     else:
         z_slice = None
-
-    tag = f"{tag1}__{tag2}"
-    if tag1.endswith("_short"):
-        tag1 = tag1[: -len("_short")]
-        short = True
-    else:
-        short = False
 
     if fish == "beads_after_fish":
         location = (
@@ -350,7 +349,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     crop_name = "gcamp"
     if name == "lf":
         transformations = [{"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_lf_shape(crop_name)}}]
-        location += f"{tag2}/TP_{'00000' if short else '*'}/RC_rectified/Cam_Right_*_rectified.tif"
+        location += f"{tag2}/TP_{TP or '*'}/RC_rectified/Cam_Right_*_rectified.tif"
         samples_per_dataset = 1
     elif name == "ls_slice":
         location = location.replace("TestOutputGcamp/", "")
@@ -383,17 +382,28 @@ def get_tensor_info(tag: str, name: str, meta: dict):
                 }
             },
         ]
-        location += f"Cam_Left_{'00000' if short else '*'}.h5/Data"
+        location += f"Cam_Left_{TP or '*'}.h5/Data"
     elif name == "lr":
         location = location.replace("LF_partially_restored/", "LF_computed/")
-        location += f"{tag2}/TP_{'00000' if short else '*'}/RCout/Cam_Right_*.tif"
+        location += f"{tag2}/TP_{TP or '*'}/RCout/Cam_Right_*.tif"
+        samples_per_dataset = 1
+        transformations = [
+            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, meta["z_out"]] + get_lf_shape(crop_name)}},
+            {
+                "Resize": {
+                    "apply_to": name,
+                    "shape": [1.0, 1.0, meta["scale"] / meta["nnum"], meta["scale"] / meta["nnum"]],
+                    "order": meta["interpolation_order"],
+                }
+            },
+            {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},
+        ]
     else:
         raise NotImplementedError
 
     if location is None or location.endswith("/"):
         raise NotImplementedError(f"tag: {tag}, name: {name}")
 
-    # assert tag.replace("_short", "") in location, (tag, name, location)
     if "crop_names" in meta:
         assert crop_name in meta["crop_names"]
 
