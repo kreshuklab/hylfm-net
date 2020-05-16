@@ -421,7 +421,7 @@ def debug():
 #     numpy.histogram(a
 
 
-def check_filter(tag: str, comment: str, meta: dict):
+def check_filter(tag: str, meta: dict):
     lf_crops = {"Heart_tightCrop": [[0, None], [0, None], [0, None]], "wholeFOV": [[0, None], [0, None], [0, None]]}
 
     filters = [
@@ -443,17 +443,14 @@ def check_filter(tag: str, comment: str, meta: dict):
     print("ds filtered", len(ds))
 
 
-def check_data(tag: str, comment: str, meta: dict):
+def check_data(tag: str, meta: dict):
+    ls_slice = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
+    if meta["scale"] == 4:
+        lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
+        assert len(lf) == len(ls_slice), (tag, len(lf), len(ls_slice))
 
-    # 2019-12-02_23.43.24 not matching! -> use 2019-12-02_23.43.24/stack_1_channel_3/originalCrop/TP_00000_originalCrop/ with 19px padding on rectified image on bottom (bead IMG is bigger)
-    # 2019-12-02_23.50.04 not matching! -> use 2019-12-02_23.50.04/stack_1_channel_3/originalCrop/TP_00000/ with 19px padding on rectified image on bottom (bead IMG is bigger)
-    # 2019-12-03_00.00.44/stack_1_channel_3/ not matching! -> use 2019-12-03_00.00.44/stack_1_channel_2/ with 19px padding on rectified image on bottom (bead IMG is bigger)
-
-    lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
-    ls = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
-    assert len(lf) == len(ls), (tag, len(lf), len(ls))
-    assert len(lf) > 0, tag
-    print(tag, len(lf), comment)
+    assert len(ls_slice) > 0, tag
+    print(tag, len(ls_slice))
     # lf = lf[0]["lf"]
     # ls = ls[0]["ls_slice"]
     # print("\tlf", lf.shape)
@@ -489,52 +486,8 @@ if __name__ == "__main__":
         warnings.warn(f"tagnr {tagnr} out if range")
     
     tag = tags[tagnr]
-    comment = ""
     with args.meta_path.open() as f:
         meta = yaml.safe_load(f)
 
-    check_filter(tag, comment, meta=meta)
-    if meta["scale"] == 2:
-        check_data(tag, comment, meta=meta)
-
-    # depug()
-    # search_data()
-
-#     tags = """
-# 2019-12-02_04.12.36_10msExp  # fish4 quality 4
-# 2019-12-02_23.17.56  # fish4 quality 3
-# 2019-12-02_23.43.24  # fish4 quality 3
-# 2019-12-02_23.50.04  # fish4 quality 3
-# # 2019-12-03_00.00.44  # fish4 at the moment only with 5ms exp time, 10ms coming
-# 2019-12-08_23.43.42  # fish1 quality 1
-# 2019-12-09_04.54.38  # fish2 test
-# 2019-12-09_05.21.16  # fish2 test
-# 2019-12-09_05.41.14_theGoldenOne  # fish2 test
-# 2019-12-09_05.55.26  # fish2 test
-# 2019-12-09_23.10.02  # fish3
-# 2019-12-09_23.17.30  # fish3
-# 2019-12-09_23.19.41  # fish3
-# 2019-12-10_00.40.09  # fish3
-# 2019-12-10_00.51.54  # fish3
-# 2019-12-10_01.03.50  # fish3
-# 2019-12-10_01.25.44  # fish3
-# 2019-12-10_02.13.34  # fish3
-# """.split(
-#         "\n"
-#     )
-#     full_tags = [tag for tag in tags if tag and not tag.startswith("#")]
-#     tags = []
-#     comments = []
-#
-#     for full_tag in full_tags:
-#         if "#" in full_tag:
-#             tag, comment = full_tag.split("#")
-#             tag = tag.strip()
-#         else:
-#             tag = full_tag
-#             comment = ""
-#
-#         tags.append(tag)
-#         comments.append(comment)
-#
-#     print(tags, comments)
+    check_data(tag, meta=meta)
+    check_filter(tag, meta=meta)

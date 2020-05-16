@@ -432,11 +432,13 @@ def check_filter(tag: str, meta: dict):
 
 
 def check_data(tag: str, meta: dict):
-    lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
     ls_slice = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
-    assert len(lf) == len(ls_slice), (tag, len(lf), len(ls_slice))
-    assert len(lf) > 0, tag
-    print(tag, len(lf))
+    if meta["scale"] == 4:
+        lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
+        assert len(lf) == len(ls_slice), (tag, len(lf), len(ls_slice))
+
+    assert len(ls_slice) > 0, tag
+    print(tag, len(ls_slice))
 
 
 def get_tags():
