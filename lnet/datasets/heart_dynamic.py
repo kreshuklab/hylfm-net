@@ -54,7 +54,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             z_slice = idx2z_slice_241
         crop_name = "wholeFOV"
         transformations += get_transformations(name, crop_name, meta=meta)
-    if tag in ["2019-12-02_04.12.36_10msExp_short"]:
+    elif tag in ["2019-12-02_04.12.36_10msExp_short"]:
         transformations = []
         meta["quality"] = 4
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191202_staticHeart_dynamicHeart/data/{tag.replace('_short', '')}/stack_1_channel_3/"
