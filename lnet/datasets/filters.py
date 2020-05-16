@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import typing
+import warnings
 
 import numpy
 
@@ -92,6 +93,10 @@ def signal2noise(
         if name in apply_to:
             signal = numpy.percentile(tensor, signal_percentile)
             noise = numpy.percentile(tensor, noise_percentile)
+            if not noise:
+                warnings.warn(f"encountered noise=0, signal={signal}")
+                return False
+
             if signal / noise < ratio:
                 return False
 
