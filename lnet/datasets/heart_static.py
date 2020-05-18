@@ -4,9 +4,10 @@ import warnings
 from pathlib import Path
 
 import yaml
+from lnet.transformations.affine_utils import get_precropped_ls_roi_in_raw_ls, get_precropped_ls_shape
 
 from lnet.datasets.base import TensorInfo, get_dataset_from_info
-from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241, get_raw_ls_crop, get_ls_shape, get_lf_shape
+from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241, get_ls_shape
 
 
 def get_tensor_info(tag: str, name: str, meta: dict):
@@ -57,16 +58,33 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "*Cam_Left.tif"
             transformations = [
                 {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 241, 1451, 1651]}},  # raw tif
-                {"Crop": {"apply_to": name, "crop": [[0, None]] + get_raw_ls_crop(crop_name, wrt_ref=True)}},
-                {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_ls_shape(crop_name)}},
+                {
+                    "Crop": {
+                        "apply_to": name,
+                        "crop": [[0, None]] + get_precropped_ls_roi_in_raw_ls(crop_name, for_slice=True, wrt_ref=False),
+                    }
+                },
+                {
+                    "Assert": {
+                        "apply_to": name,
+                        "expected_tensor_shape": [1, 1]
+                        + get_precropped_ls_shape(
+                            crop_name,
+                            for_slice=False,
+                            nnum=meta["nnum"],
+                            ls_scale=meta.get("ls_scale", meta["scale"]),
+                            wrt_ref=True,
+                        ),
+                    }
+                },
                 {
                     "Resize": {
                         "apply_to": name,
                         "shape": [
                             1.0,
                             meta["z_ls_rescaled"],
-                            meta["scale"] / meta["nnum"],
-                            meta["scale"] / meta["nnum"],
+                            meta.get("ls_scale", meta["scale"]) / meta["nnum"],
+                            meta.get("ls_scale", meta["scale"]) / meta["nnum"],
                         ],
                         "order": meta["interpolation_order"],
                     }
@@ -103,28 +121,51 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "*Cam_Left.tif"
             transformations = [
                 {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 241, 1451, 1651]}},  # raw tif
-                {"Crop": {"apply_to": name, "crop": [[0, None]] + get_raw_ls_crop(crop_name, wrt_ref=True)}},
-                {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_ls_shape(crop_name)}},
+                {
+                    "Crop": {
+                        "apply_to": name,
+                        "crop": [[0, None]] + get_precropped_ls_roi_in_raw_ls(crop_name, for_slice=True, wrt_ref=False),
+                    }
+                },
+                {
+                    "Assert": {
+                        "apply_to": name,
+                        "expected_tensor_shape": [1, 1]
+                        + get_precropped_ls_shape(
+                            crop_name,
+                            for_slice=True,
+                            nnum=meta["nnum"],
+                            ls_scale=meta.get("ls_scale", meta["scale"]),
+                            wrt_ref=True,
+                        ),
+                    }
+                },
                 {
                     "Resize": {
                         "apply_to": name,
                         "shape": [
                             1.0,
                             meta["z_ls_rescaled"],
-                            meta["scale"] / meta["nnum"],
-                            meta["scale"] / meta["nnum"],
+                            meta.get("ls_slice_scale", meta["scale"]) / meta["nnum"],
+                            meta.get("ls_slice_scale", meta["scale"]) / meta["nnum"],
                         ],
                         "order": meta["interpolation_order"],
                     }
                 },
+                {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},
                 {
                     "Assert": {
                         "apply_to": name,
-                        "expected_tensor_shape": [None, 1, meta["z_ls_rescaled"]]
-                        + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]],
+                        "expected_tensor_shape": [1, 1]
+                        + get_precropped_ls_shape(
+                            crop_name,
+                            for_slice=False,
+                            nnum=meta["nnum"],
+                            ls_scale=meta.get("ls_scale", meta["scale"]),
+                            wrt_ref=False,
+                        ),
                     }
                 },
-                {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},
             ]
 
     elif tag == "beads_should_fit_Heart_tightCrop_0":

@@ -432,10 +432,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1, 1]
-                    + get_pred_shape(
-                        crop_name, shrink=0, nnum=meta["nnum"], scale=meta["scale"], wrt_ref=False, z_out=meta["z_out"]
-                    ),
+                    "expected_tensor_shape": [1, 1, meta["z_out"]]
+                    + get_raw_lf_shape(crop_name, nnum=meta["nnum"], scale=meta["scale"], wrt_ref=False),
                 }
             },
             {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},

@@ -124,17 +124,14 @@ def get_transformations(name: str, crop_name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1, 1, 1]
-                    + [
-                        s // meta["nnum"] * meta.get("ls_scale", meta["scale"])
-                        for s in get_precropped_ls_shape(
-                            crop_name,
-                            for_slice=True,
-                            nnum=meta["nnum"],
-                            ls_scale=meta.get("ls_scale", meta["scale"]),
-                            wrt_ref=True,
-                        )[1:]
-                    ],
+                    "expected_tensor_shape": [1, 1]
+                    + get_precropped_ls_shape(
+                        crop_name,
+                        for_slice=True,
+                        nnum=meta["nnum"],
+                        ls_scale=meta.get("ls_scale", meta["scale"]),
+                        wrt_ref=False,
+                    ),
                 }
             },
         ]

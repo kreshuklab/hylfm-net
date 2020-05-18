@@ -113,8 +113,7 @@ class CropLSforDynamicTraining(Transform):
 
 
 class CropWhatShrinkDoesNot(Transform):
-    def __init__(self, apply_to: str, meta: dict = None):
-        assert meta is not None
+    def __init__(self, apply_to: str, meta: dict):
         assert isinstance(apply_to, str)
 
         super().__init__(apply_to=apply_to)
