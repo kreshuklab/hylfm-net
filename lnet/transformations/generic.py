@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Dict, List, Optional, Union
 
 import numpy
@@ -7,6 +8,8 @@ from scipy.special import expit
 
 from lnet.transformations.base import DTypeMapping, Transform
 
+
+logger = logging.getLogger(__name__)
 
 class AddConstant(Transform):
     def __init__(self, value: float, **super_kwargs):
@@ -101,4 +104,5 @@ class Assert(Transform):
             elif si != s:
                 raise ValueError(f"expected shape {self.expected_shape}, but found {shape_is} for tensor {name}")
 
+        logger.debug(f"{name} has expected shape: {shape_is}")
         return tensor

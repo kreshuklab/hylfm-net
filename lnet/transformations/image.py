@@ -7,7 +7,7 @@ import skimage.transform
 import torch
 from scipy.ndimage import zoom
 
-from lnet.transformations.affine_utils import get_crops, get_lf_crop
+from lnet.transformations.affine_utils import get_ls_roi, get_lf_roi_in_raw_lf
 from lnet.transformations.base import Transform
 
 logger = logging.getLogger(__name__)
@@ -47,31 +47,66 @@ class Crop(Transform):
         return out
 
 
-class CropByCropName(Transform):
-    def __init__(
-        self,
-        apply_to: str,
-        crops: typing.Dict[str, Sequence[Sequence[Optional[int]]]] = None,
-        meta: Optional[dict] = None,
-    ):
-        assert isinstance(apply_to, str), "str to check if tensor is a slice (needed for get_crops)"
-        if crops is None and apply_to == "lf":
-            assert meta is not None
-            crops = {
-                crop_name: get_lf_crop(crop_name, shrink=meta["shrink"], nnum=meta["nnum"], scale=meta["scale"])
-                for crop_name in meta["crop_names"]
-            }
+# class CropByCropName(Transform):
+#     def __init__(
+#         self,
+#         apply_to: str,
+#         crops: typing.Dict[str, Sequence[Sequence[Optional[int]]]] = None,
+#         meta: Optional[dict] = None,
+#     ):
+#         assert isinstance(apply_to, str), "str to check if tensor is a slice (needed for get_crops)"
+#         if crops is None and apply_to in ["lf", "ls_reg", "ls_trf"]:
+#             assert meta is not None
+#             crops = {
+#                 crop_name: get_lf_crop(crop_name, shrink=meta["shrink"], nnum=meta["nnum"], scale=meta["scale"])
+#                 for crop_name in meta["crop_names"]
+#             }
+#
+#         assert crops is not None
+#         super().__init__(apply_to=apply_to)
+#         self.crops = {}
+#         for crop_name, crop in crops.items():
+#             if apply_to in ["ls_reg", "ls_trf"]:
+#                 crop_float = [[None if cc is None else cc / meta["nnum"] * meta["scale"] for cc in c] for c in crop]
+#                 crop = [[None if cc is None else cc // meta["nnum"] * meta["scale"] for cc in c] for c in crop]
+#                 assert crop_float == crop
+#                 # add z axis
+#                 crop.insert(1, [0, None])
+#
+#             self.crops[crop_name] = Crop(apply_to=apply_to, crop=crop)
+#
+#     def apply_to_tensor(
+#         self, tensor: typing.Any, *, name: str, idx: int, meta: typing.List[dict]
+#     ) -> typing.Union[numpy.ndarray, torch.Tensor]:
+#         crop_name = meta[0][name]["crop_name"]
+#         assert all([tmeta[name]["crop_name"] == crop_name for tmeta in meta]), meta
+#         return self.crops[crop_name].apply_to_tensor(tensor=tensor, name=name, idx=idx, meta=meta)
 
-        assert crops is not None
+
+class CropLSforDynamicTraining(Transform):
+    def __init__(self, apply_to: str, meta: dict = None):
+        assert meta is not None
+        assert isinstance(apply_to, str), "str to check if tensor is a slice (needed for get_crops)"
+        lf_crops = {crop_name: None for crop_name in meta["crop_names"]}
+
         super().__init__(apply_to=apply_to)
         self.crops = {}
-        for crop_name, crop in crops.items():
-            if apply_to == "ls_trf":
-                # add z axis
-                crop = list(crop)
-                crop.insert(1, [0, None])
-
-            self.crops[crop_name] = Crop(apply_to=apply_to, crop=crop)
+        for crop_name, lf_crop in lf_crops.items():
+            assert crop_name in meta["crop_names"], (crop_name, meta["crop_names"])
+            ls_roi = get_ls_roi(
+                crop_name,
+                nnum=meta["nnum"],
+                pred_z_min=meta["pred_z_min"],
+                pred_z_max=meta["pred_z_max"],
+                for_slice="slice" in apply_to,
+                shrink=meta["shrink"],
+                scale=meta["scale"],
+                wrt_ref=False,
+                z_ls_rescaled=meta["z_ls_rescaled"],
+                ls_scale=meta.get("ls_scale", meta["scale"]),
+            )
+            ls_roi.insert(0, [0, None])  # add channel dim
+            self.crops[crop_name] = Crop(apply_to=apply_to, crop=ls_roi)
 
     def apply_to_tensor(
         self, tensor: typing.Any, *, name: str, idx: int, meta: typing.List[dict]
@@ -81,21 +116,22 @@ class CropByCropName(Transform):
         return self.crops[crop_name].apply_to_tensor(tensor=tensor, name=name, idx=idx, meta=meta)
 
 
-class CropLSforDynamicTraining(Transform):
-    def __init__(
-        self, apply_to: str, lf_crops: typing.Dict[str, Sequence[Sequence[Optional[int]]]] = None, meta: dict = None
-    ):
+class CropWhatShrinkDoesNot(Transform):
+    def __init__(self, apply_to: str, meta: dict = None):
         assert meta is not None
-        assert isinstance(apply_to, str), "str to check if tensor is a slice (needed for get_crops)"
-        if lf_crops is None:
-            lf_crops = {crop_name: None for crop_name in meta["crop_names"]}
+        assert isinstance(apply_to, str)
 
         super().__init__(apply_to=apply_to)
         self.crops = {}
-        for crop_name, lf_crop in lf_crops.items():
-            assert crop_name in meta["crop_names"], (crop_name, meta["crop_names"])
-            _, _, ls_out = get_crops(crop_name, lf_crop=lf_crop, meta=meta, for_slice="slice" in apply_to)
-            self.crops[crop_name] = Crop(apply_to=apply_to, crop=ls_out)
+        for crop_name in meta["crop_names"]:
+            roi = get_lf_roi_in_raw_lf(
+                crop_name, nnum=meta["nnum"], shrink=meta["shrink"], scale=meta["scale"], wrt_ref=False
+            )
+            if apply_to != "lf":
+                roi.insert(0, [0, None])  # add z dim
+
+            roi.insert(0, [0, None])  # add channel dim
+            self.crops[crop_name] = Crop(apply_to=apply_to, crop=roi)
 
     def apply_to_tensor(
         self, tensor: typing.Any, *, name: str, idx: int, meta: typing.List[dict]

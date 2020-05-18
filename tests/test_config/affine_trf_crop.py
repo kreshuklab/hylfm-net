@@ -6,7 +6,7 @@ import numpy
 from lnet.transformations import Crop
 
 from lnet.datasets import ZipDataset, get_dataset_from_info, get_tensor_info
-from lnet.transformations.affine_utils import get_crops, get_lf_shape, get_ls_shape, get_ref_ls_shape
+from lnet.transformations.affine_utils import get_lf_shape, get_ls_shape, get_pred_shape, get_precropped_ls_shape
 from lnet.transformations.utils import get_composed_transformation_from_config
 
 import matplotlib.pyplot as plt
@@ -14,11 +14,9 @@ import matplotlib.pyplot as plt
 
 def save_vol(sample, name, setting_name):
     vol = sample[name]
-    Path(f"/g/kreshuk/LF_computed/lnet/verify_affine_trf_on_beads_3/{setting_name}").mkdir(parents=True, exist_ok=True)
+    Path(f"/g/kreshuk/LF_computed/lnet/check_gcamp/{setting_name}").mkdir(parents=True, exist_ok=True)
     imageio.volsave(
-        f"/g/kreshuk/LF_computed/lnet/verify_affine_trf_on_beads_3/{setting_name}/{name}.tif",
-        numpy.squeeze(vol),
-        bigtiff=False,
+        f"/g/kreshuk/LF_computed/lnet/check_gcamp/{setting_name}/{name}.tif", numpy.squeeze(vol), bigtiff=False
     )
 
 
@@ -32,151 +30,152 @@ def plot_vol(sample, name):
     plt.show()
 
 
-def test_ls_vs_ls_tif():
-    meta = {
-        "z_out": 49,
-        "z_ls_rescaled": 241,
-        "nnum": 19,
-        "interpolation_order": 2,
-        "scale": 2,
-        "shrink": 6,
-        "ls_z_min": 0,
-        "ls_z_max": 241,
-        "pred_z_min": 0,
-        "pred_z_max": 838,
-    }
-
-    ls = get_dataset_from_info(get_tensor_info("heart_static.beads_ref_Heart_tightCrop", "ls", meta), cache=False)
-    ls_tif = get_dataset_from_info(
-        get_tensor_info("heart_static.beads_ref_Heart_tightCrop_tif", "ls", meta), cache=False
-    )
-
-    ls = ls[0]["ls"][0, 0]
-    ls_tif = ls_tif[0]["ls"][0, 0]
-
-    Path("/g/kreshuk/LF_computed/lnet/debug_affine_trf_on_beads/Heart_tightCrop").mkdir(exist_ok=True)
-    imageio.volwrite(
-        f"/g/kreshuk/LF_computed/lnet/debug_affine_trf_on_beads/Heart_tightCrop/ls_osize.tif", numpy.squeeze(ls)
-    )
-    imageio.volwrite(
-        f"/g/kreshuk/LF_computed/lnet/debug_affine_trf_on_beads/Heart_tightCrop/ls_osize_tif.tif", numpy.squeeze(ls_tif)
-    )
-
-
-def find_crop(crop_name: str, pred: str, target_to_compare_to: str, sample: dict, meta: dict):
-    # fake network shrinkage:
-    sample = Crop(
-        apply_to=pred, crop=[(0, None), (0, None), (meta["shrink"], -meta["shrink"]), (meta["shrink"], -meta["shrink"])]
-    )(sample)
-
-    trf_config = [
-        {
-            "Assert": {
-                "apply_to": pred,
-                "expected_tensor_shape": [None, 1, meta["z_out"]]
-                + [s / meta["nnum"] * meta["scale"] - 2 * meta["shrink"] for s in get_lf_shape(crop_name)],
-            }
-        },
-        {
-            "Assert": {
-                "apply_to": target_to_compare_to,
-                "expected_tensor_shape": [None, 1, meta["z_ls_rescaled"]]
-                + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]],
-            }
-        },
-        {"SetPixelValue": {"apply_to": pred, "value": 1.0}},
-        # {"Cast": {"apply_to": pred, "dtype": "float32", "device": "cuda"}},
-        {
-            "AffineTransformation": {
-                "apply_to": {pred: pred + "_trf"},
-                "target_to_compare_to": target_to_compare_to,
-                "order": meta["interpolation_order"],
-                "ref_input_shape": [838] + get_lf_shape(crop_name),
-                "bdv_affine_transformations": crop_name,
-                "ref_output_shape": get_ref_ls_shape(crop_name),
-                "ref_crop_in": None,
-                "ref_crop_out": None,
-                "inverted": False,
-                "padding_mode": "zeros",
-            }
-        },
-        {"Cast": {"apply_to": target_to_compare_to, "dtype": "float32", "device": "numpy"}},
-        {"Cast": {"apply_to": pred, "dtype": "float32", "device": "numpy"}},
-        {"Cast": {"apply_to": pred + "_trf", "dtype": "float32", "device": "numpy"}},
-    ]
-
-    trf = get_composed_transformation_from_config(trf_config)
-    sample = trf(sample)
-
-    for name in [pred, target_to_compare_to, pred + "_trf"]:
-        print(name, sample[name].shape)
-        save_vol(sample, name, setting_name)
-        plot_vol(sample, name)
-
-
-def _old_test_trf_with_crop(crop_name: str, pred: str, target_to_compare_to: str, sample: dict, meta: dict):
-    setting_name = f"f4_{crop_name}"
-
-    # fake network shrinkage:
-    sample = Crop(
-        apply_to=pred, crop=[(0, None), (0, None), (meta["shrink"], -meta["shrink"]), (meta["shrink"], -meta["shrink"])]
-    )(sample)
-
-    lf_crops = {"Heart_tightCrop": [[0, None]] * 3, "wholeFOV": [[0, None]] * 3}
-
-    trf_config = [
-        {
-            "Assert": {
-                "apply_to": pred,
-                "expected_tensor_shape": [None, 1, meta["z_out"]]
-                + [s / meta["nnum"] * meta["scale"] - 2 * meta["shrink"] for s in get_lf_shape(crop_name)],
-            }
-        },
-        {
-            "Assert": {
-                "apply_to": target_to_compare_to,
-                "expected_tensor_shape": [None, 1, meta["z_ls_rescaled"]]
-                + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]],
-            }
-        },
-        {"CropLSforDynamicTraining": {"apply_to": target_to_compare_to, "lf_crops": lf_crops, "meta": meta}},
-        # {"SetPixelValue": {"apply_to": pred, "value": 1.0}},
-        {"Cast": {"apply_to": pred, "dtype": "float32", "device": "cuda"}},
-        {
-            "AffineTransformationDynamicTraining": {
-                "apply_to": {pred: pred + "_trf"},
-                "target_to_compare_to": target_to_compare_to,
-                "lf_crops": lf_crops,
-                "meta": meta,
-                "padding_mode": "zeros",
-            }
-        },
-        # {
-        #     "AffineTransformation": {
-        #         "apply_to": {pred: pred + "_trf"},
-        #         "target_to_compare_to": target_to_compare_to,
-        #         "order": meta["interpolation_order"],
-        #         "ref_input_shape": [838] + get_lf_shape(crop_name),
-        #         "bdv_affine_transformations": crop_name,
-        #         "ref_output_shape": get_ref_ls_shape(crop_name),
-        #         "ref_crop_in": ref_crop_in,
-        #         "ref_crop_out": ref_crop_out,
-        #         "inverted": False,
-        #         "padding_mode": "border",
-        #     }
-        # },
-        {"Cast": {"apply_to": target_to_compare_to, "dtype": "float32", "device": "numpy"}},
-        {"Cast": {"apply_to": pred, "dtype": "float32", "device": "numpy"}},
-        {"Cast": {"apply_to": pred + "_trf", "dtype": "float32", "device": "numpy"}},
-    ]
-
-    trf = get_composed_transformation_from_config(trf_config)
-    sample = trf(sample)
-
-    for name in [pred, target_to_compare_to, pred + "_trf"]:
-        print(name, sample[name].shape)
-        save_vol(sample, name, setting_name)
-        plot_vol(sample, name)
+# def test_ls_vs_ls_tif():
+#     meta = {
+#         "z_out": 49,
+#         "z_ls_rescaled": 241,
+#         "nnum": 19,
+#         "interpolation_order": 2,
+#         "scale": 2,
+#         "shrink": 6,
+#         "ls_z_min": 0,
+#         "ls_z_max": 241,
+#         "pred_z_min": 0,
+#         "pred_z_max": 838,
+#     }
+#
+#     ls = get_dataset_from_info(get_tensor_info("heart_static.beads_ref_Heart_tightCrop", "ls", meta), cache=False)
+#     ls_tif = get_dataset_from_info(
+#         get_tensor_info("heart_static.beads_ref_Heart_tightCrop_tif", "ls", meta), cache=False
+#     )
+#
+#     ls = ls[0]["ls"][0, 0]
+#     ls_tif = ls_tif[0]["ls"][0, 0]
+#
+#     Path("/g/kreshuk/LF_computed/lnet/debug_affine_trf_on_beads/Heart_tightCrop").mkdir(exist_ok=True)
+#     imageio.volwrite(
+#         f"/g/kreshuk/LF_computed/lnet/debug_affine_trf_on_beads/Heart_tightCrop/ls_osize.tif", numpy.squeeze(ls)
+#     )
+#     imageio.volwrite(
+#         f"/g/kreshuk/LF_computed/lnet/debug_affine_trf_on_beads/Heart_tightCrop/ls_osize_tif.tif", numpy.squeeze(ls_tif)
+#     )
+#
+#
+# def find_crop(crop_name: str, pred: str, target_to_compare_to: str, sample: dict, meta: dict):
+#     # fake network shrinkage:
+#     sample = Crop(
+#         apply_to=pred, crop=[(0, None), (0, None), (meta["shrink"], -meta["shrink"]), (meta["shrink"], -meta["shrink"])]
+#     )(sample)
+#
+#     trf_config = [
+#         {
+#             "Assert": {
+#                 "apply_to": pred,
+#                 "expected_tensor_shape": [None, 1, meta["z_out"]]
+#                 + [s / meta["nnum"] * meta["scale"] - 2 * meta["shrink"] for s in get_lf_shape(crop_name)],
+#             }
+#         },
+#         {
+#             "Assert": {
+#                 "apply_to": target_to_compare_to,
+#                 "expected_tensor_shape": [None, 1, meta["z_ls_rescaled"]]
+#                 + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]],
+#             }
+#         },
+#         {"SetPixelValue": {"apply_to": pred, "value": 1.0}},
+#         # {"Cast": {"apply_to": pred, "dtype": "float32", "device": "cuda"}},
+#         {
+#             "AffineTransformation": {
+#                 "apply_to": {pred: pred + "_trf"},
+#                 "target_to_compare_to": target_to_compare_to,
+#                 "order": meta["interpolation_order"],
+#                 "ref_input_shape": [838] + get_lf_shape(crop_name, wrt_ref=True),
+#                 "bdv_affine_transformations": crop_name,
+#                 "ref_output_shape": get_ls_ref_shape(crop_name),
+#                 "ref_crop_in": None,
+#                 "ref_crop_out": None,
+#                 "inverted": False,
+#                 "padding_mode": "zeros",
+#             }
+#         },
+#         {"Cast": {"apply_to": target_to_compare_to, "dtype": "float32", "device": "numpy"}},
+#         {"Cast": {"apply_to": pred, "dtype": "float32", "device": "numpy"}},
+#         {"Cast": {"apply_to": pred + "_trf", "dtype": "float32", "device": "numpy"}},
+#     ]
+#
+#     trf = get_composed_transformation_from_config(trf_config)
+#     sample = trf(sample)
+#
+#     for name in [pred, target_to_compare_to, pred + "_trf"]:
+#         print(name, sample[name].shape)
+#         save_vol(sample, name, setting_name)
+#         plot_vol(sample, name)
+#
+#
+# def _old_test_trf_with_crop(crop_name: str, pred: str, target_to_compare_to: str, sample: dict, meta: dict):
+#     setting_name = f"f4_{crop_name}"
+#
+#     # fake network shrinkage:
+#     sample = Crop(
+#         apply_to=pred, crop=[(0, None), (0, None), (meta["shrink"], -meta["shrink"]), (meta["shrink"], -meta["shrink"])]
+#     )(sample)
+#
+#     lf_crops = {"Heart_tightCrop": [[0, None]] * 3, "wholeFOV": [[0, None]] * 3}
+#
+#     trf_config = [
+#         {
+#             "Assert": {
+#                 "apply_to": pred,
+#                 "expected_tensor_shape": [None, 1, meta["z_out"]]
+#                 + [s / meta["nnum"] * meta["scale"] - 2 * meta["shrink"] for s in get_lf_shape(crop_name)],
+#             }
+#         },
+#         {
+#             "Assert": {
+#                 "apply_to": target_to_compare_to,
+#                 "expected_tensor_shape": [None, 1, meta["z_ls_rescaled"]]
+#                 + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]],
+#             }
+#         },
+#         {"CropLSforDynamicTraining": {"apply_to": target_to_compare_to, "lf_crops": lf_crops, "meta": meta}},
+#         # {"SetPixelValue": {"apply_to": pred, "value": 1.0}},
+#         {"Cast": {"apply_to": pred, "dtype": "float32", "device": "cuda"}},
+#         {
+#             "AffineTransformationDynamicTraining": {
+#                 "apply_to": {pred: pred + "_trf"},
+#                 "target_to_compare_to": target_to_compare_to,
+#                 "lf_crops": lf_crops,
+#                 "meta": meta,
+#                 "padding_mode": "zeros",
+#             }
+#         },
+#         # {
+#         #     "AffineTransformation": {
+#         #         "apply_to": {pred: pred + "_trf"},
+#         #         "target_to_compare_to": target_to_compare_to,
+#         #         "order": meta["interpolation_order"],
+#         #         "ref_input_shape": [838] + get_lf_shape(crop_name),
+#         #         "bdv_affine_transformations": crop_name,
+#         #         "ref_output_shape": get_ref_ls_shape(crop_name),
+#         #         "ref_crop_in": ref_crop_in,
+#         #         "ref_crop_out": ref_crop_out,
+#         #         "inverted": False,
+#         #         "padding_mode": "border",
+#         #     }
+#         # },
+#         {"Cast": {"apply_to": target_to_compare_to, "dtype": "float32", "device": "numpy"}},
+#         {"Cast": {"apply_to": pred, "dtype": "float32", "device": "numpy"}},
+#         {"Cast": {"apply_to": pred + "_trf", "dtype": "float32", "device": "numpy"}},
+#     ]
+#
+#     trf = get_composed_transformation_from_config(trf_config)
+#     sample = trf(sample)
+#
+#     for name in [pred, target_to_compare_to, pred + "_trf"]:
+#         print(name, sample[name].shape)
+#         save_vol(sample, name, setting_name)
+#         plot_vol(sample, name)
+#
 
 
 def test_trf(crop_name: str, meta: dict):
@@ -188,13 +187,28 @@ def test_trf(crop_name: str, meta: dict):
     if crop_name == "Heart_tightCrop":
         ls_reg_tag = "heart_static.2019-12-09_08.41.41"  # heart_static.beads_ref_Heart_tightCrop_tif
         ls_tag = "heart_static.2019-12-09_08.41.41"  # heart_static.beads_ref_Heart_tightCrop
-    elif crop_name == "wholeFOV":
+    elif crop_name in ["wholeFOV", "gcamp"]:
         sample = {}
         sample[ls_reg] = numpy.ones(
-            [1, 1, meta["z_out"]] + [s // meta["nnum"] * meta["scale"] for s in get_lf_shape(crop_name)]
+            [1, 1]
+            + get_pred_shape(
+                crop_name,
+                nnum=meta["nnum"],
+                shrink=meta["shrink"],
+                scale=meta["scale"],
+                wrt_ref=False,
+                z_out=meta["z_out"],
+            )
         )
         sample[ls] = numpy.ones(
-            [1, 1, meta["z_ls_rescaled"]] + [s // meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]]
+            [1, 1]
+            + get_precropped_ls_shape(
+                crop_name,
+                nnum=meta["nnum"],
+                for_slice=False,
+                wrt_ref=False,
+                ls_scale=meta.get("ls_scale", meta["scale"]),
+            )
         )
         sample["meta"] = [{ls_reg: {"crop_name": crop_name}, ls: {"crop_name": crop_name}}]
     else:
@@ -204,54 +218,46 @@ def test_trf(crop_name: str, meta: dict):
         ds = ZipDataset(
             OrderedDict(
                 [
-                    (
-                        ls_reg,
-                        get_dataset_from_info(
-                            get_tensor_info(ls_reg_tag, ls_reg, meta), cache=True
-                        ),
-                    ),
-                    (
-                        ls,
-                        get_dataset_from_info(
-                            get_tensor_info(ls_tag, ls, meta), cache=True
-                        ),
-                    ),
+                    (ls_reg, get_dataset_from_info(get_tensor_info(ls_reg_tag, ls_reg, meta), cache=True)),
+                    (ls, get_dataset_from_info(get_tensor_info(ls_tag, ls, meta), cache=True)),
                 ]
             ),
             join_dataset_masks=False,
         )
 
         sample = ds[2]
-    # fake network shrinkage:
-    sample = Crop(
-        apply_to=ls_reg,
-        crop=[(0, None), (0, None), (meta["shrink"], -meta["shrink"]), (meta["shrink"], -meta["shrink"])],
-    )(sample)
 
-    # lf_crops = {"Heart_tightCrop": [[0, None]] * 3, "wholeFOV": [[0, None]] * 3}
-    lf_crops = {"wholeFOV": [[0, None]] * 3}
+    expected_tensor_shape_ls_reg = [1, 1] + get_pred_shape(
+        crop_name, nnum=meta["nnum"], shrink=meta["shrink"], scale=meta["scale"], wrt_ref=False, z_out=meta["z_out"]
+    )
+
+    expected_tensor_shape_ls = [1, 1] + get_precropped_ls_shape(
+        crop_name, nnum=meta["nnum"], for_slice=False, wrt_ref=False, ls_scale=meta.get("ls_scale", meta["scale"])
+    )
+
+    print("expected_tensor_shape_ls_reg", expected_tensor_shape_ls_reg)
+    print("expected_tensor_shape_ls", expected_tensor_shape_ls)
     trf_config = [
-        {
-            "Assert": {
-                "apply_to": ls_reg,
-                "expected_tensor_shape": [None, 1, meta["z_out"]]
-                + [s / meta["nnum"] * meta["scale"] - 2 * meta["shrink"] for s in get_lf_shape(crop_name)],
-            }
-        },
+        {"Assert": {"apply_to": ls_reg, "expected_tensor_shape": expected_tensor_shape_ls_reg}},
         {
             "Assert": {
                 "apply_to": ls,
-                "expected_tensor_shape": [None, 1, meta["z_ls_rescaled"]]
-                + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]],
+                "expected_tensor_shape": [
+                    1,
+                    1,
+                    241,
+                    1501 / meta["nnum"] * meta.get("ls_scale", meta["scale"]),
+                    1786 / meta["nnum"] * meta.get("ls_scale", meta["scale"]),
+                ],
             }
         },
-        {"CropLSforDynamicTraining": {"apply_to": ls, "lf_crops": lf_crops, "meta": meta}},
+        {"Assert": {"apply_to": ls, "expected_tensor_shape": expected_tensor_shape_ls}},
+        {"CropLSforDynamicTraining": {"apply_to": ls, "meta": meta}},
         {"Cast": {"apply_to": ls_reg, "dtype": "float32", "device": device}},
         {
             "AffineTransformationDynamicTraining": {
                 "apply_to": {ls_reg: ls_reg + "_trf"},
                 "target_to_compare_to": ls,
-                "lf_crops": lf_crops,
                 "meta": meta,
                 "padding_mode": "zeros",
             }
@@ -263,9 +269,9 @@ def test_trf(crop_name: str, meta: dict):
 
     sample = get_composed_transformation_from_config(trf_config)(sample)
 
-    setting_name = f"wholeFOV_f4"
+    setting_name = f"gcamp_f8"
 
-    for name in [ls, ls_reg + "_trf"]:
+    for name in [ls, ls_reg, ls_reg + "_trf"]:
         print(name, sample[name].shape)
         save_vol(sample, name, setting_name)
         # plot_vol(sample, name)
@@ -284,18 +290,8 @@ def test_inverse_trf(crop_name: str, meta: dict, with_shrinkage_crop: bool = Tru
         ds = ZipDataset(
             OrderedDict(
                 [
-                    (
-                        ls_reg,
-                        get_dataset_from_info(
-                            get_tensor_info(ls_reg_tag, ls_reg, meta), cache=True
-                        ),
-                    ),
-                    (
-                        ls_trf,
-                        get_dataset_from_info(
-                            get_tensor_info(ls_trf_tag, ls_trf, meta), cache=False
-                        ),
-                    ),
+                    (ls_reg, get_dataset_from_info(get_tensor_info(ls_reg_tag, ls_reg, meta), cache=True)),
+                    (ls_trf, get_dataset_from_info(get_tensor_info(ls_trf_tag, ls_trf, meta), cache=False)),
                 ]
             ),
             join_dataset_masks=False,
@@ -325,17 +321,19 @@ def test_inverse_trf(crop_name: str, meta: dict, with_shrinkage_crop: bool = Tru
 
 
 if __name__ == "__main__":
-    crop_name = "wholeFOV"  # "staticHeartFOV" "wholeFOV" "Heart_tightCrop"
+    crop_name = "gcamp"  # "gcamp", "staticHeartFOV" "wholeFOV" "Heart_tightCrop"
     meta = {
         "z_out": 49,
         "nnum": 19,
-        "scale": 4,
+        "scale": 8,
         "shrink": 8,
         "interpolation_order": 2,
         "z_ls_rescaled": 241,
-        "pred_z_min": 0,
-        "pred_z_max": 838,
-        "crop_names": ["wholeFOV"], # ["Heart_tightCrop", "wholeFOV", "staticHeartFOV"]
+        "pred_z_min": 142,
+        "pred_z_max": 620,
+        "z_ls_min": 60,
+        "z_ls_max": 181,
+        "crop_names": ["gcamp"],  # ["gcamp", "Heart_tightCrop", "wholeFOV", "staticHeartFOV"]
     }
     # test_ls_vs_ls_tif()
     # test_inverse_trf(crop_name, meta=meta)

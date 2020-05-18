@@ -9,9 +9,11 @@ from scipy.ndimage import affine_transform
 from lnet.transformations.affine_utils import (
     get_bdv_affine_transformations_by_name,
     get_lf_shape,
-    get_ref_ls_shape,
-    get_crops,
-    get_lf_crop,
+    get_pred_roi_in_precropped_lf,
+    get_ls_roi,
+    get_ls_ref_shape,
+    get_raw_lf_shape,
+    MAX_SRHINK_IN_LENSLETS,
 )
 
 logger = logging.getLogger(__name__)
@@ -153,7 +155,7 @@ class AffineTransformation(torch.nn.Module):
         if ref_crop_in is None:
             ref_crop_in = tuple([(0, None) for _ in range(len(ref_input_shape))])
         else:
-            assert len(ref_crop_in) == len(ref_input_shape)
+            assert len(ref_crop_in) == len(ref_input_shape), (ref_crop_in, ref_input_shape)
         # elif len(ref_crop_in) == len(ref_input_shape) + 1:
         #     assert ref_crop_in[0][0] == 0 and ref_crop_in[0][1] == 0, ref_crop_in
         #     ref_crop_in = ref_crop_in[1:]
@@ -471,22 +473,38 @@ class AffineTransformationDynamicTraining(torch.nn.Module):
         target_to_compare_to: str,
         meta: dict,
         padding_mode: str = "border",
-        lf_crops: Sequence[Sequence[Optional[int]]] = None,
     ):
         super().__init__()
         self.apply_to = apply_to
         ops = {}
         for crop_name in meta["crop_names"]:
-            ref_crop_in, ref_crop_out, _ = get_crops(crop_name, lf_crop=None if lf_crops is None else lf_crops[crop_name], meta=meta)
+            ref_input_shape = [838] + get_raw_lf_shape(crop_name, wrt_ref=True)
+            ref_roi_in = [[meta["pred_z_min"], meta["pred_z_max"]]] + [
+                [MAX_SRHINK_IN_LENSLETS * meta["nnum"], s - MAX_SRHINK_IN_LENSLETS * meta["nnum"]]
+                for s in ref_input_shape[1:]
+            ]
+            ref_roi_out = get_ls_roi(
+                crop_name,
+                pred_z_min=meta["pred_z_min"],
+                pred_z_max=meta["pred_z_max"],
+                for_slice=False,
+                shrink=meta["shrink"],
+                scale=meta["scale"],
+                nnum=meta["nnum"],
+                wrt_ref=True,
+                z_ls_rescaled=meta["z_ls_rescaled"],
+                ls_scale=meta.get("ls_scale", meta["scale"]),
+            )
+
             ops[crop_name] = AffineTransformation(
                 apply_to=apply_to,
                 target_to_compare_to=target_to_compare_to,
                 order=meta["interpolation_order"],
-                ref_input_shape=[838] + get_lf_shape(crop_name),
+                ref_input_shape=ref_input_shape,
                 bdv_affine_transformations=crop_name,
-                ref_output_shape=get_ref_ls_shape(crop_name),
-                ref_crop_in=ref_crop_in,  # noqa
-                ref_crop_out=ref_crop_out,  # noqa
+                ref_output_shape=get_ls_ref_shape(crop_name),
+                ref_crop_in=ref_roi_in,  # noqa
+                ref_crop_out=ref_roi_out,  # noqa
                 inverted=False,
                 padding_mode=padding_mode,
                 align_corners=meta.get("align_corners", False),

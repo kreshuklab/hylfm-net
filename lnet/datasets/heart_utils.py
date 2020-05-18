@@ -3,24 +3,39 @@ from lnet.transformations.affine_utils import (
     get_bdv_affine_transformations_by_name,
     get_lf_shape,
     get_ls_shape,
-    get_raw_ls_crop,
-    get_ref_ls_shape,
     staticHeartFOV,
     wholeFOV,
+    get_precropped_ls_roi_in_raw_ls,
+    get_precropped_ls_shape,
+    get_raw_lf_shape,
+    get_ls_ref_shape,
 )
 
 
 def get_transformations(name: str, crop_name: str, meta: dict):
     assert crop_name in [Heart_tightCrop, staticHeartFOV, wholeFOV]
     if name == "lf":
-        return [{"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_lf_shape(crop_name)}}]
+        return [
+            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_raw_lf_shape(crop_name, wrt_ref=True)}}
+        ]
     elif name in ["ls", "ls_trf"]:
         trf = [
             {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 241, 2048, 2060]}},  # raw ls shape
             {"FlipAxis": {"apply_to": name, "axis": 2}},
             {"FlipAxis": {"apply_to": name, "axis": 1}},
-            {"Crop": {"apply_to": name, "crop": get_raw_ls_crop(crop_name)}},
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_ls_shape(crop_name)}},
+            {
+                "Crop": {
+                    "apply_to": name,
+                    "crop": [[0, None]] + get_precropped_ls_roi_in_raw_ls(crop_name, for_slice=False, wrt_ref=False),
+                }
+            },
+            {
+                "Assert": {
+                    "apply_to": name,
+                    "expected_tensor_shape": [1, 1]
+                    + get_precropped_ls_shape(crop_name, for_slice=True, nnum=meta["nnum"], wrt_ref=True),
+                }
+            },
         ]
         if name == "ls_trf":
             trf += [
@@ -29,13 +44,13 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                     "AffineTransformation": {
                         "apply_to": name,
                         "target_to_compare_to": [meta["z_out"]]
-                        + [xy / meta["nnum"] * meta["scale"] for xy in get_lf_shape(crop_name)],
+                        + get_lf_shape(crop_name, shrink=0, nnum=meta["nnum"], scale=meta["scale"], wrt_ref=False),
                         "order": meta["interpolation_order"],
-                        "ref_input_shape": [838] + get_lf_shape(crop_name),
+                        "ref_input_shape": [838] + get_raw_lf_shape(crop_name, wrt_ref=True),
                         "bdv_affine_transformations": get_bdv_affine_transformations_by_name(crop_name),
-                        "ref_output_shape": get_ref_ls_shape(crop_name),
+                        "ref_output_shape": get_ls_ref_shape(crop_name),
                         "ref_crop_in": [[0, None], [0, None], [0, None]],
-                        "ref_crop_out": get_raw_ls_crop(crop_name, wrt_ref=True),
+                        "ref_crop_out": [[0, None], [0, None], [0, None]],
                         "inverted": True,
                         "padding_mode": "border",
                         "align_corners": meta.get("align_corners", False),
@@ -62,7 +77,9 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                     "Assert": {
                         "apply_to": name,
                         "expected_tensor_shape": [None, 1, meta["z_ls_rescaled"]]
-                        + [s / meta["nnum"] * meta["scale"] for s in get_ls_shape(crop_name)[1:]],
+                        + get_precropped_ls_shape(
+                            crop_name, nnum=meta["nnum"], ls_scale=meta.get("ls_scale", meta["scale"])
+                        )[1:],
                     }
                 },
             ]
@@ -72,8 +89,25 @@ def get_transformations(name: str, crop_name: str, meta: dict):
         return [
             {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 1, 2048, 2060]}},  # raw ls shape
             {"FlipAxis": {"apply_to": name, "axis": 2}},
-            {"Crop": {"apply_to": name, "crop": get_raw_ls_crop(crop_name, for_slice=True)}},
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_ls_shape(crop_name, for_slice=True)}},
+            {
+                "Crop": {
+                    "apply_to": name,
+                    "crop": [[0, None]] + get_precropped_ls_roi_in_raw_ls(crop_name, for_slice=True, wrt_ref=False),
+                }
+            },
+            {
+                "Assert": {
+                    "apply_to": name,
+                    "expected_tensor_shape": [1, 1]
+                    + get_precropped_ls_shape(
+                        crop_name,
+                        for_slice=True,
+                        nnum=meta["nnum"],
+                        ls_scale=meta.get("ls_scale", meta["scale"]),
+                        wrt_ref=True,
+                    ),
+                }
+            },
             {
                 "Resize": {
                     "apply_to": name,
@@ -90,17 +124,28 @@ def get_transformations(name: str, crop_name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [None, 1, 1]
+                    "expected_tensor_shape": [1, 1, 1]
                     + [
-                        s / meta["nnum"] * meta.get("ls_slice_scale", meta["scale"])
-                        for s in get_ls_shape(crop_name, for_slice=True)[1:]
+                        s // meta["nnum"] * meta.get("ls_scale", meta["scale"])
+                        for s in get_precropped_ls_shape(
+                            crop_name,
+                            for_slice=True,
+                            nnum=meta["nnum"],
+                            ls_scale=meta.get("ls_scale", meta["scale"]),
+                            wrt_ref=True,
+                        )[1:]
                     ],
                 }
             },
         ]
     elif name == "lr":
         return [
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, meta["z_out"]] + get_lf_shape(crop_name)}},
+            {
+                "Assert": {
+                    "apply_to": name,
+                    "expected_tensor_shape": [1, 1, meta["z_out"]] + get_raw_lf_shape(crop_name, wrt_ref=True),
+                }
+            },
             {
                 "Resize": {
                     "apply_to": name,

@@ -1,6 +1,8 @@
 import warnings
 from typing import List, Optional, Sequence, Tuple
 
+MAX_SRHINK_IN_LENSLETS = 3
+
 
 def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
     if name == "bead_ref0":
@@ -216,7 +218,22 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
             [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0],
         ]
     elif name == "gcamp":
-        return [[0.98048,0.004709,0.098297,-111.7542,7.6415e-05,0.97546,0.0030523,-20.1143,0.014629,8.2964e-06,-3.9928,846.8515]]
+        return [
+            [
+                0.98048,
+                0.004709,
+                0.098297,
+                -111.7542,
+                7.6415e-05,
+                0.97546,
+                0.0030523,
+                -20.1143,
+                0.014629,
+                8.2964e-06,
+                -3.9928,
+                846.8515,
+            ]
+        ]
     else:
         raise NotImplementedError(name)
 
@@ -227,242 +244,286 @@ wholeFOV = "wholeFOV"
 gcamp = "gcamp"
 
 
-def get_lf_shape(crop_name: str) -> List[int]:
+def get_raw_lf_shape(crop_name: str, *, wrt_ref: bool, nnum: int = None, scale: int = None) -> List[int]:
     if crop_name == Heart_tightCrop:
-        return [1273, 1463]  # crop on raw (1551,1351) in matlab:
+        ref_shape = [1273, 1463]  # crop on raw (1551,1351) in matlab:
     elif crop_name == staticHeartFOV:
-        return [1178, 1767]  # crop on raw in matlab: rect_LF = [100, 400, 1850, 1250]; %[xmin, ymin, width, height]
+        ref_shape = [
+            1178,
+            1767,
+        ]  # crop on raw in matlab: rect_LF = [100, 400, 1850, 1250]; %[xmin, ymin, width, height]
     elif crop_name == wholeFOV:
-        return [1064, 1083]  # crop on raw in matlab: rect_LF = [450, 450, 1150, 1150]; %[xmin, ymin, width, height];
+        ref_shape = [
+            1064,
+            1083,
+        ]  # crop on raw in matlab: rect_LF = [450, 450, 1150, 1150]; %[xmin, ymin, width, height];
     elif crop_name == gcamp:
-        return [
-            1330,
-            1615,
-        ]  # crop on raw in matlab: rect_LF = [174, 324, 1700, 1400]; %[250, 300, 1550, 1350]; %[xmin, ymin, width, height];
+        # crop on raw in matlab: rect_LF = [174, 324, 1700, 1400]; %[250, 300, 1550, 1350]; %[xmin, ymin, width, height];
+        ref_shape = [1330, 1615]
     else:
         raise NotImplementedError(crop_name)
 
+    if wrt_ref:
+        shape = ref_shape
+    else:
+        if nnum is None:
+            raise TypeError("nnum missing")
 
-def get_ref_ls_shape(crop_name: str) -> List[int]:
+        if scale is None:
+            raise TypeError("scale missing")
+
+        shape_float = [rs / nnum * scale for rs in ref_shape]
+        shape = [int(s) for s in shape_float]
+        assert shape == shape_float, (shape, shape_float)
+
+    return shape
+
+
+get_precropped_lf_shape = get_raw_lf_shape
+
+
+def get_lf_roi_in_raw_lf(crop_name: str, *, shrink: int, nnum: int, scale: int, wrt_ref: bool) -> List[List[int]]:
+    crop_llets_each_float = MAX_SRHINK_IN_LENSLETS - shrink / scale
+    crop_llets_each = int(crop_llets_each_float)
+    assert crop_llets_each >= 0
+    assert crop_llets_each == crop_llets_each_float, (crop_llets_each, crop_llets_each_float)
+
+    upscale = nnum if wrt_ref else scale
+    return [
+        [crop_llets_each * upscale, s - crop_llets_each * upscale]
+        for s in get_raw_lf_shape(crop_name, nnum=nnum, scale=scale, wrt_ref=wrt_ref)
+    ]
+
+
+get_lf_roi_in_precropped_lf = get_lf_roi_in_raw_lf
+
+
+def get_lf_shape(crop_name: str, *, shrink: int, nnum: int, scale: int, wrt_ref: bool):
+    return [
+        r[1] - r[0]
+        for r in get_lf_roi_in_precropped_lf(crop_name, shrink=shrink, nnum=nnum, scale=scale, wrt_ref=wrt_ref)
+    ]
+
+
+def get_pred_roi_in_precropped_lf(
+    crop_name: str, *, shrink: int, nnum: int, scale: int, wrt_ref: bool
+) -> List[List[int]]:
+    shrink_llnets_float = shrink / scale
+    shrink_llnets = int(shrink_llnets_float)
+    assert shrink_llnets >= 0
+    assert shrink_llnets == shrink_llnets_float, (shrink_llnets, shrink_llnets_float)
+
+    upscale = nnum if wrt_ref else scale
+    return [
+        [r[0] + shrink_llnets * upscale, r[1] - shrink_llnets * upscale]
+        for r in get_lf_roi_in_precropped_lf(crop_name, nnum=nnum, scale=scale, shrink=shrink, wrt_ref=wrt_ref)
+    ]
+
+
+def get_pred_shape(crop_name: str, *, shrink: int, nnum: int, scale: int, wrt_ref: bool, z_out: int):
+    return [z_out] + [
+        r[1] - r[0]
+        for r in get_pred_roi_in_precropped_lf(crop_name, shrink=shrink, nnum=nnum, scale=scale, wrt_ref=wrt_ref)
+    ]
+
+
+def get_ls_ref_shape(crop_name: str):
     if crop_name == Heart_tightCrop:
-        return [241, 1451, 1651]
+        # crop in matlab: 200, 250, 1650, 1450 for ref shape
+        # crop for ref shape + crop for divisibility
+        ref_roi = [[0, 241], [0, 1700 - 249 - 0], [0, 1850 - 199 - 0]]
     elif crop_name == staticHeartFOV:
-        return [241, 1451, 1951]
+        # crop in matlab: 50, 300, 1950, 1450 for ref shape
+        # crop for ref shape + crop for divisibility
+        ref_roi = [[0, 241], [0, 1750 - 299 - 0], [0, 2000 - 49 - 7]]
     elif crop_name == wholeFOV:
-        return [241, 1351, 1351]
+        # crop in matlab: # rect_LS = [350, 350, 1350, 1350]; %[xmin, ymin, width, height];
+        # crop for ref shape + crop for divisibility
+        ref_roi = [[0, 241], [0, 1700 - 349 - 0], [0, 1700 - 349 - 0]]
     elif crop_name == gcamp:
-        return [241, 1774, 1924]
+        # in matlab: 124, 274, 1800, 1500
+        ref_roi = [[0, 241], [0, 1774 - 273], [0, 1924 - 123 - 0]]
     else:
         raise NotImplementedError(crop_name)
 
+    return [r[1] - r[0] for r in ref_roi]
 
-def get_raw_ls_crop(crop_name: str, *, for_slice: bool = False, wrt_ref: bool = False) -> List[List[Optional[int]]]:
-    """
-    crop raw ls shape to be divisible by nnum=19 in yx in order to avoid rounding errors when resizing with scale/nnum
-    crop 1 in z, to have many divisors for 240 z planes. (241 is prime)
-    """
+
+def get_precropped_ls_roi_in_raw_ls(crop_name: str, *, for_slice: bool, wrt_ref: bool) -> List[List[Optional[int]]]:
     if wrt_ref:
         if crop_name == Heart_tightCrop:
             # crop in matlab: 200, 250, 1650, 1450 for ref shape
             # crop for ref shape + crop for divisibility
-            ret = [[0, 241], [3, 1700 - 249 - 4], [8, 1850 - 199 - 9]]
+            precropped_roi = [[0, 241], [3, 1700 - 249 - 4], [8, 1850 - 199 - 9]]
         elif crop_name == staticHeartFOV:
             # crop in matlab: 50, 300, 1950, 1450 for ref shape
             # crop for ref shape + crop for divisibility
-            ret = [[0, 241], [3, 1750 - 299 - 4], [6, 2000 - 49 - 7]]
+            precropped_roi = [[0, 241], [3, 1750 - 299 - 4], [6, 2000 - 49 - 7]]
         elif crop_name == wholeFOV:
             # crop in matlab: # rect_LS = [350, 350, 1350, 1350]; %[xmin, ymin, width, height];
             # crop for ref shape + crop for divisibility
-            ret = [[0, 241], [1, 1700 - 349 - 1], [1, 1700 - 349 - 1]]
+            precropped_roi = [[0, 241], [1, 1700 - 349 - 1], [1, 1700 - 349 - 1]]
         elif crop_name == gcamp:
             # in matlab: 124, 274, 1800, 1500
-            ret = [[0, 241], [0, 1774 - 273], [7, 1924 - 123 - 8]]
+            precropped_roi = [[0, 241], [0, 1774 - 273], [7, 1924 - 123 - 8]]
         else:
             raise NotImplementedError(crop_name)
     else:
         if crop_name == Heart_tightCrop:
             # crop in matlab: 200, 250, 1650, 1450 for ref shape
             # crop for ref shape + crop for divisibility
-            ret = [[0, None], [0, 241], [249 + 3, 1700 - 4], [199 + 8, 1850 - 9]]
+            precropped_roi = [[0, 241], [249 + 3, 1700 - 4], [199 + 8, 1850 - 9]]
         elif crop_name == staticHeartFOV:
             # crop in matlab: 50, 300, 1950, 1450 for ref shape
             # crop for ref shape + crop for divisibility
-            ret = [[0, None], [0, 241], [299 + 3, 1750 - 4], [49 + 6, 2000 - 7]]
+            precropped_roi = [[0, 241], [299 + 3, 1750 - 4], [49 + 6, 2000 - 7]]
         elif crop_name == wholeFOV:
             # crop in matlab: # rect_LS = [350, 350, 1350, 1350]; %[xmin, ymin, width, height];
             # crop for ref shape + crop for divisibility
-            ret = [[0, None], [0, 241], [349 + 1, 1700 - 1], [349 + 1, 1700 - 1]]
+            precropped_roi = [[0, 241], [349 + 1, 1700 - 1], [349 + 1, 1700 - 1]]
         elif crop_name == gcamp:
-            ret = [[0, None], [0, 241], [273, 1774], [123 + 7, 1924 - 8]]
+            precropped_roi = [[0, 241], [273, 1774], [123 + 7, 1924 - 8]]
         else:
             raise NotImplementedError(crop_name)
 
     if for_slice:
-        ret[1] = (0, None)
+        precropped_roi[0] = [0, 1]
 
-    return ret
-
-
-def get_ls_shape(crop_name: str, for_slice: bool = False) -> List[int]:
-    crop = get_raw_ls_crop(crop_name)
-    s = [c[1] - c[0] for c in crop[1:]]
-    assert len(s) == 3
-    assert s[0] == 241
-    assert s[1] % 19 == 0, (s[1], s[1] % 19)
-    assert s[2] % 19 == 0, (s[2], s[2] % 19)
-
-    if for_slice:
-        s[0] = 1
-
-    return s
+    return precropped_roi
 
 
-def get_lf_crop(crop_name: str, *, shrink: int, nnum: int, scale: int) -> List[List[int]]:
-    if crop_name in [Heart_tightCrop, staticHeartFOV, wholeFOV]:
-        crop_float = [
-            [shrink * nnum / scale, lfs - shrink * nnum / scale] for lfs in get_lf_shape(crop_name)
-        ]  # loading precropped `rectified.tif`s
-        crop = [[int(cc) for cc in c] for c in crop_float]
-        assert crop_float == crop, (crop_float, crop)
+def get_precropped_ls_shape(
+    crop_name: str, *, nnum: int, for_slice: bool, wrt_ref: bool, ls_scale: int = None
+) -> List[int]:
+    precropped_ls_shape_float = [
+        r[1] - r[0] for r in get_precropped_ls_roi_in_raw_ls(crop_name, for_slice=for_slice, wrt_ref=wrt_ref)
+    ]
+    precropped_ls_shape_float[1] /= nnum
+    precropped_ls_shape_float[2] /= nnum
+    precropped_ls_shape = [int(s) for s in precropped_ls_shape_float]
+    assert precropped_ls_shape == precropped_ls_shape_float, (precropped_ls_shape, precropped_ls_shape_float)
+    if not wrt_ref and ls_scale is None:
+        raise TypeError("ls_scale required if not 'wrt_ref'")
 
-    elif crop_name == gcamp:  # cropping additionally on top of the precropped `rectified.tif's
-        base_crop = [
-            [133, 1121],
-            [323, 1596],
-        ]  # crop on raw in matlab: rect_LF = [174, 324, 1700, 1400]; %[250, 300, 1550, 1350]; %[xmin, ymin, width, height];
-        # lf_crop no shrinkage: &lf_crop [[0, null], [133, 1121], [323, 1596]]  # [133, 1121], [323, 1596] / 19 = [7, 59], [17, 84] # dim in lenselets: 70, 85
-        crop_llets_each_float = shrink / scale
-        crop_llets_each = int(crop_llets_each_float)
-        assert crop_llets_each == crop_llets_each_float, (crop_llets_each, crop_llets_each_float)
-        max_llet_crops = [70, 85]
-        crop = [
-            [max(0, bc[0] - crop_llets_each * nnum), min(mlc, bc[1] // nnum + crop_llets_each) * nnum]
-            for bc, mlc in zip(base_crop, max_llet_crops)
-        ]
+    upscale = nnum if wrt_ref else ls_scale
+    precropped_ls_shape[1] *= upscale
+    precropped_ls_shape[2] *= upscale
+    return precropped_ls_shape
+
+
+def get_ls_roi(  # either in ref vol or in precroped ls
+    crop_name: str,
+    *,
+    pred_z_min: int,
+    pred_z_max: int,
+    for_slice: bool,
+    shrink: int,
+    scale: int,
+    nnum: int,
+    wrt_ref: bool,
+    z_ls_rescaled: int,
+    ls_scale: int,
+) -> List[List[int]]:
+    ref_roi_in = [[pred_z_min, pred_z_max]] + get_lf_roi_in_precropped_lf(
+        crop_name, shrink=shrink, nnum=nnum, scale=scale, wrt_ref=True
+    )
+
+    if crop_name == "Heart_tightCrop":
+        if ref_roi_in == [[0, 838], [57, 1273 - 57], [57, 1463 - 57]]:
+            ls_crop = [[19, 10], [152, 133], [171, 133]]
+        elif ref_roi_in == [[0, 838], [38, 1273 - 38], [38, 1463 - 38]]:
+            ls_crop = [[18, 12], [57 + 3 * 19, 57 + 2 * 19], [95 + 19, 57 + 19]]
+        elif ref_roi_in == [[0, 838], [19, 1273 - 19], [19, 1463 - 19]]:
+            ls_crop = [[18, 12], [57 + 3 * 19, 57 + 2 * 19], [95 + 19, 57 + 19]]
+        else:
+            raise NotImplementedError(ref_roi_in)
+    elif crop_name == "wholeFOV":
+        if ref_roi_in == [[0, 838], [57, 1064 - 57], [57, 1083 - 57]]:
+            ls_crop = [[19, 13], [114 + 4 * 19, 114 + 4 * 19], [133 + 3 * 19, 95 + 3 * 19]]
+        elif ref_roi_in == [[0, 838], [38, 1064 - 38], [38, 1083 - 38]]:
+            ls_crop = [[19, 13], [114 + 4 * 19, 114 + 4 * 19], [133 + 3 * 19, 95 + 3 * 19]]
+        elif ref_roi_in == [[0, 838], [19, 1064 - 19], [19, 1083 - 19]]:
+            ls_crop = [[19, 13], [114 + 3 * 19, 114 + 3 * 19], [133 + 2 * 19, 95 + 2 * 19]]
+        else:
+            raise NotImplementedError(ref_roi_in)
+    elif crop_name == "gcamp":
+        if ref_roi_in == [[152, 615], [76, 1178], [266, 1615]]:
+            assert scale == 2
+            assert shrink == 6
+            ls_crop = [[60, 60], [3 * 19, 4 * 19], [6 * 19, 1 * 19]]
+        elif ref_roi_in == [[152, 633], [95, 1159], [285, 1615]]:
+            assert scale == 4
+            assert shrink == 8
+            ls_crop = [[60, 60], [6 * 19, 16 * 19], [21 * 19, 3 * 19]]
+        elif ref_roi_in == [[152, 633], [114, 1140], [304, 1615]]:
+            assert scale == 8
+            assert shrink == 8
+            ls_crop = [[60, 60], [6 * 19, 16 * 19], [21 * 19, 3 * 19]]
+        elif ref_roi_in == [[142, 620], [19, 1311], [19, 1596]]:
+            assert scale == 4, scale
+            assert shrink == 8, shrink
+            ls_crop = [[60, 60], [4 * 19, 9 * 19], [9 * 19, 6 * 19]]
+        elif ref_roi_in == [[142, 620], [38, 1292], [38, 1577]]:
+            assert scale == 8, scale
+            assert shrink == 8, shrink
+            # ls_crop = [[60, 60], [3 * 19, 8 * 19], [8 * 19, 5 * 19]]
+            ls_crop = [[60, 60], [4 * 19, 9 * 19], [9 * 19, 6 * 19]]
+        else:
+            raise NotImplementedError(ref_roi_in)
     else:
         raise NotImplementedError(crop_name)
 
-    return [[0, None]] + crop  # add crop for channel
+    assert all([rr >= 0 for r in ls_crop for rr in r])
+    assert all([rr % nnum == 0 for r in ls_crop[1:] for rr in r]), ls_crop
 
+    if for_slice:
+        ls_crop[0] = [0, 0]
 
-def get_crops(
-    affine_trf_name: str, lf_crop: Optional[Sequence[Sequence[Optional[int]]]], meta: dict, for_slice: bool = False
-) -> Tuple[Sequence[Sequence[Optional[int]]], Sequence[Sequence[Optional[int]]], Sequence[Sequence[Optional[int]]]]:
+    if z_ls_rescaled != 241:
+        raise NotImplementedError(z_ls_rescaled)
 
-    scale: int = meta["scale"]
-    nnum: int = meta["nnum"]
-    z_ls_rescaled: int = meta.get("z_ls_rescaled", 0)
-    assert for_slice or z_ls_rescaled, "invalid (=0) or missing 'z_ls_rescaled' in meta"
-    shrink: int = meta["shrink"]
-
-
-    ref_crop_in = [[meta["pred_z_min"], meta["pred_z_max"]]] + get_lf_crop(
-        affine_trf_name, shrink=shrink, nnum=nnum, scale=scale
-    )[1:]
-
-    if lf_crop is not None:
-        assert len(lf_crop) == 3, "cyx"
-        assert lf_crop[0][0] == 0, "dont crop lf channel (here treated as z)"
-        assert lf_crop[0][1] is None, "dont crop lf channel (here treated as z)"
-        assert all([len(lfc) == 2 for lfc in lf_crop])
-        lf_crop = [list(lfc) for lfc in lf_crop]
-        for i, lfc in enumerate(lf_crop):
-            ref_crop_in[i][0] += lfc[0]
-            if lfc[1] is not None:
-                if lfc[1] >= 0:
-                    lfc[1] = lfc[1] - get_lf_shape(affine_trf_name)[i-1]
-
-                assert lfc[1] < 0
-
-                ref_crop_in[i][1] += lfc[1]
-
-    if ref_crop_in == [[0, 838], [0, None], [0, None]]:
-        ls_crop = [[0, None]] * 3
-    elif affine_trf_name == "Heart_tightCrop" and ref_crop_in in [
-        [[0, 838], [57, -57], [57, -57]],
-        [[0, 838], [57, 1273-57], [57, 1463-57]]]:
-        ls_crop = (19, -10), (152, -133), (171, -133)
-    elif affine_trf_name == "Heart_tightCrop" and ref_crop_in in [
-        [[0, 838], [38, -38], [38, -38]],
-        [[0, 838], [38, 1273-38], [38, 1463-38]],
-    ]:
-        ls_crop = (18, -12), (57 + 3 * 19, -57 - 2 * 19), (95 + 19, -57 - 19)
-    elif affine_trf_name == "Heart_tightCrop" and ref_crop_in in [
-        [[0, 838], [19, -19], [19, -19]],
-        [[0, 838], [19, 1273-19], [19, 1463-19]],   #  [19, 1235], [19, 1425
-    ]:
-        ls_crop = (18, -12), (57 + 3 * 19, -57 - 2 * 19), (95 + 19, -57 - 19)
-    elif affine_trf_name == "wholeFOV" and ref_crop_in in [
-        [[0, 838], [57, -57], [57, -57]],
-        [[0, 838], [57, 1064 - 57], [57, 1083 - 57]],
-    ]:
-        ls_crop = (
-            (19, -13),
-            (114 + 4 * 19, -114 - 4 * 19),
-            (133 + 3 * 19, -95 - 3 * 19),
-        )
-    elif affine_trf_name == "wholeFOV" and ref_crop_in in [
-        [[0, 838], [38, -38], [38, -38]],
-        [[0, 838], [38, 1064 - 38], [38, 1083 - 38]],
-    ]:
-        ls_crop = (
-            (19, -13),
-            (114 + 4 * 19, -114 - 4 * 19),
-            (133 + 3 * 19, -95 - 3 * 19),
-        )
-    elif affine_trf_name == "wholeFOV" and ref_crop_in in [
-        [[0, 838], [19, -19], [19, -19]],
-        [[0, 838], [19, 1064 - 19], [19, 1083 - 19]],
-    ]:
-        ls_crop = (
-            (19, -13),
-            (114 + 3 * 19, -114 - 3 * 19),
-            (133 + 2 * 19, -95 - 2 * 19),
-        )
-    elif affine_trf_name == "gcamp" and ref_crop_in == [[152, 615], [76, 1178], [266, 1615]]:
-        assert scale == 2
-        assert shrink == 6
-        ls_crop = (60, 181), (16, -36), (46, -10)  # f2
-    elif affine_trf_name == "gcamp" and ref_crop_in == [[152, 615], [95, 1159], [285, 1615]]:
-        assert scale == 4
-        assert shrink == 8
-        ls_crop = (60, 181), (32, -72), (92, -20)  # f4
-    elif affine_trf_name == "gcamp" and ref_crop_in == [[152, 615], [114, 1140], [304, 1615]]:
-        assert scale == 8
-        assert shrink == 8
-        ls_crop = (60, 181), (64, -144), (184, -40)  # f8
+    if wrt_ref:
+        ls_roi = get_precropped_ls_roi_in_raw_ls(crop_name, for_slice=for_slice, wrt_ref=True)
+        assert all([rr >= 0 for r in ls_roi for rr in r]), ls_roi
     else:
-        raise NotImplementedError((affine_trf_name, ref_crop_in))
+        ls_roi = [
+            [0, s]
+            for s in get_precropped_ls_shape(
+                crop_name, for_slice=for_slice, wrt_ref=False, nnum=nnum, ls_scale=ls_scale
+            )
+        ]
+        ls_crop = ls_crop[:1] + [[cc // nnum * ls_scale for cc in c] for c in ls_crop[1:]]
 
-    mini_crop = get_raw_ls_crop(affine_trf_name, wrt_ref=True)
-    lower = [mc[0] + a[0] for mc, a in zip(mini_crop, ls_crop)]
-    upper = [
-        None if mc[1] is None and a[1] is None else mc[1] if a[1] is None else a[1] if mc[1] is None else a[1] + mc[1]
-        for mc, a in zip(mini_crop, ls_crop)
+    return [[r[0] + c[0], r[1] - c[1]] for r, c in zip(ls_roi, ls_crop)]
+
+
+def get_ls_shape(
+    crop_name: str,
+    *,
+    pred_z_min: int,
+    pred_z_max: int,
+    for_slice: bool,
+    shrink: int,
+    scale: int,
+    nnum: int,
+    z_ls_rescaled: int,
+    ls_scale: int,
+):
+    return [
+        r[1] - r[0]
+        for r in get_ls_roi(
+            crop_name,
+            pred_z_min=pred_z_min,
+            pred_z_max=pred_z_max,
+            for_slice=for_slice,
+            scale=scale,
+            nnum=nnum,
+            wrt_ref=False,
+            z_ls_rescaled=z_ls_rescaled,
+            ls_scale=ls_scale,
+            shrink=shrink,
+        )
     ]
-
-    ref_crop_out = [(low, up) for low, up in zip(lower, upper)]
-
-    if for_slice:
-        scale = meta.get("ls_slice_scale", scale)
-
-    ls_crop_float = [
-        [None if zc is None else zc * z_ls_rescaled / get_ls_shape(affine_trf_name)[0] for zc in ls_crop[0]]
-    ] + [(lsc[0] / nnum * scale, None if lsc[1] is None else lsc[1] / nnum * scale) for lsc in ls_crop[1:]]
-    ls_crop = [
-        [None if zc is None else zc * z_ls_rescaled // get_ls_shape(affine_trf_name)[0] for zc in ls_crop[0]]
-    ] + [
-        (round(lsc[0] / nnum * scale), None if lsc[1] is None else round(lsc[1] / nnum * scale)) for lsc in ls_crop[1:]
-    ]
-    assert len(ls_crop) == 3
-    if for_slice:
-        ls_crop_float[0] = [0, None]
-        ls_crop[0] = [0, None]
-
-    if ls_crop_float != ls_crop:
-        warnings.warn(f"rounded ls crop from {ls_crop_float} to {ls_crop}")
-
-    return ref_crop_in, ref_crop_out, [[0, None]] + ls_crop
 
 
 if __name__ == "__main__":

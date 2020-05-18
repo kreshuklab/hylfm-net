@@ -6,7 +6,13 @@ import yaml
 
 from lnet.datasets.base import TensorInfo, get_dataset_from_info
 from lnet.settings import settings
-from lnet.transformations.affine_utils import get_lf_shape, get_ls_shape, get_raw_ls_crop
+from lnet.transformations.affine_utils import (
+    get_lf_shape,
+    get_ls_shape,
+    get_ls_roi,
+    get_precropped_ls_roi_in_raw_ls,
+    get_precropped_ls_shape,
+)
 
 
 def get_gcamp_z_slice_from_tag2(tag2: str):
@@ -348,7 +354,17 @@ def get_tensor_info(tag: str, name: str, meta: dict):
 
     crop_name = "gcamp"
     if name == "lf":
-        transformations = [{"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_lf_shape(crop_name)}}]
+        transformations = [
+            {
+                "Assert": {
+                    "apply_to": name,
+                    "expected_tensor_shape": [1, 1]
+                    + get_lf_shape(
+                        crop_name, shrink=meta["shrink"], nnum=meta["nnum"], scale=meta["scale"], wrt_ref=False
+                    ),
+                }
+            }
+        ]
         location += f"{tag2}/TP_{TP or '*'}/RC_rectified/Cam_Right_*_rectified.tif"
         samples_per_dataset = 1
     elif name == "ls_slice":
@@ -356,16 +372,33 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         transformations = [
             {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 1, 2048, 2060]}},  # raw ls shape
             {"FlipAxis": {"apply_to": name, "axis": 2}},
-            {"Crop": {"apply_to": name, "crop": get_raw_ls_crop(crop_name, for_slice=True)}},
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_ls_shape(crop_name, for_slice=True)}},
+            {
+                "Crop": {
+                    "apply_to": name,
+                    "crop": [[0, None]] + get_precropped_ls_roi_in_raw_ls(crop_name, for_slice=True, wrt_ref=False),
+                }
+            },
+            {
+                "Assert": {
+                    "apply_to": name,
+                    "expected_tensor_shape": [1, 1]
+                    + get_precropped_ls_shape(
+                        crop_name,
+                        for_slice=True,
+                        nnum=meta["nnum"],
+                        ls_scale=meta.get("ls_scale", meta["scale"]),
+                        wrt_ref=True,
+                    ),
+                }
+            },
             {
                 "Resize": {
                     "apply_to": name,
                     "shape": [
                         1.0,
                         1.0,
-                        meta.get("ls_slice_scale", meta["scale"]) / meta["nnum"],
-                        meta.get("ls_slice_scale", meta["scale"]) / meta["nnum"],
+                        meta.get("ls_scale", meta["scale"]) / meta["nnum"],
+                        meta.get("ls_scale", meta["scale"]) / meta["nnum"],
                     ],
                     "order": meta["interpolation_order"],
                 }
@@ -374,10 +407,16 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [None, 1, 1]
+                    "expected_tensor_shape": [1, 1, 1]
                     + [
-                        s / meta["nnum"] * meta.get("ls_slice_scale", meta["scale"])
-                        for s in get_ls_shape(crop_name, for_slice=True)[1:]
+                        s // meta["nnum"] * meta.get("ls_scale", meta["scale"])
+                        for s in get_precropped_ls_shape(
+                            crop_name,
+                            for_slice=True,
+                            nnum=meta["nnum"],
+                            ls_scale=meta.get("ls_scale", meta["scale"]),
+                            wrt_ref=True,
+                        )[1:]
                     ],
                 }
             },
@@ -388,7 +427,15 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         location += f"{tag2}/TP_{TP or '*'}/RCout/Cam_Right_*.tif"
         samples_per_dataset = 1
         transformations = [
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, meta["z_out"]] + get_lf_shape(crop_name)}},
+            {
+                "Assert": {
+                    "apply_to": name,
+                    "expected_tensor_shape": [1, 1, meta["z_out"]]
+                    + get_lf_shape(
+                        crop_name, shrink=meta["shrink"], nnum=meta["nnum"], scale=meta["scale"], wrt_ref=False
+                    ),
+                }
+            },
             {
                 "Resize": {
                     "apply_to": name,
