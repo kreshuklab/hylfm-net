@@ -348,7 +348,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     # resolve stack_*_channel_* with tag2
     root_path = getattr(settings.data_roots, root)
     location_paths = list((root_path / location).glob(f"stack_*_channel_*/{tag2}/"))
-    assert len(location_paths) == 1, location_paths
+    assert len(location_paths) == 1, (location_paths, tag)
     location_path = location_paths[0]
     location = location_path.relative_to(root_path).parent.as_posix().strip("/") + "/"
 
