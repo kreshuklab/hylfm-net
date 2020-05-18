@@ -472,7 +472,7 @@ def check_filter(tag: str, meta: dict):
     lf_crops = {"gcamp": [[0, None], [0, None], [0, None]]}
 
     filters = [
-        ("z_range", {"lf_crops": lf_crops}),
+        ("z_range", {}),
         ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 1.5}),
     ]
 

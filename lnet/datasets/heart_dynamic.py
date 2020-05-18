@@ -425,7 +425,7 @@ def check_filter(tag: str, meta: dict):
     lf_crops = {"Heart_tightCrop": [[0, None], [0, None], [0, None]], "wholeFOV": [[0, None], [0, None], [0, None]]}
 
     filters = [
-        ("z_range", {"lf_crops": lf_crops}),
+        ("z_range", {}),
         ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 1.5}),
     ]
 
@@ -436,7 +436,7 @@ def check_filter(tag: str, meta: dict):
     print("ds filtered", len(ds))
 
     filters = [
-        ("z_range", {"lf_crops": lf_crops}),
+        ("z_range", {}),
         ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 2.0}),
     ]
     ds = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True, filters=filters)
