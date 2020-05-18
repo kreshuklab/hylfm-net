@@ -8,10 +8,10 @@ from lnet.datasets.base import TensorInfo, get_dataset_from_info
 from lnet.settings import settings
 from lnet.transformations.affine_utils import (
     get_lf_shape,
-    get_ls_shape,
-    get_ls_roi,
     get_precropped_ls_roi_in_raw_ls,
     get_precropped_ls_shape,
+    get_raw_lf_shape,
+    get_pred_shape,
 )
 
 
@@ -355,15 +355,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     crop_name = "gcamp"
     if name == "lf":
         transformations = [
-            {
-                "Assert": {
-                    "apply_to": name,
-                    "expected_tensor_shape": [1, 1]
-                    + get_lf_shape(
-                        crop_name, shrink=meta["shrink"], nnum=meta["nnum"], scale=meta["scale"], wrt_ref=False
-                    ),
-                }
-            }
+            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_raw_lf_shape(crop_name, wrt_ref=True)}}
         ]
         location += f"{tag2}/TP_{TP or '*'}/RC_rectified/Cam_Right_*_rectified.tif"
         samples_per_dataset = 1
@@ -407,17 +399,14 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1, 1, 1]
-                    + [
-                        s // meta["nnum"] * meta.get("ls_scale", meta["scale"])
-                        for s in get_precropped_ls_shape(
-                            crop_name,
-                            for_slice=True,
-                            nnum=meta["nnum"],
-                            ls_scale=meta.get("ls_scale", meta["scale"]),
-                            wrt_ref=True,
-                        )[1:]
-                    ],
+                    "expected_tensor_shape": [1, 1]
+                    + get_precropped_ls_shape(
+                        crop_name,
+                        for_slice=True,
+                        nnum=meta["nnum"],
+                        ls_scale=meta.get("ls_scale", meta["scale"]),
+                        wrt_ref=False,
+                    ),
                 }
             },
         ]
@@ -430,10 +419,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1, 1, meta["z_out"]]
-                    + get_lf_shape(
-                        crop_name, shrink=meta["shrink"], nnum=meta["nnum"], scale=meta["scale"], wrt_ref=False
-                    ),
+                    "expected_tensor_shape": [1, 1, meta["z_out"]] + get_raw_lf_shape(crop_name, wrt_ref=True),
                 }
             },
             {
@@ -441,6 +427,15 @@ def get_tensor_info(tag: str, name: str, meta: dict):
                     "apply_to": name,
                     "shape": [1.0, 1.0, meta["scale"] / meta["nnum"], meta["scale"] / meta["nnum"]],
                     "order": meta["interpolation_order"],
+                }
+            },
+            {
+                "Assert": {
+                    "apply_to": name,
+                    "expected_tensor_shape": [1, 1]
+                    + get_pred_shape(
+                        crop_name, shrink=0, nnum=meta["nnum"], scale=meta["scale"], wrt_ref=False, z_out=meta["z_out"]
+                    ),
                 }
             },
             {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},

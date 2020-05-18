@@ -485,11 +485,7 @@ class AffineTransformationDynamicTraining(torch.nn.Module):
             ]
             ref_roi_out = get_ls_roi(
                 crop_name,
-                pred_z_min=meta["pred_z_min"],
-                pred_z_max=meta["pred_z_max"],
                 for_slice=False,
-                shrink=meta["shrink"],
-                scale=meta["scale"],
                 nnum=meta["nnum"],
                 wrt_ref=True,
                 z_ls_rescaled=meta["z_ls_rescaled"],

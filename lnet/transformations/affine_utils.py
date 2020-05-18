@@ -414,62 +414,22 @@ def get_precropped_ls_shape(
 def get_ls_roi(  # either in ref vol or in precroped ls
     crop_name: str,
     *,
-    pred_z_min: int,
-    pred_z_max: int,
     for_slice: bool,
-    shrink: int,
-    scale: int,
     nnum: int,
     wrt_ref: bool,
     z_ls_rescaled: int,
     ls_scale: int,
 ) -> List[List[int]]:
-    ref_roi_in = [[pred_z_min, pred_z_max]] + get_lf_roi_in_precropped_lf(
-        crop_name, shrink=shrink, nnum=nnum, scale=scale, wrt_ref=True
-    )
+    # ref_roi_in = [[pred_z_min, pred_z_max]] + get_lf_roi_in_precropped_lf(
+    #     crop_name, shrink=shrink, nnum=nnum, scale=scale, wrt_ref=True
+    # )
 
     if crop_name == "Heart_tightCrop":
-        if ref_roi_in == [[0, 838], [57, 1273 - 57], [57, 1463 - 57]]:
-            ls_crop = [[19, 10], [152, 133], [171, 133]]
-        elif ref_roi_in == [[0, 838], [38, 1273 - 38], [38, 1463 - 38]]:
-            ls_crop = [[18, 12], [57 + 3 * 19, 57 + 2 * 19], [95 + 19, 57 + 19]]
-        elif ref_roi_in == [[0, 838], [19, 1273 - 19], [19, 1463 - 19]]:
-            ls_crop = [[18, 12], [57 + 3 * 19, 57 + 2 * 19], [95 + 19, 57 + 19]]
-        else:
-            raise NotImplementedError(ref_roi_in)
+        ls_crop = [[19, 13], [7 * 19, 6 * 19], [7 * 19, 5 * 19]]
     elif crop_name == "wholeFOV":
-        if ref_roi_in == [[0, 838], [57, 1064 - 57], [57, 1083 - 57]]:
-            ls_crop = [[19, 13], [114 + 4 * 19, 114 + 4 * 19], [133 + 3 * 19, 95 + 3 * 19]]
-        elif ref_roi_in == [[0, 838], [38, 1064 - 38], [38, 1083 - 38]]:
-            ls_crop = [[19, 13], [114 + 4 * 19, 114 + 4 * 19], [133 + 3 * 19, 95 + 3 * 19]]
-        elif ref_roi_in == [[0, 838], [19, 1064 - 19], [19, 1083 - 19]]:
-            ls_crop = [[19, 13], [114 + 3 * 19, 114 + 3 * 19], [133 + 2 * 19, 95 + 2 * 19]]
-        else:
-            raise NotImplementedError(ref_roi_in)
+        ls_crop = [[19, 13], [10 * 19, 10 * 19], [10 * 19, 8 * 19]]
     elif crop_name == "gcamp":
-        if ref_roi_in == [[152, 615], [76, 1178], [266, 1615]]:
-            assert scale == 2
-            assert shrink == 6
-            ls_crop = [[60, 60], [3 * 19, 4 * 19], [6 * 19, 1 * 19]]
-        elif ref_roi_in == [[152, 633], [95, 1159], [285, 1615]]:
-            assert scale == 4
-            assert shrink == 8
-            ls_crop = [[60, 60], [6 * 19, 16 * 19], [21 * 19, 3 * 19]]
-        elif ref_roi_in == [[152, 633], [114, 1140], [304, 1615]]:
-            assert scale == 8
-            assert shrink == 8
-            ls_crop = [[60, 60], [6 * 19, 16 * 19], [21 * 19, 3 * 19]]
-        elif ref_roi_in == [[142, 620], [19, 1311], [19, 1596]]:
-            assert scale == 4, scale
-            assert shrink == 8, shrink
-            ls_crop = [[60, 60], [4 * 19, 9 * 19], [9 * 19, 6 * 19]]
-        elif ref_roi_in == [[142, 620], [38, 1292], [38, 1577]]:
-            assert scale == 8, scale
-            assert shrink == 8, shrink
-            # ls_crop = [[60, 60], [3 * 19, 8 * 19], [8 * 19, 5 * 19]]
-            ls_crop = [[60, 60], [4 * 19, 9 * 19], [9 * 19, 6 * 19]]
-        else:
-            raise NotImplementedError(ref_roi_in)
+        ls_crop = [[60, 60], [4 * 19, 9 * 19], [9 * 19, 6 * 19]]
     else:
         raise NotImplementedError(crop_name)
 

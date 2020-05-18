@@ -6,7 +6,13 @@ import numpy
 from lnet.transformations import Crop
 
 from lnet.datasets import ZipDataset, get_dataset_from_info, get_tensor_info
-from lnet.transformations.affine_utils import get_lf_shape, get_ls_shape, get_pred_shape, get_precropped_ls_shape
+from lnet.transformations.affine_utils import (
+    get_lf_shape,
+    get_ls_shape,
+    get_pred_shape,
+    get_precropped_ls_shape,
+    get_raw_lf_shape,
+)
 from lnet.transformations.utils import get_composed_transformation_from_config
 
 import matplotlib.pyplot as plt
@@ -184,12 +190,13 @@ def test_trf(crop_name: str, meta: dict):
 
     device = "cpu"
     sample = None
-    if crop_name == "Heart_tightCrop":
-        ls_reg_tag = "heart_static.2019-12-09_08.41.41"  # heart_static.beads_ref_Heart_tightCrop_tif
-        ls_tag = "heart_static.2019-12-09_08.41.41"  # heart_static.beads_ref_Heart_tightCrop
-    elif crop_name in ["wholeFOV", "gcamp"]:
+    # if crop_name == "Heart_tightCrop":
+    #     ls_reg_tag = "heart_static.2019-12-09_08.41.41"  # heart_static.beads_ref_Heart_tightCrop_tif
+    #     ls_tag = "heart_static.2019-12-09_08.41.41"  # heart_static.beads_ref_Heart_tightCrop
+    if crop_name in ["wholeFOV", "gcamp", "Heart_tightCrop"]:
         sample = {}
         sample[ls_reg] = numpy.ones(
+            # [1, 1] + get_raw_lf_shape(crop_name, nnum=meta["nnum"], scale=meta["scale"], wrt_ref=True)
             [1, 1]
             + get_pred_shape(
                 crop_name,
@@ -235,22 +242,26 @@ def test_trf(crop_name: str, meta: dict):
         crop_name, nnum=meta["nnum"], for_slice=False, wrt_ref=False, ls_scale=meta.get("ls_scale", meta["scale"])
     )
 
+    print("ls_reg.shape", sample[ls_reg].shape)
     print("expected_tensor_shape_ls_reg", expected_tensor_shape_ls_reg)
     print("expected_tensor_shape_ls", expected_tensor_shape_ls)
+    model_shrink_on_lf = meta["shrink"] // meta["scale"] * meta["nnum"]
+    print("model_shrink_on_lf", model_shrink_on_lf)
     trf_config = [
+        # {"CropWhatShrinkDoesNot": {"apply_to": ls_reg, "meta": meta}},
         {"Assert": {"apply_to": ls_reg, "expected_tensor_shape": expected_tensor_shape_ls_reg}},
-        {
-            "Assert": {
-                "apply_to": ls,
-                "expected_tensor_shape": [
-                    1,
-                    1,
-                    241,
-                    1501 / meta["nnum"] * meta.get("ls_scale", meta["scale"]),
-                    1786 / meta["nnum"] * meta.get("ls_scale", meta["scale"]),
-                ],
-            }
-        },
+        # {
+        #     "Assert": {
+        #         "apply_to": ls,
+        #         "expected_tensor_shape": [
+        #             1,
+        #             1,
+        #             241,
+        #             1501 / meta["nnum"] * meta.get("ls_scale", meta["scale"]),
+        #             1786 / meta["nnum"] * meta.get("ls_scale", meta["scale"]),
+        #         ],
+        #     }
+        # },
         {"Assert": {"apply_to": ls, "expected_tensor_shape": expected_tensor_shape_ls}},
         {"CropLSforDynamicTraining": {"apply_to": ls, "meta": meta}},
         {"Cast": {"apply_to": ls_reg, "dtype": "float32", "device": device}},
@@ -269,7 +280,7 @@ def test_trf(crop_name: str, meta: dict):
 
     sample = get_composed_transformation_from_config(trf_config)(sample)
 
-    setting_name = f"gcamp_f8"
+    setting_name = f"{crop_name}_f{meta['scale']}"
 
     for name in [ls, ls_reg, ls_reg + "_trf"]:
         print(name, sample[name].shape)
@@ -321,20 +332,25 @@ def test_inverse_trf(crop_name: str, meta: dict, with_shrinkage_crop: bool = Tru
 
 
 if __name__ == "__main__":
-    crop_name = "gcamp"  # "gcamp", "staticHeartFOV" "wholeFOV" "Heart_tightCrop"
+    crop_name = "Heart_tightCrop"  # "gcamp", "staticHeartFOV" "wholeFOV" "Heart_tightCrop"
     meta = {
         "z_out": 49,
         "nnum": 19,
-        "scale": 8,
-        "shrink": 8,
+        "scale": 4,
         "interpolation_order": 2,
         "z_ls_rescaled": 241,
-        "pred_z_min": 142,
-        "pred_z_max": 620,
-        "z_ls_min": 60,
-        "z_ls_max": 181,
-        "crop_names": ["gcamp"],  # ["gcamp", "Heart_tightCrop", "wholeFOV", "staticHeartFOV"]
+        "crop_names": [crop_name],
     }
+    meta["shrink"] = 6 if meta["scale"] == 2 else 8
+    if crop_name == "gcamp":
+        meta.update({"pred_z_min": 142, "pred_z_max": 620, "z_ls_min": 60, "z_ls_max": 181})
+    else:
+        meta.update({"pred_z_min": 0, "pred_z_max": 838})
+        if crop_name == "Heart_tigthCrop":
+            meta.update({"z_ls_min": 19, "z_ls_max": 228})
+        elif crop_name == "wholeFOV":
+            meta.update({"z_ls_min": 19, "z_ls_max": 228})
+
     # test_ls_vs_ls_tif()
     # test_inverse_trf(crop_name, meta=meta)
     test_trf(crop_name, meta=meta)

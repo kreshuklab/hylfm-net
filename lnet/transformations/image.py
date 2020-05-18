@@ -96,11 +96,7 @@ class CropLSforDynamicTraining(Transform):
             ls_roi = get_ls_roi(
                 crop_name,
                 nnum=meta["nnum"],
-                pred_z_min=meta["pred_z_min"],
-                pred_z_max=meta["pred_z_max"],
                 for_slice="slice" in apply_to,
-                shrink=meta["shrink"],
-                scale=meta["scale"],
                 wrt_ref=False,
                 z_ls_rescaled=meta["z_ls_rescaled"],
                 ls_scale=meta.get("ls_scale", meta["scale"]),
@@ -125,7 +121,7 @@ class CropWhatShrinkDoesNot(Transform):
         self.crops = {}
         for crop_name in meta["crop_names"]:
             roi = get_lf_roi_in_raw_lf(
-                crop_name, nnum=meta["nnum"], shrink=meta["shrink"], scale=meta["scale"], wrt_ref=False
+                crop_name, nnum=meta["nnum"], shrink=meta["shrink"], scale=meta["scale"], wrt_ref=True
             )
             if apply_to != "lf":
                 roi.insert(0, [0, None])  # add z dim
