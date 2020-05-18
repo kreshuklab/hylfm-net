@@ -535,6 +535,8 @@ if __name__ == "__main__":
     tag = get_tags()[args.tagnr]
     with args.meta_path.open() as f:
         meta = yaml.safe_load(f)
+        if "toolbox" in meta:
+            meta = meta["toolbox"]["meta"]
 
     check_data(tag, meta=meta)
     check_filter(tag, meta=meta)
