@@ -33,7 +33,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                 "Assert": {
                     "apply_to": name,
                     "expected_tensor_shape": [1, 1]
-                    + get_precropped_ls_shape(crop_name, for_slice=True, nnum=meta["nnum"], wrt_ref=True),
+                    + get_precropped_ls_shape(crop_name, for_slice=False, nnum=meta["nnum"], wrt_ref=True),
                 }
             },
         ]
