@@ -11,6 +11,7 @@ from lnet.transformations.base import DTypeMapping, Transform
 
 logger = logging.getLogger(__name__)
 
+
 class AddConstant(Transform):
     def __init__(self, value: float, **super_kwargs):
         super().__init__(**super_kwargs)
@@ -87,22 +88,31 @@ class Sigmoid(Transform):
 
 
 class Assert(Transform):
-    def __init__(self, expected_tensor_shape: typing.Sequence[Optional[int]], **super_kwargs):
+    def __init__(self, expected_tensor_shape: Union[str, typing.Sequence[Optional[int]]], **super_kwargs):
         super().__init__(**super_kwargs)
         self.expected_shape = expected_tensor_shape
+
+    def apply(self, tensors: typing.OrderedDict[str, typing.Any]) -> typing.OrderedDict[str, typing.Any]:
+        if isinstance(self.expected_shape, str):
+            for at in self.apply_to:
+                tensors["meta"][0][at]["Assert_expected_tensor_shape"] = tensors[self.expected_shape].shape
+
+        return super().apply(tensors)
 
     def apply_to_tensor(
         self, tensor: Any, *, name: str, idx: int, meta: typing.List[dict]
     ) -> Union[numpy.ndarray, torch.Tensor]:
         shape_is = tuple(tensor.shape)
-        if len(shape_is) != len(self.expected_shape):
-            raise ValueError(f"expected shape {self.expected_shape}, but found {shape_is} for tensor {name}")
+        expected_shape = meta[0][name]["Assert_expected_tensor_shape"] if isinstance(self.expected_shape, str) else self.expected_shape
+        expected_shape_from = f" (from {self.expected_shape})" if isinstance(self.expected_shape, str) else ""
+        if len(shape_is) != len(expected_shape):
+            raise ValueError(f"expected shape {expected_shape}{expected_shape_from}, but found {shape_is} for tensor {name}")
 
-        for si, s in zip(shape_is, self.expected_shape):
+        for si, s in zip(shape_is, expected_shape):
             if s is None and si > 0:
                 continue
             elif si != s:
-                raise ValueError(f"expected shape {self.expected_shape}, but found {shape_is} for tensor {name}")
+                raise ValueError(f"expected shape {expected_shape}{expected_shape_from}, but found {shape_is} for tensor {name}")
 
-        logger.debug(f"{name} has expected shape: {shape_is}")
+        logger.debug(f"{name} has expected shape: {shape_is}{expected_shape_from}")
         return tensor
