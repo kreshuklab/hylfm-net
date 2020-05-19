@@ -118,8 +118,8 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                     "shape": [
                         1.0,
                         1.0,
-                        meta.get("ls_slice_scale", meta["scale"]) / meta["nnum"],
-                        meta.get("ls_slice_scale", meta["scale"]) / meta["nnum"],
+                        meta.get("ls_scale", meta["scale"]) / meta["nnum"],
+                        meta.get("ls_scale", meta["scale"]) / meta["nnum"],
                     ],
                     "order": meta["interpolation_order"],
                 }

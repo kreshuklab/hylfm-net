@@ -146,8 +146,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
                         "shape": [
                             1.0,
                             meta["z_ls_rescaled"],
-                            meta.get("ls_slice_scale", meta["scale"]) / meta["nnum"],
-                            meta.get("ls_slice_scale", meta["scale"]) / meta["nnum"],
+                            meta.get("ls_scale", meta["scale"]) / meta["nnum"],
+                            meta.get("ls_scale", meta["scale"]) / meta["nnum"],
                         ],
                         "order": meta["interpolation_order"],
                     }
