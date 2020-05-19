@@ -1,6 +1,6 @@
 interpolation_order: 2
 nnum: 19
-pred_z_max: 615
-pred_z_min: 152
+pred_z_max: 620
+pred_z_min: 142
 scale: 2
 shrink: 6
