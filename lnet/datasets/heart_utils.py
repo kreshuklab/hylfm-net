@@ -78,7 +78,11 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                         "apply_to": name,
                         "expected_tensor_shape": [None, 1, meta["z_ls_rescaled"]]
                         + get_precropped_ls_shape(
-                            crop_name, nnum=meta["nnum"], ls_scale=meta.get("ls_scale", meta["scale"])
+                            crop_name,
+                            nnum=meta["nnum"],
+                            ls_scale=meta.get("ls_scale", meta["scale"]),
+                            for_slice=False,
+                            wrt_ref=False,
                         )[1:],
                     }
                 },

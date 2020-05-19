@@ -38,6 +38,7 @@ class DatasetStat:
             logger.warning(f"restoring computed stat from {path}")
             with path.open() as f:
                 data = yaml.safe_load(f)
+                data = data or {}  # may restore 'None'
 
             def str2tuple(val: typing.Any) -> typing.Any:
                 return tuple([float(s) for s in val.strip("(").strip(")").split(",")]) if isinstance(val, str) else val
