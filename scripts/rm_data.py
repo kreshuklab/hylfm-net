@@ -1,4 +1,5 @@
 import shutil
+from pathlib import Path
 
 from lnet.settings import settings
 
@@ -16,13 +17,13 @@ from lnet.settings import settings
 #     # for file_path in data_path.glob(f"{name}.*"):
 #     #     file_path.unlink()
 
-rm_paths = list(settings.cache_path.glob("*mask.npy"))
-for rm_path in rm_paths:
-    print(rm_path)
-    try:
-        shutil.rmtree(rm_path)
-    except NotADirectoryError:
-        rm_path.unlink()
+# rm_paths = list(settings.cache_path.glob("*mask.npy"))
+# for rm_path in rm_paths:
+#     print(rm_path)
+#     try:
+#         shutil.rmtree(rm_path)
+#     except NotADirectoryError:
+#         rm_path.unlink()
 
     # txt = txt_path.read_text()
     # if "index_mask" not in str(txt_path) and "quality" in txt:
@@ -46,3 +47,17 @@ for rm_path in rm_paths:
 #     # shutil.rmtree(root / name)
 #     # for file_path in data_path.glob(f"{name}.*"):
 #     #     file_path.unlink()
+
+if __name__ =="__main__":
+    root = Path("/scratch/beuttenm/lnet/data4/20191208_234342_ls_slice_61bfbb5e0699f177e586248ba6341b845d04d0b593fcdab495916a81.n5/ls_slice/0/0/0/0")
+    sizes = {}
+    for file in root.glob("*"):
+        size = file.stat().st_size
+        count = sizes.get(size, 0) + 1
+        sizes[size] = count
+        if size not in [69565, 67071]:
+            print(size, file)
+            break
+
+    print(sizes)
+    print(max(sizes.values()))
