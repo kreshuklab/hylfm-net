@@ -42,6 +42,7 @@ class Crop(Transform):
         if any([crop[i][j] is not None and crop[i][j] != cc for i, c in enumerate(int_crop) for j, cc in enumerate(c)]):
             raise ValueError(f"Crop contains fractions: {crop}")
 
+        assert all([c[1] is None or c[1] < 0 or c[1] <= s for c, s in zip(int_crop, tensor.shape[1:])]), (tensor.shape, int_crop)
         out = tensor[(slice(None),) + tuple(slice(c[0], c[1]) for c in int_crop)]
         logger.debug("Crop tensor: %s %s by %s to %s", name, tensor.shape, crop, out.shape)
         return out
@@ -113,14 +114,14 @@ class CropLSforDynamicTraining(Transform):
 
 
 class CropWhatShrinkDoesNot(Transform):
-    def __init__(self, apply_to: str, meta: dict):
+    def __init__(self, apply_to: str, meta: dict, wrt_ref: bool):
         assert isinstance(apply_to, str)
 
         super().__init__(apply_to=apply_to)
         self.crops = {}
         for crop_name in meta["crop_names"]:
             roi = get_lf_roi_in_raw_lf(
-                crop_name, nnum=meta["nnum"], shrink=meta["shrink"], scale=meta["scale"], wrt_ref=True
+                crop_name, nnum=meta["nnum"], shrink=meta["shrink"], scale=meta["scale"], wrt_ref=wrt_ref
             )
             if apply_to != "lf":
                 roi.insert(0, [0, None])  # add z dim

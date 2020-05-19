@@ -381,7 +381,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
 
     assert "beads" in tag or tag in location, (tag, name, location)
     if "crop_names" in meta:
-        assert crop_name in meta["crop_names"]
+        assert crop_name in meta["crop_names"], crop_name
 
     if "crop_name" in meta:
         assert meta["crop_name"] == crop_name

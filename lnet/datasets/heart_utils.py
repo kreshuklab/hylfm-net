@@ -44,7 +44,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                     "AffineTransformation": {
                         "apply_to": name,
                         "target_to_compare_to": [meta["z_out"]]
-                        + get_lf_shape(crop_name, shrink=0, nnum=meta["nnum"], scale=meta["scale"], wrt_ref=False),
+                        + get_raw_lf_shape(crop_name, nnum=meta["nnum"], scale=meta["scale"], wrt_ref=False),
                         "order": meta["interpolation_order"],
                         "ref_input_shape": [838] + get_raw_lf_shape(crop_name, wrt_ref=True),
                         "bdv_affine_transformations": get_bdv_affine_transformations_by_name(crop_name),
@@ -66,8 +66,8 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                         "shape": [
                             1.0,
                             meta["z_ls_rescaled"],
-                            meta["scale"] / meta["nnum"],
-                            meta["scale"] / meta["nnum"],
+                            meta.get("ls_scale", meta["scale"]) / meta["nnum"],
+                            meta.get("ls_scale", meta["scale"]) / meta["nnum"],
                         ],
                         "order": meta["interpolation_order"],
                     }
@@ -103,13 +103,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                 "Assert": {
                     "apply_to": name,
                     "expected_tensor_shape": [1, 1]
-                    + get_precropped_ls_shape(
-                        crop_name,
-                        for_slice=True,
-                        nnum=meta["nnum"],
-                        ls_scale=meta.get("ls_scale", meta["scale"]),
-                        wrt_ref=True,
-                    ),
+                    + get_precropped_ls_shape(crop_name, for_slice=True, nnum=meta["nnum"], wrt_ref=True),
                 }
             },
             {

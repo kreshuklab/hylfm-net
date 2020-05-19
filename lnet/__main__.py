@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     cuda_arg = args.cuda
     cuda_env = os.environ.get("CUDA_VISIBLE_DEVICES", None)
-    print('cuda env, arg', cuda_env, cuda_arg)
+    logger.info('cuda env: %s, arg: %s', cuda_env, cuda_arg)
     if cuda_env is None:
         if cuda_arg is None:
             if torch.cuda.device_count() != 1:
