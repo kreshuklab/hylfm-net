@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import typing
 from collections import OrderedDict
@@ -108,6 +109,9 @@ class PerLoggerSetup:
 
 class LogSetup:
     def __init__(self, *, stage: Stage, **loggers: dict):
+        if os.environ.get("SLURM_JOB_ID", None) is not None:
+            loggers.pop("TqdmLogger", None)  # no TqdmLogger in slurm jobs (progress bar spams output)
+
         self.loggers = {name: PerLoggerSetup(name=name, stage=stage, **lgr) for name, lgr in loggers.items()}
 
     def register_callbacks(self, engine: ignite.engine.Engine):
