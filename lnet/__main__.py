@@ -4,6 +4,7 @@ import os
 
 from pathlib import Path
 
+import torch
 
 CONFIG = {
     "version": 1,
@@ -47,9 +48,11 @@ if __name__ == "__main__":
 
     cuda_arg = args.cuda
     cuda_env = os.environ.get("CUDA_VISIBLE_DEVICES", None)
+    print('cuda env, arg', cuda_env, cuda_arg)
     if cuda_env is None:
         if cuda_arg is None:
-            raise ValueError("'CUDA_VISIBLE_DEVICES' not specified")
+            if torch.cuda.device_count() != 1:
+                raise ValueError("'CUDA_VISIBLE_DEVICES' not specified")
         else:
             os.environ["CUDA_VISIBLE_DEVICES"] = cuda_arg
     elif cuda_arg is not None:

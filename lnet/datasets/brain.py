@@ -1,5 +1,6 @@
 import argparse
 import re
+import warnings
 from pathlib import Path
 
 import yaml
@@ -518,25 +519,29 @@ def quick_check_all(meta: dict):
 
 
 if __name__ == "__main__":
-    # try:
     parser = argparse.ArgumentParser()
     parser.add_argument("tagnr", type=int)
     parser.add_argument("meta_path", type=Path)
 
     args = parser.parse_args()
 
-    tag = get_tags()[args.tagnr]
-    with args.meta_path.open() as f:
-        meta = yaml.safe_load(f)
-        if "toolbox" in meta:
-            meta = meta["toolbox"]["meta"]
+    tags = get_tags()
+    try:
+        tag = tags[args.tagnr]
+    except IndexError:
+        warnings.warn(f"{args.tagnr} >= len(tags) = {len(tags)}")
+    else:
+        with args.meta_path.open() as f:
+            meta = yaml.safe_load(f)
+            if "toolbox" in meta:
+                meta = meta["toolbox"]["meta"]
 
-    check_data(tag, meta=meta)
-    check_filter(tag, meta=meta)
-    # except:
-    #     print("quick check")
-    #     # meta = {"nnum": 19, "interpolation_order": 2, "pred_z_min": 152, "pred_z_max": 615, "shrink": 8, "scale": 8}
-    #     # quick_check_all(meta=meta)
+        check_data(tag, meta=meta)
+        check_filter(tag, meta=meta)
+        # except:
+        #     print("quick check")
+        #     # meta = {"nnum": 19, "interpolation_order": 2, "pred_z_min": 152, "pred_z_max": 615, "shrink": 8, "scale": 8}
+        #     # quick_check_all(meta=meta)
 
 """
 single plane blinking, good for testing, traces:
