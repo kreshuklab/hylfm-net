@@ -82,9 +82,10 @@ def range_or_single_index_to_list(indice_string_part: str) -> List[Optional[int]
     :param indice_string_part: e.g. 37 or 0-100 or 0-100-10
     :return: e.g. [37] or [0, 1, 2, ..., 99] or [0, 10, 20, ..., 90]
     """
-    ints_in_part = [None if p is None else int(p) for p in indice_string_part.split("-")]
+
+    ints_in_part = [int(p) for p in indice_string_part.split("-") if p]
     assert len(ints_in_part) < 4, ints_in_part
-    return list(range(*ints_in_part)) if len(ints_in_part) > 1 else ints_in_part
+    return list(range(*ints_in_part)) if "-" in indice_string_part else ints_in_part
 
 
 def indice_string_to_list(indice_string: Optional[Union[str, int]]) -> Optional[List[int]]:
