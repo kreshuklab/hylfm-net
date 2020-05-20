@@ -11,5 +11,6 @@
 #SBATCH --gres=gpu:1
 #SBATCH -Cgpu=2080Ti
 #SBATCH -J lnet
+#SBATCH --nice=10
 
 /g/kreshuk/beuttenm/miniconda3/envs/llnet/bin/python -m lnet "$@"
