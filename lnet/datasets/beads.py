@@ -11,7 +11,7 @@ b01highc_0_lf = TensorInfo(
 )
 
 b01highc_0_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     insert_singleton_axes_at=[0, 0],
@@ -39,7 +39,7 @@ b01highc_1_lf = TensorInfo(
 )
 
 b01highc_1_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_03.01.49/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     insert_singleton_axes_at=[0, 0],
@@ -67,7 +67,7 @@ b01highc_2_lf = TensorInfo(
 )
 
 b01highc_2_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     insert_singleton_axes_at=[0, 0],
@@ -100,7 +100,7 @@ b11mu_0_lr = TensorInfo(
 )
 
 b11mu_0_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191030_Beads_massiveGT/Beads_11micron/2019-10-30_09.37.45/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b11mu_0",
@@ -127,7 +127,7 @@ b01mu_0_lr = TensorInfo(
 )
 
 b01mu_0_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.20.28_withSimultIllu/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b01mu_0",
@@ -152,7 +152,7 @@ b01mu_1_lr = TensorInfo(
 )
 
 b01mu_1_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_05.54.12_withSimultIllu/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b01mu_1",
@@ -176,7 +176,7 @@ b01mu_2_lr = TensorInfo(
 )
 
 b01mu_2_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_06.25.24/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b1mu_2",
@@ -200,7 +200,7 @@ b01mu_3_lr = TensorInfo(
 )
 
 b01mu_3_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_06.44.56/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b1mu_3",
@@ -224,7 +224,7 @@ b01mu_4_lr = TensorInfo(
 )
 
 b01mu_4_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_07.04.52/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b1mu_4",
@@ -248,7 +248,7 @@ b01mu_5_lr = TensorInfo(
 )
 
 b01mu_5_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191030_Beads_massiveGT/Beads_1micron/2019-10-30_07.23.55/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b1mu_5",
@@ -273,7 +273,7 @@ b4mu_0_lr = TensorInfo(
 )
 
 b4mu_0_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.15.32/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b4mu_0",
@@ -300,7 +300,7 @@ b4mu_1_lr = TensorInfo(
 )
 
 b4mu_1_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.34.35/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b4mu_1",
@@ -327,7 +327,7 @@ b4mu_2_lr = TensorInfo(
 )
 
 b4mu_2_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.53.53/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b4mu_2",
@@ -355,7 +355,7 @@ b4mu_3_lr = TensorInfo(
 )
 
 b4mu_3_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191030_Beads_massiveGT/Beads_4micron/2019-10-30_09.14.05/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b4mu_3",
@@ -380,7 +380,7 @@ b01mix4_0_lr = TensorInfo(
 )
 
 b01mix4_0_ls = TensorInfo(
-    name="ls",
+    name="ls_reg",
     root="GHUFNAGELLFLenseLeNet_Microscope",
     location="20191031_Beads_MixedSizes/Beads_mixed01and4microns/2019-10-31_02.27.33/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif",
     tag="b01mix4_0",

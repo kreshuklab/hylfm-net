@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import logging
 import os
 import shutil
@@ -457,7 +458,6 @@ class EvalStage(Stage):
 
         super().__init__(sampler=sampler, **super_kwargs)
 
-
 class ValidateStage(EvalStage):
     def __init__(
         self,
@@ -612,7 +612,6 @@ class Setup:
         z_out: int,
         model: Dict[str, Any],
         stages: List[Dict[str, Any]],
-        data_cache_path: Optional[str] = None,
         log_path: Optional[str] = None,
         toolbox: Optional[dict] = None,
     ):
@@ -632,6 +631,19 @@ class Setup:
         self.device = torch.device(device)
         self.model_setup = ModelSetup(**model)
         self.model: LnetModel = self.model_setup.get_model(device=self.device, dtype=self.dtype)
+        assert all([len(stage) == 1 for stage in stages]), "invalid stage config"
+        test_individually = [stage for stage in stages if list(stage.keys())[0] == "test_individually"]
+        assert len(test_individually) == 1, test_individually
+        test_individually = test_individually[0]
+        assert len(test_individually) == 1, test_individually
+        test_individually = test_individually["test_individually"]
+        individual_stages = []
+        for idat in test_individually.pop("datasets"):
+            stage = copy.deepcopy(test_individually)
+            stage["data"][0]["datasets"] = [idat]
+            individual_stages.append({idat["tensors"]["lf"]: stage})
+
+        stages = [stage for stage in stages if list(stage.keys())[0] != "test_individually"] + individual_stages
         self.stages = [
             {
                 (
@@ -645,9 +657,12 @@ class Setup:
         ]
 
     @classmethod
-    def from_yaml(cls, yaml_path: Path) -> "Setup":
+    def from_yaml(cls, yaml_path: Path, checkpoint: Optional[str] = None) -> "Setup":
         with yaml_path.open() as f:
             config = yaml.safe_load(f)
+
+        if checkpoint is not None:
+            config["model"]["checkpoint"] = ["logs", checkpoint]
 
         return cls(**config, config_path=yaml_path)
 

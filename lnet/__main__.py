@@ -1,7 +1,6 @@
 import argparse
 import logging.config
 import os
-
 from pathlib import Path
 
 import torch
@@ -42,13 +41,14 @@ if __name__ == "__main__":
     parser.add_argument("experiment_config", type=Path)
     parser.add_argument("--cuda", metavar="CUDA_VISIBLE_DEVICES", type=str, nargs="?", const="0", default=None)
     parser.add_argument("--setup", action="store_true")
+    parser.add_argument("--checkpoint", type=str, default=None)
 
     args = parser.parse_args()
     assert args.experiment_config.exists(), args.experiment_config.absolute()
 
     cuda_arg = args.cuda
     cuda_env = os.environ.get("CUDA_VISIBLE_DEVICES", None)
-    logger.info('cuda env: %s, arg: %s', cuda_env, cuda_arg)
+    logger.info("cuda env: %s, arg: %s", cuda_env, cuda_arg)
     if cuda_env is None:
         if cuda_arg is None:
             if torch.cuda.device_count() != 1:
@@ -60,7 +60,8 @@ if __name__ == "__main__":
             raise ValueError("env and arg values for 'CUDA_VISIBLE_DEVICES' unequal!")
 
     from lnet.setup import Setup
-    setup = Setup.from_yaml(args.experiment_config)
+
+    setup = Setup.from_yaml(args.experiment_config, checkpoint=args.checkpoint)
     if args.setup:
         setup.setup()
     else:
