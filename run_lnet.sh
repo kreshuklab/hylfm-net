@@ -12,4 +12,4 @@
 #SBATCH -Cgpu=2080Ti
 #SBATCH -J lnet
 
-/g/kreshuk/beuttenm/miniconda3/envs/llnet/bin/python -m lnet $1
+/g/kreshuk/beuttenm/miniconda3/envs/llnet/bin/python -m lnet "$@"
