@@ -225,7 +225,12 @@ class TiffDataset(DatasetFromInfo):
     def __getitem__(self, idx: int) -> typing.OrderedDict[str, Union[numpy.ndarray, list]]:
         path_idx = idx // self.info.datasets_per_file
         idx %= self.info.datasets_per_file
-        img_path = self.paths[path_idx]
+        try:
+            img_path = self.paths[path_idx]
+        except IndexError as e:
+            logger.error(f"idx: {idx}, path_idx: {path_idx}, paths: {self.paths}")
+            raise e
+
         img: numpy.ndarray = imageio.volread(img_path)
         if self.info.datasets_per_file > 1:
             img = img[idx : idx + 1]
