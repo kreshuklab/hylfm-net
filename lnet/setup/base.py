@@ -689,7 +689,7 @@ class Setup:
         #     ).stdout
         # (log_path / "full_commit_hash.txt").write_text(commit_hash)
         shutil.copy(self.config_path.as_posix(), (log_path / "template.yaml").as_posix())
-        with (log_path / "config.yaml").as_posix() as f:
+        with (log_path / "config.yaml").open("w") as f:
             yaml.safe_dump(self.config, f)
 
         return log_path
