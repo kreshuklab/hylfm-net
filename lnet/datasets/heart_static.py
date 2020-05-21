@@ -246,22 +246,6 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
 
-    elif tag in ["2019-12-08_06.59.59", "2019-12-08_10.32.03"]:
-        crop_name = "staticHeartFOV"
-        transformations = get_transformations(name, "staticHeartFOV", meta=meta)
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191207_StaticHeart/fish1/static/staticHeartFOV/Sliding_stepsize2_CompleteSlide/{tag}/"
-        if name == "lf":
-            location += "stack_3_channel_0/TP_*/RC_rectified/Cam_Right_001_rectified.tif"
-        elif name == "lr":
-            location = location.replace("LF_partially_restored/", "LF_computed/")
-            location += "stack_3_channel_0/TP_*/RCout/Cam_Right_001.tif"
-        elif name == "ls" or name == "ls_trf":
-            location += "stack_4_channel_1/Cam_Left_*.h5/Data"
-        elif name == "ls_slice":
-            location += "stack_4_channel_1/Cam_Left_*.h5/Data"
-            samples_per_dataset = 241
-            z_slice = idx2z_slice_241
-
     elif tag in ["2019-12-09_07.42.47"]:
         crop_name = "Heart_tightCrop"
         transformations = get_transformations(name, "Heart_tightCrop", meta=meta)
