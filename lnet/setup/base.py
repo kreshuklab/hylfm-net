@@ -622,7 +622,7 @@ class Setup:
             if checkpoint is not None:
                 model["checkpoint"] = ["logs", checkpoint]
 
-        self.config = {"config_path": config_path, "precision": precision, "device": device, "nnum": nnum, "z_out": z_out, "model": model, "stages": stages, "log_path": log_path}
+        self.config = {"config_path": str(config_path), "precision": precision, "device": device, "nnum": nnum, "z_out": z_out, "model": model, "stages": stages, "log_path": log_path}
         self.dtype: torch.dtype = getattr(torch, precision)
         assert isinstance(self.dtype, torch.dtype)
         self.nnum = nnum
