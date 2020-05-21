@@ -633,17 +633,18 @@ class Setup:
         self.model: LnetModel = self.model_setup.get_model(device=self.device, dtype=self.dtype)
         assert all([len(stage) == 1 for stage in stages]), "invalid stage config"
         test_individually = [stage for stage in stages if list(stage.keys())[0] == "test_individually"]
-        assert len(test_individually) == 1, test_individually
-        test_individually = test_individually[0]
-        assert len(test_individually) == 1, test_individually
-        test_individually = test_individually["test_individually"]
-        individual_stages = []
-        for idat in test_individually.pop("datasets"):
-            stage = copy.deepcopy(test_individually)
-            stage["data"][0]["datasets"] = [idat]
-            individual_stages.append({idat["tensors"]["lf"]: stage})
+        stages = [stage for stage in stages if list(stage.keys())[0] != "test_individually"]
+        if len(test_individually) == 1:
+            test_individually = test_individually[0]
+            assert len(test_individually) == 1, test_individually
+            test_individually = test_individually["test_individually"]
+            for idat in test_individually.pop("datasets"):
+                stage = copy.deepcopy(test_individually)
+                stage["data"][0]["datasets"] = [idat]
+                stages.append({idat["tensors"]["lf"]: stage})
+        else:
+            assert len(test_individually) == 0
 
-        stages = [stage for stage in stages if list(stage.keys())[0] != "test_individually"] + individual_stages
         self.stages = [
             {
                 (
