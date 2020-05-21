@@ -614,7 +614,15 @@ class Setup:
         stages: List[Dict[str, Any]],
         log_path: Optional[str] = None,
         toolbox: Optional[dict] = None,
+        cmd_line_kwargs: dict = None,
     ):
+        self.cmd_line_kwargs = cmd_line_kwargs
+        if cmd_line_kwargs is not None:
+            checkpoint = cmd_line_kwargs.get("checkpoint", None)
+            if checkpoint is not None:
+                model["checkpoint"] = ["logs", checkpoint]
+
+        self.config = {"config_path": config_path, "precision": precision, "device": device, "nnum": nnum, "z_out": z_out, "model": model, "stages": stages, "log_path": log_path}
         self.dtype: torch.dtype = getattr(torch, precision)
         assert isinstance(self.dtype, torch.dtype)
         self.nnum = nnum
@@ -658,14 +666,11 @@ class Setup:
         ]
 
     @classmethod
-    def from_yaml(cls, yaml_path: Path, checkpoint: Optional[str] = None) -> "Setup":
+    def from_yaml(cls, yaml_path: Path, **cmd_line_kwargs) -> "Setup":
         with yaml_path.open() as f:
             config = yaml.safe_load(f)
 
-        if checkpoint is not None:
-            config["model"]["checkpoint"] = ["logs", checkpoint]
-
-        return cls(**config, config_path=yaml_path)
+        return cls(**config, config_path=yaml_path, cmd_line_kwargs = cmd_line_kwargs)
 
     def get_log_path(self) -> Path:
         log_sub_dir: List[str] = self.config_path.with_suffix("").resolve().as_posix().split("/experiment_configs/")
@@ -683,7 +688,9 @@ class Setup:
         #         ["git", "rev-parse", "--verify", "HEAD"], capture_output=True, text=True
         #     ).stdout
         # (log_path / "full_commit_hash.txt").write_text(commit_hash)
-        shutil.copy(self.config_path.as_posix(), (log_path / "config.yaml").as_posix())
+        shutil.copy(self.config_path.as_posix(), (log_path / "template.yaml").as_posix())
+        with (log_path / "config.yaml").as_posix() as f:
+            yaml.safe_dump(self.config, f)
 
         return log_path
 

@@ -448,12 +448,12 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
         )
         self.description = description
         indices = numpy.arange(len(dataset)) if indices is None else indices
-        mask_file_path = settings.cache_path / f"{hash_algorithm(description.encode()).hexdigest()}.index_mask.npy"
+        mask_file_path = settings.cache_path / f"{dataset.dataset.info.tag}_{hash_algorithm(description.encode()).hexdigest()}.index_mask.npy"
         mask_description_file_path = mask_file_path.with_suffix(".txt")
         if not mask_description_file_path.exists():
             mask_description_file_path.write_text(description)
 
-        logger.info("using dataset mask %s", mask_description_file_path)
+        logger.warning("using dataset mask %s", mask_description_file_path)
         if mask_file_path.exists():
             mask: numpy.ndarray = numpy.repeat(numpy.load(str(mask_file_path)), dataset.repeat)
         else:
