@@ -27,7 +27,7 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
         tensors = engine.state.criterion(tensors)
         loss = tensors[stage.criterion_setup.name] / stage.batch_multiplier
         loss.backward()
-        if (engine.state.iteraion + 1) % stage.batch_multiplier == 0:
+        if (engine.state.iteration + 1) % stage.batch_multiplier == 0:
             engine.state.optimizer.step()
             engine.state.optimizer.zero_grad()
 
