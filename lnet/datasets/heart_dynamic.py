@@ -474,6 +474,25 @@ def get_tags():
         return [tag.strip() for tag in yaml.safe_load(f)]
 
 
+def quick_check_all(meta: dict):
+    for tag in get_tags():
+        try:
+            lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=False)
+        except Exception as e:
+            print(tag, e)
+            lf = []
+        try:
+            ls_slice = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=False)
+        except Exception as e:
+            print(tag, e)
+            ls_slice = []
+
+        if len(lf) != len(ls_slice) or len(ls_slice) == 0:
+            print(tag, len(lf), len(ls_slice))
+        else:
+            print(tag, len(lf))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("tagnr", type=int)

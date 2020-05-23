@@ -17,11 +17,6 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
 
     tensors = stage.batch_preprocessing_in_step(tensors)
     model.train(train)
-    if train:
-        optimizer = engine.state.optimizer
-        optimizer.zero_grad()
-    else:
-        optimizer = None
 
     start = perf_counter()
     tensors = model(tensors)
@@ -30,9 +25,11 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
 
     if train:
         tensors = engine.state.criterion(tensors)
-        loss = tensors[stage.criterion_setup.name]
+        loss = tensors[stage.criterion_setup.name] / stage.batch_multiplier
         loss.backward()
-        optimizer.step()
+        if (engine.state.iteraion + 1) % stage.batch_multiplier == 0:
+            engine.state.optimizer.step()
+            engine.state.optimizer.zero_grad()
 
     for bmeta in tensors["meta"]:  # todo: fix for bead precision and recall
         for tensor_name in tensors:

@@ -55,8 +55,6 @@ class DatasetStat:
         self.compute_many_mean_std(means)
 
     def compute_hist(self):
-        n = len(self.dataset)
-        sample = self.dataset[0]
         nbins = numpy.iinfo(numpy.uint16).max // 5
         hist_min = 0.0
         hist_max = numpy.iinfo(numpy.uint16).max
@@ -67,6 +65,9 @@ class DatasetStat:
             hist_npz: NpzFile = numpy.load(str(hist_path))
             hist = {name: hist_npz[name] for name in hist_npz.files}
         else:
+            n = len(self.dataset)
+            sample = self.dataset[0]
+
             hist = {
                 name: numpy.zeros(nbins, numpy.uint64)
                 for name in sample.keys()
@@ -125,22 +126,23 @@ class DatasetStat:
             return tuple(mean_std)
 
         self.get_percentiles(name, percentile_range)
-        self.compute_many_mean_std({name: {percentile_range,}})
+        self.compute_many_mean_std({name: {percentile_range}})
         return self.computed[name][percentile_range]
 
     def compute_many_mean_std(self, percentile_ranges: Dict[str, Set[Tuple[float, float]]]):
         n = len(self.dataset)
         all_new_means_vars = {
             name: {
-                range_: {"means": numpy.empty((n,), dtype=numpy.float64), "vars": numpy.empty((n,), dtype=numpy.float64)}
+                range_: {
+                    "means": numpy.empty((n,), dtype=numpy.float64),
+                    "vars": numpy.empty((n,), dtype=numpy.float64),
+                }
                 for range_ in ranges
             }
             for name, ranges in percentile_ranges.items()
         }
 
-        def compute_clipped_means_vars(
-            i: int
-        ) -> None:
+        def compute_clipped_means_vars(i: int) -> None:
             for name, array in enumerate(self.dataset[i]):
                 for range_ in percentile_ranges.get(name, []):
                     lower, upper = range_

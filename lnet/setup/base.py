@@ -213,7 +213,6 @@ class DatasetSetup:
 
             self.infos[name] = info
 
-
         if isinstance(indices, list):
             assert all(isinstance(i, int) for i in indices)
             self.indices = indices
@@ -281,6 +280,7 @@ class Stage:
     seed: Optional[int] = None
     log: LogSetup
     log_class: Type[LogSetup]
+    batch_multiplier: int = 1
 
     def __init__(
         self,
@@ -437,7 +437,10 @@ class Stage:
 
     def run(self):
         state = self.engine.run(
-            data=self.data_loader, max_epochs=self.max_epochs, epoch_length=self.epoch_length, seed=self.seed
+            data=self.data_loader,
+            max_epochs=self.max_epochs,
+            epoch_length=self.epoch_length - (self.epoch_length % self.batch_multiplier),
+            seed=self.seed,
         )
         self.run_count += 1
         return state
@@ -457,6 +460,7 @@ class EvalStage(Stage):
             sampler = {"base": "SequentialSampler", "drop_last": False}
 
         super().__init__(sampler=sampler, **super_kwargs)
+
 
 class ValidateStage(EvalStage):
     def __init__(
@@ -519,7 +523,9 @@ class OptimizerSetup:
         if "engine" in sig.parameters:
             kwargs["engine"] = engine
 
-        return self._class(engine.state.model.parameters(), **kwargs)
+        opt = self._class(engine.state.model.parameters(), **kwargs)
+        opt.zero_grad()
+        return opt
 
 
 class TrainStage(Stage):
@@ -535,10 +541,13 @@ class TrainStage(Stage):
         optimizer: Dict[str, Dict[str, Any]],
         model: Callable,
         log_path: Path,
+        batch_multiplier: int = 1,
         **super_kwargs,
     ):
         super().__init__(log_path=log_path, model=model, **super_kwargs)
         self.max_epochs = max_epochs
+        assert batch_multiplier > 0, batch_multiplier
+        self.batch_multiplier = batch_multiplier
         self.criterion_setup = CriterionSetup(**criterion)
         self.optimizer_setup = OptimizerSetup(**optimizer)
         self.validate = ValidateStage(name="validate", train_stage=self, model=model, log_path=log_path, **validate)
@@ -622,7 +631,16 @@ class Setup:
             if checkpoint is not None:
                 model["checkpoint"] = ["logs", checkpoint]
 
-        self.config = {"config_path": str(config_path), "precision": precision, "device": device, "nnum": nnum, "z_out": z_out, "model": model, "stages": stages, "log_path": log_path}
+        self.config = {
+            "config_path": str(config_path),
+            "precision": precision,
+            "device": device,
+            "nnum": nnum,
+            "z_out": z_out,
+            "model": model,
+            "stages": stages,
+            "log_path": log_path,
+        }
         self.dtype: torch.dtype = getattr(torch, precision)
         assert isinstance(self.dtype, torch.dtype)
         self.nnum = nnum
@@ -670,7 +688,7 @@ class Setup:
         with yaml_path.open() as f:
             config = yaml.safe_load(f)
 
-        return cls(**config, config_path=yaml_path, cmd_line_kwargs = cmd_line_kwargs)
+        return cls(**config, config_path=yaml_path, cmd_line_kwargs=cmd_line_kwargs)
 
     def get_log_path(self) -> Path:
         log_sub_dir: List[str] = self.config_path.with_suffix("").resolve().as_posix().split("/experiment_configs/")
