@@ -550,7 +550,7 @@ class TrainStage(Stage):
         self.batch_multiplier = batch_multiplier
         self.criterion_setup = CriterionSetup(**criterion)
         self.optimizer_setup = OptimizerSetup(**optimizer)
-        self.validate = ValidateStage(name="validate", train_stage=self, model=model, log_path=log_path, **validate)
+        self.validate = ValidateStage(name="validate_" + self.name, train_stage=self, model=model, log_path=log_path, **validate)
 
     def setup_engine(self, engine: ignite.engine.Engine):
         super().setup_engine(engine)
