@@ -95,7 +95,9 @@ class AffineTransformation(torch.nn.Module):
         self,
         *,
         apply_to: Union[str, Dict[str, str]],
-        target_to_compare_to: Union[str, Tuple[Union[int, float], Union[int, float], Union[int, float]]],
+        target_to_compare_to: Union[
+            str, Tuple[int, str], Tuple[Union[int, float], Union[int, float], Union[int, float]]
+        ],
         order: int,
         align_corners: bool,
         # subtract_one_when_scale: str,
@@ -127,12 +129,15 @@ class AffineTransformation(torch.nn.Module):
             apply_to = {apply_to: apply_to}
 
         self.apply_to: Dict[str, str] = apply_to
-        if not isinstance(target_to_compare_to, str):
+        if not isinstance(target_to_compare_to, str) and all(
+            [not isinstance(ttct, str) for ttct in target_to_compare_to]
+        ):
             target_to_compare_to_float = tuple(target_to_compare_to)
             target_to_compare_to = tuple([int(t) for t in target_to_compare_to])
             assert all(
                 [tf == ti for tf, ti in zip(target_to_compare_to_float, target_to_compare_to)]
             ), target_to_compare_to_float
+
         self.target_to_compare_to = target_to_compare_to
         self.input_shape = tuple(ref_input_shape)
         self.output_shape = tuple(ref_output_shape)
@@ -414,6 +419,12 @@ class AffineTransformation(torch.nn.Module):
         if isinstance(self.target_to_compare_to, str):
             z_slices = [m.get(self.target_to_compare_to, {}).get("z_slice", None) for m in tensors["meta"]]
             output_sampling_shape = tensors[self.target_to_compare_to].shape[2:]
+        elif any([isinstance(ttct, str) for ttct in self.target_to_compare_to]):
+            z_slices = None
+            ttct_list_of_lists = [
+                tensors[ttct].shape[2:] if isinstance(ttct, str) else [ttct] for ttct in self.target_to_compare_to
+            ]
+            output_sampling_shape = tuple([ttct for ttct_list in ttct_list_of_lists for ttct in ttct_list])
         else:
             z_slices = None
             output_sampling_shape = tuple(self.target_to_compare_to)
