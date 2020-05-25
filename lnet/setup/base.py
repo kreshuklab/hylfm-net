@@ -660,16 +660,13 @@ class Setup:
         assert all([len(stage) == 1 for stage in stages]), "invalid stage config"
         test_individually = [stage for stage in stages if list(stage.keys())[0] == "test_individually"]
         stages = [stage for stage in stages if list(stage.keys())[0] != "test_individually"]
-        if len(test_individually) == 1:
-            test_individually = test_individually[0]
-            assert len(test_individually) == 1, test_individually
-            test_individually = test_individually["test_individually"]
-            for idat in test_individually.pop("datasets"):
-                stage = copy.deepcopy(test_individually)
+        for ti in test_individually:
+            assert len(ti) == 1, ti
+            ti = ti["test_individually"]
+            for idat in ti.pop("datasets"):
+                stage = copy.deepcopy(ti)
                 stage["data"][0]["datasets"] = [idat]
                 stages.append({idat["tensors"]["lf"]: stage})
-        else:
-            assert len(test_individually) == 0
 
         self.stages = [
             {
