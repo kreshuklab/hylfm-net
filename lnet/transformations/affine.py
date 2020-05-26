@@ -452,6 +452,12 @@ class AffineTransformation(torch.nn.Module):
         if isinstance(self.target_to_compare_to, str):
             z_slices = [m.get(self.target_to_compare_to, {}).get("z_slice", None) for m in tensors["meta"]]
             output_sampling_shape = tensors[self.target_to_compare_to].shape[2:]
+        elif any([isinstance(ttct, str) for ttct in self.target_to_compare_to]):
+            z_slices = None
+            ttct_list_of_lists = [
+                tensors[ttct].shape[2:] if isinstance(ttct, str) else [ttct] for ttct in self.target_to_compare_to
+            ]
+            output_sampling_shape = tuple([ttct for ttct_list in ttct_list_of_lists for ttct in ttct_list])
         else:
             z_slices = None
             output_sampling_shape = tuple(self.target_to_compare_to)
