@@ -253,23 +253,38 @@ class H5Dataset(DatasetFromInfo):
     def __init__(self, *, info: TensorInfo):
         if info.kwargs:
             raise NotImplementedError(info.kwargs)
-        super().__init__(info=info)
-        h5_ext = ".h5"
-        assert h5_ext in info.path.as_posix(), info.path.as_posix()
-        file_path_glob, within_pattern = info.path.as_posix().split(h5_ext)
-        within_pattern = within_pattern.strip("/")
-        file_path_glob += h5_ext
-        paths = get_paths(Path(file_path_glob))
-        self.paths = [p for i, p in enumerate(paths) if i not in info.skip_indices]
-        self.dataset_paths = []
-        for p in paths:
-            with h5py.File(p, mode="r") as hf:
-                root_group = hf["/"]
-                within = []
-                root_group.visit(self.get_ds_resolver(within_pattern, within))
-                self.dataset_paths.append(sorted(within))
 
-        assert all(self.dataset_paths), self.dataset_paths
+        super().__init__(info=info)
+        self._paths = None
+        self._dataset_paths = None
+        h5_ext = ".h5"
+        assert h5_ext in self.info.path.as_posix(), self.info.path.as_posix()
+        file_path_glob, within_pattern = self.info.path.as_posix().split(h5_ext)
+        self.file_path_glob = Path(file_path_glob + h5_ext)
+        self.within_pattern = within_pattern.strip("/")
+
+    @property
+    def paths(self):
+        if self._paths is None:
+            paths = get_paths(self.file_path_glob)
+            self._paths = [p for i, p in enumerate(paths) if i not in self.info.skip_indices]
+
+        return self._paths
+
+    @property
+    def dataset_paths(self):
+        if self._dataset_paths is None:
+            self._dataset_paths = []
+            for p in self.paths:
+                with h5py.File(p, mode="r") as hf:
+                    root_group = hf["/"]
+                    within = []
+                    root_group.visit(self.get_ds_resolver(self.within_pattern, within))
+                    self._dataset_paths.append(sorted(within))
+
+            assert all(self._dataset_paths), self._dataset_paths
+
+        return self._dataset_paths
 
     def __len__(self):
         return len(self.paths) * self.info.datasets_per_file * self.info.samples_per_dataset
@@ -448,7 +463,10 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
         )
         self.description = description
         indices = numpy.arange(len(dataset)) if indices is None else indices
-        mask_file_path = settings.cache_path / f"{dataset.dataset.info.tag}_{hash_algorithm(description.encode()).hexdigest()}.index_mask.npy"
+        mask_file_path = (
+            settings.cache_path
+            / f"{dataset.dataset.info.tag}_{hash_algorithm(description.encode()).hexdigest()}.index_mask.npy"
+        )
         mask_description_file_path = mask_file_path.with_suffix(".txt")
         if not mask_description_file_path.exists():
             mask_description_file_path.write_text(description)

@@ -487,7 +487,7 @@ class AffineTransformation(torch.nn.Module):
 class AffineTransformationDynamicTraining(torch.nn.Module):
     def __init__(
         self,
-        apply_to: Union[str, Dict[str, str]],
+        apply_to: str,  # todo: only allow 'str' for apply_to
         *,
         target_to_compare_to: str,
         meta: dict,

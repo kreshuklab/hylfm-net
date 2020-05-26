@@ -51,8 +51,11 @@ class DatasetStat:
         percentiles_in_means = {name: {p for range_ in ranges_ for p in range_} for name, ranges_ in means.items()}
         percentiles = {name: percentiles_in_means.get(name, set()) + p for name, p in percentiles.items()}
         self.compute_hist()
-        self.compute_many_percentiles(percentiles)
-        self.compute_many_mean_std(means)
+        if percentiles:
+            self.compute_many_percentiles(percentiles)
+
+        if means:
+            self.compute_many_mean_std(means)
 
     def compute_hist(self):
         nbins = numpy.iinfo(numpy.uint16).max // 5

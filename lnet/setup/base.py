@@ -39,18 +39,11 @@ logger = logging.getLogger(__name__)
 
 class ModelSetup:
     def __init__(
-        self,
-        name: str,
-        kwargs: Dict[str, Any],
-        checkpoint: Optional[Union[str, Tuple[str, str]]] = None,
-        partial_weights: bool = False,
+        self, name: str, kwargs: Dict[str, Any], checkpoint: Optional[Path] = None, partial_weights: bool = False
     ):
         self.name = name
         self.kwargs = kwargs
-        self.checkpoint = None if checkpoint is None else getattr(settings.data_roots, checkpoint[0]) / checkpoint[1]
-        if self.checkpoint is not None:
-            assert len(checkpoint) == 2, f"expected root, file_path, but got: {checkpoint}"
-            assert self.checkpoint.exists()
+        self.checkpoint = checkpoint
         self.partial_weights = partial_weights
         self.strict = True
 
@@ -550,7 +543,9 @@ class TrainStage(Stage):
         self.batch_multiplier = batch_multiplier
         self.criterion_setup = CriterionSetup(**criterion)
         self.optimizer_setup = OptimizerSetup(**optimizer)
-        self.validate = ValidateStage(name="validate_" + self.name, train_stage=self, model=model, log_path=log_path, **validate)
+        self.validate = ValidateStage(
+            name="validate_" + self.name, train_stage=self, model=model, log_path=log_path, **validate
+        )
 
     def setup_engine(self, engine: ignite.engine.Engine):
         super().setup_engine(engine)
@@ -617,36 +612,31 @@ class Setup:
         config_path: Path,
         precision: str,
         device: Union[int, str] = 0,
-        nnum: int,
-        z_out: int,
         model: Dict[str, Any],
         stages: List[Dict[str, Any]],
         log_path: Optional[str] = None,
+        checkpoint: Optional[Union[str, Path]] = None,
         toolbox: Optional[dict] = None,
-        cmd_line_kwargs: dict = None,
     ):
-        self.cmd_line_kwargs = cmd_line_kwargs
-        if cmd_line_kwargs is not None:
-            checkpoint = cmd_line_kwargs.get("checkpoint", None)
-            if checkpoint is not None:
-                model["checkpoint"] = ["logs", checkpoint]
+        if checkpoint is not None:
+            checkpoint = Path(checkpoint)
+            assert checkpoint.exists(), checkpoint
+
+        model["checkpoint"] = model.get("checkpoint", None) or checkpoint
 
         self.config = {
             "config_path": str(config_path),
+            "checkpoint": str(checkpoint),
             "precision": precision,
             "device": device,
-            "nnum": nnum,
-            "z_out": z_out,
             "model": model,
             "stages": stages,
             "log_path": log_path,
         }
         self.dtype: torch.dtype = getattr(torch, precision)
         assert isinstance(self.dtype, torch.dtype)
-        self.nnum = nnum
-        self.z_out = z_out
         self.config_path = config_path
-        self.log_path = self.get_log_path() if log_path is None else Path(log_path)
+        self.log_path = self.get_log_path(checkpoint=checkpoint) if log_path is None else Path(log_path)
         if isinstance(device, int) or "cuda" in device:
             cuda_device_count = torch.cuda.device_count()
             if cuda_device_count == 0:
@@ -681,13 +671,14 @@ class Setup:
         ]
 
     @classmethod
-    def from_yaml(cls, yaml_path: Path, **cmd_line_kwargs) -> "Setup":
+    def from_yaml(cls, yaml_path: Path, **overwrite_kwargs) -> "Setup":
         with yaml_path.open() as f:
             config = yaml.safe_load(f)
 
-        return cls(**config, config_path=yaml_path, cmd_line_kwargs=cmd_line_kwargs)
+        config.update(overwrite_kwargs)
+        return cls(**config, config_path=yaml_path)
 
-    def get_log_path(self) -> Path:
+    def get_log_path(self, checkpoint: Optional[Path]) -> Path:
         log_sub_dir: List[str] = self.config_path.with_suffix("").resolve().as_posix().split("/experiment_configs/")
         assert len(log_sub_dir) == 2, log_sub_dir
         log_sub_dir: str = log_sub_dir[1]
