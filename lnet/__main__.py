@@ -74,7 +74,7 @@ if __name__ == "__main__":
         standard_log_path = Setup.get_log_path(experiment_config).parent
         for common_parent in standard_log_path.parents:
             split_at = common_parent.name
-            if split_at in checkpoint:
+            if split_at in [p.name for p in checkpoint.parents]:
                 log_dir_long = Setup.get_log_path(
                     checkpoint, root=standard_log_path, split_at=split_at
                 ).parent.as_posix()
