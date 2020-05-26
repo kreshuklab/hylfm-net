@@ -1,7 +1,9 @@
 import argparse
 import logging.config
 import os
+import shutil
 from pathlib import Path
+from typing import Optional
 
 import torch
 
@@ -42,9 +44,16 @@ if __name__ == "__main__":
     parser.add_argument("--cuda", metavar="CUDA_VISIBLE_DEVICES", type=str, nargs="?", const="0", default=None)
     parser.add_argument("--setup", action="store_true")
     parser.add_argument("--checkpoint", type=str, default=None)
+    parser.add_argument("--test", action="store_true")
 
     args = parser.parse_args()
-    assert args.experiment_config.exists(), args.experiment_config.absolute()
+
+    experiment_config: Path = args.checkpoint
+    assert experiment_config.exists(), experiment_config.absolute()
+
+    checkpoint: Optional[Path] = args.checkpoint
+    if args.test and checkpoint is None:
+        raise TypeError("cannot test without checkpoint")
 
     cuda_arg = args.cuda
     cuda_env = os.environ.get("CUDA_VISIBLE_DEVICES", None)
@@ -61,8 +70,22 @@ if __name__ == "__main__":
 
     from lnet.setup import Setup
 
-    setup = Setup.from_yaml(args.experiment_config, checkpoint=args.checkpoint)
+    if args.test:
+        standard_log_path = Setup.get_log_path(experiment_config).parent
+        log_dir_long = Setup.get_log_path(
+            checkpoint, root=standard_log_path, split_at=standard_log_path.parent.name
+        ).parent.as_posix()
+        log_dir_long = log_dir_long.replace("/checkpoints/", "/")
+        log_dir_long = log_dir_long.replace("/run000/", "/")
+        log_dir_long = log_dir_long.replace("/train/", "/")
+        test_log_path = Path(log_dir_long)
+    else:
+        test_log_path = None
+
+    setup = Setup.from_yaml(experiment_config, checkpoint=checkpoint, log_path=test_log_path)
+
     if args.setup:
-        setup.setup()
+        log_path = setup.setup()
+        shutil.rmtree(log_path)
     else:
         setup.run()
