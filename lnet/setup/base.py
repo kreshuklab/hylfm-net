@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, U
 import ignite
 import torch.utils.data
 import yaml
+from ignite.handlers import global_step_from_engine
 
 import lnet.criteria
 import lnet.log
@@ -39,11 +40,11 @@ logger = logging.getLogger(__name__)
 
 class ModelSetup:
     def __init__(
-        self, name: str, kwargs: Dict[str, Any], checkpoint: Optional[Path] = None, partial_weights: bool = False
+        self, name: str, kwargs: Dict[str, Any], checkpoint: Optional[Union[Path, str]] = None, partial_weights: bool = False
     ):
         self.name = name
         self.kwargs = kwargs
-        self.checkpoint = checkpoint
+        self.checkpoint = None if checkpoint is None else str(checkpoint)
         self.partial_weights = partial_weights
         self.strict = True
 
@@ -559,6 +560,7 @@ class TrainStage(Stage):
             score_name=self.validate.score_metric,
             n_saved=self.log.save_n_checkpoints,
             create_dir=True,
+            global_step_transform=global_step_from_engine(self)
         )
 
         early_stopper = ignite.handlers.EarlyStopping(
@@ -614,39 +616,18 @@ class Setup:
         device: Union[int, str] = 0,
         model: Dict[str, Any],
         stages: List[Dict[str, Any]],
-        log_path: Optional[str] = None,
-        checkpoint: Optional[Union[str, Path]] = None,
+        log_path: Optional[Union[Path, str]] = None,
+        checkpoint: Optional[Union[Path, str]] = None,
         toolbox: Optional[dict] = None,
     ):
+        # update config with generated and passed arguments
+
         if checkpoint is not None:
             checkpoint = Path(checkpoint)
             assert checkpoint.exists(), checkpoint
 
-        model["checkpoint"] = model.get("checkpoint", None) or checkpoint
+        model["checkpoint"] = str(model.get("checkpoint", None) or checkpoint)
 
-        self.config = {
-            "config_path": str(config_path),
-            "checkpoint": str(checkpoint),
-            "precision": precision,
-            "device": device,
-            "model": model,
-            "stages": stages,
-            "log_path": log_path,
-        }
-        self.dtype: torch.dtype = getattr(torch, precision)
-        assert isinstance(self.dtype, torch.dtype)
-        self.config_path = config_path
-        self.log_path = self.get_log_path(checkpoint=checkpoint) if log_path is None else Path(log_path)
-        if isinstance(device, int) or "cuda" in device:
-            cuda_device_count = torch.cuda.device_count()
-            if cuda_device_count == 0:
-                raise RuntimeError("no CUDA devices available!")
-            elif cuda_device_count > 1:
-                raise RuntimeError("too many CUDA devices available! (limit to one)")
-
-        self.device = torch.device(device)
-        self.model_setup = ModelSetup(**model)
-        self.model: LnetModel = self.model_setup.get_model(device=self.device, dtype=self.dtype)
         assert all([len(stage) == 1 for stage in stages]), "invalid stage config"
         test_individually = [stage for stage in stages if list(stage.keys())[0] == "test_individually"]
         stages = [stage for stage in stages if list(stage.keys())[0] != "test_individually"]
@@ -658,17 +639,19 @@ class Setup:
                 stage["data"][0]["datasets"] = [idat]
                 stages.append({idat["tensors"]["lf"]: stage})
 
-        self.stages = [
-            {
-                (
-                    TrainStage(**kwargs, name=name, model=self.model, log_path=self.log_path)
-                    if "optimizer" in kwargs
-                    else EvalStage(**kwargs, name=name, model=self.model, log_path=self.log_path)
-                )
-                for name, kwargs in stage.items()
-            }
-            for stage in stages
-        ]
+        self.config_path = config_path
+        self.log_path = self.get_log_path(config_path=config_path) if log_path is None else Path(log_path)
+        logger.info("log_path: %s", self.log_path)
+
+        self.config = {
+            "config_path": str(config_path),
+            "checkpoint": str(checkpoint),
+            "precision": precision,
+            "device": device,
+            "model": model,
+            "stages": stages,
+            "log_path": str(log_path),
+        }
 
     @classmethod
     def from_yaml(cls, yaml_path: Path, **overwrite_kwargs) -> "Setup":
@@ -678,38 +661,57 @@ class Setup:
         config.update(overwrite_kwargs)
         return cls(**config, config_path=yaml_path)
 
-    def get_log_path(self, checkpoint: Optional[Path]) -> Path:
-        log_sub_dir: List[str] = self.config_path.with_suffix("").resolve().as_posix().split("/experiment_configs/")
+    @staticmethod
+    def get_log_path(config_path: Path, *, root: Optional[Path] = None, split_at: str = "experiment_configs") -> Path:
+        log_sub_dir: List[str] = config_path.with_suffix("").resolve().as_posix().split(f"/{split_at.strip('/')}/")
         assert len(log_sub_dir) == 2, log_sub_dir
         log_sub_dir: str = log_sub_dir[1]
-        log_path = settings.log_path / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
-
-        logger.info("log_path: %s", log_path)
-        log_path.mkdir(parents=True, exist_ok=False)
-
-        # try:
-        #     commit_hash = pbs3.git("rev-parse", "--verify", "HEAD").stdout
-        # except pbs3.CommandNotFound:
-        #     commit_hash = subprocess.run(
-        #         ["git", "rev-parse", "--verify", "HEAD"], capture_output=True, text=True
-        #     ).stdout
-        # (log_path / "full_commit_hash.txt").write_text(commit_hash)
-        shutil.copy(self.config_path.as_posix(), (log_path / "template.yaml").as_posix())
-        with (log_path / "config.yaml").open("w") as f:
-            yaml.safe_dump(self.config, f)
-
-        return log_path
+        if root is None:
+            root = settings.log_path
+        return root / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
         return self.model.get_scaling(ipt_shape)
 
-    def setup(self) -> None:
+    def setup(self) -> Path:
+        self.log_path.mkdir(parents=True, exist_ok=False)
+        # save original config as template
+        shutil.copy(str(self.config_path), str(self.log_path / "template.yaml"))
+        with (self.log_path / "config.yaml").open("w") as f:
+            yaml.safe_dump(self.config, f)  # save actual config to log path
+
+        self.dtype: torch.dtype = getattr(torch, self.config["precision"])
+        assert isinstance(self.dtype, torch.dtype)
+        if isinstance(self.config["device"], int) or "cuda" in self.config["device"]:
+            cuda_device_count = torch.cuda.device_count()
+            if cuda_device_count == 0:
+                raise RuntimeError("no CUDA devices available!")
+            elif cuda_device_count > 1:
+                raise RuntimeError("too many CUDA devices available! (limit to one)")
+
+        self.device = torch.device(self.config["device"])
+        self.model_setup = ModelSetup(**self.config["model"])
+        self.model: LnetModel = self.model_setup.get_model(device=self.device, dtype=self.dtype)
+        self.stages = [
+            {
+                (
+                    TrainStage(**kwargs, name=name, model=self.model, log_path=self.log_path)
+                    if "optimizer" in kwargs
+                    else EvalStage(**kwargs, name=name, model=self.model, log_path=self.log_path)
+                )
+                for name, kwargs in stage.items()
+            }
+            for stage in self.config["stages"]
+        ]
+
         for parallel_stages in self.stages:
             for stage in parallel_stages:
                 logger.info("setup stage: %s", stage.name)
                 stage.setup()
 
-    def run(self) -> None:
+        return self.log_path
+
+    def run(self) -> Path:
         self.setup()
         try:
             for parallel_stages in self.stages:
@@ -719,6 +721,8 @@ class Setup:
         finally:
             self.shutdown()
             delete_empty_dirs(self.log_path)
+
+        return self.log_path
 
     def shutdown(self):
         [stage.shutdown() for parallel_stages in self.stages for stage in parallel_stages]
