@@ -626,7 +626,8 @@ class Setup:
             checkpoint = Path(checkpoint)
             assert checkpoint.exists(), checkpoint
 
-        model["checkpoint"] = str(model.get("checkpoint", None) or checkpoint)
+        model_checkpoint = model.get("checkpoint", None) or checkpoint
+        model["checkpoint"] = None if model_checkpoint is None else str(model_checkpoint)
 
         assert all([len(stage) == 1 for stage in stages]), "invalid stage config"
         test_individually = [stage for stage in stages if list(stage.keys())[0] == "test_individually"]
