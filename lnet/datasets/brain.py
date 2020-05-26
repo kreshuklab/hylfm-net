@@ -57,8 +57,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     fish, tag1, tag2 = tag.split("__")
 
     tag = f"{tag1}__{tag2}"
-    if "_TP" in tag2:
-        tag2, TP = tag2.split("_TP")
+    if "_TP_" in tag2:
+        tag2, TP = tag2.split("_TP_")
     else:
         TP = ""
 
