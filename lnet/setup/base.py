@@ -645,7 +645,7 @@ class Setup:
 
         self.config = {
             "config_path": str(config_path),
-            "checkpoint": str(checkpoint),
+            "checkpoint": None if checkpoint is None else str(checkpoint),
             "precision": precision,
             "device": device,
             "model": model,
