@@ -72,9 +72,16 @@ if __name__ == "__main__":
 
     if args.test:
         standard_log_path = Setup.get_log_path(experiment_config).parent
-        log_dir_long = Setup.get_log_path(
-            checkpoint, root=standard_log_path, split_at=standard_log_path.parent.name
-        ).parent.as_posix()
+        for common_parent in standard_log_path.parents:
+            split_at = common_parent.name
+            if split_at in checkpoint:
+                log_dir_long = Setup.get_log_path(
+                    checkpoint, root=standard_log_path, split_at=split_at
+                ).parent.as_posix()
+                break
+        else:
+            raise NotImplementedError("Found no common folder structure. Where to log test output to?")
+
         log_dir_long = log_dir_long.replace("/checkpoints/", "/")
         log_dir_long = log_dir_long.replace("/run000/", "/")
         log_dir_long = log_dir_long.replace("/train/", "/")
