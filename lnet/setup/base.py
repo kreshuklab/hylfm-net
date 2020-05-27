@@ -560,7 +560,7 @@ class TrainStage(Stage):
             score_name=self.validate.score_metric,
             n_saved=self.log.save_n_checkpoints,
             create_dir=True,
-            global_step_transform=global_step_from_engine(self)
+            global_step_transform=global_step_from_engine(self.engine)
         )
 
         early_stopper = ignite.handlers.EarlyStopping(
