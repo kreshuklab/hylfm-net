@@ -84,9 +84,6 @@ def get_tensor_info(tag: str, name: str, meta: dict):
 
         if tag in ["2019-12-02_23.43.24", "2019-12-02_23.50.04", "2019-12-03_00.00.44"]:
             if name == "lf":
-                if tag != "2019-12-03_00.00.44":
-                    location += "originalCrop/"
-
                 padding = [
                     {
                         "Pad": {
@@ -98,9 +95,6 @@ def get_tensor_info(tag: str, name: str, meta: dict):
                     }
                 ]
             elif name == "lr":
-                if tag != "2019-12-03_00.00.44":
-                    location += "originalCrop/"
-
                 raise NotImplementedError("padding for lr")
             else:
                 padding = []
