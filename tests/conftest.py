@@ -1,9 +1,9 @@
+from collections import OrderedDict
 from pathlib import Path
 
 import pytest
-from lnet.datasets import get_dataset_from_info, N5CachedDatasetFromInfo
 
-from lnet.datasets.gcamp import g200311_083021_ls
+from lnet.datasets import N5CachedDatasetFromInfo, ZipDataset, get_dataset_from_info, get_tensor_info
 
 
 @pytest.fixture
@@ -17,21 +17,21 @@ def dummy_config_path(data_path: Path) -> Path:
 
 
 @pytest.fixture
-def test_ls_slice_dataset() -> N5CachedDatasetFromInfo:
-    info = g200311_083021_ls
-    info.transformations += [
-        {
-            "Resize": {
-                "apply_to": "ls",
-                "shape": [1.0, 1.0, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947],
-                "order": 2,
-            }
-        },  # 2/19=0.10526315789473684210526315789474; 4/19=0.21052631578947368421052631578947; 8/19=0.42105263157894736842105263157895
-        {"Assert": {"apply_to": "ls", "expected_tensor_shape": [None, 1, 1, None, None]}},
-    ]
+def meta() -> dict:
+    return {"nnum": 19, "z_out": 49, "interpolation_order": 2, "scale": 2}
+
+
+@pytest.fixture
+def ls_slice_dataset(meta) -> N5CachedDatasetFromInfo:
+    info = get_tensor_info("brain.2020-03-11_03.22.33", "ls_slice", meta=meta)
     return get_dataset_from_info(info=info, cache=True)
 
 
-# @pytest.fixture
-# def test_ls_subdataset(test_ls_dataset):
-#     return N5Sub
+@pytest.fixture
+def beads_dataset(meta) -> N5CachedDatasetFromInfo:
+    datasets = OrderedDict()
+    for name in ["ls_trf", "ls_reg"]:
+        info = get_tensor_info("heart_static.beads_ref_wholeFOV", name, meta=meta)
+        datasets[name] = get_dataset_from_info(info=info, cache=True)
+
+    return ZipDataset(datasets)

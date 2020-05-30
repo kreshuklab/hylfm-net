@@ -152,7 +152,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
         ]
     elif name == "ls_reg":
         return [
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 838] + get_lf_shape(crop_name)}},  # raw tif
+            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 838] + get_raw_lf_shape(crop_name, wrt_ref=True)}},  # raw tif
             {
                 "Resize": {
                     "apply_to": name,
