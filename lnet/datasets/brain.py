@@ -505,11 +505,10 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     )
 
 
-def check_lr(tag: str, meta: dict):
+def check_lr(tag: str, meta: dict, cache: bool=True):
     lr_info = get_tensor_info(tag, "lr", meta=meta)
-    lr = get_dataset_from_info(lr_info, cache=True)
-    ls = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
-    print("lr, ls", len(lr), len(ls))
+    lr = get_dataset_from_info(lr_info, cache=cache)
+    ls = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=cache)
     msg = f"{len(lr)}, {len(ls)}"
     ok = True
     if len(lr) != len(ls):
@@ -517,15 +516,16 @@ def check_lr(tag: str, meta: dict):
         ok = False
 
     if meta["scale"] == 4:
-        lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
+        lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=cache)
         if len(lf) != len(lr):
             msg += f" lf: {len(lf)}"
             ok = False
 
     if ok:
-        print(msg)
+        print("good:", msg, lr_info.location)
     else:
-        raise ValueError(msg)
+        print("bad:", msg)
+        # raise ValueError(msg)
 
 
 def check_filter(tag: str, meta: dict):
@@ -580,58 +580,58 @@ def quick_check_all(meta: dict):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("tagnr", type=int)
-    parser.add_argument("meta_path", type=Path)
-
-    args = parser.parse_args()
-
-    tags = get_tags()
-    try:
-        tag = tags[args.tagnr]
-    except IndexError:
-        warnings.warn(f"{args.tagnr} >= len(tags) = {len(tags)}")
-    else:
-        with args.meta_path.open() as f:
-            meta = yaml.safe_load(f)
-            if "toolbox" in meta:
-                meta = meta["toolbox"]["meta"]
-
-        # check_data(tag, meta=meta)
-        # check_filter(tag, meta=meta)
-        check_lr(tag, meta=meta)
-        # except:
-        # print("quick check")
-    # meta = {"z_out": 49, "nnum": 19, "interpolation_order": 2, "pred_z_min": 142, "pred_z_max": 620, "shrink": 8, "scale": 4}
-    # # quick_check_all(meta=meta)
-    # for tag in [
-    #     # "09_3__2020-03-09_06.43.40__SinglePlane_-320"
-    #     "09_3__2020-03-09_06.43.40__SinglePlane_-330",
-    #     "09_3__2020-03-09_06.43.40__SinglePlane_-340"
-    #     "11_2__2020-03-11_07.30.39__SinglePlane_-320",
-    #     "11_2__2020-03-11_07.30.39__SinglePlane_-310",
-    #     "11_2__2020-03-11_10.13.20__SinglePlane_-290",
-    #     "11_2__2020-03-11_10.13.20__SinglePlane_-315",
-    #     "11_2__2020-03-11_10.25.41__SinglePlane_-295",
-    #     "11_2__2020-03-11_10.25.41__SinglePlane_-305",
-    #     "11_2__2020-03-11_10.25.41__SinglePlane_-340",
-    #     "11_2__2020-03-11_10.17.34__SinglePlane_-280",
-    #     "11_2__2020-03-11_10.17.34__SinglePlane_-330",
-    #     "11_2__2020-03-11_10.21.14__SinglePlane_-295",
-    #     "11_2__2020-03-11_10.21.14__SinglePlane_-305",
-    #     "11_2__2020-03-11_10.33.17__SinglePlane_-340",
-    #     "11_2__2020-03-11_10.34.15__SinglePlane_-340",
-    #     "11_2__2020-03-11_10.35.41__SinglePlane_-340",
-    #     "11_2__2020-03-11_08.12.13__SinglePlane_-310",
-    #     "11_2__2020-03-11_06.53.14__SinglePlane_-330",
-    #     # "09_1__2020-03-09_02.53.02__SwipeThrough_-450_-210_nimages_241",
-    #     # "09_4__2020-03-09_08.41.22__SinglePlane_-330",
-    #     # "09_4__2020-03-09_08.41.22__SinglePlane_-340",
-    #     # "09_4__2020-03-09_08.41.22__SinglePlane_-350",
-    #     # "09_4__2020-03-09_08.41.22__SinglePlane_-360",
-    # ]:
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("tagnr", type=int)
+    # parser.add_argument("meta_path", type=Path)
+    #
+    # args = parser.parse_args()
+    #
+    # tags = get_tags()
+    # try:
+    #     tag = tags[args.tagnr]
+    # except IndexError:
+    #     warnings.warn(f"{args.tagnr} >= len(tags) = {len(tags)}")
+    # else:
+    #     with args.meta_path.open() as f:
+    #         meta = yaml.safe_load(f)
+    #         if "toolbox" in meta:
+    #             meta = meta["toolbox"]["meta"]
+    #
+    #     # check_data(tag, meta=meta)
     #     # check_filter(tag, meta=meta)
     #     check_lr(tag, meta=meta)
+    #     # except:
+    #     # print("quick check")
+    meta = {"z_out": 49, "nnum": 19, "interpolation_order": 2, "pred_z_min": 142, "pred_z_max": 620, "shrink": 8, "scale": 4}
+    # # quick_check_all(meta=meta)
+    for tag in [
+        # "09_3__2020-03-09_06.43.40__SinglePlane_-320",
+        "09_3__2020-03-09_06.43.40__SinglePlane_-330",
+        "09_3__2020-03-09_06.43.40__SinglePlane_-340",
+        "11_2__2020-03-11_07.30.39__SinglePlane_-320",
+        "11_2__2020-03-11_07.30.39__SinglePlane_-310",
+        # "11_2__2020-03-11_10.13.20__SinglePlane_-290",
+        # "11_2__2020-03-11_10.13.20__SinglePlane_-315",
+        # "11_2__2020-03-11_10.25.41__SinglePlane_-295",
+        # "11_2__2020-03-11_10.25.41__SinglePlane_-305",
+        # "11_2__2020-03-11_10.25.41__SinglePlane_-340",
+        # "11_2__2020-03-11_10.17.34__SinglePlane_-280",
+        # "11_2__2020-03-11_10.17.34__SinglePlane_-330",
+        # "11_2__2020-03-11_10.21.14__SinglePlane_-295",
+        # "11_2__2020-03-11_10.21.14__SinglePlane_-305",
+        # "11_2__2020-03-11_10.33.17__SinglePlane_-340",
+        # "11_2__2020-03-11_10.34.15__SinglePlane_-340",
+        # "11_2__2020-03-11_10.35.41__SinglePlane_-340",
+        # "11_2__2020-03-11_08.12.13__SinglePlane_-310",
+        "11_2__2020-03-11_06.53.14__SinglePlane_-330",
+        # "09_1__2020-03-09_02.53.02__SwipeThrough_-450_-210_nimages_241",
+        # "09_4__2020-03-09_08.41.22__SinglePlane_-330",
+        # "09_4__2020-03-09_08.41.22__SinglePlane_-340",
+        # "09_4__2020-03-09_08.41.22__SinglePlane_-350",
+        # "09_4__2020-03-09_08.41.22__SinglePlane_-360",
+    ]:
+        # check_filter(tag, meta=meta)
+        check_lr(tag, meta=meta, cache=True)
 
 
 """
