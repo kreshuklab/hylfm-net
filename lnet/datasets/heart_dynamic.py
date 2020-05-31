@@ -76,11 +76,13 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         transformations += get_transformations(name, crop_name, meta=meta)
 
     elif tag in ["2019-12-02_23.17.56", "2019-12-02_23.43.24", "2019-12-02_23.50.04", "2019-12-03_00.00.44"]:
-        meta["quality"] = 3
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/Heart_tightCrop/dynamicImaging1_btw20to160planes/{tag}/stack_1_channel_3/"
+        if tag == "2019-12-03_00.00.44":
+            raise NotImplementedError("check crop and if 10ms is really there now...")
         # if tag == "2019-12-03_00.00.44":
         #     raise NotImplementedError("10ms is coming, only 5ms available:")
         # location = location.replace("stack_1_channel_3", "stack_1_channel_2")
+        meta["quality"] = 3
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/Heart_tightCrop/dynamicImaging1_btw20to160planes/{tag}/stack_1_channel_3/"
 
         if tag in ["2019-12-02_23.43.24", "2019-12-02_23.50.04", "2019-12-03_00.00.44"]:
             if name == "lf":
@@ -112,6 +114,8 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "Cam_Left_*.h5/Data"
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
+        else:
+            raise NotImplementedError(name)
 
     elif tag in ["2019-12-08_23.43.42"]:
         meta["quality"] = 1
@@ -418,9 +422,13 @@ def debug():
 def check_filter(tag: str, meta: dict):
     lf_crops = {"Heart_tightCrop": [[0, None], [0, None], [0, None]], "wholeFOV": [[0, None], [0, None], [0, None]]}
 
+    # filters = [
+    #     ("z_range", {}),
+    #     ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 1.5}),
+    # ]
     filters = [
         ("z_range", {}),
-        ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 1.5}),
+        ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.99, "noise_percentile": 5.0, "ratio": 1.2}),
     ]
 
     ds_unfiltered = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)

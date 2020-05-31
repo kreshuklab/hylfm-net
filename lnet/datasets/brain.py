@@ -13,6 +13,7 @@ from lnet.transformations.affine_utils import (
     get_precropped_ls_shape,
     get_raw_lf_shape,
     get_pred_shape,
+    get_ls_ref_shape,
 )
 
 
@@ -439,8 +440,45 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             },
             {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},
         ]
+    elif name == "ls_trf":
+        transformations = [
+            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 241, 2048, 2060]}},  # raw ls shape
+            {"FlipAxis": {"apply_to": name, "axis": 2}},
+            {"FlipAxis": {"apply_to": name, "axis": 1}},
+            {
+                "Crop": {
+                    "apply_to": name,
+                    "crop": [[0, None]] + get_precropped_ls_roi_in_raw_ls(crop_name, for_slice=False, wrt_ref=False),
+                }
+            },
+            {
+                "Assert": {
+                    "apply_to": name,
+                    "expected_tensor_shape": [1, 1]
+                    + get_precropped_ls_shape(crop_name, for_slice=False, nnum=meta["nnum"], wrt_ref=True),
+                }
+            },
+            {"Cast": {"apply_to": name, "dtype": "float32", "device": "cpu"}},
+            {
+                "AffineTransformation": {
+                    "apply_to": name,
+                    "target_to_compare_to": [meta["z_out"]]
+                    + get_raw_lf_shape(crop_name, nnum=meta["nnum"], scale=meta["scale"], wrt_ref=False),
+                    "order": meta["interpolation_order"],
+                    "ref_input_shape": [838] + get_raw_lf_shape(crop_name, wrt_ref=True),
+                    "bdv_affine_transformations": crop_name,
+                    "ref_output_shape": get_ls_ref_shape(crop_name),
+                    "ref_crop_in": [[0, None], [0, None], [0, None]],
+                    "ref_crop_out": [[0, None], [0, None], [0, None]],
+                    "inverted": True,
+                    "padding_mode": "border",
+                    "align_corners": meta.get("align_corners", False),
+                }
+            },
+            {"Cast": {"apply_to": name, "dtype": "float32", "device": "numpy"}},
+        ]
     else:
-        raise NotImplementedError
+        raise NotImplementedError(name)
 
     if location is None or location.endswith("/"):
         raise NotImplementedError(f"tag: {tag}, name: {name}")
@@ -471,8 +509,8 @@ def check_filter(tag: str, meta: dict):
     lf_crops = {"gcamp": [[0, None], [0, None], [0, None]]}
 
     filters = [
-        ("z_range", {}),
-        ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 1.5}),
+        ("z_range", {"z_min": 60, "z_max": 181}),
+        # ("signal2noise", {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 1.3}),
     ]
 
     ds_unfiltered = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
@@ -519,29 +557,54 @@ def quick_check_all(meta: dict):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("tagnr", type=int)
-    parser.add_argument("meta_path", type=Path)
-
-    args = parser.parse_args()
-
-    tags = get_tags()
-    try:
-        tag = tags[args.tagnr]
-    except IndexError:
-        warnings.warn(f"{args.tagnr} >= len(tags) = {len(tags)}")
-    else:
-        with args.meta_path.open() as f:
-            meta = yaml.safe_load(f)
-            if "toolbox" in meta:
-                meta = meta["toolbox"]["meta"]
-
-        check_data(tag, meta=meta)
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("tagnr", type=int)
+    # parser.add_argument("meta_path", type=Path)
+    #
+    # args = parser.parse_args()
+    #
+    # tags = get_tags()
+    # try:
+    #     tag = tags[args.tagnr]
+    # except IndexError:
+    #     warnings.warn(f"{args.tagnr} >= len(tags) = {len(tags)}")
+    # else:
+    #     with args.meta_path.open() as f:
+    #         meta = yaml.safe_load(f)
+    #         if "toolbox" in meta:
+    #             meta = meta["toolbox"]["meta"]
+    #
+    #     check_data(tag, meta=meta)
+    #     check_filter(tag, meta=meta)
+    #     # except:
+    #     print("quick check")
+    meta = {"nnum": 19, "interpolation_order": 2, "pred_z_min": 142, "pred_z_max": 620, "shrink": 8, "scale": 8}
+    # quick_check_all(meta=meta)
+    for tag in [
+        # "09_1__2020-03-09_02.53.02__SwipeThrough_-450_-210_nimages_241",
+        # "09_3__2020-03-09_06.43.40__SinglePlane_-330",
+        # "09_4__2020-03-09_08.41.22__SinglePlane_-330",
+        # "09_4__2020-03-09_08.41.22__SinglePlane_-340",
+        # "09_4__2020-03-09_08.41.22__SinglePlane_-350",
+        # "09_4__2020-03-09_08.41.22__SinglePlane_-360",
+        "11_2__2020-03-11_07.30.39__SinglePlane_-320",
+        "11_2__2020-03-11_07.30.39__SinglePlane_-310",
+        "11_2__2020-03-11_10.13.20__SinglePlane_-290",
+        "11_2__2020-03-11_10.13.20__SinglePlane_-315",
+        "11_2__2020-03-11_10.25.41__SinglePlane_-295",
+        "11_2__2020-03-11_10.25.41__SinglePlane_-305",
+        "11_2__2020-03-11_10.25.41__SinglePlane_-340",
+        "11_2__2020-03-11_10.17.34__SinglePlane_-280",
+        "11_2__2020-03-11_10.17.34__SinglePlane_-330",
+        "11_2__2020-03-11_10.21.14__SinglePlane_-295",
+        "11_2__2020-03-11_10.21.14__SinglePlane_-305",
+        "11_2__2020-03-11_10.33.17__SinglePlane_-340",
+        "11_2__2020-03-11_10.34.15__SinglePlane_-340",
+        "11_2__2020-03-11_10.35.41__SinglePlane_-340",
+        "11_2__2020-03-11_08.12.13__SinglePlane_-310",
+        "11_2__2020-03-11_06.53.14__SinglePlane_-330",
+    ]:
         check_filter(tag, meta=meta)
-        # except:
-        #     print("quick check")
-        #     # meta = {"nnum": 19, "interpolation_order": 2, "pred_z_min": 152, "pred_z_max": 615, "shrink": 8, "scale": 8}
-        #     # quick_check_all(meta=meta)
 
 """
 single plane blinking, good for testing, traces:
@@ -728,9 +791,9 @@ LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.42.07/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.44.50/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/10Hz/slideThrough/2020-03-11_08.47.29/stack_36_channel_3/SwipeThrough_-390_-270_nimages_121
-LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/16ms/2020-03-11_10.33.17/stack_37_channel_9/SinglePlane_-340
-LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/16ms/2020-03-11_10.34.15/stack_37_channel_9/SinglePlane_-340
-LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/16ms/2020-03-11_10.35.41/stack_37_channel_9/SinglePlane_-340
+# LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/16ms/2020-03-11_10.33.17/stack_37_channel_9/SinglePlane_-340
+# LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/16ms/2020-03-11_10.34.15/stack_37_channel_9/SinglePlane_-340
+# LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/16ms/2020-03-11_10.35.41/stack_37_channel_9/SinglePlane_-340
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/20Hz/2020-03-11_08.19.37/stack_33_channel_8/SwipeThrough_-390_-270_nimages_121
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/20Hz/2020-03-11_08.20.29/stack_33_channel_8/SwipeThrough_-390_-270_nimages_121
 LF_partially_restored/TestOutputGcamp/LenseLeNet_Microscope/20200311_Gcamp/fish2/20Hz/2020-03-11_08.22.19/stack_33_channel_8/SwipeThrough_-390_-270_nimages_121

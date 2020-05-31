@@ -45,6 +45,7 @@ if __name__ == "__main__":
     parser.add_argument("--setup", action="store_true")
     parser.add_argument("--checkpoint", type=Path, default=None)
     parser.add_argument("--test", action="store_true")
+    parser.add_argument("--delete_existing_log_folder", action="store_true")
 
     args = parser.parse_args()
 
@@ -86,6 +87,8 @@ if __name__ == "__main__":
         log_dir_long = log_dir_long.replace("/run000/", "/")
         log_dir_long = log_dir_long.replace("/train/", "/")
         test_log_path = Path(log_dir_long)
+        if test_log_path.exists() and args.delete_existing_log_folder:
+            shutil.rmtree(test_log_path)
     else:
         test_log_path = None
 
@@ -95,4 +98,5 @@ if __name__ == "__main__":
         log_path = setup.setup()
         shutil.rmtree(log_path)
     else:
-        setup.run()
+        log_path = setup.run()
+        print(f"done logging to {log_path}")
