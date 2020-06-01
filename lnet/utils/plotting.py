@@ -97,11 +97,15 @@ def get_batch_figure(*, tensors: OrderedDict[str, numpy.ndarray], return_array: 
             title = name
             if "slice" in name:
                 try:
-                    z_slice = meta[name]["z_slice"] #
+                    z_slice = meta[name]["z_slice"]
                     title = f"{name} z: {z_slice}"
                 except Exception as e:
                     logger.error(e)
-                    raise e
+                    try:
+                        z_slice = meta["ls_slice"]["z_slice"]
+                        title = f"{name} z: {z_slice}"
+                    except Exception as e:
+                        logger.error(e)
 
             make_subplot(ax[r, c], title=title, img=img, side_view=side_view)
 
