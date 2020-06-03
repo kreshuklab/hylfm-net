@@ -15,4 +15,4 @@ from .image import (
 )
 from .light_field import ChannelFromLightField, LightFieldFromChannel
 from .noises import AdditiveGaussianNoise
-from .normalizations import Normalize01, NormalizeMeanStd
+from .normalizations import Normalize01, NormalizeSample01, NormalizeMeanStd

@@ -55,6 +55,37 @@ class Normalize01(Transform):
         return sample
 
 
+class NormalizeSample01(Transform):
+    def __init__(
+        self,
+        min_percentile: Optional[float] = None,
+        max_percentile: Optional[float] = None,
+        clip: bool = False,
+        **super_kwargs,
+    ):
+        super().__init__(**super_kwargs)
+        if min_percentile is None:
+            min_percentile = 0.0
+
+        if max_percentile is None:
+            max_percentile = 100.0
+
+        self.min_percentile = min_percentile
+        self.max_percentile = max_percentile
+        self.clip = clip
+
+    def apply_to_sample(self, sample, tensor_name: str, tensor_idx: int, batch_idx: int, meta: dict):
+        assert sample.shape[0] == 1, "multichannel not implemented yet"
+        min_, max_ = numpy.percentile(
+            sample, [self.min_percentile, self.max_percentile]
+        )  # todo multichannel with axis=0
+        sample = (sample - min_) / (max_ - min_)
+        if self.clip:
+            sample = numpy.clip(sample, 0.0, 1.0)
+
+        return sample
+
+
 class NormalizeMeanStd(Transform):
     def __init__(
         self,
