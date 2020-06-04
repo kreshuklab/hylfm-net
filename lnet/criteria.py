@@ -9,12 +9,16 @@ from ignite.engine import Engine, Events
 from torch import FloatTensor, Tensor
 from torch.autograd import Variable
 
+import pytorch_msssim
+
 logger = logging.getLogger(__name__)
 
 
 L1Loss = torch.nn.L1Loss
 MSELoss = torch.nn.MSELoss
 SmoothL1Loss = torch.nn.SmoothL1Loss
+SSIM = pytorch_msssim.SSIM
+MS_SSIM = pytorch_msssim.MS_SSIM
 
 
 class CriterionWrapper(torch.nn.Module):

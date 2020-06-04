@@ -139,8 +139,11 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         if name == "lf":
             location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         elif name == "lr":
-            location = location.replace("LF_partially_restored/", "LF_computed/")
-            location += "TP_*/RCout/Cam_Right_*.tif"
+            if tag == "2019-12-09_04.54.38":
+                location = "/scratch/Nils/LF_computed/TP*/RCout/Cam_Right_*.tif"
+            else:
+                location = location.replace("LF_partially_restored/", "LF_computed/")
+                location += "TP_*/RCout/Cam_Right_*.tif"
         elif name == "ls_slice":
             location += "Cam_Left_*.h5/Data"
             samples_per_dataset = 241
@@ -246,7 +249,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     if location is None or location.endswith("/"):
         raise NotImplementedError(f"tag: {tag}, name: {name}")
 
-    assert tag.replace("_short", "") in location, (tag, name, location)
+    assert tag.replace("_short", "") in location or tag == "2019-12-09_04.54.38", (tag, name, location)
     tag = tag.replace("/", "_")
     if "crop_names" in meta:
         assert crop_name in meta["crop_names"]
