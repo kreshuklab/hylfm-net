@@ -242,7 +242,7 @@ class TensorBoardLogger(BaseLogger):
 
         tensor_names = self.get_tensor_names(engine)
         output = engine.state.output
-        meta = output["meta"][0]
+        meta = output["meta"]
         tensors = OrderedDict(
             [
                 (tn, output[tn].detach().cpu().numpy()) if isinstance(output[tn], torch.Tensor) else (tn, output[tn])

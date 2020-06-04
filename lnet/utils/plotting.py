@@ -38,7 +38,7 @@ class ColorSelection:
         return self.colors[item % len(self.colors)]
 
 
-def get_batch_figure(*, tensors: OrderedDict[str, numpy.ndarray], return_array: bool = False, meta: Optional[dict] = None):
+def get_batch_figure(*, tensors: OrderedDict[str, numpy.ndarray], return_array: bool = False, meta: Optional[List[dict]] = None):
     ncols = len(tensors)
     nrows = tensors[list(tensors.keys())[0]].shape[0]
 
@@ -97,12 +97,12 @@ def get_batch_figure(*, tensors: OrderedDict[str, numpy.ndarray], return_array: 
             title = name
             if "slice" in name:
                 try:
-                    z_slice = meta[name]["z_slice"]
+                    z_slice = meta[r][name]["z_slice"]
                     title = f"{name} z: {z_slice}"
                 except Exception as e:
                     logger.error(e)
                     try:
-                        z_slice = meta["ls_slice"]["z_slice"]
+                        z_slice = meta[r]["ls_slice"]["z_slice"]
                         title = f"{name} z: {z_slice}"
                     except Exception as e:
                         logger.error(e)
