@@ -623,6 +623,15 @@ class Setup:
         # update config with generated and passed arguments
 
         if checkpoint is not None:
+            checkpoint = checkpoint.as_posix()
+            star_pos = checkpoint.find("*")
+            if star_pos != -1:
+                valid_path_until = checkpoint[:star_pos].rfind("/")
+                checkpoint_dir = Path(checkpoint[:valid_path_until])
+                assert checkpoint_dir.exists(), checkpoint_dir
+                glob_expr = checkpoint[valid_path_until + 1:]
+                checkpoint = max([(float(c.stem.split("=")[1]), c) for c in checkpoint_dir.glob(glob_expr)])[1]
+
             checkpoint = Path(checkpoint)
             assert checkpoint.exists(), checkpoint
 
