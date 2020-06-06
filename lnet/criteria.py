@@ -10,6 +10,7 @@ from torch import FloatTensor, Tensor
 from torch.autograd import Variable
 
 import pytorch_msssim
+from lnet.utils.general import percentile
 
 logger = logging.getLogger(__name__)
 
@@ -60,14 +61,21 @@ class WeightedL1Loss(torch.nn.L1Loss):
     def __init__(
         self,
         engine: Engine,
-        threshold: float,
+        threshold: typing.Union[float, str],
         initial_weight: float,
         decay_by: float,
         every_nth_epoch: int,
         apply_below_threshold: bool = False,
     ):
         super().__init__(reduction="none")
-        self.threshold = threshold
+        if isinstance(threshold, float):
+            self.threshold = threshold
+            self.percentile = None
+        else:
+            assert isinstance(threshold, str) and "percentile" in threshold
+            self.percentile = float(threshold.replace("percentile", ""))
+            self.threshold = None
+
         self.apply_below_threshold = apply_below_threshold
 
         self.weight = initial_weight - 1.0
@@ -81,12 +89,17 @@ class WeightedL1Loss(torch.nn.L1Loss):
     def forward(self, input, target):
         l1 = super().forward(input, target)
 
-        if self.apply_below_threshold:
-            mask = target < self.threshold
-        else:
-            mask = target >= self.threshold
-
         if self.training:
+            if self.threshold is None:
+                threshold = percentile(target, q=self.percentile)
+            else:
+                threshold = self.threshold
+
+            if self.apply_below_threshold:
+                mask = target < threshold
+            else:
+                mask = target >= threshold
+
             l1_additional_weights = torch.zeros_like(l1)
             l1_additional_weights[mask] = l1[mask] * self.weight
             l1 = l1 + l1_additional_weights
@@ -98,14 +111,21 @@ class WeightedSmoothL1Loss(torch.nn.SmoothL1Loss):
     def __init__(
         self,
         engine: Engine,
-        threshold: float,
+        threshold: typing.Union[float, str],
         initial_weight: float,
         decay_by: float,
         every_nth_epoch: int,
         apply_below_threshold: bool = False,
     ):
         super().__init__(reduction="none")
-        self.threshold = threshold
+        if isinstance(threshold, float):
+            self.threshold = threshold
+            self.percentile = None
+        else:
+            assert isinstance(threshold, str) and "percentile" in threshold
+            self.percentile = float(threshold.replace("percentile", ""))
+            self.threshold = None
+
         self.apply_below_threshold = apply_below_threshold
 
         self.weight = initial_weight - 1.0
@@ -120,10 +140,15 @@ class WeightedSmoothL1Loss(torch.nn.SmoothL1Loss):
         l1 = super().forward(input, target)
 
         if self.training:
-            if self.apply_below_threshold:
-                mask = target < self.threshold
+            if self.threshold is None:
+                threshold = percentile(target, q=self.percentile)
             else:
-                mask = target >= self.threshold
+                threshold = self.threshold
+
+            if self.apply_below_threshold:
+                mask = target < threshold
+            else:
+                mask = target >= threshold
 
             l1_additional_weights = torch.zeros_like(l1)
             l1_additional_weights[mask] = l1[mask] * self.weight
