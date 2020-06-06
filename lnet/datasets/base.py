@@ -45,7 +45,7 @@ class TensorInfo:
         self,
         *,
         name: str,
-        root: str,
+        root: Union[str, Path],
         location: str,
         transformations: Sequence[Dict[str, Any]] = tuple(),
         datasets_per_file: int = 1,
@@ -71,7 +71,7 @@ class TensorInfo:
             )
 
         assert isinstance(name, str)
-        assert isinstance(root, str)
+        assert isinstance(root, (str, Path))
         assert isinstance(location, str)
         assert isinstance(datasets_per_file, int)
         assert isinstance(samples_per_dataset, int), samples_per_dataset
@@ -81,7 +81,6 @@ class TensorInfo:
         else:
             self.tag = tag
 
-        self.root = root
         self.location = location
         self.transformations = list(transformations)
         self.datasets_per_file = datasets_per_file
@@ -92,7 +91,8 @@ class TensorInfo:
         self.meta: dict = meta or {}
         self.repeat = repeat
         self.kwargs = kwargs
-        self.path: Path = getattr(settings.data_roots, root) / location
+        self.path: Path = (getattr(settings.data_roots, root) if isinstance(root, str) else root) / location
+        self.root = str(root)
 
     @property
     def transformations(self) -> List[Dict[str, Any]]:

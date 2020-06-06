@@ -8,6 +8,7 @@ import typing
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
+from functools import partial
 from importlib import import_module
 from inspect import signature
 from pathlib import Path
@@ -23,7 +24,7 @@ import lnet.log
 import lnet.metrics
 import lnet.optimizers
 import lnet.transformations
-from lnet import settings
+from lnet import settings, post_run
 from lnet.datasets import ConcatDataset, ZipDataset, get_collate_fn, get_dataset_from_info, get_tensor_info
 from lnet.datasets.base import TensorInfo
 from lnet.models import LnetModel
@@ -290,6 +291,7 @@ class Stage:
         model: LnetModel,
         log_path: Path,
         tensors_to_save: Optional[Sequence[str]] = tuple(),
+        post_runs: Sequence[str] = tuple(),
     ):
         self.name = name
         self.log_path = log_path / name / "init"
@@ -319,6 +321,7 @@ class Stage:
         self.data: DataSetup = DataSetup([DatasetGroupSetup(**d) for d in data])
         self.sampler: SamplerSetup = SamplerSetup(**sampler, _data_setup=self.data)
         self.log = self.log_class(stage=self, **log)
+        self.post_runs = [partial(getattr(post_run, name), **kwargs) for pr in post_runs for name, kwargs in pr.items()]
 
     @property
     def run_count(self):
@@ -327,6 +330,8 @@ class Stage:
     @run_count.setter
     def run_count(self, rc: int):
         self.__run_count = rc
+        if self.log_path.exists():
+            delete_empty_dirs(self.log_path)
         self.log_path = self.log_path.parent / f"run{self.run_count:03}"
         self.log_path.mkdir(parents=True)
 
@@ -436,6 +441,9 @@ class Stage:
             epoch_length=self.epoch_length - (self.epoch_length % self.batch_multiplier),
             seed=self.seed,
         )
+        for post_run in self.post_runs:
+            post_run(stage=self)
+
         self.run_count += 1
         return state
 
@@ -446,7 +454,6 @@ class Stage:
 
 class EvalStage(Stage):
     step_function = staticmethod(inference_step)
-    log: LogSetup
     log_class = LogSetup
 
     def __init__(self, *, sampler: Dict[str, Any] = None, **super_kwargs):
