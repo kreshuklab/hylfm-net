@@ -104,7 +104,7 @@ class WeightedL1Loss(torch.nn.L1Loss):
             l1_additional_weights[mask] = l1[mask] * self.weight
             l1 = l1 + l1_additional_weights
 
-        return OrderedDict([(self.__class__.__name__, l1.mean()), (f"{self.__class__.__name__} pixelwise", l1)])
+        return OrderedDict([(self.__class__.__name__, l1.mean()), (f"{self.__class__.__name__}_pixelwise", l1)])
 
 
 class WeightedSmoothL1Loss(torch.nn.SmoothL1Loss):
@@ -154,7 +154,7 @@ class WeightedSmoothL1Loss(torch.nn.SmoothL1Loss):
             l1_additional_weights[mask] = l1[mask] * self.weight
             l1 = l1 + l1_additional_weights
 
-        return OrderedDict([(self.__class__.__name__, l1.mean()), (f"{self.__class__.__name__} pixelwise", l1)])
+        return OrderedDict([(self.__class__.__name__, l1.mean()), (f"{self.__class__.__name__}_pixelwise", l1)])
 
 
 class BCEWithLogitsLoss(torch.nn.BCEWithLogitsLoss):
