@@ -17,18 +17,17 @@ def trace_neurons(stage: Stage, tgt_path: Optional[Union[Path, str]] = None, tgt
     for ds_out_path in stage.log_path.glob("ds*-*"):
         if tgt_path is None:
             this_tgt_path = ds_out_path
-            this_compare_to = list(compare_to)
+            this_compare_to = set(compare_to)
         else:
             this_tgt_path = tgt_path
-            this_compare_to = [(ds_out_path, ct) for ct in compare_to]
+            this_compare_to = {ct: ds_out_path for ct in compare_to}
 
-        peaks, peak_pos_figs = trace(tgt_path=this_tgt_path, tgt=tgt, compare_to=this_compare_to)
+        peaks, peak_pos_figs, traces = trace(tgt_path=this_tgt_path, tgt=tgt, compare_to=this_compare_to)
         tbl = stage.log.loggers.get("TensorBoardLogger", None)
         if tbl is not None:
             tb_writer: SummaryWriter = tbl.backend.writer
-            tb_writer.add_image(f"{stage.name}/{ds_out_path.name}-peaks", peaks)
             for name, fig in peak_pos_figs.items():
-                tb_writer.add_figure(f"{stage.name}/{ds_out_path.name}-{name}", fig)
+                tb_writer.add_figure(f"{stage.name}/{ds_out_path.name}-{name.replace(' ', '_')}", fig)
 
 
 
