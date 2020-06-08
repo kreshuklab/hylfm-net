@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy
@@ -18,33 +18,57 @@ from lnet.datasets.base import DatasetFromInfo, TiffDataset, get_collate_fn
 def trace(
     tgt_path: Path,
     tgt: str,
-    compare_to: Union[Dict[str, Optional[Path]], Set[str]],
+    plots: List[Union[Dict[str, Dict[str, Union[Path, List]]], Set[str]]],
+    output_path: Path,
     overwrite_existing_files: bool = False,
 ):
-    if isinstance(compare_to, set):
-        compare_to = {ct: tgt_path for ct in compare_to}
-    elif isinstance(compare_to, dict):
-        compare_to = {ct: p or tgt_path for ct, p in compare_to.items()}
-    else:
-        raise TypeError(type(compare_to))
+    output_path.mkdir(exist_ok=True, parents=True)
+    default_smooth = [(("flat", 3), None)]
+    all_recons = {}
+    for i in range(len(plots)):
+        if isinstance(plots[i], set):
+            plots[i] = {recon: {"path": tgt_path, "smooth": default_smooth} for recon in plots[i]}
+        elif isinstance(plots[i], dict):
+            full_recons = {}
+            for recon, kwargs in plots[i].items():
+                if "path" not in kwargs:
+                    kwargs["path"] = tgt_path
+
+                if "smooth" not in kwargs:
+                    kwargs["smooth"] = default_smooth
+
+                full_recons[recon] = kwargs
+
+            plots[i] = full_recons
+        else:
+            raise TypeError(type(plots[i]))
+
+        all_recons.update(plots[i])
 
     ds_tgt = TiffDataset(info=TensorInfo(name=tgt, root=tgt_path, location=f"{tgt}/*.tif"))
     length = len(ds_tgt)
     datasets_to_trace = {
-        ct: TiffDataset(info=TensorInfo(name=ct, root=p, location=f"{ct}/*.tif")) for ct, p in compare_to.items()
+        recon: TiffDataset(info=TensorInfo(name=recon, root=kwargs["path"], location=f"{recon}/*.tif"))
+        for recon, kwargs in all_recons.items()
     }
-    assert all([len(ctd) == length for ctd in datasets_to_trace.values()]), [length] + [
-        len(ctd) for ctd in datasets_to_trace.values()
+    assert all([len(recon_ds) == length for recon_ds in datasets_to_trace.values()]), [length] + [
+        len(recon_ds) for recon_ds in datasets_to_trace.values()
     ]
     assert tgt not in datasets_to_trace
     datasets_to_trace[tgt] = ds_tgt
 
     figs = {}
     peak_path = tgt_path / f"{tgt}_peaks.yml"
+    nr_traces = 1
+    peaks = None
     if peak_path.exists() and not overwrite_existing_files:
         with peak_path.open() as f:
             peaks = numpy.asarray(yaml.safe_load(f))
-    else:
+
+        if peaks.shape[0] != nr_traces:
+            peaks = None
+
+    if peaks is None:
         tgt_min_path = tgt_path / f"{tgt}_min.npy"
         tgt_max_path = tgt_path / f"{tgt}_max.npy"
         if tgt_min_path.exists() and tgt_max_path.exists() and not overwrite_existing_files:
@@ -66,7 +90,9 @@ def trace(
         # )
         # smooth_diff_tensor = diff_tensor
         # smooth_diff_tensor = gaussian_filter(diff_tensor, sigma=1.3, mode="constant")
-        peaks = peak_local_max(smooth_diff_tensor, min_distance=3, threshold_abs=1.0, exclude_border=True, num_peaks=1)
+        peaks = peak_local_max(
+            smooth_diff_tensor, min_distance=3, threshold_abs=1.0, exclude_border=True, num_peaks=nr_traces
+        )
         r = 6  # same radius for all
         peaks = numpy.concatenate([peaks, numpy.full((peaks.shape[0], 1), r)], axis=1)
         peaks_on = {"diff tensor": diff_tensor, "smooth diff tensor": smooth_diff_tensor}
@@ -91,77 +117,36 @@ def trace(
         with peak_path.open("w") as f:
             yaml.safe_dump(peaks.tolist(), f)
 
-    traces = {}
-    assert tgt not in compare_to
-    for ct, p in {tgt: tgt_path, **compare_to}.items():
-        traces_path: Path = p / f"{ct}_traces.npy"
+    all_traces = {}
+    for el, p in {tgt: tgt_path, **{recon: kwargs["path"] for recon, kwargs in all_recons.items()}}.items():
+        traces_path: Path = p / f"{el}_traces.npy"
         if traces_path.exists() and not overwrite_existing_files:
-            traces[ct] = numpy.load(str(traces_path))
+            all_traces[el] = numpy.load(str(traces_path))
         else:
-            traces[ct] = trace_peaks(datasets_to_trace[ct], ct, peaks)
-            numpy.save(str(traces_path), traces[ct])
+            all_traces[el] = trace_peaks(datasets_to_trace[el], el, peaks)
+            numpy.save(str(traces_path), all_traces[el])
 
-    smooth_with = [("hann", 5), ("hann", 3), ("flat", 3)]
-    smooth_traces = {}
-    for wname, w in smooth_with:
-        window = scipy.signal.get_window(wname, w, fftbins=False)
-        window /= window.sum()
-        for name, trace in traces.items():
-            if name == "ls_slice":  # todo: remove this hack
-                smooth_trace = numpy.stack([numpy.convolve(window, t, mode="valid") for t in trace])
-            else:
-                smooth_trace = trace[:, w // 2 : -(w // 2)]
-
-            smooth_traces[name, wname, w] = smooth_trace
-
-    tgt_trace = traces.pop(tgt)
-    smooth_tgt_traces = {}
-    for name, wname, w in smooth_traces:
-        if name == tgt:
-            smooth_tgt_traces[wname, w] = smooth_traces.pop((name, wname, w))
-
-
+    all_smooth_traces = {}
     correlations = {}
-    for key, trace in {**traces, **smooth_traces}.items():
-        pearson_corr = []
-        spearman_corr = []
-        if isinstance(key, tuple):
-            name, wname, w = key
-            tgt_trace = smooth_tgt_traces[wname, w]
-        else:
-            name = key
-
-        for t, tgt_t in zip(trace, tgt_trace):
-            pear_corr, _ = pearsonr(t, tgt_t)
-            pearson_corr.append(pear_corr)
-            spear_corr, _ = spearmanr(t, tgt_t)
-            spearman_corr.append(spear_corr)
-
-        correlations[name] = {"pearson": pearson_corr, "spearman": spearman_corr}
-
-    for (name, wname, w), trace in smooth_traces.items():
-        pearson_corr = []
-        spearman_corr = []
-        for t, tgt_t in zip(trace, smooth_tgt_trace):
-            pear_corr, _ = pearsonr(t, tgt_t)
-            pearson_corr.append(pear_corr)
-            spear_corr, _ = spearmanr(t, tgt_t)
-            spearman_corr.append(spear_corr)
-
-            correlations[(name, wname, w)] = {"pearson": pearson_corr, "spearman": spearman_corr}
+    for recon, kwargs in all_recons.items():
+        for smooth, tgt_smooth in kwargs["smooth"]:
+            traces, tgt_traces = get_smooth_traces_pair(recon, smooth, tgt, tgt_smooth, all_traces, all_smooth_traces)
+            if (recon, smooth, tgt_smooth, 0) not in correlations:
+                for t, (trace, tgt_trace) in enumerate(zip(traces, tgt_traces)):
+                    pr, _ = pearsonr(trace, tgt_trace)
+                    sr, _ = spearmanr(trace, tgt_trace)
+                    correlations[recon, smooth, tgt_smooth, t] = {"pearson": pr, "spearman": sr}
 
     trace_figs = plot_traces(
         tgt=tgt,
-        tgt_trace=tgt_trace,
-        compare_to=compare_to,
-        traces=traces,
-        smooth_with=smooth_with,
-        smooth_tgt_traces=smooth_tgt_traces,
+        plots=plots,
+        all_traces=all_traces,
         all_smooth_traces=all_smooth_traces,
         correlations=correlations,
+        output_path=output_path,
     )
     figs.update(trace_figs)
-    return peaks, traces, correlations, figs
+    return peaks, all_traces, correlations, figs
 
 
 def get_min_max(ds: DatasetFromInfo, name: str):
@@ -229,17 +214,56 @@ def create_circular_mask(h: int, w: int, peak: Tuple[int, int, int]):
     return mask
 
 
+def get_smooth_traces(traces, wname, w):
+    window = scipy.signal.get_window(wname, w, fftbins=False)
+    window /= window.sum()
+    return numpy.stack([numpy.convolve(window, trace, mode="valid") for trace in traces])
+
+
+def get_smooth_traces_pair(
+    recon: str,
+    smooth: Optional[Tuple[str, int]],
+    tgt: str,
+    tgt_smooth: Optional[Tuple[str, int]],
+    all_traces: dict,
+    all_smooth_traces: dict,
+):
+    if smooth is None:
+        traces = all_traces[recon]
+        w = 0
+    else:
+        wname, w = smooth
+        smooth_traces = all_smooth_traces.get((recon, wname, w), None)
+        if smooth_traces is None:
+            smooth_traces = get_smooth_traces(all_traces[recon], wname, w)
+            all_smooth_traces[recon, wname, w] = smooth_traces
+
+        traces = smooth_traces
+
+    if tgt_smooth is None:
+        tgt_traces = all_traces[tgt]
+        tgt_w = 0
+    else:
+        tgt_wname, tgt_w = smooth
+        smooth_tgt_traces = all_smooth_traces.get((tgt, tgt_wname, tgt_w), None)
+        if smooth_tgt_traces is None:
+            smooth_tgt_traces = get_smooth_traces(all_traces[tgt], tgt_wname, tgt_w)
+            all_smooth_traces[tgt, tgt_wname, tgt_w] = smooth_tgt_traces
+
+        tgt_traces = smooth_tgt_traces
+
+    if w < tgt_w:
+        wdiff = tgt_w - w
+        traces = traces[:, wdiff // 2 : -(wdiff // 2)]
+    elif tgt_w < w:
+        wdiff = w - tgt_w
+        tgt_traces = tgt_traces[:, wdiff // 2 : -(wdiff // 2)]
+
+    return traces, tgt_traces
+
+
 def plot_traces(
-    *,
-    tgt,
-    tgt_trace,
-    compare_to,
-    traces,
-    smooth_with,
-    smooth_tgt_traces,
-    all_smooth_traces,
-    correlations,
-    individual_subfigures=True,
+    *, tgt, plots, all_traces, all_smooth_traces, correlations, output_path,
 ):
     trace_name_map = {"pred": "LFN", "ls_slice": "LS", "lr_slice": "LR"}
     tgt_cmap = plt.get_cmap("Blues").reversed()
@@ -267,12 +291,13 @@ def plot_traces(
         ]
     ]  # 'Blues'
 
+    nr_color_shades = max([len(kwargs["smooth"]) for recons in plots for kwargs in recons.values()])
+
     def get_color(i: Optional[int], j):
-        n = len(smooth_with)
         if i is None:
-            return tgt_cmap(j / n * 0.75)
+            return tgt_cmap(j / nr_color_shades * 0.75)
         else:
-            return sequential_cmaps[i](j / n * 0.75)
+            return sequential_cmaps[i](j / nr_color_shades * 0.75)
 
     plot_kwargs = {"linewidth": 1}
 
@@ -285,26 +310,16 @@ def plot_traces(
         ax.set_ylim(y_center - half_range, y_center + half_range)
         return ax.plot(*xy, **kwargs)
 
-    def get_trace_label(name, wname, w):
+    def plot_trace(ax, j, traces, t, name, *, i=None, wname="", w=0, w_max=0):
         label = f"{trace_name_map.get(name, name):>3} {wname:>5} {w:<1} "
-        if wname:
+        if (name, wname, w, t) in correlations:
             label += (
-                f"Pearson: {correlations[name, wname, w]['pearson'][t]:.3f}  "
-                f"Spearman: {correlations[name, wname, w]['spearman'][t]:.3f}"
+                f"Pearson: {correlations[name, wname, w, t]['pearson'][t]:.3f}  "
+                f"Spearman: {correlations[name, wname, w, t]['spearman'][t]:.3f}"
             )
-        elif name in correlations:
-            label += (
-                f"Pearson: {correlations[name]['pearson'][t]:.3f}  "
-                f"Spearman: {correlations[name]['spearman'][t]:.3f}"
-            )
-
-        return label
-
-    def plot_trace(ax, j, trace, name, *, i=None, wname="", w=0):
-        label = get_trace_label(name, wname, w)
         return plot_centered(
-            numpy.arange(w // 2, tgt_trace.shape[1] - w // 2),
-            trace,
+            numpy.arange(w_max // 2, all_traces[tgt].shape[1] - w_max // 2),
+            traces[t],
             ax=ax,
             label=label,
             color=get_color(i, j),
@@ -320,35 +335,24 @@ def plot_traces(
 
     fontdict = {"family": "monospace"}
     figs = {}
-    for t in range(tgt_trace.shape[0]):
-        if individual_subfigures:
-            nrows = len(smooth_with) + 1
-        else:
-            nrows = 2
-
-        fig, axes = plt.subplots(nrows=nrows, sharex=True, figsize=(20, 4))
+    rel_dist_per_recon = 0.03
+    for t in range(all_traces[tgt].shape[0]):
+        nrows = len(plots)
+        fig, axes = plt.subplots(nrows=nrows, sharex=True, figsize=(20, 4), squeeze=False)
+        axes = axes[:, 0]  # only squeeze ncols=1
         # plt.suptitle(f"Trace {i:2}")
         axes[0].set_title(f"Trace {t:2}")
         for ax in axes:
             ax.tick_params(axis="y", labelcolor=get_color(None, 0))
-            ax.set_xlim(0, tgt_trace.shape[1])
+            ax.set_xlim(0, all_traces[tgt].shape[1])
             ax.set_ylabel(trace_name_map.get(tgt, tgt), color=get_color(None, 0), fontdict=fontdict)
 
-        plotted_lines = []
-        plotted_lines.append(plot_trace(axes[0], 0, tgt_trace[t], tgt))  # plot tgt trace to first subfig
-
-        wname, w = smooth_with[0]
-        plotted_lines.append(plot_trace(axes[1], 1, smooth_tgt_traces[wname, w][t], tgt, wname=wname, w=w))
-        for j, (wname, w) in enumerate(smooth_with[1:], start=2):
-            axj = j if individual_subfigures else 1
-            plotted_lines[axj] += plot_trace(axes[axj], j, smooth_tgt_traces[wname, w][t], tgt, wname=wname, w=w)
-
-        rel_dist_per_recon = 0.03
         i = 0
-        for i, name in enumerate(traces):
-            twinx_axes = [ax.twinx() for ax in axes]  # new twinx for each recon (pred, lr_slice, ...)
-            for twinx in twinx_axes:
-                # twinx.set_ylabel(trace_name_map.get(name, name), fontdict=fontdict)
+        j = 0
+        for ax, recons in zip(axes, plots):
+            plotted_lines = []
+            for i, (recon, kwargs) in enumerate(recons.items()):
+                twinx = ax.twinx()  # new twinx for each recon
                 twinx.tick_params(axis="y", labelcolor=get_color(i, 0))
                 if i:
                     # offset second and higher twinx
@@ -360,60 +364,83 @@ def plot_traces(
                     # Second, show the right spine.
                     twinx.spines["right"].set_visible(True)
 
-            plotted_lines[0] += plot_trace(
-                twinx_axes[0], 0, traces[name][t], name, i=i
-            )  # plot unsmoothed recon to first subfig
-            for j, (wname, w) in enumerate(smooth_with, start=1):
-                axj = j if individual_subfigures else 1
-                # twinx_axes[axj].set_ylabel(trace_name_map.get(name, name), fontdict=fontdict)
-                plotted_lines[axj] += plot_trace(
-                    twinx_axes[axj], j, all_smooth_traces[wname, w][t], name, i=i, wname=wname, w=w
-                )
+                for smooth, tgt_smooth in kwargs["smooth"]:
+                    traces, tgt_traces = get_smooth_traces_pair(
+                        recon, smooth, tgt, tgt_smooth, all_traces, all_smooth_traces
+                    )
+                    if tgt_smooth is None:
+                        tgt_wname = ""
+                        tgt_w = 0
+                    else:
+                        tgt_wname, tgt_w = tgt_smooth
 
-        for ax, lns in zip(axes, plotted_lines):
-            labels = [l.get_label() for l in lns]
+                    if smooth is None:
+                        wname = ""
+                        w = 0
+                    else:
+                        wname, w = smooth
+
+                    w_max = max(w, tgt_w)
+                    plotted_lines += plot_trace(ax, j, tgt_traces, t, tgt, wname=tgt_wname, w=w, w_max=w_max)
+                    plotted_lines += plot_trace(twinx, j, traces, t, tgt, wname=wname, w=w, w_max=w_max)
+                    j += 1
+
+            labels = [l.get_label() for l in plotted_lines]
             ax.legend(
-                lns, labels, bbox_to_anchor=(1.0 + rel_dist_per_recon * (i + 1), 0.5), loc="center left", prop=fontdict
+                plotted_lines,
+                labels,
+                bbox_to_anchor=(1.0 + rel_dist_per_recon * (i + 1), 0.5),
+                loc="center left",
+                prop=fontdict,
             )
+            # plotted_lines[0] += plot_trace(
+            #     twinx_axes[0], 0, traces[name][t], name, i=i
+            # )  # plot unsmoothed recon to first subfig
+            # for j, (wname, w) in enumerate(smooth_with, start=1):
+            #     axj = j if individual_subfigures else 1
+            #     # twinx_axes[axj].set_ylabel(trace_name_map.get(name, name), fontdict=fontdict)
+            #     plotted_lines[axj] += plot_trace(
+            #         twinx_axes[axj], j, all_smooth_traces[wname, w][t], name, i=i, wname=wname, w=w
+            #     )
 
         figs[f"trace{t}"] = fig
-        for name in traces:
-            plt.savefig(compare_to[name] / f"trace{t}.svg")
+        plt.savefig(output_path / f"trace{t}.svg")
 
     return figs
 
 
 if __name__ == "__main__":
-    # peaks, traces, correlations, figs = trace(
-    #     # tgt_path = Path("/g/kreshuk/LF_computed/lnet/logs/brain1/z_out49/f2_only11_2/20-05-19_12-27-16/test/run000/ds0-0")
-    #     tgt_path=Path(
-    #         "/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-330/run000/ds0-0"
-    #     ),
-    #     tgt="ls_slice",
-    #     compare_to={"lr_slice"},
-    # )
-    # for name, trace in traces.items():
-    #     print(name, trace.shape, trace.min(), trace.max())
-    #
-    # plt.show()
     peaks, traces, correlations, figs = trace(
+        # tgt_path = Path("/g/kreshuk/LF_computed/lnet/logs/brain1/z_out49/f2_only11_2/20-05-19_12-27-16/test/run000/ds0-0")
         tgt_path=Path(
             "/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-330/run000/ds0-0"
         ),
         tgt="ls_slice",
-        compare_to={
-            "pred": Path(
-                "/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/f4/z_out49/f4_b2_only09_3/20-05-30_10-41-55/v1_checkpoint_82000_MSSSIM=0.8523718668864324/brain.09_3__2020-03-09_06.43.40__SinglePlane_-330/run000/ds0-0/"
-            ),
-            "lr_slice": Path(
-                "/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-330/run000/ds0-0"
-            ),
-        },
+        plots=[{"lr_slice"}],
+        output_path=Path("/g/kreshuk/LF_computed/lnet/traces"),
     )
+    # peaks, traces, correlations, figs = trace(
+    #     tgt_path=Path(
+    #         "/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-330/run000/ds0-0"
+    #     ),
+    #     tgt="ls_slice",
+    #     plots=[
+    #         {
+    #             "pred": {
+    #                 "path": Path(
+    #                     "/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/f4/z_out49/f4_b2_only09_3/20-05-30_10-41-55/v1_checkpoint_82000_MSSSIM=0.8523718668864324/brain.09_3__2020-03-09_06.43.40__SinglePlane_-330/run000/ds0-0/"
+    #                 )
+    #             },
+    #             "lr_slice": {
+    #                 "path": Path(
+    #                     "/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-330/run000/ds0-0"
+    #                 )
+    #             },
+    #         }
+    #     ],
+    #     output_path=Path("/g/kreshuk/LF_computed/lnet/traces"),
+    # )
     for name, trace in traces.items():
         print(name, trace.shape, trace.min(), trace.max())
 
     plt.show()
-
-    # todo: all compare_to in same plot
-    # todo: plot symmetrically around mean
