@@ -36,10 +36,11 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     # 1   blurry
     meta["quality"] = 2
 
-    if tag in ["2019-12-02_04.12.36_10msExp"]:
+    if tag in ["2019-12-02_04.12.36_10msExp", "2019-12-02_03.44.01_5msExp"]:
         transformations = []
         meta["quality"] = 4
-        location = f"LF_partially_restored/LenseLeNet_Microscope/20191202_staticHeart_dynamicHeart/data/{tag}/stack_1_channel_3/"
+        stack, channel = {"2019-12-02_04.12.36_10msExp": (1, 3), "2019-12-02_03.44.01_5msExp": (1, 2)}[tag]
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191202_staticHeart_dynamicHeart/data/{tag}/stack_{stack}_channel_{channel}/"
         if name == "lf":
             location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
             transformations += [{"Crop": {"apply_to": name, "crop": [(0, None), (19, None), (0, None)]}}]
