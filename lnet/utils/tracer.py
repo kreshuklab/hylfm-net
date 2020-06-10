@@ -11,7 +11,7 @@ import yaml
 from scipy.ndimage import gaussian_filter
 from scipy.stats import pearsonr, spearmanr
 from skimage.feature import peak_local_max
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 from lnet import settings
 from lnet.datasets import TensorInfo
@@ -33,6 +33,7 @@ def trace(
     compute_peaks_on: str = "std",  # std, diff, a*std+b*diff
     peaks_min_dist: int = 3,
     trace_radius: int = 3,
+    compensate_motion: Optional[dict] = None,
 ):
     output_path /= f"tgt-{tgt}_diffsigma-{smooth_diff_sigma}_pthreshabs-{peak_threshold_abs}_red-{reduce_peak_area}_tr-{time_range}"
     output_path.mkdir(exist_ok=True, parents=True)
@@ -74,6 +75,37 @@ def trace(
     ]
     assert tgt not in datasets_to_trace
     datasets_to_trace[tgt] = ds_tgt
+    if time_range is not None:
+        for name, ds in datasets_to_trace.items():
+            datasets_to_trace[name] = Subset(ds, numpy.arange(time_range[0], time_range[1]))
+
+    # load data
+    for name, ds in datasets_to_trace.items():
+        datasets_to_trace[name] = numpy.stack(
+            [
+                sample[name].squeeze()
+                for sample in DataLoader(
+                    dataset=ds,
+                    shuffle=False,
+                    collate_fn=get_collate_fn(lambda b: b),
+                    num_workers=settings.max_workers_for_trace,
+                    pin_memory=False,
+                )
+            ]
+        )
+
+    # if compensate_motion is not None:
+
+    # motion = skvideo.motion.blockMotion(videodata)
+    #
+    # print(videodata.shape)
+    # print(motion.shape)
+    #
+    # # compensate the video
+    # compensate = skvideo.motion.blockComp(videodata, motion)
+    #
+    # # write
+    # skvideo.io.vwrite("compensate.mp4", compensate)
 
     figs = {}
     peak_path = tgt_path / f"{tgt}_peaks_of_{compute_peaks_on}.yml"
@@ -106,9 +138,7 @@ def trace(
                 mean_tensor = numpy.load(str(mean_path))
                 std_tensor = numpy.load(str(std_path))
             else:
-                min_tensor, max_tensor, mean_tensor, std_tensor = get_min_max_mean_std(
-                    datasets_to_trace[tensor_name], tensor_name, time_range
-                )
+                min_tensor, max_tensor, mean_tensor, std_tensor = get_min_max_mean_std(datasets_to_trace[tensor_name])
                 numpy.save(str(min_path), min_tensor)
                 numpy.save(str(max_path), max_tensor)
                 numpy.save(str(mean_path), mean_tensor)
@@ -186,7 +216,7 @@ def trace(
                 peaks = numpy.concatenate([peaks, numpy.full((peaks.shape[0], 1), trace_radius)], axis=1)
 
             # plot peak positions on different projections
-            fig, axes = plt.subplots(nrows=math.ceil(len(plot_peaks_on) / 3), ncols=3, squeeze=False, figsize=(10, 11))
+            fig, axes = plt.subplots(nrows=math.ceil(len(plot_peaks_on) / 3), ncols=3, squeeze=False, figsize=(20, 10))
             plt.suptitle(tensor_name)
             for ax, (name, tensor) in zip(axes.flatten(), plot_peaks_on.items()):
                 title = f"peaks on {name}"
@@ -196,7 +226,7 @@ def trace(
                 for i, peak in enumerate(peaks):
                     y, x, r = peak
                     c = plt.Circle((x, y), r, color="r", linewidth=1, fill=False)
-                    plt.text(x + 2 * int(r + 0.5), y, str(i))  # todo fix text
+                    ax.text(x + 2 * int(r + 0.5), y, str(i))  # todo fix text
                     ax.add_patch(c)
 
                 ax.set_axis_off()
@@ -214,7 +244,7 @@ def trace(
         if traces_path.exists() and not overwrite_existing_files and not recompute_traces:
             all_traces[el] = numpy.load(str(traces_path))
         else:
-            all_traces[el] = trace_peaks(datasets_to_trace[el], el, peaks, reduce_peak_area, time_range)
+            all_traces[el] = trace_peaks(datasets_to_trace[el], el, peaks, reduce_peak_area)
             numpy.save(str(traces_path), all_traces[el])
 
     all_smooth_traces = {}
@@ -273,19 +303,7 @@ def trace(
 #     return min_, max_, mean, std
 
 
-def get_min_max_mean_std(ds: DatasetFromInfo, name: str, time_range: Optional[Tuple[int, int]]):
-    tensor = numpy.stack(
-        [
-            sample[name].squeeze()
-            for i, sample in enumerate(DataLoader(
-                dataset=ds,
-                shuffle=False,
-                collate_fn=get_collate_fn(lambda b: b),
-                num_workers=settings.max_workers_for_trace,
-                pin_memory=False,
-        )) if time_range is None or (i >= time_range[0] and i < time_range[1])
-        ]
-    )
+def get_min_max_mean_std(tensor: numpy.ndarray):
     min_ = numpy.min(tensor, axis=0)
     assert len(min_.shape) == 2, min_.shape
     max_ = numpy.max(tensor, axis=0)
@@ -298,51 +316,28 @@ def get_min_max_mean_std(ds: DatasetFromInfo, name: str, time_range: Optional[Tu
     return min_, max_, mean, std
 
 
-def trace_peaks(
-    ds: DatasetFromInfo, name: str, peaks: numpy.ndarray, reduce: str, time_range: Optional[Tuple[int, int]]
-):
+def trace_peaks(tensor: numpy.ndarray, name: str, peaks: numpy.ndarray, reduce: str):
     assert len(peaks.shape) == 2, peaks.shape
+    P = peaks.shape[0]
     assert peaks.shape[1] == 3, peaks.shape
 
-    h, w = ds[0][name].squeeze().shape
-    peak_masks = numpy.stack([create_circular_mask(h, w, p).flatten() for p in peaks], axis=1)
+    T, H, W = tensor.shape
+    peak_masks = numpy.stack([create_circular_mask(H, W, p).flatten() for p in peaks], axis=1)
     cirlce_area = peak_masks[:, 0].sum()
     assert len(peak_masks.shape) == 2, peak_masks.shape
-    assert peak_masks.shape[0] == h * w, (peak_masks.shape, h, w)
-    assert peak_masks.shape[1] == peaks.shape[0], (peak_masks.shape, peaks.shape)
+    assert peak_masks.shape[0] == H * W, (peak_masks.shape, H, W)
+    assert peak_masks.shape[1] == P, (peak_masks.shape, P)
 
-    if time_range is None:
-        time_min = 0
-        time_max = len(ds)
-    else:
-        time_min, time_max = time_range
-
-    traces = numpy.empty(shape=(peaks.shape[0], time_max - time_min))
-    for i, sample in enumerate(
-        DataLoader(
-            dataset=ds,
-            shuffle=False,
-            collate_fn=get_collate_fn(lambda b: b),
-            num_workers=settings.max_workers_for_trace,
-            pin_memory=False,
-        )
-    ):
-        if i < time_min:
-            continue
-        elif i >= time_max:  # todo: clean up time_range
-            break
-
-        tensor = sample[name].flatten()
-        if reduce == "mean":
-            traces[:, i - time_min] = tensor.dot(peak_masks)
-        elif reduce == "max":
-            masked_tensor = numpy.multiply(tensor[:, None], peak_masks)
-            traces[:, i - time_min] = numpy.max(masked_tensor, axis=0)
-        else:
-            raise NotImplementedError(reduce)
+    tensor = tensor.reshape(T, H * W)
 
     if reduce == "mean":
-        traces /= cirlce_area
+        traces = tensor.dot(peak_masks) / cirlce_area
+    elif reduce == "max":
+        # masked_tensor = numpy.multiply(tensor[..., None], peak_masks[None, ...])
+        # traces = numpy.max(masked_tensor, axis=1)
+        traces = numpy.max(numpy.repeat(tensor[..., None], P, axis=-1), axis=1, where=peak_masks[None, ...])
+    else:
+        raise NotImplementedError(reduce)
 
     return traces
 
@@ -484,8 +479,7 @@ def plot_traces(
         label = label.replace(", ", " ")
         if corr_key in correlations:
             label += (
-                f"Pears={correlations[corr_key]['pearson']:.3f}  "
-                f"Spear={correlations[corr_key]['spearman']:.3f}"
+                f"Pears={correlations[corr_key]['pearson']:.3f}  " f"Spear={correlations[corr_key]['spearman']:.3f}"
             )
         plot_args_here = [numpy.arange(w_max // 2, all_traces[tgt].shape[1] - w_max // 2), traces[t]]
         plot_kwargs_here = {"label": label, "color": get_color(i, j), **plot_kwargs}
@@ -509,7 +503,7 @@ def plot_traces(
     rel_dist_per_recon = 0.04
     for t in range(all_traces[tgt].shape[0]):
         nrows = len(plots)
-        fig, axes = plt.subplots(nrows=nrows, sharex=True, figsize=(20, 4), squeeze=False)
+        fig, axes = plt.subplots(nrows=nrows, sharex=True, figsize=(20, 10), squeeze=False)
         axes = axes[:, 0]  # only squeeze ncols=1
         # plt.suptitle(f"Trace {i:2}")
         axes[0].set_title(f"Trace {t:2}")
@@ -552,7 +546,9 @@ def plot_traces(
                         wname, w = smooth
 
                     w_max = max(0 if isinstance(w, str) else w, 0 if isinstance(tgt_w, str) else tgt_w)
-                    pl, y_center, half_range = plot_trace(ax, j, tgt_traces, t, tgt, wname=tgt_wname, w=tgt_w, w_max=w_max)
+                    pl, y_center, half_range = plot_trace(
+                        ax, j, tgt_traces, t, tgt, wname=tgt_wname, w=tgt_w, w_max=w_max
+                    )
                     plotted_lines += pl
                     plotted_lines += plot_trace(
                         twinx,
@@ -602,7 +598,9 @@ def add_paths_to_plots(plots, paths):
             kwargs["smooth"] = [
                 tuple(
                     [
-                        None if smoo is None else tuple([json.dumps(sm, sort_keys=True) if isinstance(sm, dict) else sm for sm in smoo])
+                        None
+                        if smoo is None
+                        else tuple([json.dumps(sm, sort_keys=True) if isinstance(sm, dict) else sm for sm in smoo])
                         for smoo in smooth
                     ]
                 )
@@ -630,13 +628,24 @@ if __name__ == "__main__":
     paths_11_2 = {
         290: {
             "ls_slice": Path(
-                f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.11_2__2020-03-11_10.13.20__SinglePlane_-290/run000/ds0-0"
+                f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-06-10_16-36-00/brain.11_2__2020-03-11_10.13.20__SinglePlane_-290/run000/ds0-0"
             ),
             "lr_slice": Path(
-                f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.11_2__2020-03-11_10.13.20__SinglePlane_-290/run000/ds0-0"
+                f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-06-10_16-36-00/brain.11_2__2020-03-11_10.13.20__SinglePlane_-290/run000/ds0-0"
             ),
             "pred": Path(
                 f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/f4/z_out49/f4_b2_only11_2/20-06-06_17-59-42/v1_checkpoint_29500_MS_SSIM=0.8786535175641378/brain.11_2__2020-03-11_10.13.20__SinglePlane_-290/run000/ds0-0"
+            ),
+        },
+        295: {
+            "ls_slice": Path(
+                f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-06-10_16-29-33/brain.11_2__2020-03-11_10.25.41__SinglePlane_-295/run000/ds0-0"
+            ),
+            "lr_slice": Path(
+                f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-06-10_16-29-33/brain.11_2__2020-03-11_10.25.41__SinglePlane_-295/run000/ds0-0"
+            ),
+            "pred": Path(
+                f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/f4/z_out49/f4_b2_only11_2/20-06-06_17-59-42/v1_checkpoint_29500_MS_SSIM=0.8786535175641378/brain.11_2__2020-03-11_10.25.41__SinglePlane_-295/run000/ds0-0"
             ),
         },
         310: {
@@ -674,22 +683,50 @@ if __name__ == "__main__":
         },
     }
 
-    paths = paths_11_2[330]
-    # paths = paths_09_3_a[330]
-    output_path = Path(f"/g/kreshuk/LF_computed/lnet/traces_09_3_-330")
+    # paths = paths_11_2[295]
+    paths = paths_09_3_a[330]
+    output_path = Path(f"/g/kreshuk/LF_computed/lnet/traces")
     tgt = "ls_slice"
     plots = add_paths_to_plots(
         [
             {"lr_slice": {"smooth": [(None, None)]}, "pred": {"smooth": [(None, None)]}},
-            # {"lr_slice": {"smooth": [(("flat", 3), ("flat", 5))]}, "pred": {"smooth": [(("flat", 3), ("flat", 5))]}},
-            # {"lr_slice": {"smooth": [(None, ("flat", 3))]}, "pred": {"smooth": [(None, ("flat", 3))]}},
+            {"lr_slice": {"smooth": [(("flat", 3), ("flat", 5))]}, "pred": {"smooth": [(("flat", 3), ("flat", 5))]}},
+            {"lr_slice": {"smooth": [(None, ("flat", 3))]}, "pred": {"smooth": [(None, ("flat", 3))]}},
             {
-                "lr_slice": {"smooth": [(("savgol_filter", {"window_length": 5, "polyorder": 3}), ("savgol_filter", {"window_length": 5, "polyorder": 3}))]},
-                "pred": {"smooth": [(("savgol_filter", {"window_length": 5, "polyorder": 3}), ("savgol_filter", {"window_length": 5, "polyorder": 3}))]},
+                "lr_slice": {
+                    "smooth": [
+                        (
+                            ("savgol_filter", {"window_length": 5, "polyorder": 3}),
+                            ("savgol_filter", {"window_length": 5, "polyorder": 3}),
+                        )
+                    ]
+                },
+                "pred": {
+                    "smooth": [
+                        (
+                            ("savgol_filter", {"window_length": 5, "polyorder": 3}),
+                            ("savgol_filter", {"window_length": 5, "polyorder": 3}),
+                        )
+                    ]
+                },
             },
             {
-                "lr_slice": {"smooth": [(("savgol_filter", {"window_length": 9, "polyorder": 5}), ("savgol_filter", {"window_length": 9, "polyorder": 5}))]},
-                "pred": {"smooth": [(("savgol_filter", {"window_length": 9, "polyorder": 3}), ("savgol_filter", {"window_length": 9, "polyorder": 3}))]},
+                "lr_slice": {
+                    "smooth": [
+                        (
+                            ("savgol_filter", {"window_length": 9, "polyorder": 5}),
+                            ("savgol_filter", {"window_length": 9, "polyorder": 5}),
+                        )
+                    ]
+                },
+                "pred": {
+                    "smooth": [
+                        (
+                            ("savgol_filter", {"window_length": 9, "polyorder": 3}),
+                            ("savgol_filter", {"window_length": 9, "polyorder": 3}),
+                        )
+                    ]
+                },
             },
         ],
         paths=paths,
@@ -700,16 +737,19 @@ if __name__ == "__main__":
         tgt=tgt,
         plots=plots,
         output_path=output_path,
-        nr_traces=30,
-        overwrite_existing_files=False,
+        nr_traces=20,
+        overwrite_existing_files=True,
         smooth_diff_sigma=1.3,
-        peak_threshold_abs=.5,
+        peak_threshold_abs=0.05,
         reduce_peak_area="mean",
         plot_peaks=True,
-        compute_peaks_on="diff",  # std, diff
+        compute_peaks_on="std",  # std, diff
         peaks_min_dist=3,
-        trace_radius=3,
+        trace_radius=2,
         # time_range=(0, 600),
+        time_range=(0, 50),
+        # time_range=(660, 1200),
+        compensate_motion={"method": "DS", "mbSize": 8, "p": 2},
     )
 
     for name, trace in traces.items():
