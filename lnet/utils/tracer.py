@@ -1,3 +1,4 @@
+import json
 from collections import OrderedDict
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
@@ -356,14 +357,17 @@ def create_circular_mask(h: int, w: int, peak: Tuple[int, int, int]):
 
 
 def get_smooth_traces(traces, wname, w):
-    window = scipy.signal.get_window(wname, w, fftbins=False)
-    window /= window.sum()
-    return numpy.stack([numpy.convolve(window, trace, mode="valid") for trace in traces])
+    if isinstance(w, str):
+        return getattr(scipy.signal, wname)(traces, **json.loads(w))
+    else:
+        window = scipy.signal.get_window(wname, w, fftbins=False)
+        window /= window.sum()
+        return numpy.stack([numpy.convolve(window, trace, mode="valid") for trace in traces])
 
 
 def get_smooth_traces_pair(
     recon: str,
-    smooth: Optional[Tuple[str, int]],
+    smooth: Optional[Tuple[str, Union[int, dict]]],
     tgt: str,
     tgt_smooth: Optional[Tuple[str, int]],
     all_traces: dict,
@@ -380,6 +384,8 @@ def get_smooth_traces_pair(
             all_smooth_traces[recon, wname, w] = smooth_traces
 
         traces = smooth_traces
+        if isinstance(w, str):
+            w = 0
 
     if tgt_smooth is None:
         tgt_traces = all_traces[tgt]
@@ -392,6 +398,8 @@ def get_smooth_traces_pair(
             all_smooth_traces[tgt, tgt_wname, tgt_w] = smooth_tgt_traces
 
         tgt_traces = smooth_tgt_traces
+        if isinstance(tgt_w, str):
+            tgt_w = 0
 
     if w < tgt_w:
         wdiff = tgt_w - w
@@ -460,16 +468,23 @@ def plot_traces(
         *,
         i=None,
         wname="",
-        w=0,
-        w_max=0,
+        w: Union[str, int] = "",
+        w_max: int = 0,
         corr_key=None,
         y_center_and_half_range: Optional[Tuple] = None,
     ):
-        label = f"{trace_name_map.get(name, name):>3} {wname:>5} {w:<1} "
+        label = f"{trace_name_map.get(name, name):>3} {wname:>6} {w:<9} "
+        label = label.replace("{", "")
+        label = label.replace("}", "")
+        label = label.replace('"', "")
+        label = label.replace("polyorder", "p")
+        label = label.replace("window_length", "w")
+        label = label.replace("_filter", "")
+        label = label.replace(", ", " ")
         if corr_key in correlations:
             label += (
-                f"Pearson: {correlations[corr_key]['pearson']:.3f}  "
-                f"Spearman: {correlations[corr_key]['spearman']:.3f}"
+                f"Pears={correlations[corr_key]['pearson']:.3f}  "
+                f"Spear={correlations[corr_key]['spearman']:.3f}"
             )
         plot_args_here = [numpy.arange(w_max // 2, all_traces[tgt].shape[1] - w_max // 2), traces[t]]
         plot_kwargs_here = {"label": label, "color": get_color(i, j), **plot_kwargs}
@@ -534,8 +549,8 @@ def plot_traces(
                     else:
                         wname, w = smooth
 
-                    w_max = max(w, tgt_w)
-                    pl, y_center, half_range = plot_trace(ax, j, tgt_traces, t, tgt, wname=tgt_wname, w=w, w_max=w_max)
+                    w_max = max(0 if isinstance(w, str) else w, 0 if isinstance(tgt_w, str) else tgt_w)
+                    pl, y_center, half_range = plot_trace(ax, j, tgt_traces, t, tgt, wname=tgt_wname, w=tgt_w, w_max=w_max)
                     plotted_lines += pl
                     plotted_lines += plot_trace(
                         twinx,
@@ -558,6 +573,8 @@ def plot_traces(
                 labels,
                 bbox_to_anchor=(1.0 + rel_dist_per_recon * (i + 1), 0.5),
                 loc="center left",
+                # bbox_to_anchor=(.5 , 1.05),
+                # loc="center top",
                 prop=fontdict,
             )
             # plotted_lines[0] += plot_trace(
@@ -593,6 +610,15 @@ def add_paths_to_plots(plots, paths):
     for plot in plots:
         for recon, kwargs in plot.items():
             kwargs["path"] = paths[recon]
+            kwargs["smooth"] = [
+                tuple(
+                    [
+                        None if smoo is None else tuple([json.dumps(sm, sort_keys=True) if isinstance(sm, dict) else sm for sm in smoo])
+                        for smoo in smooth
+                    ]
+                )
+                for smooth in kwargs["smooth"]
+            ]
 
     return plots
 
@@ -654,8 +680,16 @@ if __name__ == "__main__":
     tgt = "ls_slice"
     plots = add_paths_to_plots(
         [
-            {"lr_slice": {"smooth": [(("flat", 3), ("flat", 5))],}, "pred": {"smooth": [(("flat", 3), ("flat", 5))],},},
-            {"lr_slice": {"smooth": [(None, ("flat", 3))],}, "pred": {"smooth": [(None, ("flat", 3))],},},
+            {"lr_slice": {"smooth": [(("flat", 3), ("flat", 5))]}, "pred": {"smooth": [(("flat", 3), ("flat", 5))]}},
+            {"lr_slice": {"smooth": [(None, ("flat", 3))]}, "pred": {"smooth": [(None, ("flat", 3))]}},
+            {
+                "lr_slice": {"smooth": [(None, ("savgol_filter", {"window_length": 5, "polyorder": 3}))]},
+                "pred": {"smooth": [(None, ("savgol_filter", {"window_length": 5, "polyorder": 3}))]},
+            },
+            {
+                "lr_slice": {"smooth": [(("savgol_filter", {"window_length": 5, "polyorder": 3}), ("savgol_filter", {"window_length": 5, "polyorder": 3}))]},
+                "pred": {"smooth": [(("savgol_filter", {"window_length": 5, "polyorder": 3}), ("savgol_filter", {"window_length": 5, "polyorder": 3}))]},
+            },
         ],
         paths=paths,
     )
@@ -665,12 +699,12 @@ if __name__ == "__main__":
         tgt=tgt,
         plots=plots,
         output_path=output_path,
-        nr_traces=10,
+        nr_traces=1,
         overwrite_existing_files=False,
         smooth_diff_sigma=1.3,
         peak_threshold_abs=0.1,
         reduce_peak_area="mean",
-        plot_peaks=True,
+        plot_peaks=False,
         compute_peaks_on="std",  # std, diff
         peaks_min_dist=3,
         trace_radius=3,
