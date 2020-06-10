@@ -1,4 +1,5 @@
 import json
+import math
 from collections import OrderedDict
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
@@ -106,7 +107,7 @@ def trace(
                 std_tensor = numpy.load(str(std_path))
             else:
                 min_tensor, max_tensor, mean_tensor, std_tensor = get_min_max_mean_std(
-                    datasets_to_trace[tensor_name], tensor_name
+                    datasets_to_trace[tensor_name], tensor_name, time_range
                 )
                 numpy.save(str(min_path), min_tensor)
                 numpy.save(str(max_path), max_tensor)
@@ -185,7 +186,7 @@ def trace(
                 peaks = numpy.concatenate([peaks, numpy.full((peaks.shape[0], 1), trace_radius)], axis=1)
 
             # plot peak positions on different projections
-            fig, axes = plt.subplots(nrows=len(plot_peaks_on) // 3, ncols=3, squeeze=False, figsize=(10, 11))
+            fig, axes = plt.subplots(nrows=math.ceil(len(plot_peaks_on) / 3), ncols=3, squeeze=False, figsize=(10, 11))
             plt.suptitle(tensor_name)
             for ax, (name, tensor) in zip(axes.flatten(), plot_peaks_on.items()):
                 title = f"peaks on {name}"
@@ -195,7 +196,7 @@ def trace(
                 for i, peak in enumerate(peaks):
                     y, x, r = peak
                     c = plt.Circle((x, y), r, color="r", linewidth=1, fill=False)
-                    plt.text(x + 2 * int(r + 0.5), y, str(i))
+                    plt.text(x + 2 * int(r + 0.5), y, str(i))  # todo fix text
                     ax.add_patch(c)
 
                 ax.set_axis_off()
@@ -272,17 +273,17 @@ def trace(
 #     return min_, max_, mean, std
 
 
-def get_min_max_mean_std(ds: DatasetFromInfo, name: str):
+def get_min_max_mean_std(ds: DatasetFromInfo, name: str, time_range: Optional[Tuple[int, int]]):
     tensor = numpy.stack(
         [
             sample[name].squeeze()
-            for sample in DataLoader(
+            for i, sample in enumerate(DataLoader(
                 dataset=ds,
                 shuffle=False,
                 collate_fn=get_collate_fn(lambda b: b),
                 num_workers=settings.max_workers_for_trace,
                 pin_memory=False,
-            )
+        )) if time_range is None or (i >= time_range[0] and i < time_range[1])
         ]
     )
     min_ = numpy.min(tensor, axis=0)
@@ -328,7 +329,7 @@ def trace_peaks(
     ):
         if i < time_min:
             continue
-        elif i > time_max:
+        elif i >= time_max:  # todo: clean up time_range
             break
 
         tensor = sample[name].flatten()
@@ -491,9 +492,10 @@ def plot_traces(
         if y_center_and_half_range is None:
             return plot_centered(*plot_args_here, ax=ax, **plot_kwargs_here)
         else:
-            y_center, half_range = y_center_and_half_range
-            ax.set_ylim(y_center - half_range, y_center + half_range)
-            return ax.plot(*plot_args_here, **plot_kwargs_here)
+            return plot_centered(*plot_args_here, ax=ax, **plot_kwargs_here)[0]
+            # y_center, half_range = y_center_and_half_range
+            # ax.set_ylim(y_center - half_range, y_center + half_range)
+            # return ax.plot(*plot_args_here, **plot_kwargs_here)
 
     # from https://matplotlib.org/3.1.1/gallery/ticks_and_spines/multiple_yaxis_with_spines.html
     def make_patch_spines_invisible(ax):
@@ -593,19 +595,6 @@ def plot_traces(
     return figs
 
 
-def run_for_09_3():
-    peaks, traces, correlations, figs = trace(
-        # tgt_path = Path("/g/kreshuk/LF_computed/lnet/logs/brain1/z_out49/f2_only11_2/20-05-19_12-27-16/test/run000/ds0-0")
-        tgt_path=Path(
-            "/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-330/run000/ds0-0"
-        ),
-        tgt="ls_slice",
-        plots=[{"lr_slice"}],
-        output_path=Path("/g/kreshuk/LF_computed/lnet/traces"),
-        nr_traces=1,
-    )
-
-
 def add_paths_to_plots(plots, paths):
     for plot in plots:
         for recon, kwargs in plot.items():
@@ -639,6 +628,17 @@ if __name__ == "__main__":
     }
 
     paths_11_2 = {
+        290: {
+            "ls_slice": Path(
+                f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.11_2__2020-03-11_10.13.20__SinglePlane_-290/run000/ds0-0"
+            ),
+            "lr_slice": Path(
+                f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.11_2__2020-03-11_10.13.20__SinglePlane_-290/run000/ds0-0"
+            ),
+            "pred": Path(
+                f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/f4/z_out49/f4_b2_only11_2/20-06-06_17-59-42/v1_checkpoint_29500_MS_SSIM=0.8786535175641378/brain.11_2__2020-03-11_10.13.20__SinglePlane_-290/run000/ds0-0"
+            ),
+        },
         310: {
             "ls_slice": Path(
                 f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.11_2__2020-03-11_07.30.39__SinglePlane_-310/run000/ds0-0"
@@ -674,21 +674,22 @@ if __name__ == "__main__":
         },
     }
 
-    # paths = paths_11_2[330]
-    paths = paths_09_3_a[330]
+    paths = paths_11_2[330]
+    # paths = paths_09_3_a[330]
     output_path = Path(f"/g/kreshuk/LF_computed/lnet/traces_09_3_-330")
     tgt = "ls_slice"
     plots = add_paths_to_plots(
         [
-            {"lr_slice": {"smooth": [(("flat", 3), ("flat", 5))]}, "pred": {"smooth": [(("flat", 3), ("flat", 5))]}},
-            {"lr_slice": {"smooth": [(None, ("flat", 3))]}, "pred": {"smooth": [(None, ("flat", 3))]}},
-            {
-                "lr_slice": {"smooth": [(None, ("savgol_filter", {"window_length": 5, "polyorder": 3}))]},
-                "pred": {"smooth": [(None, ("savgol_filter", {"window_length": 5, "polyorder": 3}))]},
-            },
+            {"lr_slice": {"smooth": [(None, None)]}, "pred": {"smooth": [(None, None)]}},
+            # {"lr_slice": {"smooth": [(("flat", 3), ("flat", 5))]}, "pred": {"smooth": [(("flat", 3), ("flat", 5))]}},
+            # {"lr_slice": {"smooth": [(None, ("flat", 3))]}, "pred": {"smooth": [(None, ("flat", 3))]}},
             {
                 "lr_slice": {"smooth": [(("savgol_filter", {"window_length": 5, "polyorder": 3}), ("savgol_filter", {"window_length": 5, "polyorder": 3}))]},
                 "pred": {"smooth": [(("savgol_filter", {"window_length": 5, "polyorder": 3}), ("savgol_filter", {"window_length": 5, "polyorder": 3}))]},
+            },
+            {
+                "lr_slice": {"smooth": [(("savgol_filter", {"window_length": 9, "polyorder": 5}), ("savgol_filter", {"window_length": 9, "polyorder": 5}))]},
+                "pred": {"smooth": [(("savgol_filter", {"window_length": 9, "polyorder": 3}), ("savgol_filter", {"window_length": 9, "polyorder": 3}))]},
             },
         ],
         paths=paths,
@@ -699,15 +700,16 @@ if __name__ == "__main__":
         tgt=tgt,
         plots=plots,
         output_path=output_path,
-        nr_traces=1,
+        nr_traces=30,
         overwrite_existing_files=False,
         smooth_diff_sigma=1.3,
-        peak_threshold_abs=0.1,
+        peak_threshold_abs=.5,
         reduce_peak_area="mean",
-        plot_peaks=False,
-        compute_peaks_on="std",  # std, diff
+        plot_peaks=True,
+        compute_peaks_on="diff",  # std, diff
         peaks_min_dist=3,
         trace_radius=3,
+        # time_range=(0, 600),
     )
 
     for name, trace in traces.items():
