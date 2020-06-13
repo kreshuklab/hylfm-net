@@ -23,8 +23,8 @@ def meta() -> dict:
 
 @pytest.fixture
 def ls_slice_dataset(meta) -> N5CachedDatasetFromInfo:
-    info = get_tensor_info("brain.2020-03-11_03.22.33", "ls_slice", meta=meta)
-    return get_dataset_from_info(info=info, cache=True)
+    info = get_tensor_info("brain.11_1__2020-03-11_03.22.33__SinglePlane_-330", "ls_slice", meta=meta)
+    return ZipDataset({"ls_slice": get_dataset_from_info(info=info, cache=True)})
 
 
 @pytest.fixture

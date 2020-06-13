@@ -122,6 +122,9 @@ class DatasetStat:
 
         return ret
 
+    def get_percentile(self, name: str, percentile: float) -> float:
+        return self.get_percentiles(name, [percentile])[0]
+
     def get_mean_std(self, name: str, percentile_range: Tuple[float, float]) -> Tuple[float, float]:
         mean_std = self.computed[name].get(percentile_range, None)
         if mean_std:

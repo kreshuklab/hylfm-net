@@ -14,5 +14,5 @@ from .image import (
     SetPixelValue,
 )
 from .light_field import ChannelFromLightField, LightFieldFromChannel
-from .noises import AdditiveGaussianNoise
+from .noise import AdditiveGaussianNoise, PoissonNoise
 from .normalizations import Normalize01, NormalizeSample01, NormalizeMeanStd
