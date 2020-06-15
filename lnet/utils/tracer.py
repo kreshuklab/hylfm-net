@@ -4,6 +4,7 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
+import imageio
 import matplotlib.pyplot as plt
 import numpy
 import scipy.signal
@@ -11,6 +12,8 @@ import yaml
 from scipy.ndimage import gaussian_filter
 from scipy.stats import pearsonr, spearmanr
 from skimage.feature import peak_local_max
+import skvideo.motion
+import skvideo.io
 from torch.utils.data import DataLoader, Subset
 
 from lnet import settings
@@ -28,12 +31,13 @@ def trace(
     smooth_diff_sigma: float = 1.3,
     peak_threshold_abs: float = 1.0,
     reduce_peak_area: str = "mean",
-    time_range: Optional[Tuple[int, int]] = None,
+    time_range: Optional[Tuple[int, Optional[int]]] = None,
     plot_peaks: bool = False,
     compute_peaks_on: str = "std",  # std, diff, a*std+b*diff
     peaks_min_dist: int = 3,
     trace_radius: int = 3,
     compensate_motion: Optional[dict] = None,
+    tag: str = "",  # for plot title only
 ):
     output_path /= f"tgt-{tgt}_diffsigma-{smooth_diff_sigma}_pthreshabs-{peak_threshold_abs}_red-{reduce_peak_area}_tr-{time_range}"
     output_path.mkdir(exist_ok=True, parents=True)
@@ -77,11 +81,13 @@ def trace(
     datasets_to_trace[tgt] = ds_tgt
     if time_range is not None:
         for name, ds in datasets_to_trace.items():
-            datasets_to_trace[name] = Subset(ds, numpy.arange(time_range[0], time_range[1]))
+            datasets_to_trace[name] = Subset(
+                ds, numpy.arange(time_range[0], len(ds) if time_range[1] is None else time_range[1])
+            )
 
     # load data
     for name, ds in datasets_to_trace.items():
-        datasets_to_trace[name] = numpy.stack(
+        data = numpy.stack(
             [
                 sample[name].squeeze()
                 for sample in DataLoader(
@@ -93,19 +99,24 @@ def trace(
                 )
             ]
         )
+        if compensate_motion is not None:
 
-    # if compensate_motion is not None:
+            motion = skvideo.motion.blockMotion(data, **compensate_motion)
 
-    # motion = skvideo.motion.blockMotion(videodata)
-    #
-    # print(videodata.shape)
-    # print(motion.shape)
-    #
-    # # compensate the video
-    # compensate = skvideo.motion.blockComp(videodata, motion)
-    #
-    # # write
-    # skvideo.io.vwrite("compensate.mp4", compensate)
+            print("data", data.shape)
+            print("motion", motion.shape, motion.max())
+
+            # compensate the video
+            compensate = skvideo.motion.blockComp(data, motion, mbSize=compensate_motion.get("mbSize", 8)).squeeze(
+                axis=-1
+            )
+            print("compensate", compensate.shape)
+            datasets_to_trace[name] = compensate
+            # write
+            imageio.volwrite(output_path / f"{name}_motion_compensated.tif", compensate)
+            imageio.volwrite(output_path / f"{name}_not_compensated.tif", data)
+        else:
+            datasets_to_trace[name] = data
 
     figs = {}
     peak_path = tgt_path / f"{tgt}_peaks_of_{compute_peaks_on}.yml"
@@ -268,6 +279,7 @@ def trace(
         all_smooth_traces=all_smooth_traces,
         correlations=correlations,
         output_path=output_path,
+        tag=tag,
     )
     figs.update(trace_figs)
     return peaks, all_traces, correlations, figs
@@ -339,6 +351,8 @@ def trace_peaks(tensor: numpy.ndarray, name: str, peaks: numpy.ndarray, reduce: 
     else:
         raise NotImplementedError(reduce)
 
+    traces = traces.T
+    assert traces.shape == (P, T), (traces.shape, (P, T))
     return traces
 
 
@@ -407,9 +421,7 @@ def get_smooth_traces_pair(
     return traces, tgt_traces
 
 
-def plot_traces(
-    *, tgt, plots, all_traces, all_smooth_traces, correlations, output_path,
-):
+def plot_traces(*, tgt, plots, all_traces, all_smooth_traces, correlations, output_path, tag: str = ""):
     trace_name_map = {"pred": "LFN", "ls_slice": "LS", "lr_slice": "LR"}
     tgt_cmap = plt.get_cmap("Blues").reversed()
 
@@ -468,6 +480,7 @@ def plot_traces(
         w_max: int = 0,
         corr_key=None,
         y_center_and_half_range: Optional[Tuple] = None,
+        tag: str = "",  # for plot title only
     ):
         label = f"{trace_name_map.get(name, name):>3} {wname:>6} {w:<9} "
         label = label.replace("{", "")
@@ -506,7 +519,7 @@ def plot_traces(
         fig, axes = plt.subplots(nrows=nrows, sharex=True, figsize=(20, 10), squeeze=False)
         axes = axes[:, 0]  # only squeeze ncols=1
         # plt.suptitle(f"Trace {i:2}")
-        axes[0].set_title(f"Trace {t:2}")
+        axes[0].set_title(f"{tag} Trace {t:2}")
         for ax in axes:
             ax.tick_params(axis="y", labelcolor=get_color(None, 0))
             ax.set_xlim(0, all_traces[tgt].shape[1])
@@ -547,7 +560,7 @@ def plot_traces(
 
                     w_max = max(0 if isinstance(w, str) else w, 0 if isinstance(tgt_w, str) else tgt_w)
                     pl, y_center, half_range = plot_trace(
-                        ax, j, tgt_traces, t, tgt, wname=tgt_wname, w=tgt_w, w_max=w_max
+                        ax, j, tgt_traces, t, tgt, wname=tgt_wname, w=tgt_w, w_max=w_max, tag=tag,
                     )
                     plotted_lines += pl
                     plotted_lines += plot_trace(
@@ -562,6 +575,7 @@ def plot_traces(
                         w_max=w_max,
                         corr_key=(recon, smooth, tgt_smooth, t),
                         y_center_and_half_range=(y_center, half_range),
+                        tag=tag,
                     )
                     j += 1
 
@@ -683,80 +697,117 @@ if __name__ == "__main__":
         },
     }
 
-    # paths = paths_11_2[295]
-    paths = paths_09_3_a[330]
-    output_path = Path(f"/g/kreshuk/LF_computed/lnet/traces")
-    tgt = "ls_slice"
-    plots = add_paths_to_plots(
+    for tag in [
+        "11_2__2020-03-11_06.53.14__SinglePlane_-330",
+        "11_2__2020-03-11_07.30.39__SinglePlane_-310",
+        "11_2__2020-03-11_07.30.39__SinglePlane_-320",
+        "11_2__2020-03-11_10.13.20__SinglePlane_-290",
+        "11_2__2020-03-11_10.17.34__SinglePlane_-280",
+        "11_2__2020-03-11_10.17.34__SinglePlane_-330",
+        "11_2__2020-03-11_10.21.14__SinglePlane_-295",
+        "11_2__2020-03-11_10.21.14__SinglePlane_-305",
+        "11_2__2020-03-11_10.25.41__SinglePlane_-295",
+        "11_2__2020-03-11_10.25.41__SinglePlane_-340",
+    ]:
+        paths_11_2[tag] = {
+            name: Path(
+                f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-06-12_22-07-43/brain.{tag}/run000/ds0-0"
+            )
+            for name in ["ls_slice", "lr_slice"]
+        }
+
+    for i, tag in enumerate(
         [
-            {"lr_slice": {"smooth": [(None, None)]}, "pred": {"smooth": [(None, None)]}},
-            {"lr_slice": {"smooth": [(("flat", 3), ("flat", 5))]}, "pred": {"smooth": [(("flat", 3), ("flat", 5))]}},
-            {"lr_slice": {"smooth": [(None, ("flat", 3))]}, "pred": {"smooth": [(None, ("flat", 3))]}},
-            {
-                "lr_slice": {
-                    "smooth": [
-                        (
-                            ("savgol_filter", {"window_length": 5, "polyorder": 3}),
-                            ("savgol_filter", {"window_length": 5, "polyorder": 3}),
-                        )
-                    ]
+            # "11_2__2020-03-11_06.53.14__SinglePlane_-330",
+            "11_2__2020-03-11_07.30.39__SinglePlane_-310",
+            # "11_2__2020-03-11_07.30.39__SinglePlane_-320",
+            # "11_2__2020-03-11_10.13.20__SinglePlane_-290",
+            # "11_2__2020-03-11_10.17.34__SinglePlane_-280",
+            # "11_2__2020-03-11_10.17.34__SinglePlane_-330",
+            # "11_2__2020-03-11_10.21.14__SinglePlane_-295",
+            # "11_2__2020-03-11_10.21.14__SinglePlane_-305",
+            # "11_2__2020-03-11_10.25.41__SinglePlane_-295",
+            # "11_2__2020-03-11_10.25.41__SinglePlane_-340",
+        ]
+    ):
+        paths = paths_11_2[tag]
+        # paths = paths_09_3_a[330]
+        output_path = Path(f"/g/kreshuk/LF_computed/lnet/trace_search{i}")
+        tgt = "ls_slice"
+        plots = add_paths_to_plots(
+            [
+                # {"lr_slice": {"smooth": [(None, None)]}, "pred": {"smooth": [(None, None)]}},
+                # {"lr_slice": {"smooth": [(("flat", 5), ("flat", 7))]}, "pred": {"smooth": [(("flat", 3), ("flat", 5))]}},
+                # {"lr_slice": {"smooth": [(None, ("flat", 3))]}, "pred": {"smooth": [(None, ("flat", 3))]}},
+                {"lr_slice": {"smooth": [(None, None)]}},
+                {"lr_slice": {"smooth": [(("flat", 11), ("flat", 11))]}},
+                # {"lr_slice": {"smooth": [(None, ("flat", 3))]}},
+                {
+                    "lr_slice": {
+                        "smooth": [
+                            (
+                                ("savgol_filter", {"window_length": 11, "polyorder": 3}),
+                                ("savgol_filter", {"window_length": 11, "polyorder": 3}),
+                            )
+                        ]
+                    },
+                    # "pred": {
+                    #     "smooth": [
+                    #         (
+                    #             ("savgol_filter", {"window_length": 11, "polyorder": 3}),
+                    #             ("savgol_filter", {"window_length": 11, "polyorder": 3}),
+                    #         )
+                    #     ]
+                    # },
                 },
-                "pred": {
-                    "smooth": [
-                        (
-                            ("savgol_filter", {"window_length": 5, "polyorder": 3}),
-                            ("savgol_filter", {"window_length": 5, "polyorder": 3}),
-                        )
-                    ]
-                },
-            },
-            {
-                "lr_slice": {
-                    "smooth": [
-                        (
-                            ("savgol_filter", {"window_length": 9, "polyorder": 5}),
-                            ("savgol_filter", {"window_length": 9, "polyorder": 5}),
-                        )
-                    ]
-                },
-                "pred": {
-                    "smooth": [
-                        (
-                            ("savgol_filter", {"window_length": 9, "polyorder": 3}),
-                            ("savgol_filter", {"window_length": 9, "polyorder": 3}),
-                        )
-                    ]
-                },
-            },
-        ],
-        paths=paths,
-    )
+                # {
+                #     "lr_slice": {
+                #         "smooth": [
+                #             (
+                #                 ("savgol_filter", {"window_length": 9, "polyorder": 5}),
+                #                 ("savgol_filter", {"window_length": 9, "polyorder": 5}),
+                #             )
+                #         ]
+                #     },
+                #     "pred": {
+                #         "smooth": [
+                #             (
+                #                 ("savgol_filter", {"window_length": 9, "polyorder": 3}),
+                #                 ("savgol_filter", {"window_length": 9, "polyorder": 3}),
+                #             )
+                #         ]
+                #     },
+                # },
+            ],
+            paths=paths,
+        )
 
-    peaks, traces, correlations, figs = trace(
-        tgt_path=paths[tgt],
-        tgt=tgt,
-        plots=plots,
-        output_path=output_path,
-        nr_traces=20,
-        overwrite_existing_files=True,
-        smooth_diff_sigma=1.3,
-        peak_threshold_abs=0.05,
-        reduce_peak_area="mean",
-        plot_peaks=True,
-        compute_peaks_on="std",  # std, diff
-        peaks_min_dist=3,
-        trace_radius=2,
-        # time_range=(0, 600),
-        time_range=(0, 50),
-        # time_range=(660, 1200),
-        compensate_motion={"method": "DS", "mbSize": 8, "p": 2},
-    )
+        peaks, traces, correlations, figs = trace(
+            tgt_path=paths[tgt],
+            tgt=tgt,
+            plots=plots,
+            output_path=output_path,
+            nr_traces=1,
+            overwrite_existing_files=False,
+            smooth_diff_sigma=1.3,
+            peak_threshold_abs=0.05,
+            reduce_peak_area="mean",
+            plot_peaks=True,
+            compute_peaks_on="std",  # std, diff
+            peaks_min_dist=3,
+            trace_radius=2,
+            # time_range=(0, 600),
+            # time_range=(0, 50),
+            # time_range=(660, 1200),
+            time_range=(20, None),
+            compensate_motion={"method": "DS", "mbSize": 8, "p": 2},
+            tag=tag,
+        )
 
-    for name, trace in traces.items():
-        print(name, trace.shape, trace.min(), trace.max())
+        # for name, trace in traces.items():
+        #     print(name, trace.shape, trace.min(), trace.max())
 
-    plt.show()
-
+        plt.show()
 
 # todo:
 # LR: whta's there?
