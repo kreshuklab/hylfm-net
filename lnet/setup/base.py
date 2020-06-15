@@ -735,6 +735,7 @@ class Setup:
                 for stage in parallel_stages:
                     logger.info("starting stage: %s", stage.name)
                     stage.run()
+                    stage.shutdown()
         finally:
             self.shutdown()
             delete_empty_dirs(self.log_path)
