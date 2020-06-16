@@ -87,7 +87,7 @@ def trace(
 
     # load data
     for name, ds in datasets_to_trace.items():
-        data = numpy.stack(
+        datasets_to_trace[name] = numpy.stack(
             [
                 sample[name].squeeze()
                 for sample in DataLoader(
@@ -99,24 +99,28 @@ def trace(
                 )
             ]
         )
-        if compensate_motion is not None:
 
-            motion = skvideo.motion.blockMotion(data, **compensate_motion)
-
+    if compensate_motion is not None:
+        compensate_ref_name = compensate_motion.pop("compensate_ref", None)
+        compensate_ref = datasets_to_trace[compensate_ref_name]
+        motion = skvideo.motion.blockMotion(compensate_ref, **compensate_motion)
+        print("motion", motion.shape, motion.max())
+        for name in set(datasets_to_trace.keys()):
+            data = datasets_to_trace[name]
             print("data", data.shape)
-            print("motion", motion.shape, motion.max())
 
             # compensate the video
-            compensate = skvideo.motion.blockComp(data, motion, mbSize=compensate_motion.get("mbSize", 8)).squeeze(
-                axis=-1
+            compensate = (
+                skvideo.motion.blockComp(data, motion, mbSize=compensate_motion.get("mbSize", 8))
+                .squeeze(axis=-1)
+                .astype("float32")
             )
             print("compensate", compensate.shape)
-            datasets_to_trace[name] = compensate
             # write
             imageio.volwrite(output_path / f"{name}_motion_compensated.tif", compensate)
             imageio.volwrite(output_path / f"{name}_not_compensated.tif", data)
-        else:
-            datasets_to_trace[name] = data
+    else:
+        motion = None
 
     figs = {}
     peak_path = tgt_path / f"{tgt}_peaks_of_{compute_peaks_on}.yml"
@@ -282,7 +286,7 @@ def trace(
         tag=tag,
     )
     figs.update(trace_figs)
-    return peaks, all_traces, correlations, figs
+    return peaks, all_traces, correlations, figs, motion
 
 
 # def get_min_max_mean_std(ds: DatasetFromInfo, name: str):
@@ -560,7 +564,7 @@ def plot_traces(*, tgt, plots, all_traces, all_smooth_traces, correlations, outp
 
                     w_max = max(0 if isinstance(w, str) else w, 0 if isinstance(tgt_w, str) else tgt_w)
                     pl, y_center, half_range = plot_trace(
-                        ax, j, tgt_traces, t, tgt, wname=tgt_wname, w=tgt_w, w_max=w_max, tag=tag,
+                        ax, j, tgt_traces, t, tgt, wname=tgt_wname, w=tgt_w, w_max=w_max, tag=tag
                     )
                     plotted_lines += pl
                     plotted_lines += plot_trace(
@@ -732,7 +736,7 @@ if __name__ == "__main__":
     ):
         paths = paths_11_2[tag]
         # paths = paths_09_3_a[330]
-        output_path = Path(f"/g/kreshuk/LF_computed/lnet/trace_search{i}")
+        output_path = Path(f"/g/kreshuk/LF_computed/lnet/trace_debug{i}")
         tgt = "ls_slice"
         plots = add_paths_to_plots(
             [
@@ -782,7 +786,7 @@ if __name__ == "__main__":
             paths=paths,
         )
 
-        peaks, traces, correlations, figs = trace(
+        peaks, traces, correlations, figs, motion = trace(
             tgt_path=paths[tgt],
             tgt=tgt,
             plots=plots,
@@ -800,7 +804,7 @@ if __name__ == "__main__":
             # time_range=(0, 50),
             # time_range=(660, 1200),
             time_range=(20, None),
-            compensate_motion={"method": "DS", "mbSize": 8, "p": 2},
+            compensate_motion={"compensate_ref": tgt, "method": "DS", "mbSize": 8, "p": 8},
             tag=tag,
         )
 
