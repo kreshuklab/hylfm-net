@@ -24,6 +24,7 @@ from lnet.datasets.base import DatasetFromInfo, TiffDataset, get_collate_fn
 def trace(
     tgt_path: Path,
     tgt: str,
+    roi: Tuple[slice, slice],
     plots: List[Union[Dict[str, Dict[str, Union[Path, List]]], Set[str]]],
     output_path: Path,
     nr_traces: int,
@@ -39,7 +40,7 @@ def trace(
     compensate_motion: Optional[dict] = None,
     tag: str = "",  # for plot title only
 ):
-    output_path /= f"tgt-{tgt}_diffsigma-{smooth_diff_sigma}_pthreshabs-{peak_threshold_abs}_red-{reduce_peak_area}_tr-{time_range}"
+    output_path /= f"tgt-{tgt}_diffsigma-{smooth_diff_sigma}_pthreshabs-{peak_threshold_abs}_red-{reduce_peak_area}_tr-{time_range}_roi-{roi}"
     output_path.mkdir(exist_ok=True, parents=True)
     default_smooth = [(None, ("flat", 3))]
     for i in range(len(plots)):
@@ -89,7 +90,7 @@ def trace(
     for name, ds in datasets_to_trace.items():
         datasets_to_trace[name] = numpy.stack(
             [
-                sample[name].squeeze()
+                sample[name].squeeze()[roi]
                 for sample in DataLoader(
                     dataset=ds,
                     shuffle=False,
@@ -99,6 +100,8 @@ def trace(
                 )
             ]
         )
+        assert not numpy.isnan(datasets_to_trace[name]).any()
+
 
     if compensate_motion is not None:
         compensate_ref_name = compensate_motion.pop("compensate_ref", None)
@@ -736,7 +739,7 @@ if __name__ == "__main__":
     ):
         paths = paths_11_2[tag]
         # paths = paths_09_3_a[330]
-        output_path = Path(f"/g/kreshuk/LF_computed/lnet/trace_debug{i}")
+        output_path = Path(f"/g/kreshuk/LF_computed/lnet/trace_debug_motion{i}")
         tgt = "ls_slice"
         plots = add_paths_to_plots(
             [
@@ -789,10 +792,12 @@ if __name__ == "__main__":
         peaks, traces, correlations, figs, motion = trace(
             tgt_path=paths[tgt],
             tgt=tgt,
+            roi=(slice(0, 9999), slice(0, 9999)),
+            # roi=(slice(5, 25), slice(5, 25)),
             plots=plots,
             output_path=output_path,
             nr_traces=1,
-            overwrite_existing_files=False,
+            overwrite_existing_files=True,
             smooth_diff_sigma=1.3,
             peak_threshold_abs=0.05,
             reduce_peak_area="mean",
@@ -804,12 +809,12 @@ if __name__ == "__main__":
             # time_range=(0, 50),
             # time_range=(660, 1200),
             time_range=(20, None),
-            compensate_motion={"compensate_ref": tgt, "method": "DS", "mbSize": 8, "p": 8},
+            # compensate_motion={"compensate_ref": tgt, "method": "DS", "mbSize": 50, "p": 4},
             tag=tag,
         )
 
-        # for name, trace in traces.items():
-        #     print(name, trace.shape, trace.min(), trace.max())
+        for name, trace in traces.items():
+            print("trace", name, trace.shape, trace.min(), trace.max())
 
         plt.show()
 
