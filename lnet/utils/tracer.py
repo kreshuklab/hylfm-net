@@ -1,4 +1,5 @@
 import json
+import logging
 import math
 from collections import OrderedDict
 from pathlib import Path
@@ -8,17 +9,19 @@ import imageio
 import matplotlib.pyplot as plt
 import numpy
 import scipy.signal
+import skvideo.io
+import skvideo.motion
 import yaml
 from scipy.ndimage import gaussian_filter
 from scipy.stats import pearsonr, spearmanr
 from skimage.feature import peak_local_max
-import skvideo.motion
-import skvideo.io
 from torch.utils.data import DataLoader, Subset
 
 from lnet import settings
 from lnet.datasets import TensorInfo
-from lnet.datasets.base import DatasetFromInfo, TiffDataset, get_collate_fn
+from lnet.datasets.base import TiffDataset, get_collate_fn
+
+logger = logging.getLogger(__name__)
 
 
 def trace(
@@ -101,7 +104,6 @@ def trace(
             ]
         )
         assert not numpy.isnan(datasets_to_trace[name]).any()
-
 
     if compensate_motion is not None:
         compensate_ref_name = compensate_motion.pop("compensate_ref", None)
@@ -275,8 +277,18 @@ def trace(
                         recon, smooth, tgt, tgt_smooth, all_traces, all_smooth_traces
                     )
                     for t, (trace, tgt_trace) in enumerate(zip(traces, tgt_traces)):
-                        pr, _ = pearsonr(trace, tgt_trace)
-                        sr, _ = spearmanr(trace, tgt_trace)
+                        try:
+                            pr, _ = pearsonr(trace, tgt_trace)
+                        except ValueError as e:
+                            logger.error(e)
+                            pr = numpy.nan
+
+                        try:
+                            sr, _ = spearmanr(trace, tgt_trace)
+                        except ValueError as e:
+                            logger.error(e)
+                            sr = numpy.nan
+
                         correlations[recon, smooth, tgt_smooth, t] = {"pearson": pr, "spearman": sr}
 
     trace_figs = plot_traces(
