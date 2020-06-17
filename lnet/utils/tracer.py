@@ -103,13 +103,14 @@ def trace(
                 )
             ]
         )
-        assert not numpy.isnan(datasets_to_trace[name]).any()
+        assert numpy.isfinite(datasets_to_trace[name]).all()
 
     if compensate_motion is not None:
         compensate_ref_name = compensate_motion.pop("compensate_ref", None)
         compensate_ref = datasets_to_trace[compensate_ref_name]
         motion = skvideo.motion.blockMotion(compensate_ref, **compensate_motion)
         print("motion", motion.shape, motion.max())
+        assert numpy.isfinite(motion).all()
         for name in set(datasets_to_trace.keys()):
             data = datasets_to_trace[name]
             print("data", data.shape)
@@ -121,6 +122,7 @@ def trace(
                 .astype("float32")
             )
             print("compensate", compensate.shape)
+            assert numpy.isfinite(compensate).all()
             # write
             imageio.volwrite(output_path / f"{name}_motion_compensated.tif", compensate)
             imageio.volwrite(output_path / f"{name}_not_compensated.tif", data)
