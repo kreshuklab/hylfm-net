@@ -31,13 +31,15 @@ def step(engine: ignite.engine.Engine, tensors: typing.OrderedDict[str, typing.A
             engine.state.optimizer.step()
             engine.state.optimizer.zero_grad()
 
-    for bmeta in tensors["meta"]:  # todo: fix for bead precision and recall
+    for bmeta in tensors["meta"]:
+        bmeta["log_path"] = stage.log_path / f"ds{'-'.join([str(bidx) for bidx in bmeta['dataset_idx']])}"
+        bmeta["log_path"].mkdir(exist_ok=True, parents=True)
         for tensor_name in tensors:
             if tensor_name == "meta" or tensor_name not in bmeta:
                 continue
 
             tmeta = bmeta[tensor_name]
-            tmeta["log_path"] = stage.log_path / f"ds{'-'.join([str(bidx) for bidx in bmeta['dataset_idx']])}" / tensor_name
+            tmeta["log_path"] = bmeta["log_path"] / tensor_name
             tmeta["log_path"].mkdir(exist_ok=True, parents=True)
 
     return OrderedDict(
