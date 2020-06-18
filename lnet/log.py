@@ -141,6 +141,7 @@ class TqdmLogger(BaseLogger):
         if self._pbar is not None:
             self._pbar.close()
             self._pbar = None
+            self._last_it = 0
 
     def shutdown(self) -> None:
         self.reset_progress()
