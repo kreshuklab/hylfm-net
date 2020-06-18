@@ -105,8 +105,13 @@ def trace(
         )
         assert numpy.isfinite(datasets_to_trace[name]).all()
 
-    if compensate_motion is not None:
-        compensate_ref_name = compensate_motion.pop("compensate_ref", None)
+        plt.imshow(datasets_to_trace[name].max(axis=0))
+        plt.title(name)
+        plt.show()
+
+    compensate_motion_for_peaks = compensate_motion is not None and compensate_motion.pop("of_peaks", False)
+    if not compensate_motion_for_peaks and compensate_motion is not None:
+        compensate_ref_name = compensate_motion.pop("compensate_ref", tgt)
         compensate_ref = datasets_to_trace[compensate_ref_name]
         motion = skvideo.motion.blockMotion(compensate_ref, **compensate_motion)
         print("motion", motion.shape, motion.max())
@@ -130,7 +135,7 @@ def trace(
         motion = None
 
     figs = {}
-    peak_path = tgt_path / f"{tgt}_peaks_of_{compute_peaks_on}.yml"
+    peak_path = output_path / f"{tgt}_peaks_of_{compute_peaks_on}.yml"
     peaks = None
     if peak_path.exists() and not overwrite_existing_files:
         with peak_path.open() as f:
@@ -142,11 +147,11 @@ def trace(
     if peaks is None or plot_peaks:
         recompute_traces = True
         all_projections = OrderedDict()
-        for tensor_name, path in {tgt: tgt_path, **all_recon_paths}.items():
-            min_path = path / f"{tensor_name}_min.npy"
-            max_path = path / f"{tensor_name}_max.npy"
-            mean_path = path / f"{tensor_name}_mean.npy"
-            std_path = path / f"{tensor_name}_std.npy"
+        for tensor_name in {tgt, *all_recon_paths.keys()}:
+            min_path = output_path / f"{tensor_name}_min.npy"
+            max_path = output_path / f"{tensor_name}_max.npy"
+            mean_path = output_path / f"{tensor_name}_mean.npy"
+            std_path = output_path / f"{tensor_name}_std.npy"
 
             if (
                 min_path.exists()
@@ -240,6 +245,7 @@ def trace(
             # plot peak positions on different projections
             fig, axes = plt.subplots(nrows=math.ceil(len(plot_peaks_on) / 3), ncols=3, squeeze=False, figsize=(20, 10))
             plt.suptitle(tensor_name)
+            [ax.set_axis_off() for ax in axes.flatten()]
             for ax, (name, tensor) in zip(axes.flatten(), plot_peaks_on.items()):
                 title = f"peaks on {name}"
                 ax.set_title(title)
@@ -251,8 +257,7 @@ def trace(
                     ax.text(x + 2 * int(r + 0.5), y, str(i))  # todo fix text
                     ax.add_patch(c)
 
-                ax.set_axis_off()
-                plt.savefig(tgt_path / f"{tgt}_{title.replace(' ', '_')}.svg")
+                plt.savefig(output_path / f"{tgt}_{title.replace(' ', '_')}.svg")
                 figs[name.replace(" ", "_")] = fig
 
             with peak_path.open("w") as f:
@@ -260,14 +265,26 @@ def trace(
     else:
         recompute_traces = False
 
+    if compensate_motion_for_peaks:
+        compensated_peaks = get_motion_compensated_peaks(
+            datasets_to_trace[compensate_motion.pop("compensate_ref", tgt)], peaks, output_path
+        )
+    else:
+        compensated_peaks = None
+
     all_traces = {}
-    for el, p in {tgt: tgt_path, **all_recon_paths}.items():
-        traces_path: Path = p / f"{el}_traces.npy"
-        if traces_path.exists() and not overwrite_existing_files and not recompute_traces:
-            all_traces[el] = numpy.load(str(traces_path))
-        else:
-            all_traces[el] = trace_peaks(datasets_to_trace[el], el, peaks, reduce_peak_area)
-            numpy.save(str(traces_path), all_traces[el])
+    if compensated_peaks is None:
+        for name in {tgt, *all_recon_paths.keys()}:
+            traces_path: Path = output_path / f"{name}_traces.npy"
+            if traces_path.exists() and not overwrite_existing_files and not recompute_traces:
+                all_traces[name] = numpy.load(str(traces_path))
+            else:
+                all_traces[name] = trace_straight_peaks(
+                    datasets_to_trace[name], name, peaks, reduce_peak_area, output_path
+                )
+                numpy.save(str(traces_path), all_traces[name])
+    else:
+        assert False
 
     all_smooth_traces = {}
     correlations = {}
@@ -349,12 +366,51 @@ def get_min_max_mean_std(tensor: numpy.ndarray):
     return min_, max_, mean, std
 
 
-def trace_peaks(tensor: numpy.ndarray, name: str, peaks: numpy.ndarray, reduce: str):
+def get_motion_compensated_peaks(tensor: numpy.ndarray, peaks: numpy.ndarray, output_path: Path):
+    compensated_peaks = []
+    T, H, W = tensor.shape
+    for i, (h, w, r) in enumerate(peaks):
+        dr = 3 * r
+        if h - dr < 0 or h + dr >= H or w - dr < 0 or w + dr >= W:
+            raise NotImplementedError("peak too close to edge")
+
+        peak_vol = tensor[:, h - dr : h + dr, w - dr : w + dr]
+        imageio.volwrite(output_path / f"peak_{i}_{h}_{w}_{r}.tif", peak_vol)
+
+        motion = skvideo.motion.blockMotion(peak_vol, method="DS", mbSize=2 * r, p=r)
+        print("motion", motion.shape, " max correction", motion.max())
+        peak_motion = motion[:, motion.shape[1] // 2, motion.shape[2] // 2]
+        compensated_peak = numpy.stack([(h - dh, w - dw, r) for dh, dw in peak_motion], axis=-1)
+        compensated_peaks.append(compensated_peak)
+
+        # write out compensated peak volume
+        peak_vol = numpy.tile(peak_vol[..., None], (1, 1, 1, 3))
+        for t, (dh, dw) in enumerate(peak_motion):
+            peak_vol[1 + t, 3 * r + dh, 3 * r + dw, 0] = 1
+
+        imageio.volwrite(output_path / f"peak_{i}_{h}_{w}_{r}_compensated.tif", peak_vol)
+
+        # # compensate the video
+        # compensate = (
+        #     skvideo.motion.blockComp(data, motion, mbSize=compensate_motion.get("mbSize", 8))
+        #     .squeeze(axis=-1)
+        #     .astype("float32")
+        # )
+
+
+def trace_straight_peaks(tensor: numpy.ndarray, name: str, peaks: numpy.ndarray, reduce: str, output_path: Path):
     assert len(peaks.shape) == 2, peaks.shape
     P = peaks.shape[0]
     assert peaks.shape[1] == 3, peaks.shape
 
     T, H, W = tensor.shape
+    # save peak volumes
+    for i, (x, y, r) in enumerate(peaks):
+        r_f = 5
+        peak_vol = tensor[:, x - r_f * r : x + r_f * r, y - r_f * r : y + r_f * r]
+
+        imageio.volwrite(output_path / f"peak_{i}_{x}_{y}_{r}.tif", peak_vol)
+
     peak_masks = numpy.stack([create_circular_mask(H, W, p).flatten() for p in peaks], axis=1)
     cirlce_area = peak_masks[:, 0].sum()
     assert len(peak_masks.shape) == 2, peak_masks.shape
@@ -484,9 +540,17 @@ def plot_traces(*, tgt, plots, all_traces, all_smooth_traces, correlations, outp
         y_min = numpy.min(y)
         y_max = numpy.max(y)
         y_center = numpy.median(y)
-        half_range = max(abs(y_center - y_min), abs(y_center - y_max))
+        half_range = max(abs(y_center - y_min), abs(y_center - y_max)) + 0.02
         ax.set_ylim(y_center - half_range, y_center + half_range)
         return ax.plot(*xy, **kwargs), y_center, half_range
+
+    def plot_aligned(*xy, ax, **kwargs):
+        y: numpy.ndarray = xy[-1]
+        y_min = numpy.min(y)
+        y_max = numpy.max(y)
+        ax.set_ylim(y_min - 0.01, y_max + 0.01)
+        y_center = numpy.median(y) / (y_max - y_min + 0.02)
+        return ax.plot(*xy, **kwargs), y_center
 
     def plot_trace(
         ax,
@@ -500,7 +564,7 @@ def plot_traces(*, tgt, plots, all_traces, all_smooth_traces, correlations, outp
         w: Union[str, int] = "",
         w_max: int = 0,
         corr_key=None,
-        y_center_and_half_range: Optional[Tuple] = None,
+        y_center: Optional[float] = None,
         tag: str = "",  # for plot title only
     ):
         label = f"{trace_name_map.get(name, name):>3} {wname:>6} {w:<9} "
@@ -515,15 +579,13 @@ def plot_traces(*, tgt, plots, all_traces, all_smooth_traces, correlations, outp
             label += (
                 f"Pears={correlations[corr_key]['pearson']:.3f}  " f"Spear={correlations[corr_key]['spearman']:.3f}"
             )
+        if label in [ln.get_label() for ln in ax.lines]:
+            # don't replot existing line
+            return [], None
+
         plot_args_here = [numpy.arange(w_max // 2, all_traces[tgt].shape[1] - w_max // 2), traces[t]]
         plot_kwargs_here = {"label": label, "color": get_color(i, j), **plot_kwargs}
-        if y_center_and_half_range is None:
-            return plot_centered(*plot_args_here, ax=ax, **plot_kwargs_here)
-        else:
-            return plot_centered(*plot_args_here, ax=ax, **plot_kwargs_here)[0]
-            # y_center, half_range = y_center_and_half_range
-            # ax.set_ylim(y_center - half_range, y_center + half_range)
-            # return ax.plot(*plot_args_here, **plot_kwargs_here)
+        return plot_aligned(*plot_args_here, ax=ax, **plot_kwargs_here, y_center=y_center)
 
     # from https://matplotlib.org/3.1.1/gallery/ticks_and_spines/multiple_yaxis_with_spines.html
     def make_patch_spines_invisible(ax):
@@ -549,6 +611,7 @@ def plot_traces(*, tgt, plots, all_traces, all_smooth_traces, correlations, outp
         i = 0
         for ax, recons in zip(axes, plots):
             plotted_lines = []
+            y_center = half_range = None
             for i, (recon, kwargs) in enumerate(recons.items()):
                 j = 0
                 twinx = ax.twinx()  # new twinx for each recon
@@ -580,9 +643,14 @@ def plot_traces(*, tgt, plots, all_traces, all_smooth_traces, correlations, outp
                         wname, w = smooth
 
                     w_max = max(0 if isinstance(w, str) else w, 0 if isinstance(tgt_w, str) else tgt_w)
-                    pl, y_center, half_range = plot_trace(
-                        ax, j, tgt_traces, t, tgt, wname=tgt_wname, w=tgt_w, w_max=w_max, tag=tag
+                    pl, new_y_center = plot_trace(
+                        ax, j, tgt_traces, t, tgt, wname=tgt_wname, w=tgt_w, w_max=w_max, tag=tag, y_center=y_center
                     )
+                    if new_y_center is None:
+                        assert y_center is not None
+                    elif y_center is None:
+                        y_center = new_y_center
+
                     plotted_lines += pl
                     plotted_lines += plot_trace(
                         twinx,
@@ -595,9 +663,9 @@ def plot_traces(*, tgt, plots, all_traces, all_smooth_traces, correlations, outp
                         w=w,
                         w_max=w_max,
                         corr_key=(recon, smooth, tgt_smooth, t),
-                        y_center_and_half_range=(y_center, half_range),
+                        y_center=y_center,
                         tag=tag,
-                    )
+                    )[0]
                     j += 1
 
             labels = [l.get_label() for l in plotted_lines]
@@ -717,6 +785,11 @@ if __name__ == "__main__":
             ),
         },
     }
+    rois = {
+        310: (slice(50, 200), slice(80, 280)),
+        320: (slice(50, 200), slice(80, 280)),
+        330: (slice(50, 200), slice(80, 280)),
+    }
 
     for tag in [
         "11_2__2020-03-11_06.53.14__SinglePlane_-330",
@@ -739,8 +812,9 @@ if __name__ == "__main__":
 
     for i, tag in enumerate(
         [
+            310
             # "11_2__2020-03-11_06.53.14__SinglePlane_-330",
-            "11_2__2020-03-11_07.30.39__SinglePlane_-310",
+            # "11_2__2020-03-11_07.30.39__SinglePlane_-310",
             # "11_2__2020-03-11_07.30.39__SinglePlane_-320",
             # "11_2__2020-03-11_10.13.20__SinglePlane_-290",
             # "11_2__2020-03-11_10.17.34__SinglePlane_-280",
@@ -757,11 +831,14 @@ if __name__ == "__main__":
         tgt = "ls_slice"
         plots = add_paths_to_plots(
             [
-                # {"lr_slice": {"smooth": [(None, None)]}, "pred": {"smooth": [(None, None)]}},
-                # {"lr_slice": {"smooth": [(("flat", 5), ("flat", 7))]}, "pred": {"smooth": [(("flat", 3), ("flat", 5))]}},
+                {"lr_slice": {"smooth": [(None, None)]}, "pred": {"smooth": [(None, None)]}},
+                {
+                    "lr_slice": {"smooth": [(("flat", 11), ("flat", 11))]},
+                    "pred": {"smooth": [(("flat", 11), ("flat", 11))]},
+                },
                 # {"lr_slice": {"smooth": [(None, ("flat", 3))]}, "pred": {"smooth": [(None, ("flat", 3))]}},
-                {"lr_slice": {"smooth": [(None, None)]}},
-                {"lr_slice": {"smooth": [(("flat", 11), ("flat", 11))]}},
+                # {"lr_slice": {"smooth": [(None, None)]}},
+                # {"lr_slice": {"smooth": [(("flat", 11), ("flat", 11))]}},
                 # {"lr_slice": {"smooth": [(None, ("flat", 3))]}},
                 {
                     "lr_slice": {
@@ -772,14 +849,14 @@ if __name__ == "__main__":
                             )
                         ]
                     },
-                    # "pred": {
-                    #     "smooth": [
-                    #         (
-                    #             ("savgol_filter", {"window_length": 11, "polyorder": 3}),
-                    #             ("savgol_filter", {"window_length": 11, "polyorder": 3}),
-                    #         )
-                    #     ]
-                    # },
+                    "pred": {
+                        "smooth": [
+                            (
+                                ("savgol_filter", {"window_length": 11, "polyorder": 3}),
+                                ("savgol_filter", {"window_length": 11, "polyorder": 3}),
+                            )
+                        ]
+                    },
                 },
                 # {
                 #     "lr_slice": {
@@ -806,12 +883,11 @@ if __name__ == "__main__":
         peaks, traces, correlations, figs, motion = trace(
             tgt_path=paths[tgt],
             tgt=tgt,
-            roi=(slice(0, 9999), slice(0, 9999)),
-            # roi=(slice(5, 25), slice(5, 25)),
+            roi=rois.get(tag, (slice(0, 9999), slice(0, 9999))),
             plots=plots,
             output_path=output_path,
             nr_traces=1,
-            overwrite_existing_files=True,
+            overwrite_existing_files=False,
             smooth_diff_sigma=1.3,
             peak_threshold_abs=0.05,
             reduce_peak_area="mean",
@@ -824,6 +900,7 @@ if __name__ == "__main__":
             # time_range=(660, 1200),
             time_range=(20, None),
             # compensate_motion={"compensate_ref": tgt, "method": "DS", "mbSize": 50, "p": 4},
+            # compensate_motion={"of_peaks": True, "method": "DS"},
             tag=tag,
         )
 
