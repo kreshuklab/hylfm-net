@@ -103,7 +103,11 @@ class TensorInfo:
         assert isinstance(trfs, list)
         for trf in trfs:
             for kwargs in trf.values():
-                assert "apply_to" in kwargs and kwargs["apply_to"] == self.name, (self.name, trf)
+                if "apply_to" not in kwargs:
+                    raise ValueError(f"missing `apply_to` arg in transformation {trf}")
+
+                if kwargs["apply_to"] != self.name:
+                    raise ValueError(f"`TensorInfo.name` {self.name} does not match transformation's `apply_to` {trf}")
 
         self.__transformations = trfs
 

@@ -613,6 +613,10 @@ class TrainStage(Stage):
         self.validate.shutdown()
         super().shutdown()
 
+    def setup(self):
+        self.validate.setup()
+        super().setup()
+
 
 class Setup:
     def __init__(
