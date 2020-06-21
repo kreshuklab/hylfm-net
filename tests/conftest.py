@@ -12,6 +12,12 @@ def data_path() -> Path:
 
 
 @pytest.fixture
+def output_path() -> Path:
+    output_path =  Path(__file__).parent / "output_test_data"
+    output_path.mkdir(exist_ok=True)
+    return output_path
+
+@pytest.fixture
 def dummy_config_path(data_path: Path) -> Path:
     return data_path / "experiment_configs/dummy.yml"
 

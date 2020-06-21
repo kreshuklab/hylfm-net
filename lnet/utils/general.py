@@ -1,6 +1,7 @@
 import typing
 from functools import wraps
 from pathlib import Path
+from time import perf_counter
 
 import torch
 
@@ -64,3 +65,21 @@ def percentile(t: torch.Tensor, q: float) -> typing.Union[int, float]:
     k = 1 + round(0.01 * float(q) * (t.numel() - 1))
     result = t.view(-1).kthvalue(k).values.item()
     return result
+
+
+def print_timing(func):
+    """
+    create a timing decorator function
+    use
+    @print_timing
+    just above the function you want to time
+    """
+
+    @wraps(func)  # improves debugging
+    def wrapper(*args, **kwargs):
+        start = perf_counter()  # needs python3.3 or higher
+        result = func(*args, **kwargs)
+        print(f"{func.__name__} took {(perf_counter() - start) * 1000:.3f} ms")
+        return result
+
+    return wrapper
