@@ -129,7 +129,6 @@ def trace(
 
     ds_tgt = TiffDataset(info=TensorInfo(name=tgt, root=tgt_path, location=f"{tgt}/*.tif"))
     length = len(ds_tgt)
-    assert length <= 600, "across TP??"
     datasets_to_trace = {
         recon: TiffDataset(info=TensorInfo(name=recon, root=path, location=f"{recon}/*.tif"))
         for recon, path in all_recon_paths.items()
@@ -144,6 +143,7 @@ def trace(
             datasets_to_trace[name] = Subset(
                 ds, numpy.arange(time_range[0], len(ds) if time_range[1] is None else time_range[1])
             )
+            assert len(datasets_to_trace[name]) <= 600, "accross TP??"
 
     # load data
     for name, ds in datasets_to_trace.items():
