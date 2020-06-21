@@ -2,7 +2,8 @@ import json
 import logging
 import math
 from collections import OrderedDict
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from hashlib import sha256
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
@@ -29,6 +30,8 @@ from lnet.utils.general import print_timing
 logger = logging.getLogger(__name__)
 
 yaml = YAML(typ="safe")
+
+SHOW_FIGS = False
 
 # use tifffile instead of imageio, because imageio.volwrite(p, data) throws an exception when passing 'compress' kwarg
 def volwrite(p: Path, data, compress=2, **kwargs):
@@ -91,7 +94,9 @@ def trace(
         "compensate_motion": compensate_motion,
         "tag": tag,
     }
-    output_path /= str(hash(json.dumps(all_kwargs, sort_keys=True)))
+    descr_hash = sha256()
+    descr_hash.update(json.dumps(all_kwargs, sort_keys=True).encode("utf-8"))
+    output_path /= descr_hash.hexdigest()
     print("output path:", output_path)
     output_path.mkdir(exist_ok=True, parents=True)
     yaml.dump(all_kwargs, output_path / "kwargs.yaml")
@@ -124,6 +129,7 @@ def trace(
 
     ds_tgt = TiffDataset(info=TensorInfo(name=tgt, root=tgt_path, location=f"{tgt}/*.tif"))
     length = len(ds_tgt)
+    assert length <= 600, "across TP??"
     datasets_to_trace = {
         recon: TiffDataset(info=TensorInfo(name=recon, root=path, location=f"{recon}/*.tif"))
         for recon, path in all_recon_paths.items()
@@ -248,21 +254,21 @@ def trace(
                 "mean tensor": projections["mean"],
             }
 
-            def get_peaks_on_tensor(_comp_on: str):
-                if _comp_on == "diff":
+            def get_peaks_on_tensor(comp_on: str):
+                if comp_on in ["min", "max", "std", "mean"]:
+                    peaks_on_tensor = projections[comp_on]
+                elif comp_on == "diff":
                     return diff_tensor
-                elif _comp_on == "smooth_diff":
+                elif comp_on == "smooth_diff":
                     peaks_on_tensor = gaussian_filter(diff_tensor, sigma=smooth_diff_sigma, mode="constant")
                     plot_peaks_on["smooth diff tensor"] = peaks_on_tensor
-                elif _comp_on == "std":
-                    peaks_on_tensor = projections["std"]
-                elif "+" in _comp_on:
-                    comp_on_parts = _comp_on.split("+")
+                elif "+" in comp_on:
+                    comp_on_parts = comp_on.split("+")
                     peaks_on_tensor = get_peaks_on_tensor(comp_on_parts[0])
                     for part in comp_on_parts[1:]:
                         peaks_on_tensor = numpy.add(peaks_on_tensor, get_peaks_on_tensor(part))
-                elif "*" in _comp_on:
-                    factor, comp_on = _comp_on.split("*")
+                elif "*" in comp_on:
+                    factor, comp_on = comp_on.split("*")
                     factor = float(factor)
                     peaks_on_tensor = factor * get_peaks_on_tensor(comp_on)
                 else:
@@ -299,8 +305,14 @@ def trace(
                     ax.text(x + 2 * int(r + 0.5), y, str(i))  # todo fix text
                     ax.add_patch(c)
 
-                plt.savefig(output_path / f"{tgt}_{title.replace(' ', '_')}.svg")
-                figs[name.replace(" ", "_")] = fig
+            fig_name = f"trace_positions_on_{tensor_name}"
+            plt.savefig(output_path / f"{fig_name}.svg")
+            plt.savefig(output_path / f"{fig_name}.png")
+            figs[fig_name] = fig
+            if SHOW_FIGS:
+                plt.show()
+            else:
+                plt.close()
 
             yaml.dump(peaks.tolist(), peak_path)
 
@@ -369,6 +381,21 @@ def trace(
                         correlations[recon, smooth, tgt_smooth, t] = {"pearson": pr, "spearman": sr}
                         trace_scaling[recon, smooth, tgt_smooth, t] = get_trace_scaling(trace, tgt_trace)
 
+    best_correlations = {}
+    for (recon, smooth, tgt_smooth, t), corrs in correlations.items():
+        for metric, value in corrs.items():
+            if metric not in best_correlations:
+                best_correlations[metric] = {}
+
+            best = best_correlations[metric].get(recon, [-9999, None])[0]
+            if value > best:
+                best_correlations[metric][recon] = [float(value), t]
+
+    print("best correlations:", best_correlations)
+    yaml.dump(best_correlations, output_path / "best_correlations.yml")
+
+    trace_plots_output_path = output_path / "trace_plots"
+    trace_plots_output_path.mkdir(exist_ok=True)
     trace_figs = plot_traces(
         tgt=tgt,
         plots=plots,
@@ -376,7 +403,7 @@ def trace(
         all_smooth_traces=all_smooth_traces,
         correlations=correlations,
         trace_scaling=trace_scaling,
-        output_path=output_path,
+        output_path=trace_plots_output_path,
         tag=tag,
     )
     figs.update(trace_figs)
@@ -617,7 +644,7 @@ def trace_tracked_peaks(
             peak_vols[i, t] = tensor[t, x - R : x + R, y - R : y + R]
 
         # save peak volumes
-        volwrite(output_path / f"peak_{i}.tif", peak_vols[i])
+        volwrite(output_path / f"peak_{i}_{name}.tif", peak_vols[i])
 
     peak_mask = create_circular_mask(2 * R, 2 * R, (R // 2, R // 2, R)).flatten()
     cirlce_area = peak_mask.sum()
@@ -905,7 +932,12 @@ def plot_traces(*, tgt, plots, all_traces, all_smooth_traces, correlations, trac
             #     )
 
         figs[f"trace{t}"] = fig
-        plt.savefig(output_path / f"trace{t}.svg")
+        plt.savefig(output_path / f"{t}.svg")
+        plt.savefig(output_path / f"{t}.png")
+        if SHOW_FIGS:
+            plt.show()
+        else:
+            plt.close()
 
     return figs
 
@@ -969,19 +1001,20 @@ if __name__ == "__main__":
         )
         rois[tag] = (slice(25, 225), slice(55, 305))
 
-    for i, tag in enumerate(
+    for i, (tag, time_range) in enumerate(
         [
-            "09_3__2020-03-09_06.43.40__SinglePlane_-330",
-            "11_2__2020-03-11_06.53.14__SinglePlane_-330",
-            "11_2__2020-03-11_07.30.39__SinglePlane_-310",
-            "11_2__2020-03-11_07.30.39__SinglePlane_-320",
-            "11_2__2020-03-11_10.13.20__SinglePlane_-290",
-            "11_2__2020-03-11_10.17.34__SinglePlane_-280",
-            "11_2__2020-03-11_10.17.34__SinglePlane_-330",
-            "11_2__2020-03-11_10.21.14__SinglePlane_-295",
-            "11_2__2020-03-11_10.21.14__SinglePlane_-305",
-            "11_2__2020-03-11_10.25.41__SinglePlane_-295",
-            "11_2__2020-03-11_10.25.41__SinglePlane_-340",
+            ("09_3__2020-03-09_06.43.40__SinglePlane_-330", (10, 600)),
+            ("09_3__2020-03-09_06.43.40__SinglePlane_-330", (610, None)),
+            ("11_2__2020-03-11_06.53.14__SinglePlane_-330", (10, None)),
+            ("11_2__2020-03-11_07.30.39__SinglePlane_-310", (10, None)),
+            ("11_2__2020-03-11_07.30.39__SinglePlane_-320", (10, None)),
+            ("11_2__2020-03-11_10.13.20__SinglePlane_-290", (10, None)),
+            ("11_2__2020-03-11_10.17.34__SinglePlane_-280", (10, None)),
+            ("11_2__2020-03-11_10.17.34__SinglePlane_-330", (10, None)),
+            ("11_2__2020-03-11_10.21.14__SinglePlane_-295", (10, None)),
+            ("11_2__2020-03-11_10.21.14__SinglePlane_-305", (10, None)),
+            ("11_2__2020-03-11_10.25.41__SinglePlane_-295", (10, None)),
+            ("11_2__2020-03-11_10.25.41__SinglePlane_-340", (10, None)),
         ]
     ):
         paths = paths_for_tags[tag]
@@ -1038,57 +1071,45 @@ if __name__ == "__main__":
             ],
             paths=paths,
         )
-
-        peaks, traces, correlations, figs, motion = trace(
-            tgt_path=paths[tgt],
-            tgt=tgt,
-            roi=rois.get(tag, (slice(0, 9999), slice(0, 9999))),
-            plots=plots,
-            output_path=output_path,
-            nr_traces=64,
-            background_threshold=0.1,
-            overwrite_existing_files=False,
-            smooth_diff_sigma=1.3,
-            peak_threshold_abs=0.05,
-            reduce_peak_area="mean",
-            plot_peaks=False,
-            compute_peaks_on="std",  # std, diff
-            peaks_min_dist=3,
-            trace_radius=3,
-            # time_range=(0, 600),
-            # time_range=(0, 50),
-            # time_range=(660, 1200),
-            time_range=(20, None),
-            # compensate_motion={"compensate_ref": tgt, "method": "ES", "mbSize": 50, "p": 4},
-            compensate_motion={
-                "of_peaks": True,
-                "only_on_tgt": False,
-                "method": "home_brewed",
-                "n_radii": 4,
-                "accumulate_relative_motion": "decaying cumsum",
-                "motion_decay": 0.8,
-                "upsample_xy": 2,
-            },
-            # "ES" --> exhaustive search
-            # "3SS" --> 3-step search
-            # "N3SS" --> "new" 3-step search [#f1]_
-            # "SE3SS" --> Simple and Efficient 3SS [#f2]_
-            # "4SS" --> 4-step search [#f3]_
-            # "ARPS" --> Adaptive Rood Pattern search [#f4]_
-            # "DS" --> Diamond search [#f5]_
-            tag=tag,
-        )
         try:
-            plt.show()
-        except Exception:
-            for fig in figs.values():
-                try:
-                    fig.close()
-                except:
-                    pass
-
-
-# todo:
-# LR: whta's there?
-# more predictions
-#
+            peaks, traces, correlations, figs, motion = trace(
+                tgt_path=paths[tgt],
+                tgt=tgt,
+                roi=rois.get(tag, (slice(0, 9999), slice(0, 9999))),
+                plots=plots,
+                output_path=output_path,
+                nr_traces=64,
+                background_threshold=0.1,
+                overwrite_existing_files=False,
+                smooth_diff_sigma=1.3,
+                peak_threshold_abs=0.05,
+                reduce_peak_area="mean",
+                plot_peaks=False,
+                compute_peaks_on="max",  # std, diff, min, max, mean
+                peaks_min_dist=3,
+                trace_radius=2,
+                # time_range=(0, 600),
+                # time_range=(0, 50),
+                # time_range=(660, 1200),
+                time_range=time_range,
+                # compensate_motion={"compensate_ref": tgt, "method": "ES", "mbSize": 50, "p": 4},
+                compensate_motion={
+                    "of_peaks": True,
+                    "only_on_tgt": True,
+                    "method": "home_brewed",
+                    "n_radii": 4,
+                    "accumulate_relative_motion": "decaying cumsum",
+                    "motion_decay": 0.8,
+                    "upsample_xy": 2,
+                },
+                # "ES" --> exhaustive search
+                # "3SS" --> 3-step search
+                # "N3SS" --> "new" 3-step search [#f1]_
+                # "SE3SS" --> Simple and Efficient 3SS [#f2]_
+                # "4SS" --> 4-step search [#f3]_
+                # "ARPS" --> Adaptive Rood Pattern search [#f4]_
+                # "DS" --> Diamond search [#f5]_
+                tag=tag,
+            )
+        except Exception as e:
+            logger.error(e, exc_info=True)
