@@ -971,16 +971,17 @@ if __name__ == "__main__":
 
     for i, tag in enumerate(
         [
-            # "11_2__2020-03-11_06.53.14__SinglePlane_-330",
+            "09_3__2020-03-09_06.43.40__SinglePlane_-330",
+            "11_2__2020-03-11_06.53.14__SinglePlane_-330",
             "11_2__2020-03-11_07.30.39__SinglePlane_-310",
-            # "11_2__2020-03-11_07.30.39__SinglePlane_-320",
-            # "11_2__2020-03-11_10.13.20__SinglePlane_-290",
-            # "11_2__2020-03-11_10.17.34__SinglePlane_-280",
-            # "11_2__2020-03-11_10.17.34__SinglePlane_-330",
-            # "11_2__2020-03-11_10.21.14__SinglePlane_-295",
-            # "11_2__2020-03-11_10.21.14__SinglePlane_-305",
-            # "11_2__2020-03-11_10.25.41__SinglePlane_-295",
-            # "11_2__2020-03-11_10.25.41__SinglePlane_-340",
+            "11_2__2020-03-11_07.30.39__SinglePlane_-320",
+            "11_2__2020-03-11_10.13.20__SinglePlane_-290",
+            "11_2__2020-03-11_10.17.34__SinglePlane_-280",
+            "11_2__2020-03-11_10.17.34__SinglePlane_-330",
+            "11_2__2020-03-11_10.21.14__SinglePlane_-295",
+            "11_2__2020-03-11_10.21.14__SinglePlane_-305",
+            "11_2__2020-03-11_10.25.41__SinglePlane_-295",
+            "11_2__2020-03-11_10.25.41__SinglePlane_-340",
         ]
     ):
         paths = paths_for_tags[tag]
@@ -1044,7 +1045,7 @@ if __name__ == "__main__":
             roi=rois.get(tag, (slice(0, 9999), slice(0, 9999))),
             plots=plots,
             output_path=output_path,
-            nr_traces=3,
+            nr_traces=64,
             background_threshold=0.1,
             overwrite_existing_files=False,
             smooth_diff_sigma=1.3,
@@ -1077,10 +1078,6 @@ if __name__ == "__main__":
             # "DS" --> Diamond search [#f5]_
             tag=tag,
         )
-
-        for name, tr in traces.items():
-            print("trace", name, tr.shape, tr.min(), tr.max())
-
         plt.show()
 
 # todo:
