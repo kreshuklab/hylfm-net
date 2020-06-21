@@ -1078,7 +1078,15 @@ if __name__ == "__main__":
             # "DS" --> Diamond search [#f5]_
             tag=tag,
         )
-        plt.show()
+        try:
+            plt.show()
+        except Exception:
+            for fig in figs.values():
+                try:
+                    fig.close()
+                except:
+                    pass
+
 
 # todo:
 # LR: whta's there?
