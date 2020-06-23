@@ -30,5 +30,5 @@ heart_left = TensorInfo(
     root="GKRESHUK",
     location="LF_computed/LenseLeNet_Microscope/DualView_comparison_heart_movie/heart/Rectified_LC/*.tif",
     insert_singleton_axes_at=[0, 0],
-    tag="dualbeads_left",
+    tag="dualheart_left",
 )
