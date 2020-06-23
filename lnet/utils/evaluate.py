@@ -36,7 +36,12 @@ def get_file_paths(glob_path: str):
     path = Path(path[:sep_idx])
     assert path.exists()
     glob_expr = glob_path[sep_idx + 1 :]
-    return sorted(list(path.glob(glob_expr)))
+    paths = list(path.glob(glob_expr))
+    length = len(str(paths[0]))
+    if not all([len(str(p)) == length for p in paths]):
+        raise ValueError("expanded paths have different lengths! make sure numbers in paths are zero padded")
+
+    return sorted(paths)
 
 
 def evaluate(ipt_glob_path: str, tgt_glob_path: str, z_out: Optional[int] = None):
