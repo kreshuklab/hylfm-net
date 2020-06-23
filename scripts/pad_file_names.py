@@ -11,12 +11,17 @@ def pad_file_names(folder: Path, file_glob: str, pad_with: str = "0"):
     pad_to = max_file_name_len - len(file_glob) + 1
     for file_path in folder.glob(file_glob):
         expanded = file_path.name[expanded_slice]
-        file_path_padded = folder / file_glob.replace("*", f"{expanded:f'{pad_with}{pad_to}'}")
+        file_path_padded = folder / file_glob.replace("*", expanded.rjust(pad_to, pad_with))
         if file_path_padded.exists():
-            raise FileExistsError(f"Cannot pad {file_path} as {file_path_padded} already exists.")
-
-        file_path.rename(file_path_padded)
+            if len(file_path.name) != max_file_name_len:
+                raise FileExistsError(f"Cannot pad {file_path} as {file_path_padded} already exists.")
+        else:
+            print(f"rename {file_path.name.ljust(max_file_name_len)} to {file_path_padded.name}")
+            file_path.rename(file_path_padded)
 
 
 if __name__ == "__main__":
-    pad_file_names(Path("/g/kreshuk/LF_computed/LenseLeNet_Microscope/dualview_060918/Rectified_LC"), "Cam_Left_*.tif")
+    pad_file_names(
+        Path("/g/kreshuk/LF_computed/LenseLeNet_Microscope/zero_padded_heart_for_dualview_060918/Rectified_RC"),
+        "Cam_Right_*.tif",
+    )
