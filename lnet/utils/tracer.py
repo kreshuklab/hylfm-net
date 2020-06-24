@@ -3,9 +3,10 @@ import logging
 import math
 from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from dataclasses import dataclass
 from hashlib import sha256
+from itertools import accumulate
 from pathlib import Path
+from pprint import pprint
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -32,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 yaml = YAML(typ="safe")
 
-SHOW_FIGS = False
+SHOW_FIGS = True
 
 # use tifffile instead of imageio, because imageio.volwrite(p, data) throws an exception when passing 'compress' kwarg
 def volwrite(p: Path, data, compress=2, **kwargs):
@@ -364,7 +365,12 @@ def trace(
             #     all_traces[name] = numpy.load(str(traces_path))
             # else:
             all_traces[name] = trace_tracked_peaks(
-                datasets_to_trace[name], compensated_peaks, reduce_peak_area, output_path, name=name
+                datasets_to_trace[name],
+                compensated_peaks,
+                reduce_peak_area,
+                output_path,
+                name=name,
+                n_radii=1 if compensate_motion_of_peaks is None else compensate_motion["n_radii"],
             )
             # numpy.save(str(traces_path), all_traces[name])
 
@@ -396,15 +402,17 @@ def trace(
 
     best_correlations = {}
     for (recon, smooth, tgt_smooth, t), corrs in correlations.items():
+        best_correlations[(smooth, tgt_smooth)] = {}
         for metric, value in corrs.items():
-            if metric not in best_correlations:
-                best_correlations[metric] = {}
+            if metric not in best_correlations[(smooth, tgt_smooth)]:
+                best_correlations[(smooth, tgt_smooth)][metric] = {}
 
-            best = best_correlations[metric].get(recon, [-9999, None])[0]
+            best = best_correlations[(smooth, tgt_smooth)][metric].get(recon, [-9999, None])[0]
             if value > best:
-                best_correlations[metric][recon] = [float(value), t]
+                best_correlations[(smooth, tgt_smooth)][metric][recon] = [float(value), t]
 
-    print("best correlations:", best_correlations)
+    print("best correlations:")
+    pprint(best_correlations)
     yaml.dump(best_correlations, output_path / "best_correlations.yml")
 
     trace_plots_output_path = output_path / "trace_plots"
@@ -497,23 +505,26 @@ def compute_compensated_peak(
 ):
     T, H, W = tensor.shape
 
+    r_box = 3 * r
+    # use highest fitting multiple of r to correct motion
     for nr in range(n_radii, 1, -1):
         r_box = 3 * r * nr
         if h - r_box >= 0 and h + r_box < H and w - r_box >= 0 and w + r_box < W:
-            r *= nr  # use highest fitting multiple of r to correct motion
+            r_box = 3 * r * nr
             break
     else:
-        raise NotImplementedError("peak too close to edge")
+        logger.warning("peak too close to edge")
+        return numpy.repeat(numpy.array([h, w, r])[:, None], T, axis=1)
 
-    peak_vol = tensor[:, h - 3 * r : h + 3 * r, w - 3 * r : w + 3 * r]
-    assert peak_vol.shape == (T, 6 * r, 6 * r)
+    peak_vol = tensor[:, h - r_box : h + r_box + 1, w - r_box : w + r_box + 1]
+    assert peak_vol.shape == (T, 2 * r_box + 1, 2 * r_box + 1)
 
     # volwrite(output_path / f"peak_{i}_{h}_{w}_{r}.tif", peak_vol)
 
     peak_motion = get_absolute_peak_motion(
         peak_vol,
         method,
-        r,
+        r_box // 3,
         accumulate_relative_motion=accumulate_relative_motion,
         motion_decay=motion_decay,
         upsample_xy=upsample_xy,
@@ -531,22 +542,29 @@ def compute_compensated_peak(
     # print("\nreference frame", t_ref, "motion offset", motion_offset)
     peak_motion -= motion_offset
 
+    # make sure we we stay in the box
+    peak_motion = numpy.clip(peak_motion, a_min=-r_box, a_max=r_box)
+
     assert peak_motion.shape == (T, 2), (peak_motion.shape, (T, 2))
     # print("\npeak_motion.shape", peak_motion.shape, " max peak motion", peak_motion.max())
     compensated_peak = numpy.stack([(h + dh, w + dw, r) for dh, dw in peak_motion], axis=-1)
 
     # write out compensated peak volume
     # compensated_peaks[p] = compensated_peak
-    assert peak_vol.shape == (T, 6 * r, 6 * r)
+    assert peak_vol.shape == (T, 2 * r_box + 1, 2 * r_box + 1)
     rep = 3
     peak_vol = numpy.repeat(peak_vol, rep, axis=1)
     peak_vol = numpy.repeat(peak_vol, rep, axis=2)
     peak_vol = numpy.tile(peak_vol[..., None], (1, 1, 1, 3))
-    assert peak_vol.shape == (T, rep * 6 * r, rep * 6 * r, 3)
-    center_pix = rep * 3 * r + rep // 2
+    assert peak_vol.shape == (T, rep * (2 * r_box + 1), rep * (2 * r_box + 1), 3)
+    center_pix = rep * r_box + rep // 2
     for t, (dh, dw) in enumerate(peak_motion):
-        peak_vol[t, center_pix + rep * dh, center_pix + rep * dw, 0] = 0.5
-        peak_vol[t, center_pix + rep * dh, center_pix + rep * dw, 1:] = 0
+        # ph = max(0, min(peak_vol.shape[1] - 1, center_pix + rep * dh))
+        # pw = max(0, min(peak_vol.shape[2] - 1, center_pix + rep * dw))
+        ph = center_pix + rep * dh
+        pw = center_pix + rep * dw
+        peak_vol[t, ph, pw, 0] = 0.5
+        peak_vol[t, ph, pw, 1:] = 0
 
     peak_vol = peak_vol.clip(min=0)
     peak_vol /= peak_vol.max()
@@ -559,13 +577,17 @@ def compute_compensated_peak(
 
 def get_motion_compensated_peaks(tensor: numpy.ndarray, peaks: numpy.ndarray, **kwargs):
     compensated_peaks = []
-    with ProcessPoolExecutor(max_workers=settings.max_workers_for_trace) as executor:
-        futs = [
-            executor.submit(compute_compensated_peak, tensor, **kwargs, p=p, h=h, w=w, r=r)
-            for p, (h, w, r) in enumerate(peaks)
-        ]
-        for fut in tqdm(as_completed(futs), total=len(futs), unit="motion_compensated_peak"):
-            compensated_peaks.append(fut.result())
+    if settings.max_workers_for_trace:
+        with ProcessPoolExecutor(max_workers=settings.max_workers_for_trace) as executor:
+            futs = [
+                executor.submit(compute_compensated_peak, tensor, **kwargs, p=p, h=h, w=w, r=r)
+                for p, (h, w, r) in enumerate(peaks)
+            ]
+            for fut in tqdm(as_completed(futs), total=len(futs), unit="motion_compensated_peak"):
+                compensated_peaks.append(fut.result())
+    else:
+        for p, (h, w, r) in enumerate(peaks):
+            compensated_peaks.append(compute_compensated_peak(tensor, **kwargs, p=p, h=h, w=w, r=r))
 
     return numpy.stack(compensated_peaks)
 
@@ -585,8 +607,8 @@ def get_absolute_peak_motion(
 ):
     assert len(peak_vol.shape) == 3
     T = peak_vol.shape[0]
-    assert peak_vol.shape[2] == 6 * r
-    assert peak_vol.shape[1] == 6 * r
+    assert peak_vol.shape[2] == 6 * r + 1
+    assert peak_vol.shape[1] == 6 * r + 1
 
     assert upsample_xy >= 1
     assert upsample_t >= 1
@@ -597,22 +619,38 @@ def get_absolute_peak_motion(
         r *= upsample_xy
 
     if presmooth_sigma is not None:
-        peak_vol = gaussian_filter(peak_vol, sigma=presmooth_sigma, mode="constant")
+        peak_vol = numpy.stack([gaussian_filter(pv, sigma=presmooth_sigma, mode="constant") for pv in peak_vol])
 
     # compute relative motion frame by frame
     if method == "home_brewed":
         roi = (2 * r, 4 * r)
         dxdy_candidates = [(i, j) for i in range(-2 * r, 2 * r + 1) for j in range(-2 * r, 2 * r + 1)]
 
+        # def compute_dxdy(t):
+        #     last_frame = peak_vol[t - 1, roi[0] : roi[1], roi[0] : roi[1]]
+        #     frame_candidates = [
+        #         peak_vol[t, roi[0] + dx : roi[1] + dx, roi[0] + dy : roi[1] + dy] for dx, dy in dxdy_candidates
+        #     ]
+        #     frame_diffs = [((last_frame - c) ** 2).sum() for c in frame_candidates]
+        #     return dxdy_candidates[numpy.argmin(frame_diffs).item()]
+        #
+        # with ThreadPoolExecutor(max_workers=settings.max_workers_for_trace) as executor:
+        #     futs = [executor.submit(compute_dxdy, t) for t in range(1, T)]
+        #     rel_peak_motion = []
+        #     for fut in futs:
+        #         rel_peak_motion.append(fut.result())
+        #
+        #     rel_peak_motion = numpy.asarray(rel_peak_motion)
+
         rel_peak_motion = numpy.empty((T - 1, 2), dtype=numpy.int)
 
         def compute_dxdy(t):
             last_frame = peak_vol[t - 1, roi[0] : roi[1], roi[0] : roi[1]]
-            frame_candidates = [
-                peak_vol[t, roi[0] + dx : roi[1] + dx, roi[0] + dy : roi[1] + dy] for dx, dy in dxdy_candidates
-            ]
-            frame_diffs = [((last_frame - c) ** 2).sum() for c in frame_candidates]
-            rel_peak_motion[t - 1] = dxdy_candidates[numpy.argmin(frame_diffs).item()]
+            frame_candidates = numpy.stack(
+                [peak_vol[t, roi[0] + dx : roi[1] + dx, roi[0] + dy : roi[1] + dy] for dx, dy in dxdy_candidates]
+            )
+            frame_mse = ((frame_candidates - last_frame[None, ...]) ** 2).sum(axis=(1, 2))
+            rel_peak_motion[t - 1] = dxdy_candidates[numpy.argmin(frame_mse).item()]
 
         # with ThreadPoolExecutor(max_workers=settings.max_workers_for_trace) as executor:
         #     [executor.submit(compute_dxdy, t) for t in range(1, T)]
@@ -645,15 +683,13 @@ def get_absolute_peak_motion(
         peak_motion = numpy.cumsum(rel_peak_motion, axis=0)  # diverges (slow movement is 'rounded away'?)
     elif accumulate_relative_motion == "decaying cumsum":
         assert motion_decay is not None
-        peak_motion = scipy.signal.lfilter([motion_decay], [1, -motion_decay], rel_peak_motion, axis=-1)
-        # scipy equivalent for scipy.signal.lfilter:
-        # peak_motion = numpy.stack(
-        #     [
-        #         numpy.asarray(list(accumulate(rel_peak_motion[..., d], lambda x, y: (x + y) * motion_decay)))
-        #         for d in range(2)
-        #     ],
-        #     axis=-1,
-        # )
+        peak_motion = numpy.stack(
+            [
+                numpy.asarray(list(accumulate(rel_peak_motion[..., d], lambda t1, t2: (t1 * motion_decay + t2))))
+                for d in range(2)
+            ],
+            axis=-1,
+        )
     else:
         raise NotImplementedError(accumulate_relative_motion)
 
@@ -664,15 +700,20 @@ def get_absolute_peak_motion(
 
 @print_timing
 def trace_tracked_peaks(
-    tensor: numpy.ndarray, compensated_peaks: numpy.ndarray, reduce: str, output_path: Path, name: str
+    tensor: numpy.ndarray, compensated_peaks: numpy.ndarray, reduce: str, output_path: Path, name: str, n_radii: int
 ):
-    T, H, W = tensor.shape
-    assert compensated_peaks.shape[1] == 3, compensated_peaks.shape
     assert len(compensated_peaks.shape) == 3, compensated_peaks.shape
     P = compensated_peaks.shape[0]
+    assert compensated_peaks.shape[1] == 3, compensated_peaks.shape
+    R = compensated_peaks[0, -1, 0].item()
+    # todo: optimize padding
+    tensor = numpy.pad(
+        tensor, pad_width=((0, 0), (3 * R * n_radii, 3 * R * n_radii), (3 * R * n_radii, 3 * R * n_radii)), mode="edge"
+    )
+    compensated_peaks += 3 * R * n_radii
+    T, H, W = tensor.shape
     assert compensated_peaks.shape[2] == T, compensated_peaks.shape
 
-    R = compensated_peaks[0, -1, 0]
     peak_vols = numpy.zeros((P, T, 2 * R, 2 * R), dtype=tensor.dtype)
     for i, compensated_peak in enumerate(compensated_peaks):
         for t, (x, y, _) in enumerate(compensated_peak.T):
@@ -1002,6 +1043,7 @@ if __name__ == "__main__":
     rois = {}
 
     for tag in ["09_3__2020-03-09_06.43.40__SinglePlane_-330"]:
+        assert tag not in paths_for_tags
         paths_for_tags[tag] = {
             "lr_slice": Path(
                 f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.{tag}/run000/ds0-0"
@@ -1014,17 +1056,28 @@ if __name__ == "__main__":
             ),
         }
 
+    assert "09_3__2020-03-09_06.43.40__SinglePlane_-340" not in paths_for_tags
     paths_for_tags["09_3__2020-03-09_06.43.40__SinglePlane_-340"] = {
-            "lr_slice": Path(
-                "/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-340/run000/ds0-0"
-            ),
-            "ls_slice": Path(
-                "/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-340/run000/ds0-0"
-            ),
-            "pred": Path(
-                "missing"
-            ),
+        "lr_slice": Path(
+            "/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-340/run000/ds0-0"
+        ),
+        "ls_slice": Path(
+            "/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-340/run000/ds0-0"
+        ),
+        "pred": Path("missing"),
+    }
+
+    for tag in [
+        "09_3__2020-03-09_06.43.40__SinglePlane_-320",
+        "11_2__2020-03-11_10.25.41__SinglePlane_-305",
+        "11_2__2020-03-11_08.12.13__SinglePlane_-310",
+    ]:
+        assert tag not in paths_for_tags
+        paths_for_tags[tag] = {
+            "ls_slice": f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/ls_f4/20-06-23_14-20-50/brain.{tag}/run000/ds0-0"
         }
+        if tag.startswith("11_2"):
+            rois[tag] = (slice(25, 225), slice(55, 305))
 
     for tag in [
         "11_2__2020-03-11_06.53.14__SinglePlane_-330",
@@ -1038,6 +1091,7 @@ if __name__ == "__main__":
         "11_2__2020-03-11_10.25.41__SinglePlane_-295",
         "11_2__2020-03-11_10.25.41__SinglePlane_-340",
     ]:
+        assert tag not in paths_for_tags
         paths_for_tags[tag] = {
             name: Path(
                 f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/lr_f4/20-06-12_22-07-43/brain.{tag}/run000/ds0-0"
@@ -1049,15 +1103,42 @@ if __name__ == "__main__":
         )
         rois[tag] = (slice(25, 225), slice(55, 305))
 
+    # overwrite pred
+    for tag in [
+        "09_3__2020-03-09_06.43.40__SinglePlane_-320",
+        "09_3__2020-03-09_06.43.40__SinglePlane_-330",
+        "09_3__2020-03-09_06.43.40__SinglePlane_-340",
+        "11_2__2020-03-11_08.12.13__SinglePlane_-310",
+        "11_2__2020-03-11_06.53.14__SinglePlane_-330",
+        "11_2__2020-03-11_10.25.41__SinglePlane_-305",
+        "11_2__2020-03-11_07.30.39__SinglePlane_-310",
+        "11_2__2020-03-11_07.30.39__SinglePlane_-320",
+        "11_2__2020-03-11_10.13.20__SinglePlane_-290",
+        "11_2__2020-03-11_10.17.34__SinglePlane_-280",
+        "11_2__2020-03-11_10.17.34__SinglePlane_-330",
+        "11_2__2020-03-11_10.21.14__SinglePlane_-295",
+        "11_2__2020-03-11_10.21.14__SinglePlane_-305",
+        "11_2__2020-03-11_10.25.41__SinglePlane_-295",
+        "11_2__2020-03-11_10.25.41__SinglePlane_-340",
+    ]:
+        paths_for_tags[tag]["pred"] = Path(
+            f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/f4/brain2/z_out49/f4_b2_bm2_with11_2_noSP/20-06-18_16-13-38/train2/v1_checkpoint_2000_MS_SSIM=0.6581869482994079/brain.{tag}/run000/ds0-0"
+        )
+
     for i, (tag, time_range, manual_peaks) in enumerate(
         [
+            # ("09_3__2020-03-09_06.43.40__SinglePlane_-320", (20, 600), False),
+            # ("09_3__2020-03-09_06.43.40__SinglePlane_-320", (620, None), False),
+            # ("09_3__2020-03-09_06.43.40__SinglePlane_-340", (20, 600), False),
+            # ("09_3__2020-03-09_06.43.40__SinglePlane_-340", (620, None), False),
             # ("09_3__2020-03-09_06.43.40__SinglePlane_-330", (20, 600), False),
             # ("09_3__2020-03-09_06.43.40__SinglePlane_-330", (680, None), False),
             # ("11_2__2020-03-11_06.53.14__SinglePlane_-330", (20, None), False),
+            # ("11_2__2020-03-11_06.53.14__SinglePlane_-330", (20, None), False),
             # ("11_2__2020-03-11_07.30.39__SinglePlane_-310", (20, None), False),
-            ("11_2__2020-03-11_07.30.39__SinglePlane_-320", (20, None), False),
+            # ("11_2__2020-03-11_07.30.39__SinglePlane_-320", (20, None), False),
             # ("11_2__2020-03-11_10.13.20__SinglePlane_-290", (10, 545), False),
-            # ("11_2__2020-03-11_10.17.34__SinglePlane_-280", (20, None), False),
+            ("11_2__2020-03-11_10.17.34__SinglePlane_-280", (70, 520), False),
             # ("11_2__2020-03-11_10.17.34__SinglePlane_-330", (20, None), False),
             # ("11_2__2020-03-11_10.21.14__SinglePlane_-295", (20, None), False),
             # ("11_2__2020-03-11_10.21.14__SinglePlane_-305", (20, None), False),
@@ -1067,29 +1148,41 @@ if __name__ == "__main__":
     ):
         paths = paths_for_tags[tag]
         # paths = paths_09_3_a[330]
-        output_path = Path(f"/g/kreshuk/LF_computed/lnet/traces/debug/{tag}")
+        output_path = Path(f"/g/kreshuk/LF_computed/lnet/traces/smooth16/{tag}")
         # output_path = Path(f"C:/repos/lnet/traces_max_r3/{tag}")
         tgt = "ls_slice"
         plots = add_paths_to_plots(
             [
-                {"lr_slice": {"smooth": [(None, None)]}, "pred": {"smooth": [(None, None)]}},
+                # {"lr_slice": {"smooth": [(None, None)]}, "pred": {"smooth": [(None, None)]}},
+                # {
+                #     "lr_slice": {"smooth": [(("flat", 11), ("flat", 11))]},
+                #     "pred": {"smooth": [(("flat", 11), ("flat", 11))]},
+                # },
+                # # {"lr_slice": {"smooth": [(None, ("flat", 3))]}, "pred": {"smooth": [(None, ("flat", 3))]}},
+                # # {"lr_slice": {"smooth": [(None, None)]}},
+                # # {"lr_slice": {"smooth": [(("flat", 11), ("flat", 11))]}},
+                # # {"lr_slice": {"smooth": [(None, ("flat", 3))]}},
+                # {
+                #     "lr_slice": {
+                #         "smooth": [
+                #             (
+                #                 ("savgol_filter", {"window_length": 11, "polyorder": 3}),
+                #                 ("savgol_filter", {"window_length": 11, "polyorder": 3}),
+                #             )
+                #         ]
+                #     },
+                #     "pred": {
+                #         "smooth": [
+                #             (
+                #                 ("savgol_filter", {"window_length": 11, "polyorder": 3}),
+                #                 ("savgol_filter", {"window_length": 11, "polyorder": 3}),
+                #             )
+                #         ]
+                #     },
+                # },
+                {"pred": {"smooth": [(None, None)]}},
+                {"pred": {"smooth": [(("flat", 11), ("flat", 11))]}},
                 {
-                    "lr_slice": {"smooth": [(("flat", 11), ("flat", 11))]},
-                    "pred": {"smooth": [(("flat", 11), ("flat", 11))]},
-                },
-                # {"lr_slice": {"smooth": [(None, ("flat", 3))]}, "pred": {"smooth": [(None, ("flat", 3))]}},
-                # {"lr_slice": {"smooth": [(None, None)]}},
-                # {"lr_slice": {"smooth": [(("flat", 11), ("flat", 11))]}},
-                # {"lr_slice": {"smooth": [(None, ("flat", 3))]}},
-                {
-                    "lr_slice": {
-                        "smooth": [
-                            (
-                                ("savgol_filter", {"window_length": 11, "polyorder": 3}),
-                                ("savgol_filter", {"window_length": 11, "polyorder": 3}),
-                            )
-                        ]
-                    },
                     "pred": {
                         "smooth": [
                             (
@@ -1097,26 +1190,8 @@ if __name__ == "__main__":
                                 ("savgol_filter", {"window_length": 11, "polyorder": 3}),
                             )
                         ]
-                    },
+                    }
                 },
-                # {
-                #     "lr_slice": {
-                #         "smooth": [
-                #             (
-                #                 ("savgol_filter", {"window_length": 9, "polyorder": 5}),
-                #                 ("savgol_filter", {"window_length": 9, "polyorder": 5}),
-                #             )
-                #         ]
-                #     },
-                #     "pred": {
-                #         "smooth": [
-                #             (
-                #                 ("savgol_filter", {"window_length": 9, "polyorder": 3}),
-                #                 ("savgol_filter", {"window_length": 9, "polyorder": 3}),
-                #             )
-                #         ]
-                #     },
-                # },
             ],
             paths=paths,
         )
@@ -1127,7 +1202,7 @@ if __name__ == "__main__":
                 roi=rois.get(tag, (slice(0, 9999), slice(0, 9999))),
                 plots=plots,
                 output_path=output_path,
-                nr_traces=1,
+                nr_traces=32 * 4,
                 background_threshold=0.1,
                 overwrite_existing_files=False,
                 smooth_diff_sigma=1.3,
@@ -1136,7 +1211,7 @@ if __name__ == "__main__":
                 plot_peaks=False,
                 compute_peaks_on="max",  # std, diff, min, max, mean
                 peaks_min_dist=3,
-                trace_radius=2,
+                trace_radius=3,
                 # time_range=(0, 600),
                 # time_range=(0, 50),
                 # time_range=(660, 1200),
@@ -1148,10 +1223,12 @@ if __name__ == "__main__":
                     "method": "home_brewed",
                     "n_radii": 3,
                     "accumulate_relative_motion": "decaying cumsum",
-                    "motion_decay": 0.8,
-                    "upsample_xy": 4,
-                    "upsample_t": 4,
-                    "presmooth_sigma": None,
+                    "motion_decay": 0.85,
+                    # "accumulate_relative_motion": "cumsum",
+                    # "motion_decay": None,
+                    "upsample_xy": 1,
+                    "upsample_t": 1,
+                    "presmooth_sigma": 1.6,
                 },
                 # "ES" --> exhaustive search
                 # "3SS" --> 3-step search

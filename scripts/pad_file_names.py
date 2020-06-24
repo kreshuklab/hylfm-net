@@ -22,6 +22,11 @@ def pad_file_names(folder: Path, file_glob: str, pad_with: str = "0"):
 
 if __name__ == "__main__":
     pad_file_names(
-        Path("/g/kreshuk/LF_computed/LenseLeNet_Microscope/zero_padded_heart_for_dualview_060918/Rectified_RC"),
+        Path("/g/kreshuk/LF_computed/LenseLeNet_Microscope/DualView_comparison_heart_movie/heart/Rectified_LC"),
+        "Cam_Left_*.tif",
+    )
+    pad_file_names(
+        Path("/g/kreshuk/LF_computed/LenseLeNet_Microscope/DualView_comparison_heart_movie/heart/Rectified_RC"),
         "Cam_Right_*.tif",
     )
+
