@@ -56,6 +56,15 @@ b01highc_1_lr = TensorInfo(
     # length=28,
 )
 
+b01highc_1_lr_z51 = TensorInfo(
+    name="lr",
+    root="GHUFNAGELLFLenseLeNet_Microscope",
+    location="20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_03.01.49/stack_0_channel_0/TP_*/RCout_51planes/Cam_Right_1.tif",
+    insert_singleton_axes_at=[0, 0],
+    tag="b01highc_1_z51"
+    # length=28,
+)
+
 
 b01highc_2_lf = TensorInfo(
     name="lf",
