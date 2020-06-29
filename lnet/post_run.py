@@ -8,7 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 if typing.TYPE_CHECKING:
     from lnet.setup import Stage
 
-from lnet.utils.tracer import trace
+from lnet.utils.tracer import trace_and_plot
 
 
 def trace_neurons(stage: Stage, tgt_path: Optional[Union[Path, str]] = None, tgt="ls_slice", compare_to: typing.Sequence[str] = ("pred", )):
@@ -22,7 +22,7 @@ def trace_neurons(stage: Stage, tgt_path: Optional[Union[Path, str]] = None, tgt
             this_tgt_path = tgt_path
             this_compare_to = {ct: ds_out_path for ct in compare_to}
 
-        peaks, peak_pos_figs, traces = trace(tgt_path=this_tgt_path, tgt=tgt, compare_to=this_compare_to)
+        peaks, peak_pos_figs, traces = trace_and_plot(tgt_path=this_tgt_path, tgt=tgt, compare_to=this_compare_to)
         tbl = stage.log.loggers.get("TensorBoardLogger", None)
         if tbl is not None:
             tb_writer: SummaryWriter = tbl.backend.writer
