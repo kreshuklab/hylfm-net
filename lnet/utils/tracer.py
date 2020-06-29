@@ -1,6 +1,7 @@
 import json
 import logging
 import math
+import warnings
 from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from hashlib import sha256
@@ -13,8 +14,6 @@ import matplotlib.pyplot as plt
 import numpy
 import scipy.signal
 import skimage.transform
-import skvideo.io
-import skvideo.motion
 import tifffile
 from imageio import imread, imwrite
 from ruamel.yaml import YAML
@@ -29,8 +28,12 @@ from lnet.datasets import TensorInfo
 from lnet.datasets.base import TiffDataset, get_collate_fn
 from lnet.utils.general import print_timing
 
-logger = logging.getLogger(__name__)
+try:
+    import skvideo.motion
+except ImportError:
+    warnings.warn("could not import skvideo")
 
+logger = logging.getLogger(__name__)
 yaml = YAML(typ="safe")
 
 SHOW_FIGS = True
@@ -38,11 +41,11 @@ SHOW_FIGS = True
 # use tifffile instead of imageio, because imageio.volwrite(p, data) throws an exception when passing 'compress' kwarg
 def volwrite(p: Path, data, compress=2, **kwargs):
     with p.open("wb") as f:
-        tifffile.imwrite(f, data, compress=compress, **kwargs)
+        tifffile.imsave(f, data, compress=compress, **kwargs)
 
 
 @print_timing
-def trace(
+def trace_and_plot(
     tgt_path: Union[str, Path],
     tgt: str,
     roi: Tuple[slice, slice],
@@ -62,9 +65,27 @@ def trace(
     compensate_motion: Optional[dict] = None,
     tag: str = "",  # for plot title only
     peak_path: Optional[Union[str, Path]] = None,
+    compensated_peak_path: Optional[Union[str, Path]] = None,
 ):
+    for plot in plots:
+        for recon, kwargs in plot.items():
+            kwargs["smooth"] = [
+                tuple(
+                    [
+                        None
+                        if smoo is None
+                        else tuple([json.dumps(sm, sort_keys=True) if isinstance(sm, dict) else sm for sm in smoo])
+                        for smoo in smooth
+                    ]
+                )
+                for smooth in kwargs["smooth"]
+            ]
+
     if isinstance(tgt_path, str):
         tgt_path = Path(tgt_path)
+
+    if isinstance(compensated_peak_path, str):
+        compensated_peak_path = Path(compensated_peak_path)
 
     def path2string(obj):
         if isinstance(obj, Path):
@@ -97,6 +118,7 @@ def trace(
         "compensate_motion": compensate_motion,
         "tag": tag,
         "peak_path": None if peak_path is None else str(peak_path),
+        "compensated_peak_path": None if compensated_peak_path is None else str(compensated_peak_path),
     }
     descr_hash = sha256()
     descr_hash.update(json.dumps(all_kwargs, sort_keys=True).encode("utf-8"))
@@ -195,8 +217,9 @@ def trace(
     else:
         motion = None
 
+    compensated_peaks = None
     figs = {}
-    if peak_path is None:
+    if peak_path is None and compensated_peak_path is None:
         peak_path = output_path / f"{tgt}_peaks_of_{compute_peaks_on}.yml"
         peaks = None
         if peak_path.exists() and not overwrite_existing_files:
@@ -204,12 +227,16 @@ def trace(
 
             if peaks.shape[0] != nr_traces:
                 peaks = None
+    elif peak_path is None and compensated_peak_path is not None:
+        assert compensated_peak_path.exists()
+        compensated_peaks = numpy.asarray(yaml.load(compensated_peak_path)).T[None, ...]
+        assert nr_traces == 1
     else:
         assert peak_path.exists()
         peaks = numpy.asarray(yaml.load(peak_path))
         nr_traces = min(nr_traces, peaks.shape[0])
 
-    if peaks is None or plot_peaks:
+    if compensated_peaks is None and (peaks is None or plot_peaks):
         all_projections = OrderedDict()
         for tensor_name in {tgt, *all_recon_paths.keys()}:
             min_path = output_path / f"{tensor_name}_min.tif"
@@ -330,7 +357,12 @@ def trace(
 
             yaml.dump(peaks.tolist(), peak_path)
 
-    if compensate_motion_of_peaks:
+    if compensated_peaks is not None:
+        peaks = None
+        all_compensated_peaks = {tgt: compensated_peaks}
+        for name in all_recon_paths.keys():
+            all_compensated_peaks[name] = compensated_peaks
+    elif compensate_motion_of_peaks:
         only_on_tgt = compensate_motion.pop("only_on_tgt", False)
         print(f"get_motion_compensated_peaks for {tgt}")
         all_compensated_peaks = {
@@ -370,7 +402,9 @@ def trace(
                 reduce_peak_area,
                 output_path,
                 name=name,
-                n_radii=1 if compensate_motion_of_peaks is None else compensate_motion["n_radii"],
+                n_radii=1
+                if compensate_motion_of_peaks is None or compensate_motion is None
+                else compensate_motion["n_radii"],
             )
             # numpy.save(str(traces_path), all_traces[name])
 
@@ -984,9 +1018,10 @@ def plot_traces(*, tgt, plots, all_traces, all_smooth_traces, correlations, trac
             for recon, kwargs in recons.items():
                 for smooth, tgt_smooth in kwargs["smooth"]:
                     slope, intercept = trace_scaling[recon, smooth, tgt_smooth, t]
-                    all_twinx[recon, smooth, tgt_smooth, t].set_ylim(
-                        (tgt_min - intercept) / slope, (tgt_max - intercept) / slope
-                    )
+                    if numpy.isfinite([slope, intercept]).all():
+                        all_twinx[recon, smooth, tgt_smooth, t].set_ylim(
+                            (tgt_min - intercept) / slope, (tgt_max - intercept) / slope
+                        )
 
             ax.legend(
                 plotted_lines,
@@ -1023,17 +1058,6 @@ def add_paths_to_plots(plots, paths):
     for plot in plots:
         for recon, kwargs in plot.items():
             kwargs["path"] = paths[recon]
-            kwargs["smooth"] = [
-                tuple(
-                    [
-                        None
-                        if smoo is None
-                        else tuple([json.dumps(sm, sort_keys=True) if isinstance(sm, dict) else sm for sm in smoo])
-                        for smoo in smooth
-                    ]
-                )
-                for smooth in kwargs["smooth"]
-            ]
 
     return plots
 
@@ -1196,7 +1220,7 @@ if __name__ == "__main__":
             paths=paths,
         )
         try:
-            peaks, traces, correlations, figs, motion = trace(
+            peaks, traces, correlations, figs, motion = trace_and_plot(
                 tgt_path=paths[tgt],
                 tgt=tgt,
                 roi=rois.get(tag, (slice(0, 9999), slice(0, 9999))),
