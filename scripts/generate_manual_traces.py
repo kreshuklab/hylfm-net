@@ -360,28 +360,49 @@ class Tracker:
 
 
 if __name__ == "__main__":
-    name = "ls_slice"
+    # tag = "09_3__2020-03-09_06.43.40__SinglePlane_-320"
     # tag = "09_3__2020-03-09_06.43.40__SinglePlane_-330"
+    # tag = "09_3__2020-03-09_06.43.40__SinglePlane_-340"
     # tag = "11_2__2020-03-11_07.30.39__SinglePlane_-310"
     tag = "11_2__2020-03-11_10.17.34__SinglePlane_-280"
     tmin = 0
     tmax = None
-    save_traces_to = Path(
-        f"C:/Users/fbeut/Desktop/lnet_stuff/manual_traces/{tag}/manual_on_{name}_tmin{tmin}_tmax{tmax}"
-    )
+    plot_with_pred = "pred_only_11_2_a"
+
+    roots = {
+        "09_3__2020-03-09_06.43.40__SinglePlane_-330": Path(
+            "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-330/run000/ds0-0/{name}"
+        ),
+        "09_3__2020-03-09_06.43.40__SinglePlane_-340": Path(
+            "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-340/run000/ds0-0/{name}"
+        ),
+        "11_2__2020-03-11_07.30.39__SinglePlane_-310": Path(
+            "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.11_2__2020-03-11_07.30.39__SinglePlane_-310/run000/ds0-0/{name}"
+        ),
+        "11_2__2020-03-11_10.17.34__SinglePlane_-280": Path(
+            "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-06-12_22-07-43/brain.11_2__2020-03-11_10.17.34__SinglePlane_-280/run000/ds0-0/{name}"
+        ),
+        "09_3__2020-03-09_06.43.40__SinglePlane_-320": Path(
+            "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-06-29_14-34-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-320/run000/ds0-0/{name}"
+        ),
+    }
+    preds = {
+        "pred_only_11_2_a": Path(
+            "M:/lnet/logs/brain1/test_z_out49/f4/z_out49/f4_b2_only11_2/20-06-06_17-59-42/v1_checkpoint_37500_MS_SSIM=0.8822072593371073"
+        )
+    }
+
+    name = "ls_slice"
+    save_traces_to = Path(f"M:\manual_traces/{tag}/manual_on_{name}_tmin{tmin}_tmax{tmax}")
     if str(save_traces_to).endswith("debug") and save_traces_to.exists():
         shutil.rmtree(save_traces_to)
 
     Tracker(
         name=name,
-        root=Path(f"C:/Users/fbeut/Desktop/lnet_stuff/manual_traces/{tag}"),
+        root=roots[tag],
         save_traces_to=save_traces_to,
         # auto_trace_kwargs=AutoTraceKwargs(),
         tmin=tmin,
         tmax=tmax,
-        plot_with={
-            "pred_only_11_2_a": Path(
-                "C:/Users/fbeut/Desktop/lnet_stuff/manual_traces/11_2__2020-03-11_10.17.34__SinglePlane_-280"
-            )
-        },
+        plot_with=None if plot_with_pred is None else {"pred": preds[plot_with_pred]},
     )
