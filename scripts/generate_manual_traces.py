@@ -373,8 +373,8 @@ class Tracker:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="lnet generate manual traces")
-    parser.add_argument("tag", type=str)
-    parser.add_argument("--ls_slice_path", type=Path, default=None)
+    parser.add_argument("--tag", type=str, default="11_2__2020-03-11_10.17.34__SinglePlane_-280")
+    # parser.add_argument("--ls_slice_path", type=Path, default=None)
     parser.add_argument("--plot_with_pred", type=str, default="pred_only_11_2_a")
     parser.add_argument("--plot_with_pred_path", type=Path, default=None)
     parser.add_argument("--tmin", type=int, default=0)
@@ -389,34 +389,12 @@ if __name__ == "__main__":
     tmin = args.tmin
     tmax = args.tmax
     plot_with_pred = args.plot_with_pred
-    root = args.ls_slice_path
-
-    if root is None:
-        root = {
-            "09_3__2020-03-09_06.43.40__SinglePlane_-330": Path(
-                "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-330/run000/ds0-0"
-            ),
-            "09_3__2020-03-09_06.43.40__SinglePlane_-340": Path(
-                "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-340/run000/ds0-0"
-            ),
-            "11_2__2020-03-11_07.30.39__SinglePlane_-310": Path(
-                "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.11_2__2020-03-11_07.30.39__SinglePlane_-310/run000/ds0-0"
-            ),
-            "11_2__2020-03-11_10.17.34__SinglePlane_-280": Path(
-                "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-06-12_22-07-43/brain.11_2__2020-03-11_10.17.34__SinglePlane_-280/run000/ds0-0"
-            ),
-            "09_3__2020-03-09_06.43.40__SinglePlane_-320": Path(
-                "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-06-29_14-34-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-320/run000/ds0-0"
-            ),
-        }[tag]
 
     pred_path = args.plot_with_pred_path
     if pred_path is None and args.plot_with_pred:
-        pred_path = {
-            "pred_only_11_2_a": Path(
-                f"M:/lnet/logs/brain1/test_z_out49/f4/z_out49/f4_b2_only11_2/20-06-06_17-59-42/v1_checkpoint_37500_MS_SSIM=0.8822072593371073/brain.{tag}/run000/ds0-0"
-            )
-        }[args.plot_with_pred]
+        pred_path = {"pred_only_11_2_a": Path(f"C:/Users/fbeut/Desktop/lnet_stuff/manual_traces/{tag}")}[
+            args.plot_with_pred
+        ]
 
     name = "ls_slice"
     save_traces_to = Path(
@@ -427,10 +405,10 @@ if __name__ == "__main__":
 
     Tracker(
         name=name,
-        root=root,
+        root=Path(f"C:/Users/fbeut/Desktop/lnet_stuff/manual_traces/{tag}"),
         save_traces_to=save_traces_to,
         # auto_trace_kwargs=AutoTraceKwargs(),
         tmin=tmin,
         tmax=tmax,
-        plot_with=None if pred_path is None else {"pred": pred_path},
+        plot_with=None if pred_path is None else {args.plot_with_pred: pred_path},
     )
