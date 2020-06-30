@@ -1,5 +1,6 @@
 import argparse
 import shutil
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
@@ -76,7 +77,12 @@ class Tracker:
             "roi": (slice(None), slice(None)),
         }
 
-        self.video = get_data_to_trace(name, root=root, tmin=tmin, tmax=tmax)
+        self.videos = OrderedDict([(name, get_data_to_trace(name, root=root, tmin=tmin, tmax=tmax))])
+        self._video_idx = 0
+        self._video = self.videos[name]
+        for pred, path in plot_with.items():
+            self.videos[pred] = get_data_to_trace(pred, root=path, tmin=tmin, tmax=tmax)
+
         self.T = self.video.shape[0]
         self._t = -1
         self._active_trace = -1
@@ -116,6 +122,26 @@ class Tracker:
 
         for i in range(len(self.traces)):
             yaml.dump(self.trace_views[i], self.save_traces_to / f"manual_trace_{i}.view.yml")
+
+    @property
+    def video_idx(self):
+        return self._video_idx
+
+    @video_idx.setter
+    def video_idx(self, new_idx):
+        new_idx = max(0, min(len(self.videos) - 1, new_idx))
+        if new_idx != self._video_idx:
+            self._video_idx = new_idx
+            self.video = list(self.videos.values())[new_idx]
+
+    @property
+    def video(self):
+        return self._video
+
+    @video.setter
+    def video(self, new_video):
+        self._video = new_video
+        self.t = self.t
 
     @property
     def t(self):
@@ -158,7 +184,9 @@ class Tracker:
                 # self.ax.text(x + 2 * int(self.radius + 0.5), y, str(i))
 
         self._t = new_t
-        self.ax.set_title(f"time: {new_t + 1}/{self.video.shape[0]}, trace: {self.active_trace + 1}/{len(self.traces)}")
+        self.ax.set_title(
+            f"video: {list(self.videos.keys())[self.video_idx]} ({self.video_idx + 1}/{len(self.videos)}) time: {new_t + 1}/{self.video.shape[0]}, trace: {self.active_trace + 1}/{len(self.traces)}"
+        )
         self.fig.tight_layout()
         current_xlim = self.ax.get_xlim()
         current_ylim = self.ax.get_ylim()
@@ -223,6 +251,8 @@ class Tracker:
             self.active_trace += 1
         elif event.key == "ctrl+down":
             self.active_trace -= 1
+        elif event.key in ["shift+up", "shift+down"]:
+            self.video_idx += 1 if event.key == "shift+up" else -1
         elif event.key in "wasd":
             trace_marker: Optional[plt.Circle] = self.all_trace_markers[self.active_trace][self.t]
             if trace_marker is not None:
