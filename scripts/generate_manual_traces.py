@@ -393,7 +393,7 @@ if __name__ == "__main__":
     }
 
     name = "ls_slice"
-    save_traces_to = Path(f"M:\manual_traces/{tag}/manual_on_{name}_tmin{tmin}_tmax{tmax}")
+    save_traces_to = Path(f"M:/lnet/manual_traces/{tag}/manual_on_{name}_tmin{tmin}_tmax{tmax}")
     if str(save_traces_to).endswith("debug") and save_traces_to.exists():
         shutil.rmtree(save_traces_to)
 
