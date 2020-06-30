@@ -369,21 +369,23 @@ if __name__ == "__main__":
     tmax = None
     plot_with_pred = "pred_only_11_2_a"
 
+
+    name = "ls_slice"
     roots = {
         "09_3__2020-03-09_06.43.40__SinglePlane_-330": Path(
-            "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-330/run000/ds0-0/{name}"
+            f"M:/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-330/run000/ds0-0/{name}"
         ),
         "09_3__2020-03-09_06.43.40__SinglePlane_-340": Path(
-            "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-340/run000/ds0-0/{name}"
+            f"M:/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-340/run000/ds0-0/{name}"
         ),
         "11_2__2020-03-11_07.30.39__SinglePlane_-310": Path(
-            "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.11_2__2020-03-11_07.30.39__SinglePlane_-310/run000/ds0-0/{name}"
+            f"M:/lnet/logs/brain1/test_z_out49/lr_f4/20-05-31_21-24-03/brain.11_2__2020-03-11_07.30.39__SinglePlane_-310/run000/ds0-0/{name}"
         ),
         "11_2__2020-03-11_10.17.34__SinglePlane_-280": Path(
-            "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-06-12_22-07-43/brain.11_2__2020-03-11_10.17.34__SinglePlane_-280/run000/ds0-0/{name}"
+            f"M:/lnet/logs/brain1/test_z_out49/lr_f4/20-06-12_22-07-43/brain.11_2__2020-03-11_10.17.34__SinglePlane_-280/run000/ds0-0/{name}"
         ),
         "09_3__2020-03-09_06.43.40__SinglePlane_-320": Path(
-            "M:/lnet/logs/brain1/test_z_out49/lr_f4/20-06-29_14-34-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-320/run000/ds0-0/{name}"
+            f"M:/lnet/logs/brain1/test_z_out49/lr_f4/20-06-29_14-34-03/brain.09_3__2020-03-09_06.43.40__SinglePlane_-320/run000/ds0-0/{name}"
         ),
     }
     preds = {
@@ -392,7 +394,6 @@ if __name__ == "__main__":
         )
     }
 
-    name = "ls_slice"
     save_traces_to = Path(f"M:\manual_traces/{tag}/manual_on_{name}_tmin{tmin}_tmax{tmax}")
     if str(save_traces_to).endswith("debug") and save_traces_to.exists():
         shutil.rmtree(save_traces_to)
