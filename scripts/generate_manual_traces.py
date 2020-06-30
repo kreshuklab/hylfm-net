@@ -205,6 +205,17 @@ class Tracker:
         self.t += int(event.step)
 
     def on_key(self, event):
+        """
+        hotkeys:
+        - arrow up/down: move in time
+        - space bar: move forward in time
+        - page up/down: move in time by 10% of total time
+        - ctrl + arrow key up/down: switch active trace
+        - wasd: move active trace position
+        - c: get information about missing annotations and move to annotation edge
+        - n: add a new trace
+        - t: plot active trace
+        """
         if event.key == "right":
             pass
             # self.t += 1 # does not go well with 'redo' action
