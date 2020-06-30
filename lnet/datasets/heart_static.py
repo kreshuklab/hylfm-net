@@ -552,29 +552,30 @@ def get_tags():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("tagnr", type=int)
-    parser.add_argument("meta_path", type=Path)
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("tagnr", type=int)
+    # parser.add_argument("meta_path", type=Path)
+    #
+    # args = parser.parse_args()
+    # tagnr = args.tagnr
+    # tags = get_tags()
+    # if tagnr >= len(tags):
+    #     warnings.warn(f"tagnr {tagnr} out if range")
 
-    args = parser.parse_args()
-    tagnr = args.tagnr
-    tags = get_tags()
-    if tagnr >= len(tags):
-        warnings.warn(f"tagnr {tagnr} out if range")
+    # tag = tags[tagnr]
+    # comment = ""
+    # with args.meta_path.open() as f:
+    #     meta = yaml.safe_load(f)
 
-    tag = tags[tagnr]
-    comment = ""
-    with args.meta_path.open() as f:
-        meta = yaml.safe_load(f)
+    meta = {
+        "z_out": 49,
+        "nnum": 19,
+        "scale": 4,
+        "interpolation_order": 2,
+        "z_ls_rescaled": 241,
+        "pred_z_min": 0,
+        "pred_z_max": 838,
+    }
 
-    # meta = {
-    #     "z_out": 49,
-    #     "nnum": 19,
-    #     "scale": 4,
-    #     "interpolation_order": 2,
-    #     "z_ls_rescaled": 241,
-    #     "pred_z_min": 0,
-    #     "pred_z_max": 838,
-    # }
-
+    tag = "2019-12-09_08.41.41"  # "2019-12-08_06.57.57", "2019-12-08_06.59.59", "2019-12-08_10.32.03"
     check_data(tag, meta=meta)

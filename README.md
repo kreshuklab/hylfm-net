@@ -10,6 +10,18 @@
 4mu_f8 applied to 4mu/01highc: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/4mu_f8/20-04-29_17-10-01`
 f8_lr applied to 01highc: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/01highc_f8_lr/20-04-29_18-38-22`
 
+# HEART
+best static: /g/kreshuk/LF_computed/lnet/logs/heart2/test_z_out49/f4/z_out49/static_f4_b2_with5_pois/20-06-13_20-26-33/train2/v1_checkpoint_498_MS_SSIM=0.9710696664723483 
+best static best refined: /g/kreshuk/LF_computed/lnet/logs/heart2/z_out49/f4_b2_refine_pois/20-06-16_16-35-51/train/run000/checkpoints/v1_checkpoint_155000_MS_SSIM\=0.9682732355651673.pth
+best dynamic training: /g/kreshuk/LF_computed/lnet/logs/heart2/z_out49/f4_b2/20-05-20_10-18-11/train/run000/checkpoints/v1_checkpoint_MSSSIM\=0.6722144321961836.pth
+
+static_f4_b2_with5_pois_dir = 'M:\lnet\logs\heart2\test_z_out49\f4\z_out49\static_f4_b2_with5_pois\20-06-13_20-26-33\train2\v1_checkpoint_498_MS_SSIM=0.9710696664723483';
+refined_network_dir = 'M:\lnet\logs\heart2\test_z_out49\f4\z_out49\f4_b2_refine_pois\20-06-16_16-35-51\v1_checkpoint_57250_MS_SSIM\=0.9605052428382436';
+lr_dir = 'M:\lnet\logs\heart2\test_z_out49\lr_f4\';
+purely_dyn_network_dir = 'M:\lnet\logs\heart2\test_z_out49\f4\z_out49\f4_b2\20-05-20_10-18-11\v1_checkpoint_MSSSIM=0.6722144321961836\';
+
+
+
 # BRAIN
 
 ## Cropping

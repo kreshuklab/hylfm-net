@@ -43,7 +43,7 @@ def on_beads():
     def save_vol(name):
         vol = sample[name]
         Path("/g/kreshuk/LF_computed/lnet/debug_affine_trf_on_beads").mkdir(exist_ok=True)
-        imageio.volwrite(f"/g/kreshuk/LF_computed/lnet/debug_affine_trf_on_beads/{name}_{setting_name}.tif", numpy.squeeze(vol))
+        imageio.volwrite(f"/g/kreshuk/LF_computed/lnet/debug_affine_trf_on_beads/{name}_{setting_name}.tif", numpy.squeeze(vol), compress=2)
 
     ds = ZipDataset(
         OrderedDict(

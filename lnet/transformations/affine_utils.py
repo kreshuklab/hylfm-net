@@ -428,6 +428,8 @@ def get_ls_roi(  # either in ref vol or in precroped ls
         ls_crop = [[19, 13], [7 * 19, 6 * 19], [7 * 19, 5 * 19]]
     elif crop_name == "wholeFOV":
         ls_crop = [[19, 13], [10 * 19, 10 * 19], [10 * 19, 8 * 19]]
+    elif crop_name == "staticHeartFOV":  # todo: check numbers, this is just copied form 'wholeFOV'
+        ls_crop = [[19, 13], [10 * 19, 10 * 19], [10 * 19, 8 * 19]]
     elif crop_name == "gcamp":
         ls_crop = [[60, 60], [4 * 19, 9 * 19], [9 * 19, 6 * 19]]
     else:

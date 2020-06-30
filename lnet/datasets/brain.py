@@ -525,13 +525,13 @@ def check_lr(tag: str, meta: dict, cache: bool=True):
         print("good:", msg, lr_info.location)
     else:
         print("bad:", msg)
-        raise ValueError(msg)
+        # raise ValueError(msg)
 
-    # last_idx = len(lr) - 1
-    # print("last_idx", last_idx)
-    # lr[last_idx]
-    # ls[last_idx]
-    # lf[last_idx]
+    last_idx = len(lr) - 1
+    print("last_idx", last_idx)
+    print(len(lr[last_idx]))
+    print(len(ls[last_idx]))
+    print(len(lf[last_idx]))
 
 
 def check_filter(tag: str, meta: dict):
@@ -583,67 +583,67 @@ def quick_check_all(meta: dict):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("tagnr", type=int)
-    parser.add_argument("meta_path", type=Path)
-
-    args = parser.parse_args()
-
-    tags = get_tags()
-    try:
-        tag = tags[args.tagnr]
-    except IndexError:
-        warnings.warn(f"{args.tagnr} >= len(tags) = {len(tags)}")
-    else:
-        with args.meta_path.open() as f:
-            meta = yaml.safe_load(f)
-            if "toolbox" in meta:
-                meta = meta["toolbox"]["meta"]
-
-        # check_data(tag, meta=meta)
-        # check_filter(tag, meta=meta)
-        check_lr(tag, meta=meta)
-        # except:
-        # print("quick check")
-    # meta = {"z_out": 49, "nnum": 19, "interpolation_order": 2, "pred_z_min": 142, "pred_z_max": 620, "shrink": 8, "scale": 4}
-    # # # quick_check_all(meta=meta)
-    # # for tag in [
-    # for tag in [
-    #     # "09_1__2020-03-09_04.35.55__SinglePlane_-290",
-    #     # "09_1__2020-03-09_04.35.55__SinglePlane_-300",
-    #     # "09_1__2020-03-09_04.35.55__SinglePlane_-310",
-    #     # "09_1__2020-03-09_04.35.55__SinglePlane_-320",
-    #     # "09_1__2020-03-09_04.35.55__SinglePlane_-330",
-    #     # "09_1__2020-03-09_04.35.55__SinglePlane_-340",
-    #     # "09_1__2020-03-09_02.53.02__SinglePlane_-350",
-    #     # "09_1__2020-03-09_02.53.02__SinglePlane_-360",
-    #     # "09_1__2020-03-09_02.53.02__SinglePlane_-370",
-    #     # "09_3__2020-03-09_06.43.40__SinglePlane_-320",
-    #     # "09_3__2020-03-09_06.43.40__SinglePlane_-330",
-    #     # "09_3__2020-03-09_06.43.40__SinglePlane_-340",
-    #     "11_2__2020-03-11_07.30.39__SinglePlane_-320",
-    #     "11_2__2020-03-11_07.30.39__SinglePlane_-310",
-    #     "11_2__2020-03-11_10.13.20__SinglePlane_-290",
-    #     "11_2__2020-03-11_10.13.20__SinglePlane_-315",
-    #     "11_2__2020-03-11_10.25.41__SinglePlane_-295",
-    #     "11_2__2020-03-11_10.25.41__SinglePlane_-305",
-    #     "11_2__2020-03-11_10.25.41__SinglePlane_-340",
-    #     "11_2__2020-03-11_10.17.34__SinglePlane_-280",
-    #     "11_2__2020-03-11_10.17.34__SinglePlane_-330",
-    #     "11_2__2020-03-11_10.21.14__SinglePlane_-295",
-    #     "11_2__2020-03-11_10.21.14__SinglePlane_-305",
-    #     "11_2__2020-03-11_08.12.13__SinglePlane_-310",
-    #     "11_2__2020-03-11_06.53.14__SinglePlane_-330",
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("tagnr", type=int)
+    # parser.add_argument("meta_path", type=Path)
     #
-    #     # "09_3__2020-03-09_06.43.40__SinglePlane_-320",
-    #     # "09_3__2020-03-09_06.43.40__SinglePlane_-330",
-    #     # "09_3__2020-03-09_06.43.40__SinglePlane_-340",
-    #     # "11_2__2020-03-11_07.30.39__SinglePlane_-320",
-    #     # "11_2__2020-03-11_07.30.39__SinglePlane_-310",
-    #     # "11_2__2020-03-11_06.53.14__SinglePlane_-330",
-    #     ]:
+    # args = parser.parse_args()
+    #
+    # tags = get_tags()
+    # try:
+    #     tag = tags[args.tagnr]
+    # except IndexError:
+    #     warnings.warn(f"{args.tagnr} >= len(tags) = {len(tags)}")
+    # else:
+    #     with args.meta_path.open() as f:
+    #         meta = yaml.safe_load(f)
+    #         if "toolbox" in meta:
+    #             meta = meta["toolbox"]["meta"]
+    #
+    #     # check_data(tag, meta=meta)
     #     # check_filter(tag, meta=meta)
-    #     check_lr(tag, meta=meta, cache=True)
+    #     check_lr(tag, meta=meta)
+    #     # except:
+    #     # print("quick check")
+    meta = {"z_out": 49, "nnum": 19, "interpolation_order": 2, "pred_z_min": 142, "pred_z_max": 620, "shrink": 8, "scale": 4}
+    # # quick_check_all(meta=meta)
+    # for tag in [
+    for tag in [
+        # "09_1__2020-03-09_04.35.55__SinglePlane_-290",
+        # "09_1__2020-03-09_04.35.55__SinglePlane_-300",
+        # "09_1__2020-03-09_04.35.55__SinglePlane_-310",
+        # "09_1__2020-03-09_04.35.55__SinglePlane_-320",
+        # "09_1__2020-03-09_04.35.55__SinglePlane_-330",
+        # "09_1__2020-03-09_04.35.55__SinglePlane_-340",
+        # "09_1__2020-03-09_02.53.02__SinglePlane_-350",
+        # "09_1__2020-03-09_02.53.02__SinglePlane_-360",
+        # "09_1__2020-03-09_02.53.02__SinglePlane_-370",
+        # "09_3__2020-03-09_06.43.40__SinglePlane_-320",
+        # "09_3__2020-03-09_06.43.40__SinglePlane_-330",
+        # "09_3__2020-03-09_06.43.40__SinglePlane_-340",
+        # "11_2__2020-03-11_07.30.39__SinglePlane_-320",
+        # "11_2__2020-03-11_07.30.39__SinglePlane_-310",
+        # "11_2__2020-03-11_10.13.20__SinglePlane_-290",
+        # "11_2__2020-03-11_10.13.20__SinglePlane_-315",
+        # "11_2__2020-03-11_10.25.41__SinglePlane_-295",
+        # "11_2__2020-03-11_10.25.41__SinglePlane_-305",
+        # "11_2__2020-03-11_10.25.41__SinglePlane_-340",
+        # "11_2__2020-03-11_10.17.34__SinglePlane_-280",
+        # "11_2__2020-03-11_10.17.34__SinglePlane_-330",
+        # "11_2__2020-03-11_10.21.14__SinglePlane_-295",
+        # "11_2__2020-03-11_10.21.14__SinglePlane_-305",
+        # "11_2__2020-03-11_08.12.13__SinglePlane_-310",
+        # "11_2__2020-03-11_06.53.14__SinglePlane_-330",
+
+        "09_3__2020-03-09_06.43.40__SinglePlane_-320",
+        # "09_3__2020-03-09_06.43.40__SinglePlane_-330",
+        # "09_3__2020-03-09_06.43.40__SinglePlane_-340",
+        # "11_2__2020-03-11_07.30.39__SinglePlane_-320",
+        # "11_2__2020-03-11_07.30.39__SinglePlane_-310",
+        # "11_2__2020-03-11_06.53.14__SinglePlane_-330",
+        ]:
+        # check_filter(tag, meta=meta)
+        check_lr(tag, meta=meta, cache=True)
 
 
 """

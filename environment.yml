@@ -9,6 +9,7 @@ dependencies:
   - h5py>=2.9.0
   - ignite>=0.3.0
   - jupyterlab>=0.35.5
+  - jupyterthemes
   - matplotlib>=3.0.3
   - numpy>=1.16.3
   - pandas
@@ -23,9 +24,9 @@ dependencies:
   - tensorboard
   - tifffile>=0.15.1
   - torchvision>=0.2.1
+  - tqdm
   - typing_extensions  # for python <3.7
   - z5py>=1.4.1
-  - jupyterthemes
   - pip:
     - gputil>=1.4.0
     - imagecodecs

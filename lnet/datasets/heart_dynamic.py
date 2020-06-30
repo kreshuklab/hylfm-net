@@ -481,14 +481,19 @@ def get_tags():
 
 
 def quick_check_all(meta: dict):
-    for tag in get_tags():
+    # tags = get_tags()
+    # tags = ["2019-12-02_23.17.56", "2019-12-02_23.43.24", "2019-12-02_23.50.04", "2019-12-02_04.12.36_10msExp"]
+    # tags = ["2019-12-09_04.54.38", "2019-12-09_05.21.16", "2019-12-09_05.41.14_theGoldenOne", "plane_100/2019-12-09_05.55.26"]
+    # tags = ["2019-12-02_04.12.36_10msExp"]
+    tags = ["2019-12-02_23.43.24"]
+    for tag in tags:
         try:
-            lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=False)
+            lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
         except Exception as e:
             print(tag, e)
             lf = []
         try:
-            ls_slice = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=False)
+            ls_slice = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
         except Exception as e:
             print(tag, e)
             ls_slice = []
@@ -498,21 +503,18 @@ def quick_check_all(meta: dict):
         else:
             print(tag, len(lf))
 
+        # check_filter(tag, meta=meta)
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("tagnr", type=int)
-    parser.add_argument("meta_path", type=Path)
-
-    args = parser.parse_args()
-    tagnr = args.tagnr
-    tags = get_tags()
-    if tagnr >= len(tags):
-        warnings.warn(f"tagnr {tagnr} out if range")
-    
-    tag = tags[tagnr]
-    with args.meta_path.open() as f:
-        meta = yaml.safe_load(f)
-
-    check_data(tag, meta=meta)
-    check_filter(tag, meta=meta)
+    quick_check_all(
+        meta={
+            "z_out": 49,
+            "nnum": 19,
+            "interpolation_order": 2,
+            "scale": 4,
+            "z_ls_rescaled": 241,
+            "pred_z_min": 0,
+            "pred_z_max": 838,
+        }
+    )
