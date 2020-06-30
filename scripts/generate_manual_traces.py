@@ -362,14 +362,13 @@ class Tracker:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="lnet generate manual traces")
-    parser.add_argument("ls_slice_path", type=Path, default=None)
-    parser.add_argument("--setup", action="store_true")
-    parser.add_argument("--plot_with_pred_path", type=Path, default=None)
+    parser.add_argument("tag", type=str)
+    parser.add_argument("--ls_slice_path", type=Path, default=None)
     parser.add_argument("--plot_with_pred", type=str, default="pred_only_11_2_a")
+    parser.add_argument("--plot_with_pred_path", type=Path, default=None)
     parser.add_argument("--tmin", type=int, default=0)
     parser.add_argument("--tmax", type=int, default=None)
 
-    parser.add_argument("--cuda", metavar="CUDA_VISIBLE_DEVICES", type=str, nargs="?", const="0", default=None)
     args = parser.parse_args()
 
     # tag = "09_3__2020-03-09_06.43.40__SinglePlane_-320"
