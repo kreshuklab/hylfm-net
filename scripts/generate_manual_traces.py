@@ -388,7 +388,7 @@ if __name__ == "__main__":
     }
     preds = {
         "pred_only_11_2_a": Path(
-            "M:/lnet/logs/brain1/test_z_out49/f4/z_out49/f4_b2_only11_2/20-06-06_17-59-42/v1_checkpoint_37500_MS_SSIM=0.8822072593371073"
+            f"M:/lnet/logs/brain1/test_z_out49/f4/z_out49/f4_b2_only11_2/20-06-06_17-59-42/v1_checkpoint_37500_MS_SSIM=0.8822072593371073/brain.{tag}/run000/ds0-0"
         )
     }
 
