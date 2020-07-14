@@ -57,4 +57,5 @@ def training_step(engine: ignite.engine.Engine, tensors: typing.OrderedDict) -> 
 
 
 def inference_step(engine: ignite.engine.Engine, tensors: typing.OrderedDict) -> typing.OrderedDict:
-    return step(engine=engine, tensors=tensors, train=False)
+    with torch.no_grad():
+        return step(engine=engine, tensors=tensors, train=False)

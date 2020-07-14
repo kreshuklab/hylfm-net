@@ -629,33 +629,34 @@ class ZipDataset(torch.utils.data.Dataset):
                 ds.shutdown()
 
 
+def collate_fn(samples: List[typing.OrderedDict[str, Any]], batch_transformation: Callable = lambda x: x):
+    assert len(samples) > 0
+    batch = OrderedDict()
+    for b in zip(*[s.items() for s in samples]):
+        tensor_names, tensor_batch = zip(*b)
+        name = tensor_names[0]
+        tensor0 = tensor_batch[0]
+        assert all(name == k for k in tensor_names[1:])
+        assert all(type(tensor0) is type(v) for v in tensor_batch[1:])
+        if isinstance(tensor0, numpy.ndarray):
+            tensor_batch = numpy.ascontiguousarray(numpy.concatenate(tensor_batch, axis=0))
+        elif isinstance(tensor0, torch.Tensor):
+            tensor_batch = torch.cat(tensor_batch, dim=0)
+        elif isinstance(tensor0, list):
+            assert all(
+                len(v) == 1 for v in tensor_batch
+            )  # expect explicit batch dimension! (list of len 1 for all samples)
+            tensor_batch = [vv for v in tensor_batch for vv in v]
+        else:
+            raise NotImplementedError(type(tensor0))
+
+        batch[name] = tensor_batch
+
+    return batch_transformation(batch)
+
+
 def get_collate_fn(batch_transformation: Callable):
-    def collate_fn(samples: List[typing.OrderedDict[str, Any]]):
-        assert len(samples) > 0
-        batch = OrderedDict()
-        for b in zip(*[s.items() for s in samples]):
-            tensor_names, tensor_batch = zip(*b)
-            name = tensor_names[0]
-            tensor0 = tensor_batch[0]
-            assert all(name == k for k in tensor_names[1:])
-            assert all(type(tensor0) is type(v) for v in tensor_batch[1:])
-            if isinstance(tensor0, numpy.ndarray):
-                tensor_batch = numpy.ascontiguousarray(numpy.concatenate(tensor_batch, axis=0))
-            elif isinstance(tensor0, torch.Tensor):
-                tensor_batch = torch.cat(tensor_batch, dim=0)
-            elif isinstance(tensor0, list):
-                assert all(
-                    len(v) == 1 for v in tensor_batch
-                )  # expect explicit batch dimension! (list of len 1 for all samples)
-                tensor_batch = [vv for v in tensor_batch for vv in v]
-            else:
-                raise NotImplementedError(type(tensor0))
-
-            batch[name] = tensor_batch
-
-        return batch_transformation(batch)
-
-    return collate_fn
+    return partial(collate_fn, batch_transformation=batch_transformation)
 
 
 class ConcatDataset(torch.utils.data.ConcatDataset):

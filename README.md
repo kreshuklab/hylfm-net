@@ -6,7 +6,7 @@
 01highc_f4_lr applied to 01highc/4mu: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/01highc_f4_lr/20-04-29_17-55-30`
 
 ### 0.7mu in xy
-01highc_f8 applied to 01highc/4mu: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/01highc_f8/20-04-29_17-09-06`
+01highc_f8 applied to 01highc/4mu: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/01highc_f8/20-04-29_17-09-06`  # THE beads net
 4mu_f8 applied to 4mu/01highc: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/4mu_f8/20-04-29_17-10-01`
 f8_lr applied to 01highc: `/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/01highc_f8_lr/20-04-29_18-38-22`
 

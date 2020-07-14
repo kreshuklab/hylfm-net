@@ -1,5 +1,6 @@
 from lnet.transformations.affine_utils import (
     Heart_tightCrop,
+    fast_cropped_8ms,
     get_bdv_affine_transformations_by_name,
     get_lf_shape,
     get_ls_shape,
@@ -13,7 +14,7 @@ from lnet.transformations.affine_utils import (
 
 
 def get_transformations(name: str, crop_name: str, meta: dict):
-    assert crop_name in [Heart_tightCrop, staticHeartFOV, wholeFOV]
+    assert crop_name in [Heart_tightCrop, staticHeartFOV, wholeFOV, fast_cropped_8ms]
     if name == "lf":
         return [
             {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_raw_lf_shape(crop_name, wrt_ref=True)}}
@@ -91,7 +92,14 @@ def get_transformations(name: str, crop_name: str, meta: dict):
         return trf
     elif name in ["ls_slice", "ls_fake_slice"]:
         return [
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 1, 2048, 2060]}},  # raw ls shape
+            {
+                "Assert": {
+                    "apply_to": name,
+                    "expected_tensor_shape": [1, 1, 1, 1364, 1380]
+                    if crop_name == fast_cropped_8ms
+                    else [1, 1, 1, 2048, 2060],
+                }
+            },  # raw ls shape
             {"FlipAxis": {"apply_to": name, "axis": 2}},
             {
                 "Crop": {
@@ -152,7 +160,12 @@ def get_transformations(name: str, crop_name: str, meta: dict):
         ]
     elif name == "ls_reg":
         return [
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 838] + get_raw_lf_shape(crop_name, wrt_ref=True)}},  # raw tif
+            {
+                "Assert": {
+                    "apply_to": name,
+                    "expected_tensor_shape": [1, 1, 838] + get_raw_lf_shape(crop_name, wrt_ref=True),
+                }
+            },  # raw tif
             {
                 "Resize": {
                     "apply_to": name,

@@ -29,6 +29,7 @@ class Settings:
     max_workers_for_hist: int = 16
     max_workers_for_stat: int = 0
     max_workers_for_trace: int = 0
+    multiprocessing_start_method: str = ""
 
     def __post_init__(self):
         assert self.reserved_workers_per_dataset_for_getitem <= self.max_workers_per_dataset

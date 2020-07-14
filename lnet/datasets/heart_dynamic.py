@@ -244,6 +244,43 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             samples_per_dataset = 241
             z_slice = idx2z_slice_241
 
+    elif tag in [
+        "plane_080/2019-12-09_04.02.24_5ms",
+        "plane_080/2019-12-09_04.05.07_irisOpenedComplete_10ms",
+        "plane_100/2019-12-09_03.44.34_5ms",
+        "plane_100/2019-12-09_03.46.56_10ms",
+        "plane_120/2019-12-09_03.41.23_5ms",
+        "plane_120/2019-12-09_03.42.18_10ms",
+        "plane_140/2019-12-09_03.55.51_5ms",
+        "plane_140/2019-12-09_03.56.44_10ms",
+        "plane_160/2019-12-09_03.58.24_5ms",
+        "plane_160/2019-12-09_03.58.24_10ms",
+        "plane_160/2019-12-09_03.59.45_5ms",
+        "plane_160/2019-12-09_03.59.45_10ms",
+    ]:
+        crop_name = "fast_cropped_8ms"
+        transformations = get_transformations(name, crop_name, meta=meta)
+        if tag.endswith("_5ms"):
+            stack, channel = (2, 11)
+        elif tag.endswith("_10ms"):
+            stack, channel = (2, 10)
+        else:
+            raise NotImplementedError(tag)
+
+        tag = tag.replace("_5ms", "").replace("_10ms", "")
+
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/fast_cropped_8ms/singlePlanes/{tag}/stack_{stack}_channel_{channel}/"
+        if name == "lf":
+            location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+        # elif name == "lr":
+        #     location = location.replace("LF_partially_restored/", "LF_computed/")
+        #     location += "TP_*/RCout/Cam_Right_*.tif"
+        elif name == "ls_slice":
+            location += "Cam_Left_*.h5/Data"
+            samples_per_dataset = 200
+            plane = int(tag.split("/")[0].split("_")[1])
+            z_slice = idx2z_slice_241(plane)
+
     else:
         raise NotImplementedError(tag)
 

@@ -5,7 +5,9 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-import torch
+import torch.multiprocessing
+
+from lnet import settings
 
 CONFIG = {
     "version": 1,
@@ -38,6 +40,13 @@ if __name__ == "__main__":
         os.nice(10)
     except Exception as e:
         logger.error(e)
+    if settings.multiprocessing_start_method:
+        torch.multiprocessing.set_start_method(settings.multiprocessing_start_method)
+
+    # try:
+    #     os.nice(10)
+    # except Exception as e:
+    #     logger.error(e)
 
     parser = argparse.ArgumentParser(description="lnet")
     parser.add_argument("experiment_config", type=Path)

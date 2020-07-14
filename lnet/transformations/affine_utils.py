@@ -217,6 +217,122 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
             ],
             [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0],
         ]
+    elif name == "fast_cropped_8ms":
+        return [
+            [
+                0.9986010487421885,
+                -0.002120810141566837,
+                -0.008149618765723362,
+                4.753590473932092,
+                -7.497126762641354e-4,
+                0.999739497335616,
+                -0.002100267232562155,
+                1.5264448905391126,
+                0.012767265132301005,
+                0.008313927705739728,
+                1.0251251343976073,
+                -23.383246688659526,
+            ],
+            [
+                1.0014699495221129,
+                0.0022217885570053057,
+                0.007815338643888291,
+                -4.714470966958904,
+                0.0010303617894547048,
+                1.0000489406185478,
+                0.001449929955455748,
+                -1.2415661154926954,
+                -0.012897434787601393,
+                -0.008282360222404195,
+                0.9728093345347644,
+                24.192111553605027,
+            ],
+            [
+                0.9999756097799303,
+                -3.14068807737589e-5,
+                2.6414434466927684e-6,
+                0.03299776828073804,
+                -7.443462885587118e-6,
+                1.0000205503425315,
+                6.372773046833699e-5,
+                -0.032715113781997054,
+                3.53248611190156e-5,
+                2.2833262680210066e-5,
+                1.000242859147333,
+                -0.1291290449835767,
+            ],
+            [
+                0.9997562287077025,
+                -1.4690002895491214e-4,
+                -1.3886713774554479e-5,
+                0.23433800490792453,
+                -2.4140517872558393e-4,
+                1.0002056303267557,
+                7.243447875154269e-4,
+                -0.3313980780587243,
+                3.9422039654427526e-4,
+                1.433164031456372e-4,
+                1.0024346602689587,
+                -1.2459354397517026,
+            ],
+            [
+                0.9977154744301842,
+                -0.002241191411341819,
+                -0.009852533063965996,
+                6.0748338797101615,
+                -2.1704150642624007e-4,
+                1.000024837549752,
+                -1.479204794364181e-4,
+                0.35024621525122906,
+                0.013231836246675045,
+                0.008248997222915135,
+                1.025443845475132,
+                -23.83731141291179,
+            ],
+            [
+                1.002301101653545,
+                0.001244721528787248,
+                0.006274675516564312,
+                -4.134709347642092,
+                2.737459409621002e-4,
+                1.00055221854111,
+                0.0016732066436690894,
+                -1.2089095422920313,
+                -0.013232668769306219,
+                -0.008141878604109042,
+                0.9701538227526025,
+                25.280673996062564,
+            ],
+            [
+                1.0036672920493648,
+                -0.001217988458688357,
+                -0.029144491141293156,
+                45.37683487750689,
+                -1.6696390203153297e-4,
+                1.003610058305277,
+                0.011245829556812224,
+                95.22415193683851,
+                0.010100024209689917,
+                -0.005478727449094312,
+                0.9926932232933254,
+                7.776297843932661,
+            ],
+            [
+                0.97669,
+                0.0076755,
+                0.0042258,
+                -95.112,
+                -0.0061276,
+                0.97912,
+                0.03892,
+                -134.1098,
+                0.007308,
+                0.0073582,
+                1.1682,
+                -92.7323,
+            ],
+            [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0],
+        ]
     elif name == "gcamp":
         return [
             [
@@ -241,12 +357,13 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
 Heart_tightCrop = "Heart_tightCrop"
 staticHeartFOV = "staticHeartFOV"
 wholeFOV = "wholeFOV"
+fast_cropped_8ms = "fast_cropped_8ms"
 gcamp = "gcamp"
 
 
 def get_raw_lf_shape(crop_name: str, *, wrt_ref: bool, nnum: int = None, scale: int = None) -> List[int]:
     if crop_name == Heart_tightCrop:
-        ref_shape = [1273, 1463]  # crop on raw (1551,1351) in matlab:
+        ref_shape = [1273, 1463]  # crop on raw (1551,1351) in matlab: [250,300,1550,1350]
     elif crop_name == staticHeartFOV:
         ref_shape = [
             1178,
@@ -257,6 +374,8 @@ def get_raw_lf_shape(crop_name: str, *, wrt_ref: bool, nnum: int = None, scale: 
             1064,
             1083,
         ]  # crop on raw in matlab: rect_LF = [450, 450, 1150, 1150]; %[xmin, ymin, width, height];
+    elif crop_name == fast_cropped_8ms:
+        ref_shape = [1273, 1254]  # crop on raw in matlab: rect_LF = [0, 0, 1350, 1350]; %[xmin, ymin, width, height];
     elif crop_name == gcamp:
         # crop on raw in matlab: rect_LF = [174, 324, 1700, 1400]; %[250, 300, 1550, 1350]; %[xmin, ymin, width, height];
         ref_shape = [1330, 1615]
@@ -340,6 +459,10 @@ def get_ls_ref_shape(crop_name: str):
         # crop in matlab: # rect_LS = [350, 350, 1350, 1350]; %[xmin, ymin, width, height];
         # crop for ref shape + crop for divisibility
         ref_roi = [[0, 241], [0, 1700 - 349 - 0], [0, 1700 - 349 - 0]]
+    elif crop_name == fast_cropped_8ms:
+        # crop in matlab: # rect_LS = [0, 0, 1350, 1350]; %[xmin, ymin, width, height];
+        # crop for ref shape + crop for divisibility
+        ref_roi = [[0, 241], [0, 1350 + 1 - 0], [0, 1350 + 1 - 0]]
     elif crop_name == gcamp:
         # in matlab: 124, 274, 1800, 1500
         ref_roi = [[0, 241], [0, 1774 - 273], [0, 1924 - 123 - 0]]
@@ -363,6 +486,10 @@ def get_precropped_ls_roi_in_raw_ls(crop_name: str, *, for_slice: bool, wrt_ref:
             # crop in matlab: # rect_LS = [350, 350, 1350, 1350]; %[xmin, ymin, width, height];
             # crop for ref shape + crop for divisibility
             precropped_roi = [[0, 241], [1, 1700 - 349 - 1], [1, 1700 - 349 - 1]]
+        elif crop_name == fast_cropped_8ms:
+            # crop in matlab: # rect_LS = [0, 0, 1350, 1350]; %[xmin, ymin, width, height];
+            # crop for ref shape + crop for divisibility
+            precropped_roi = [[0, 241], [1, 1350 + 1 - 1], [1, 1350 + 1 - 1]]
         elif crop_name == gcamp:
             # in matlab: 124, 274, 1800, 1500
             precropped_roi = [[0, 241], [0, 1774 - 273], [7, 1924 - 123 - 8]]
@@ -381,6 +508,10 @@ def get_precropped_ls_roi_in_raw_ls(crop_name: str, *, for_slice: bool, wrt_ref:
             # crop in matlab: # rect_LS = [350, 350, 1350, 1350]; %[xmin, ymin, width, height];
             # crop for ref shape + crop for divisibility
             precropped_roi = [[0, 241], [349 + 1, 1700 - 1], [349 + 1, 1700 - 1]]
+        elif crop_name == fast_cropped_8ms:
+            # crop in matlab: # rect_LS = [0, 0, 1350, 1350]; %[xmin, ymin, width, height];
+            # crop for ref shape + crop for divisibility
+            precropped_roi = [[0, 241], [0, 1350 - 1], [0, 1350 - 1]]
         elif crop_name == gcamp:
             precropped_roi = [[0, 241], [273, 1774], [123 + 7, 1924 - 8]]
         else:
@@ -412,25 +543,21 @@ def get_precropped_ls_shape(
 
 
 def get_ls_roi(  # either in ref vol or in precroped ls
-    crop_name: str,
-    *,
-    for_slice: bool,
-    nnum: int,
-    wrt_ref: bool,
-    z_ls_rescaled: int,
-    ls_scale: int,
+    crop_name: str, *, for_slice: bool, nnum: int, wrt_ref: bool, z_ls_rescaled: int, ls_scale: int
 ) -> List[List[int]]:
     # ref_roi_in = [[pred_z_min, pred_z_max]] + get_lf_roi_in_precropped_lf(
     #     crop_name, shrink=shrink, nnum=nnum, scale=scale, wrt_ref=True
     # )
 
-    if crop_name == "Heart_tightCrop":
+    if crop_name == Heart_tightCrop:
         ls_crop = [[19, 13], [7 * 19, 6 * 19], [7 * 19, 5 * 19]]
-    elif crop_name == "wholeFOV":
+    elif crop_name == wholeFOV:
         ls_crop = [[19, 13], [10 * 19, 10 * 19], [10 * 19, 8 * 19]]
-    elif crop_name == "staticHeartFOV":  # todo: check numbers, this is just copied form 'wholeFOV'
+    elif crop_name == staticHeartFOV:  # todo: check numbers, this is just copied form 'wholeFOV'
         ls_crop = [[19, 13], [10 * 19, 10 * 19], [10 * 19, 8 * 19]]
-    elif crop_name == "gcamp":
+    elif crop_name == fast_cropped_8ms:  # todo: check numbers, this is just a guess
+        ls_crop = [[19, 13], [4 * 19, 3 * 19], [4 * 19, 2 * 19]]
+    elif crop_name == gcamp:
         ls_crop = [[60, 60], [4 * 19, 9 * 19], [9 * 19, 6 * 19]]
     else:
         raise NotImplementedError(crop_name)
