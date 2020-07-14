@@ -316,7 +316,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
 
         tag = tag.replace("_125Hz", "").replace("_120Hz", "")
 
-        location = f"LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/fast_cropped_6ms_SinglePlaneValidation/{tag}/stack_{stack}_channel_{channel}/"
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/fast_cropped_6ms_SinglePlaneValidation/{tag}/stack_{stack}_channel_{channel}/"
         if name == "lf":
             location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
         # elif name == "lr":
