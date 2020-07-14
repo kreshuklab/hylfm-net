@@ -28,6 +28,8 @@ from lnet.datasets import TensorInfo
 from lnet.datasets.base import TiffDataset, get_collate_fn
 from lnet.utils.general import print_timing
 
+plt.rcParams["svg.fonttype"] = "none"
+
 try:
     import skvideo.motion
 except ImportError:
@@ -345,7 +347,11 @@ def trace_and_plot(
                     ax.text(x + 2 * int(r + 0.5), y, str(i))  # todo fix text
                     ax.add_patch(c)
 
-            plt.tight_layout()
+            try:
+                plt.tight_layout()
+            except Exception as e:
+                warnings.warn(e)
+
             fig_name = f"trace_positions_on_{tensor_name}"
             plt.savefig(output_path / f"{fig_name}.svg")
             plt.savefig(output_path / f"{fig_name}.png")
@@ -600,9 +606,10 @@ def compute_compensated_peak(
         peak_vol[t, ph, pw, 0] = 0.5
         peak_vol[t, ph, pw, 1:] = 0
 
-    peak_vol = peak_vol.clip(min=0)
-    peak_vol /= peak_vol.max()
+    peak_vol /= 5  # peak_vol.max()
     peak_vol *= 255
+    peak_vol = peak_vol.clip(min=0, max=255)
+    peak_vol = numpy.rint(peak_vol)
     peak_vol = peak_vol.astype("uint8")
 
     volwrite(output_path / f"trace_{p}_{h}_{w}_{r}_{name}_marked.tif", peak_vol)
@@ -744,7 +751,9 @@ def trace_tracked_peaks(
     tensor = numpy.pad(
         tensor, pad_width=((0, 0), (3 * R * n_radii, 3 * R * n_radii), (3 * R * n_radii, 3 * R * n_radii)), mode="edge"
     )
-    compensated_peaks += 3 * R * n_radii
+    offset = numpy.zeros_like(compensated_peaks)
+    offset[:, :2] = 3 * R * n_radii
+    compensated_peaks = compensated_peaks + offset
     T, H, W = tensor.shape
     assert compensated_peaks.shape[2] == T, compensated_peaks.shape
 
@@ -801,7 +810,9 @@ def trace_straight_peaks(tensor: numpy.ndarray, peaks: numpy.ndarray, reduce: st
     elif reduce == "max":
         # masked_tensor = numpy.multiply(tensor[..., None], peak_masks[None, ...])
         # traces = numpy.max(masked_tensor, axis=1)
-        traces = numpy.max(numpy.repeat(tensor[..., None], P, axis=-1), axis=1, where=peak_masks[None, ...])
+        traces = numpy.max(
+            numpy.repeat(tensor[..., None], P, axis=-1), axis=1, where=peak_masks[None, ...], initial=-9999
+        )
     else:
         raise NotImplementedError(reduce)
 
@@ -945,6 +956,21 @@ def plot_traces(*, tgt, plots, all_traces, all_smooth_traces, correlations, trac
     figs = {}
     rel_dist_per_recon = 0.04
     for t in range(all_traces[tgt].shape[0]):
+        if all_traces[tgt].shape[0] > 1:
+            # check if this plot should be skipped
+            skip = True
+            for recons in plots:
+                for recon, kwargs in recons.items():
+                    for smooth, tgt_smooth in kwargs["smooth"]:
+                        if (
+                            correlations[(recon, smooth, tgt_smooth, t)]["pearson"] > 0.7
+                            and all_traces[tgt].max() - all_traces[tgt].min() > 0.2
+                        ):
+                            skip = False
+
+            if skip:
+                continue
+
         nrows = len(plots)
         fig, axes = plt.subplots(nrows=nrows, sharex=True, figsize=(20, 10), squeeze=False)
         axes = axes[:, 0]  # only squeeze ncols=1
@@ -1231,7 +1257,7 @@ if __name__ == "__main__":
                 overwrite_existing_files=False,
                 smooth_diff_sigma=1.3,
                 peak_threshold_abs=0.05,
-                reduce_peak_area="mean",
+                reduce_peak_area="max",
                 plot_peaks=False,
                 compute_peaks_on="max",  # std, diff, min, max, mean
                 peaks_min_dist=3,

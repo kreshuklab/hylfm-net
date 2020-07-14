@@ -1,5 +1,7 @@
 import argparse
+import logging
 import shutil
+import warnings
 from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
@@ -17,14 +19,16 @@ from lnet.utils.tracer import trace_and_plot
 
 yaml = YAML(typ="safe")
 
+logger = logging.getLogger(__name__)
 
-def get_data_to_trace(name: str, root: Path, tmin=0, tmax=None):
+
+def get_data_to_trace(name: str, root: Path, tmin=0, tmax=None, roi: Tuple[slice] = (slice(None), slice(None))):
 
     ds = TiffDataset(info=TensorInfo(name=name, root=root, location=f"{name}/*.tif"))
     if tmax is None:
         tmax = len(ds)
 
-    return numpy.stack([ds[t][name].squeeze() for t in range(tmin, tmax)])
+    return numpy.stack([ds[t][name].squeeze()[roi] for t in range(tmin, tmax)])
 
 
 @dataclass
@@ -43,7 +47,10 @@ class Tracker:
         radius: int = 2,
         auto_trace_kwargs: Optional[AutoTraceKwargs] = None,
         plot_with: Dict[str, Path] = None,
+        reduce_peak_area: str = "mean",
+        roi: Tuple[slice] = (slice(25, 225), slice(55, 305)),
     ):
+        logger.warning("save traces to %s", save_traces_to)
         self.save_traces_to = save_traces_to
 
         plt.rcParams["keymap.save"].remove("s")  # use wasd for trace movement, save still available with `ctrl+s`
@@ -74,14 +81,15 @@ class Tracker:
             "trace_radius": radius,
             "time_range": (tmin, tmax),
             "plots": plot_config,
-            "roi": (slice(None), slice(None)),
+            "roi": roi,
+            "reduce_peak_area": reduce_peak_area,
         }
 
-        self.videos = OrderedDict([(name, get_data_to_trace(name, root=root, tmin=tmin, tmax=tmax))])
+        self.videos = OrderedDict([(name, get_data_to_trace(name, root=root, tmin=tmin, tmax=tmax, roi=roi))])
         self._video_idx = 0
         self._video = self.videos[name]
         for pred, path in plot_with.items():
-            self.videos[pred] = get_data_to_trace(pred, root=path, tmin=tmin, tmax=tmax)
+            self.videos[pred] = get_data_to_trace(pred, root=path, tmin=tmin, tmax=tmax, roi=roi)
 
         self.T = self.video.shape[0]
         self._t = -1
@@ -112,6 +120,7 @@ class Tracker:
         self.fig.canvas.mpl_connect("scroll_event", self.on_scroll)
         self.ax.callbacks.connect("xlim_changed", self.get_on_axlims_changed("x"))
         self.ax.callbacks.connect("ylim_changed", self.get_on_axlims_changed("y"))
+        self.active_trace = 0
         plt.show()
         print(self.traces)
         self.save_traces()
@@ -153,11 +162,9 @@ class Tracker:
         ylim = tuple(self.trace_views[self.active_trace]["y"])
         new_t = max(0, min(self.T - 1, new_t))
         self.im.set_data(self.video[new_t])
-        for i, ((y, x), trace_markers) in enumerate(
-            zip([trace[new_t] for trace in self.traces], self.all_trace_markers)
-        ):
-            if trace_markers[self._t] is not None:
-                trace_markers[self._t].set_visible(False)
+        for i, (y, x) in enumerate([trace[new_t] for trace in self.traces]):
+            # if self.all_trace_markers[i] is not None:
+            #     self.all_trace_markers[i].set_visible(False)
 
             if i == self.active_trace:
                 if y == -1:
@@ -174,13 +181,13 @@ class Tracker:
                 else:
                     color = "grey"
 
-            if trace_markers[new_t] is None:
-                trace_markers[new_t] = plt.Circle((x, y), self.radius, color=color, linewidth=1, fill=False)
-                self.ax.add_patch(trace_markers[new_t])
+            if self.all_trace_markers[i] is None:
+                self.all_trace_markers[i] = plt.Circle((x, y), self.radius, color=color, linewidth=2, fill=False)
+                self.ax.add_patch(self.all_trace_markers[i])
             else:
-                trace_markers[new_t].set_color(color)
-                trace_markers[new_t].set_center((x, y))
-                trace_markers[new_t].set_visible(True)
+                self.all_trace_markers[i].set_color(color)
+                self.all_trace_markers[i].set_center((x, y))
+                # self.all_trace_markers[i].set_visible(True)
                 # self.ax.text(x + 2 * int(self.radius + 0.5), y, str(i))
 
         self._t = new_t
@@ -217,7 +224,7 @@ class Tracker:
             return
 
         # print(
-        #     f"{'double' if event.dblclick else 'single'} click: button={event.button}, x={event.x}, y={event.y}, xdata={event.xdata}, ydata={event.ydata}"
+        #     f"{'double' if `event.`dblclick else 'single'} click: button={event.button}, x={event.x}, y={event.y}, xdata={event.xdata}, ydata={event.ydata}"
         # )
         if not event.dblclick and event.button == 1 or event.button == 3:
             if event.ydata is not None and event.xdata is not None:  # can happen during closing?!
@@ -251,7 +258,7 @@ class Tracker:
             pass
             # self.t -= 1  # does not go well with 'undo' action
         elif event.key in ["up", "down"]:
-            trace_marker = self.all_trace_markers[self.active_trace][self.t]
+            trace_marker = self.all_trace_markers[self.active_trace]
             if trace_marker is not None:
                 x, y = trace_marker.get_center()
                 self.traces[self.active_trace][self.t][:] = [y, x]
@@ -265,7 +272,7 @@ class Tracker:
         elif event.key in ["shift+up", "shift+down"]:
             self.video_idx += 1 if event.key == "shift+up" else -1
         elif event.key in "wasd":
-            trace_marker: Optional[plt.Circle] = self.all_trace_markers[self.active_trace][self.t]
+            trace_marker: Optional[plt.Circle] = self.all_trace_markers[self.active_trace]
             if trace_marker is not None:
                 dydx = {"w": (0, -1), "s": (0, 1), "a": (-1, 0), "d": (1, 0)}[event.key]
                 new_center = tuple([c + d for c, d in zip(trace_marker.get_center(), dydx)])
@@ -295,7 +302,7 @@ class Tracker:
 
             self.add_trace()
         elif event.key == " ":
-            trace_marker = self.all_trace_markers[self.active_trace][self.t]
+            trace_marker = self.all_trace_markers[self.active_trace]
             if trace_marker is not None:
                 x, y = trace_marker.get_center()
                 self.traces[self.active_trace][self.t][:] = [y, x]
@@ -313,6 +320,20 @@ class Tracker:
                 tag=f"trace {self.active_trace + 1}",
                 compensated_peak_path=self.save_traces_to / f"manual_trace_{self.active_trace}.yml",
             )
+        elif event.key == "j":
+            for t in range(self.t, self.T):
+                trace_marker = self.all_trace_markers[self.active_trace]
+                if trace_marker is not None:
+                    x, y = trace_marker.get_center()
+                    self.traces[self.active_trace][self.t][:] = [y, x]
+
+                self.t += 1
+
+        elif event.key == "ctrl+alt+d":
+            self.traces.pop(self.active_trace)
+            self.all_trace_markers.pop(self.active_trace)
+            self.active_trace = 0
+            self.t = self.t
 
     def get_on_axlims_changed(self, a: str):
         assert a == "x" or a == "y"
@@ -354,7 +375,8 @@ class Tracker:
 
             assert trace.shape == (self.T, 3), trace.shape
             if any([r != self.radius for r in trace[:, 2]]):
-                raise ValueError("loaded trace has different radius!")
+                trace[:, 2] = self.radius
+                warnings.warn("loaded trace had different radius!")
 
             trace = trace[:, :2]
             nr_missing, start_at_t = self.get_missing(trace)
@@ -367,7 +389,7 @@ class Tracker:
 
         assert trace.shape == (self.T, 2)
         self.traces.append(trace)
-        self.all_trace_markers.append([None] * self.T)
+        self.all_trace_markers.append(None)
         self.trace_views.append(trace_view)
         self.active_trace = len(self.traces) - 1
         self.t = start_at_t
@@ -403,7 +425,7 @@ class Tracker:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="lnet generate manual traces")
-    parser.add_argument("--tag", type=str, default="11_2__2020-03-11_10.17.34__SinglePlane_-280")
+    parser.add_argument("--tag", type=str, default="11_2__2020-03-11_07.30.39__SinglePlane_-310")
     # parser.add_argument("--ls_slice_path", type=Path, default=None)
     parser.add_argument("--plot_with_pred", type=str, default="pred_only_11_2_a")
     parser.add_argument("--plot_with_pred_path", type=Path, default=None)
@@ -412,10 +434,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    tag = args.tag
     # tag = "09_3__2020-03-09_06.43.40__SinglePlane_-330"
     # tag = "11_2__2020-03-11_07.30.39__SinglePlane_-310"
     # tag = "11_2__2020-03-11_10.17.34__SinglePlane_-280"
-    tag = args.tag
     tmin = args.tmin
     tmax = args.tmax
     plot_with_pred = args.plot_with_pred
@@ -438,7 +460,9 @@ if __name__ == "__main__":
         root=Path(f"C:/Users/fbeut/Desktop/lnet_stuff/manual_traces/{tag}"),
         save_traces_to=save_traces_to,
         # auto_trace_kwargs=AutoTraceKwargs(),
+        radius=3,
         tmin=tmin,
         tmax=tmax,
         plot_with=None if pred_path is None else {args.plot_with_pred: pred_path},
+        reduce_peak_area="max",
     )
