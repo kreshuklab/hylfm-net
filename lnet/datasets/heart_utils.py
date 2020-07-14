@@ -1,9 +1,8 @@
 from lnet.transformations.affine_utils import (
     Heart_tightCrop,
     fast_cropped_8ms,
+    fast_cropped_6ms,
     get_bdv_affine_transformations_by_name,
-    get_lf_shape,
-    get_ls_shape,
     staticHeartFOV,
     wholeFOV,
     get_precropped_ls_roi_in_raw_ls,
@@ -14,7 +13,7 @@ from lnet.transformations.affine_utils import (
 
 
 def get_transformations(name: str, crop_name: str, meta: dict):
-    assert crop_name in [Heart_tightCrop, staticHeartFOV, wholeFOV, fast_cropped_8ms]
+    assert crop_name in [Heart_tightCrop, staticHeartFOV, wholeFOV, fast_cropped_8ms, fast_cropped_6ms]
     if name == "lf":
         return [
             {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_raw_lf_shape(crop_name, wrt_ref=True)}}

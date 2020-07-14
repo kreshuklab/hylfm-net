@@ -281,6 +281,31 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             plane = int(tag.split("/")[0].split("_")[1])
             z_slice = idx2z_slice_241(plane)
 
+    elif tag in [
+
+    ]:
+        crop_name = "fast_cropped_6ms"
+        transformations = get_transformations(name, crop_name, meta=meta)
+        if tag.endswith("_125Hz"):
+            stack, channel = (2, 8)
+        elif tag.endswith("_120Hz"):
+            stack, channel = (2, 9)
+        else:
+            raise NotImplementedError(tag)
+
+        tag = tag.replace("_125Hz", "").replace("_120Hz", "")
+
+        location = f"LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/fast_cropped_6ms_SinglePlaneValidation/{tag}/stack_{stack}_channel_{channel}/"
+        if name == "lf":
+            location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+        # elif name == "lr":
+        #     location = location.replace("LF_partially_restored/", "LF_computed/")
+        #     location += "TP_*/RCout/Cam_Right_*.tif"
+        elif name == "ls_slice":
+            location += "Cam_Left_*.h5/Data"
+            samples_per_dataset = 500
+            plane = int(tag.split("/")[0].split("_")[1])
+            z_slice = idx2z_slice_241(plane)
     else:
         raise NotImplementedError(tag)
 
