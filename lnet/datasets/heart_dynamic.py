@@ -283,42 +283,46 @@ def get_tensor_info(tag: str, name: str, meta: dict):
 
     elif tag in [
         "plane_020/2019-12-03_02.19.20_125Hz",
-        "plane_020/2019-12-03_02.19.20_120Hz",
+        "plane_020/2019-12-03_02.19.20_100Hz",
         "plane_040/2019-12-03_02.16.43_125Hz",
-        "plane_040/2019-12-03_02.16.43_120Hz",
+        "plane_040/2019-12-03_02.16.43_100Hz",
         "plane_060/2019-12-03_02.14.24_125Hz",
-        "plane_060/2019-12-03_02.14.24_120Hz",
+        "plane_060/2019-12-03_02.14.24_100Hz",
         "plane_080/2019-12-03_02.12.08_125Hz",
-        "plane_080/2019-12-03_02.12.08_120Hz",
+        "plane_080/2019-12-03_02.12.08_100Hz",
         "plane_080/pos2/2019-12-03_02.47.30_125Hz",
-        "plane_080/pos2/2019-12-03_02.47.30_120Hz",
+        "plane_080/pos2/2019-12-03_02.47.30_100Hz",
         "plane_100/2019-12-03_02.09.03_125Hz",
-        "plane_100/2019-12-03_02.09.03_120Hz",
+        "plane_100/2019-12-03_02.09.03_100Hz",
         "plane_120/2019-12-03_01.57.26_125Hz",
-        "plane_120/2019-12-03_01.57.26_120Hz",
+        "plane_120/2019-12-03_01.57.26_100Hz",
         "plane_140/2019-12-03_02.23.56_125Hz",
-        "plane_140/2019-12-03_02.23.56_120Hz",
+        "plane_140/2019-12-03_02.23.56_100Hz",
         "plane_160/2019-12-03_02.26.32_125Hz",
-        "plane_160/2019-12-03_02.26.32_120Hz",
+        "plane_160/2019-12-03_02.26.32_100Hz",
         "plane_165/2019-12-03_02.33.46_125Hz",
-        "plane_165/2019-12-03_02.33.46_120Hz",
+        "plane_165/2019-12-03_02.33.46_100Hz",
         "plane_165_refocused/2019-12-03_02.38.29_125Hz",
-        "plane_165_refocused/2019-12-03_02.38.29_120Hz",
+        "plane_165_refocused/2019-12-03_02.38.29_100Hz",
     ]:
         crop_name = "fast_cropped_6ms"
         transformations = get_transformations(name, crop_name, meta=meta)
         if tag.endswith("_125Hz"):
             stack, channel = (2, 8)
-        elif tag.endswith("_120Hz"):
+        elif tag.endswith("_100Hz"):
             stack, channel = (2, 9)
         else:
             raise NotImplementedError(tag)
 
-        tag = tag.replace("_125Hz", "").replace("_120Hz", "")
+        tag = tag.replace("_125Hz", "").replace("_100Hz", "")
 
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/fast_cropped_6ms_SinglePlaneValidation/{tag}/stack_{stack}_channel_{channel}/"
         if name == "lf":
             location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+            if tag in ["plane_100/2019-12-03_02.09.03_125Hz"]:
+                transformations.insert(0, {"Crop": {"apply_to": name, "crop": [(0, None), (19, None), (0, None)]}})  # todo: crop 19 from top or bottom?
+                raise NotImplementedError("todo: crop 19 from top or bottom?")
+
         # elif name == "lr":
         #     location = location.replace("LF_partially_restored/", "LF_computed/")
         #     location += "TP_*/RCout/Cam_Right_*.tif"
