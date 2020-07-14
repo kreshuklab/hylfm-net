@@ -592,7 +592,7 @@ def get_raw_lf_shape(crop_name: str, *, wrt_ref: bool, nnum: int = None, scale: 
     elif crop_name == fast_cropped_8ms:
         ref_shape = [1273, 1254]  # crop on raw in matlab: rect_LF = [0, 0, 1350, 1350]; %[xmin, ymin, width, height];
     elif crop_name == fast_cropped_6ms:
-        ref_shape = [1024, 1024]  # [0,0,1024,1024]
+        ref_shape = [931, 931]  # [0,0,1024,1024]
     elif crop_name == gcamp:
         # crop on raw in matlab: rect_LF = [174, 324, 1700, 1400]; %[250, 300, 1550, 1350]; %[xmin, ymin, width, height];
         ref_shape = [1330, 1615]
