@@ -314,18 +314,24 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         else:
             raise NotImplementedError(tag)
 
+        if tag == "plane_100/2019-12-03_02.09.03_125Hz":
+            if name == "lf":
+                transformations.insert(
+                    0, {"Crop": {"apply_to": name, "crop": [(0, None), (0, 931), (0, None)]}}
+                )
+            elif name == "lr":
+                transformations.insert(
+                    0, {"Crop": {"apply_to": name, "crop": [(0, None), (0, None), (0, 931), (0, None)]}}
+                )
+
         tag = tag.replace("_125Hz", "").replace("_100Hz", "")
 
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191203_dynamic_staticHeart_tuesday/fish1/dynamic/fast_cropped_6ms_SinglePlaneValidation/{tag}/stack_{stack}_channel_{channel}/"
         if name == "lf":
             location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
-            if tag in ["plane_100/2019-12-03_02.09.03_125Hz"]:
-                transformations.insert(0, {"Crop": {"apply_to": name, "crop": [(0, None), (19, None), (0, None)]}})  # todo: crop 19 from top or bottom?
-                raise NotImplementedError("todo: crop 19 from top or bottom?")
-
-        # elif name == "lr":
-        #     location = location.replace("LF_partially_restored/", "LF_computed/")
-        #     location += "TP_*/RCout/Cam_Right_*.tif"
+        elif name == "lr":
+            location = location.replace("LF_partially_restored/", "/scratch/")
+            location += "TP_*/RCout/Cam_Right_*.tif"
         elif name == "ls_slice":
             location += "Cam_Left_*.h5/Data"
             samples_per_dataset = 500

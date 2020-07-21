@@ -529,9 +529,9 @@ def check_lr(tag: str, meta: dict, cache: bool=True):
 
     last_idx = len(lr) - 1
     print("last_idx", last_idx)
-    print(len(lr[last_idx]))
-    print(len(ls[last_idx]))
-    print(len(lf[last_idx]))
+    print("lr", lr[last_idx]["lr"].shape)
+    print("ls", ls[last_idx]["ls_slice"].shape)
+    print("lf", lf[last_idx]["lf"].shape)
 
 
 def check_filter(tag: str, meta: dict):
@@ -635,11 +635,11 @@ if __name__ == "__main__":
         # "11_2__2020-03-11_08.12.13__SinglePlane_-310",
         # "11_2__2020-03-11_06.53.14__SinglePlane_-330",
 
-        "09_3__2020-03-09_06.43.40__SinglePlane_-320",
+        # "09_3__2020-03-09_06.43.40__SinglePlane_-320",
         # "09_3__2020-03-09_06.43.40__SinglePlane_-330",
         # "09_3__2020-03-09_06.43.40__SinglePlane_-340",
         # "11_2__2020-03-11_07.30.39__SinglePlane_-320",
-        # "11_2__2020-03-11_07.30.39__SinglePlane_-310",
+        "11_2__2020-03-11_07.30.39__SinglePlane_-310",
         # "11_2__2020-03-11_06.53.14__SinglePlane_-330",
         ]:
         # check_filter(tag, meta=meta)
