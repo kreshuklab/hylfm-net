@@ -271,7 +271,6 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "10Hz/241Planes/"
         elif tag1 in [
             "2020-03-11_07.30.39",
-            "2020-03-11_07.30.39",
             "2020-03-11_10.13.20",
             "2020-03-11_10.13.20",
             "2020-03-11_10.25.41",
@@ -639,11 +638,15 @@ if __name__ == "__main__":
         # "09_3__2020-03-09_06.43.40__SinglePlane_-330",
         # "09_3__2020-03-09_06.43.40__SinglePlane_-340",
         # "11_2__2020-03-11_07.30.39__SinglePlane_-320",
-        "11_2__2020-03-11_07.30.39__SinglePlane_-310",
+        # "11_2__2020-03-11_07.30.39__SinglePlane_-310",
         # "11_2__2020-03-11_06.53.14__SinglePlane_-330",
+        "11_2__2020-03-11_10.33.17__SinglePlane_-340",
+        "11_2__2020-03-11_10.34.15__SinglePlane_-340",
+        "11_2__2020-03-11_10.35.41__SinglePlane_-340",
         ]:
+        check_data(tag, meta=meta)
         # check_filter(tag, meta=meta)
-        check_lr(tag, meta=meta, cache=True)
+        # check_lr(tag, meta=meta, cache=True)
 
 
 """
