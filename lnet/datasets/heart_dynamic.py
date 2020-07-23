@@ -245,6 +245,47 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             z_slice = idx2z_slice_241
 
     elif tag in [
+        "plane_090/2019-12-09_04.26.13_5ms",
+        "plane_090/2019-12-09_04.26.13_10ms",
+        "plane_090/2019-12-09_04.26.55_5ms",
+        "plane_090/2019-12-09_04.26.55_10ms",
+        "plane_090/2019-12-09_04.28.03_5ms",
+        "plane_090/2019-12-09_04.28.03_10ms",
+        "plane_120/2019-12-09_04.10.59_5ms",
+        "plane_120/2019-12-09_04.10.59_10ms",
+        "plane_120/2019-12-09_04.11.56_5ms",
+        "plane_120/2019-12-09_04.11.56_10ms",
+        "plane_120/2019-12-09_04.13.01_5ms",
+        "plane_120/2019-12-09_04.13.01_10ms",
+        "plane_150/2019-12-09_04.23.37_5ms",
+        "plane_150/2019-12-09_04.23.37_10ms",
+        "plane_150/2019-12-09_04.24.22_5ms",
+        "plane_150/2019-12-09_04.24.22_10ms",
+    ]:
+        crop_name = "fast_cropped_8ms"
+        transformations = get_transformations(name, crop_name, meta=meta)
+        if tag.endswith("_5ms"):
+            stack, channel = (2, 11)
+        elif tag.endswith("_10ms"):
+            stack, channel = (2, 10)
+        else:
+            raise NotImplementedError(tag)
+
+        tag = tag.replace("_5ms", "").replace("_10ms", "")
+
+        location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/fast_cropped_8ms/singlePlanes/fullyOpenIris/{tag}/stack_{stack}_channel_{channel}/"
+        if name == "lf":
+            location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
+        # elif name == "lr":
+        #     location = location.replace("LF_partially_restored/", "LF_computed/")
+        #     location += "TP_*/RCout/Cam_Right_*.tif"
+        elif name == "ls_slice":
+            location += "Cam_Left_*.h5/Data"
+            samples_per_dataset = 200
+            plane = int(tag.split("/")[0].split("_")[1])
+            z_slice = idx2z_slice_241(plane)
+
+    elif tag in [
         "plane_080/2019-12-09_04.02.24_5ms",
         "plane_080/2019-12-09_04.05.07_irisOpenedComplete_10ms",
         "plane_100/2019-12-09_03.44.34_5ms",

@@ -23,6 +23,7 @@ purely_dyn_network_dir = 'M:\lnet\logs\heart2\test_z_out49\f4\z_out49\f4_b2\20-0
 
 
 # BRAIN
+best: K:\LF_computed\lnet\logs\brain1\test_z_out49\f4\z_out49\f4_b2_only11_2\20-06-06_17-59-42\v1_checkpoint_37500_MS_SSIM=0.8822072593371073
 
 ## Cropping
 rect_LF = [174, 324, 1700, 1400]; %[xmin, ymin, width, height]; -> after this crop, rectified
@@ -36,6 +37,8 @@ extra crop on rectified: [323, 133, 1273, 988] %[xmin, ymin, width, height]
     fish2 (best fish)
         5 Hz
         10 Hz
+        
+        
 
 
 ## 10Hz
