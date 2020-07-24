@@ -313,9 +313,9 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/fast_cropped_8ms/singlePlanes/{tag}/stack_{stack}_channel_{channel}/"
         if name == "lf":
             location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
-        # elif name == "lr":
-        #     location = location.replace("LF_partially_restored/", "LF_computed/")
-        #     location += "TP_*/RCout/Cam_Right_*.tif"
+        elif name == "lr":
+            location = location.replace("LF_partially_restored/", "LF_computed/")
+            location += "TP_*/RCout/Cam_Right_*.tif"
         elif name == "ls_slice":
             location += "Cam_Left_*.h5/Data"
             samples_per_dataset = 200
@@ -619,7 +619,20 @@ def quick_check_all(meta: dict):
     # tags = ["2019-12-02_23.17.56", "2019-12-02_23.43.24", "2019-12-02_23.50.04", "2019-12-02_04.12.36_10msExp"]
     # tags = ["2019-12-09_04.54.38", "2019-12-09_05.21.16", "2019-12-09_05.41.14_theGoldenOne", "plane_100/2019-12-09_05.55.26"]
     # tags = ["2019-12-02_04.12.36_10msExp"]
-    tags = ["2019-12-02_23.43.24"]
+    tags = [
+        "plane_080/2019-12-09_04.02.24_5ms",
+        "plane_080/2019-12-09_04.05.07_irisOpenedComplete_10ms",
+        "plane_100/2019-12-09_03.44.34_5ms",
+        "plane_100/2019-12-09_03.46.56_10ms",
+        "plane_120/2019-12-09_03.41.23_5ms",
+        "plane_120/2019-12-09_03.42.18_10ms",
+        "plane_140/2019-12-09_03.55.51_5ms",
+        "plane_140/2019-12-09_03.56.44_10ms",
+        "plane_160/2019-12-09_03.58.24_5ms",
+        "plane_160/2019-12-09_03.58.24_10ms",
+        "plane_160/2019-12-09_03.59.45_5ms",
+        "plane_160/2019-12-09_03.59.45_10ms"
+    ]
     for tag in tags:
         try:
             lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
@@ -632,8 +645,14 @@ def quick_check_all(meta: dict):
             print(tag, e)
             ls_slice = []
 
-        if len(lf) != len(ls_slice) or len(ls_slice) == 0:
-            print(tag, len(lf), len(ls_slice))
+        try:
+            lr_slice = get_dataset_from_info(get_tensor_info(tag, "lr_slice", meta=meta), cache=False)
+        except Exception as e:
+            print(tag, e)
+            lr_slice = []
+
+        if len(lf) != len(ls_slice) or len(lf) != len(lr_slice) or len(ls_slice) == 0:
+            print(tag, len(lf), len(ls_slice), len(lr_slice))
         else:
             print(tag, len(lf))
 
