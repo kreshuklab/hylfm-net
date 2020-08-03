@@ -1,6 +1,7 @@
 import argparse
 import subprocess
 import sys
+import os
 import warnings
 from pathlib import Path
 
@@ -18,4 +19,11 @@ if __name__ == "__main__":
 
     task = tasks[task_nr]
 
-    subprocess.check_output(f"{sys.executable} -m lnet {task}", stderr=subprocess.STDOUT, shell=True)
+    subprocess.call(f"run_lnet.sh {task}")
+#     try:
+#         ret = subprocess.run(f"{sys.executable} -m lnet {task}".split(), shell=True, check=True, stderr=subprocess.STDOUT)
+#     except subprocess.CalledProcessError as e:
+#         print(e.output.decode())
+#         raise e
+#     else:
+#         print(ret.stdout.decode())
