@@ -2,13 +2,19 @@
     test:
         sample_transformations: &sample_trfs
             - Resize: {apply_to: lr, shape: [1.0, 121, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947], order: 2}
-            - Resize: {apply_to: ls, shape: [1.0, 0.14439140811455847255369928400955, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947], order: 2}  # 0.42105263157894736842105263157895‬=8/19
-            - Assert: {apply_to: ls, expected_tensor_shape: [null, 1, 121, null, null]}
+            - Resize: {apply_to: ls_reg, shape: [1.0, 0.14439140811455847255369928400955, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947], order: 2}  # 0.42105263157894736842105263157895‬=8/19
+            - Assert: {apply_to: ls_reg, expected_tensor_shape: [null, 1, 121, null, null]}
 
         sample_preprocessing: &sample_prepr
-            - Crop: {apply_to: [lr, ls], crop: [[0, null], [35, -35], [8, -8], [8, -8]]}
-    #         - Normalize01: {apply_to: lr, min_percentile: 5.0, max_percentile: 99.8}
-    #         - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
-            - Assert: {apply_to: {ls: ls_trf}, expected_tensor_shape: lr}
+            - Crop: {apply_to: [lr, ls_reg], crop: [[0, null], [32, -33], [6, -6], [8, -8]]}
+            - Normalize01: {apply_to: lr, min_percentile: 5.0, max_percentile: 99.8}
+            - Normalize01: {apply_to: ls_reg, min_percentile: 5.0, max_percentile: 99.99}
         datasets:
-            - {tensors: {lr: beads.b01highc_1_lr, ls: beads.b01highc_1_ls}, interpolation_order: 2}
+            - {tensors: {lr: beads.b01highc_1_lr, ls_reg: beads.b01highc_1_ls}}
+
+    train:
+        sample_transformations: *sample_trfs
+        sample_preprocessing: *sample_prepr
+        datasets:
+            - {tensors: {lr: beads.b01highc_2_lr, ls_reg: beads.b01highc_2_ls}}
+            - {tensors: {lr: beads.b01highc_0_lr, ls_reg: beads.b01highc_0_ls}}
