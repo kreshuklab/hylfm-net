@@ -1,9 +1,15 @@
+import re
 import typing
 from functools import wraps
 from pathlib import Path
 from time import perf_counter
 
 import torch
+
+
+def camel_to_snake(name):
+    name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", name).lower()
 
 
 def rename(newname):

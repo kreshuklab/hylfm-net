@@ -205,8 +205,9 @@ class DatasetFromInfo(torch.utils.data.Dataset):
         if z_slice is not None:
             assert has_z_slice is None or has_z_slice == z_slice
             tmeta["z_slice"] = z_slice
-            meta[self.tensor_name] = tmeta
 
+        assert self.tensor_name not in meta
+        meta[self.tensor_name] = tmeta
         return meta
 
     def shutdown(self):
@@ -235,7 +236,7 @@ class TiffDataset(DatasetFromInfo):
             logger.error(f"idx: {idx}, path_idx: {path_idx}, paths: {self.paths}")
             raise e
 
-        img: numpy.ndarray = imageio.volread(img_path)
+        img: numpy.ndarray = numpy.asarray(imageio.volread(img_path))
         if self.info.datasets_per_file > 1:
             img = img[idx : idx + 1]
 

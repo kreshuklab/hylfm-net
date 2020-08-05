@@ -10,7 +10,7 @@ from tifffile import imread
 logger = logging.getLogger(__name__)
 
 def get_bead_pos(img: numpy.ndarray, *, min_sigma: Union[float, Sequence[float]], max_sigma: Union[float, Sequence[float]], sigma_ratio: float, threshold: float, overlap: float, exclude_border: Union[Tuple[int, ...], int, bool]) -> List[numpy.ndarray]:
-    assert len(img.shape) == 5
+    assert len(img.shape) == 5, img.shape
     assert img.shape[1] == 1, "grey scale only"
 # home_brew:
 #     smooth = ndimage.gaussian_filter(img, [0, 0, 1, 2 * xy_factor, 2 * xy_factor], mode="constant", cval=img.mean())

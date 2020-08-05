@@ -71,7 +71,7 @@ def assemble_dataset_for_care(config: Dict[str, Any], data_path: Path, names: Se
             if tensor.dtype == numpy.float64:
                 tensor = tensor.astype(numpy.float32)
             else:
-                assert tensor.dtype == numpy.flaot32
+                assert tensor.dtype == numpy.float32
                 # assert tensor.dtype == numpy.uint16, (tensor.dtype, tensor.min, tensor.max)
 
             assert len(tensor.shape) == 5
@@ -117,6 +117,8 @@ if __name__ == "__main__":
 
         logger.info("save to: %s", sub_data_path)
         try:
-            assemble_dataset_for_care(sub_config, data_path=sub_data_path, names=("lr", "ls_reg"))
+            assemble_dataset_for_care(
+                sub_config, data_path=sub_data_path, names=("lr", "ls_reg" if config_path.stem == "beads" else "ls_trf")
+            )
         except Exception as e:
             logger.error(e, exc_info=True)
