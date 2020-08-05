@@ -50,6 +50,7 @@ class TensorInfo:
         transformations: Sequence[Dict[str, Any]] = tuple(),
         datasets_per_file: int = 1,
         samples_per_dataset: int = 1,
+        remove_singleton_axes_at: Sequence[int] = tuple(),
         insert_singleton_axes_at: Sequence[int] = tuple(),
         z_slice: Optional[Union[str, int, Callable[[int], int]]] = None,
         skip_indices: Sequence[int] = tuple(),
@@ -85,6 +86,7 @@ class TensorInfo:
         self.transformations = list(transformations)
         self.datasets_per_file = datasets_per_file
         self.samples_per_dataset = samples_per_dataset
+        self.remove_singleton_axes_at = remove_singleton_axes_at
         self.insert_singleton_axes_at = insert_singleton_axes_at
         self.z_slice = z_slice
         self.skip_indices = skip_indices
@@ -113,20 +115,22 @@ class TensorInfo:
 
     @property
     def description(self):
-        return yaml.safe_dump(
-            {
-                "name": self.name,
-                "root": self.root,
-                "location": self.location,
-                "transformations": [trf for trf in self.transformations if "Assert" not in trf],
-                "datasets_per_file": self.datasets_per_file,
-                "samples_per_dataset": self.samples_per_dataset,
-                "insert_singleton_axes_at": self.insert_singleton_axes_at,
-                "z_slice": self.z_slice.__name__ if callable(self.z_slice) else self.z_slice,
-                "skip_indices": list(self.skip_indices),
-                "kwargs": self.kwargs,
-            }
-        )
+        descr = {
+            "name": self.name,
+            "root": self.root,
+            "location": self.location,
+            "transformations": [trf for trf in self.transformations if "Assert" not in trf],
+            "datasets_per_file": self.datasets_per_file,
+            "samples_per_dataset": self.samples_per_dataset,
+            "insert_singleton_axes_at": self.insert_singleton_axes_at,
+            "z_slice": self.z_slice.__name__ if callable(self.z_slice) else self.z_slice,
+            "skip_indices": list(self.skip_indices),
+            "kwargs": self.kwargs,
+        }
+        if self.remove_singleton_axes_at:
+            descr["remove_singleton_axes_at"] = self.remove_singleton_axes_at
+
+        return yaml.safe_dump(descr)
 
 
 class DatasetFromInfo(torch.utils.data.Dataset):
@@ -146,6 +150,7 @@ class DatasetFromInfo(torch.utils.data.Dataset):
             ]
         )
 
+        self.remove_singleton_axes_at = info.remove_singleton_axes_at
         self.insert_singleton_axes_at = info.insert_singleton_axes_at
 
         self._z_slice_mod: Optional[int] = None
@@ -206,7 +211,6 @@ class DatasetFromInfo(torch.utils.data.Dataset):
             assert has_z_slice is None or has_z_slice == z_slice
             tmeta["z_slice"] = z_slice
 
-        assert self.tensor_name not in meta
         meta[self.tensor_name] = tmeta
         return meta
 
@@ -240,6 +244,9 @@ class TiffDataset(DatasetFromInfo):
         if self.info.datasets_per_file > 1:
             img = img[idx : idx + 1]
 
+        for axis in self.remove_singleton_axes_at:
+            img = numpy.squeeze(img, axis=axis)
+
         for axis in self.insert_singleton_axes_at:
             img = numpy.expand_dims(img, axis=axis)
 
@@ -258,6 +265,9 @@ class H5Dataset(DatasetFromInfo):
     def __init__(self, *, info: TensorInfo):
         if info.kwargs:
             raise NotImplementedError(info.kwargs)
+
+        if info.remove_singleton_axes_at:
+            raise NotImplementedError
 
         super().__init__(info=info)
         self._paths = None

@@ -67,7 +67,7 @@ def assemble_dataset_for_care(config: Dict[str, Any], data_path: Path, names: Se
         for name in names:
             tensor = tensors[name]
             assert isinstance(tensor, numpy.ndarray)
-            assert tensor.shape == shape
+            assert tensor.shape == shape, {name: tensors[name].shape for name in names}
             if tensor.dtype == numpy.float64:
                 tensor = tensor.astype(numpy.float32)
             else:
@@ -81,7 +81,7 @@ def assemble_dataset_for_care(config: Dict[str, Any], data_path: Path, names: Se
             assert len(tensor.shape) == 3
 
             file_path = data_path / name / f"{idx:05}.tif"
-            assert not file_path.exists(), file_path
+            # assert not file_path.exists(), file_path
             volwrite(file_path, tensor)
 
     with ThreadPoolExecutor(max_workers=16) as executor:
@@ -118,7 +118,8 @@ if __name__ == "__main__":
         logger.info("save to: %s", sub_data_path)
         try:
             assemble_dataset_for_care(
-                sub_config, data_path=sub_data_path, names=("lr", "ls_reg" if config_path.stem == "beads" else "ls_trf")
+                sub_config, data_path=sub_data_path, names=("lr", "pred", "ls_reg" if config_path.stem == "beads" else "ls_trf")
             )
         except Exception as e:
             logger.error(e, exc_info=True)
+            raise e
