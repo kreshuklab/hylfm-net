@@ -9,6 +9,7 @@ from typing import DefaultDict, Dict, List, Optional, Sequence, Set, TYPE_CHECKI
 import numpy
 import typing
 import yaml
+from tqdm import tqdm
 
 from lnet import settings
 
@@ -86,17 +87,18 @@ class DatasetStat:
 
                 return ret
 
+            print(f"compute hist with {settings.max_workers_for_hist} workers")
             if settings.max_workers_for_hist:
                 futs = []
                 with ThreadPoolExecutor(max_workers=settings.max_workers_for_hist) as executor:
                     for i in range(n):
                         futs.append(executor.submit(_compute_hist, i))
 
-                    for fut in as_completed(futs):
+                    for fut in tqdm(as_completed(futs), total=len(futs)):
                         for name, h in fut.result().items():
                             hist[name] = hist[name] + h  # somehow `+=` invovles casting to float64 which doesn't fly...
             else:
-                for i in range(n):
+                for i in tqdm(range(n), total=n):
                     ret = _compute_hist(i)
                     for name, h in ret.items():
                         hist[name] = hist[name] + h  # somehow `+=` invovles casting to float64 which doesn't fly...

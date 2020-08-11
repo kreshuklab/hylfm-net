@@ -62,6 +62,38 @@ class Cast(Transform, DTypeMapping):
             raise NotImplementedError(type(tensor))
 
 
+class AddSingletonDimension(Transform, DTypeMapping):
+    def __init__(self, axis: int, **super_kwargs):
+        super().__init__(**super_kwargs)
+        self.axis = axis
+
+    def apply_to_tensor(self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: List[dict]):
+        if isinstance(tensor, torch.Tensor):
+            return torch.unsqueeze(tensor, self.axis)
+        elif isinstance(tensor, numpy.ndarray):
+            return numpy.expand_dims(tensor, self.axis)
+        else:
+            raise NotImplementedError(type(tensor))
+
+
+class RemoveSingletonDimension(Transform, DTypeMapping):
+    def __init__(self, axis: int, **super_kwargs):
+        super().__init__(**super_kwargs)
+        self.axis = axis + 1
+
+    def apply_to_tensor(self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: List[dict]):
+        try:
+            if isinstance(tensor, torch.Tensor):
+                return torch.squeeze(tensor, self.axis)
+            elif isinstance(tensor, numpy.ndarray):
+                return numpy.squeeze(tensor, self.axis)
+            else:
+                raise NotImplementedError(type(tensor))
+        except Exception as e:
+            logger.error(e)
+            logger.error(f"%s %s %s", type(tensor), tensor.shape, self.axis)
+            raise e
+
 class Clip(Transform):
     def __init__(self, min_: float, max_: float, **super_kwargs):
         super().__init__(**super_kwargs)
@@ -103,16 +135,24 @@ class Assert(Transform):
         self, tensor: Any, *, name: str, idx: int, meta: typing.List[dict]
     ) -> Union[numpy.ndarray, torch.Tensor]:
         shape_is = tuple(tensor.shape)
-        expected_shape = meta[0][name]["Assert_expected_tensor_shape"] if isinstance(self.expected_shape, str) else self.expected_shape
+        expected_shape = (
+            meta[0][name]["Assert_expected_tensor_shape"]
+            if isinstance(self.expected_shape, str)
+            else self.expected_shape
+        )
         expected_shape_from = f" (from {self.expected_shape})" if isinstance(self.expected_shape, str) else ""
         if len(shape_is) != len(expected_shape):
-            raise ValueError(f"expected shape {expected_shape}{expected_shape_from}, but found {shape_is} for tensor {name}")
+            raise ValueError(
+                f"expected shape {expected_shape}{expected_shape_from}, but found {shape_is} for tensor {name}"
+            )
 
         for si, s in zip(shape_is, expected_shape):
             if s is None and si > 0:
                 continue
             elif si != s:
-                raise ValueError(f"expected shape {expected_shape}{expected_shape_from}, but found {shape_is} for tensor {name}")
+                raise ValueError(
+                    f"expected shape {expected_shape}{expected_shape_from}, but found {shape_is} for tensor {name}"
+                )
 
         logger.debug(f"{name} has expected shape: {shape_is}{expected_shape_from}")
         return tensor

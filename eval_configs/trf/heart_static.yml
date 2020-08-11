@@ -1,0 +1,4 @@
+#- Crop: {apply_to: [pred, ls_trf], crop: [[0, null], [10, -10], [0, null], [0, null]]}
+- Cast: {apply_to: [pred, ls_trf], dtype: float32, device: cpu}
+#- Clip: {apply_to: [pred, ls_trf], min_: .2, max_: 99999999}
+#- Clip: {apply_to: [pred], min_: 0, max_: 1}

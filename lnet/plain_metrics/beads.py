@@ -2,6 +2,7 @@ import logging
 from typing import Tuple, Union
 
 import numpy
+import typing
 
 from lnet.utils.detect_beads import match_beads
 from .base import Metric
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 class BeadPrecisionRecall(Metric):
     def __init__(
         self,
-        *,
+        *super_args,
         dist_threshold: float,
         scaling: Tuple[float, float, float],
         min_sigma: float,
@@ -21,13 +22,23 @@ class BeadPrecisionRecall(Metric):
         threshold: float,
         overlap: float,
         exclude_border: Union[Tuple[int, ...], int, bool],
-        pred: str = "pred",
-        tgt: str = "tgt",
-        meta: str = "meta",
+        tensor_names: typing.Optional[typing.Dict[str, str]] = None,
         **super_kwargs,
     ):
-        super().__init__(pred=pred, tgt=tgt, meta=meta, **super_kwargs)
-        self.pred_name = pred
+        if tensor_names is None:
+            tensor_names = {}
+
+        if "pred" not in tensor_names:
+            tensor_names["pred"] = "pred"
+
+        if "tgt" not in tensor_names:
+            tensor_names["tgt"] = "tgt"
+
+        if "meta" not in tensor_names:
+            tensor_names["meta"] = "meta"
+
+        super().__init__(*super_args, tensor_names=tensor_names, **super_kwargs)
+        self.pred_name = tensor_names["pred"]
         self.match_beads_kwargs = {
             "min_sigma": min_sigma,
             "max_sigma": max_sigma,

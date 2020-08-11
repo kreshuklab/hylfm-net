@@ -1,0 +1,11 @@
+#- Crop: {apply_to: [pred, ls_reg], crop: [[0, null], [3, -2], [2, -2], [0, null]]}  already cropped
+#- RemoveSingletonDimension: {apply_to: [ls_slice], axis: -1}
+#- AddSingletonDimension: {apply_to: [pred, ls_slice], axis: 0}
+#- AddSingletonDimension: {apply_to: [pred, ls_slice], axis: 0}
+- CropLSforDynamicTraining: {apply_to: ls_slice, meta: &meta {nnum: 19, z_out: 49, scale: &scale 4, shrink: &shrink 8, interpolation_order: 2, z_ls_rescaled: 241, pred_z_min: 0, pred_z_max: 838, crop_names: [Heart_tightCrop]}}
+- Assert: {apply_to: ls_slice, expected_tensor_shape: [null, null, 1, 252, 296]}
+- Cast: {apply_to: [pred, ls_slice], dtype: float32, device: cpu}
+- AffineTransformationDynamicTraining: {apply_to: {pred: pred_slice}, target_to_compare_to: ls_slice, meta: *meta}
+- Cast: {apply_to: pred_slice, dtype: float32, device: numpy}
+#- AffineTransformationDynamicTraining: {apply_to: {pred: pred_vol}, target_to_compare_to: [49, ls_slice], meta: *meta}
+#- Cast: {apply_to: pred_vol, dtype: float32, device: numpy}

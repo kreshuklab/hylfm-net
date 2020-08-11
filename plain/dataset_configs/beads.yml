@@ -29,18 +29,19 @@ f8_01highc:
             - Assert: {apply_to: ls_reg, expected_tensor_shape: [null, 1, 121, null, null]}
         sample_preprocessing: &f8_sample_prepr
             - Assert: {apply_to: pred, expected_tensor_shape: [null, 1, 51, null, null]}
-            - Crop: {apply_to: [lr, ls_reg], crop: [[0, null], [37, -36], [8, -8], [8, -8]]}
-            - Crop: {apply_to: [pred], crop: [[0, null], [2, -1], [0, null], [0, null]]}
+            - Crop: {apply_to: [lr, ls_reg], crop: [[0, null], [35, -35], [8, -8], [8, -8]]}
+#            - Crop: {apply_to: [pred], crop: [[0, null], [2, -1], [0, null], [0, null]]}
             - Normalize01: {apply_to: lr, min_percentile: 5.0, max_percentile: 99.8}
             - Normalize01: {apply_to: ls_reg, min_percentile: 5.0, max_percentile: 99.99}
+            - Assert: {apply_to: {pred: hylfm}, expected_tensor_shape: [null, 1, 51, null, null]}
         datasets:
-            - {tensors: {lr: beads.b01highc_1_lr, ls_reg: beads.b01highc_1_ls, pred: {name: pred, root: logs, location: beads1/test_z_out51/01highc_f8_for_care/beads/01highc/20-04-21_11-41-43/v1_checkpoint_SmoothL1Loss=-0.00012947025970788673/beads.b01highc_1_lf/run000/ds0-0/pred/*.tif, remove_singleton_axes_at: [-1], insert_singleton_axes_at: [0, 0]}}}
+            - {tensors: {lr: beads.b01highc_1_lr, ls_reg: beads.b01highc_1_ls, pred: {root: logs, location: beads1/test_z_out51/01highc_f8_for_care/beads/01highc/20-04-21_11-41-43/v1_checkpoint_SmoothL1Loss=-0.00012947025970788673/beads.b01highc_1_lf/run000/ds0-0/pred/*.tif, remove_singleton_axes_at: [-1], insert_singleton_axes_at: [0, 0]}}}
 #        sample_postprocessing:
 #            - Crop: {apply_to: pred, crop: [[0, null], [3, -2], [0, null], [0, null]]}
-
-    train:
-        sample_transformations: *f8_sample_trfs
-        sample_preprocessing: *f8_sample_prepr
-        datasets:
-            - {tensors: {lr: beads.b01highc_2_lr, ls_reg: beads.b01highc_2_ls, pred: {name: pred, root: logs, location: beads1/test_z_out51/01highc_f8_for_care/beads/01highc/20-04-21_11-41-43/v1_checkpoint_SmoothL1Loss=-0.00012947025970788673/beads.b01highc_2_lf/run000/ds0-0/pred/*.tif, remove_singleton_axes_at: [-1], insert_singleton_axes_at: [0, 0]}}}
-            - {tensors: {lr: beads.b01highc_0_lr, ls_reg: beads.b01highc_0_ls, pred: {name: pred, root: logs, location: beads1/test_z_out51/01highc_f8_for_care/beads/01highc/20-04-21_11-41-43/v1_checkpoint_SmoothL1Loss=-0.00012947025970788673/beads.b01highc_0_lf/run000/ds0-0/pred/*.tif, remove_singleton_axes_at: [-1], insert_singleton_axes_at: [0, 0]}}}
+#
+#    train:
+#        sample_transformations: *f8_sample_trfs
+#        sample_preprocessing: *f8_sample_prepr
+#        datasets:
+#            - {tensors: {lr: beads.b01highc_0_lr, ls_reg: beads.b01highc_0_ls, pred: {root: logs, location: beads1/test_z_out51/01highc_f8_for_care/beads/01highc/20-04-21_11-41-43/v1_checkpoint_SmoothL1Loss=-0.00012947025970788673/beads.b01highc_0_lf/run000/ds0-0/pred/*.tif, remove_singleton_axes_at: [-1], insert_singleton_axes_at: [0, 0]}}}
+#            - {tensors: {lr: beads.b01highc_2_lr, ls_reg: beads.b01highc_2_ls, pred: {root: logs, location: beads1/test_z_out51/01highc_f8_for_care/beads/01highc/20-04-21_11-41-43/v1_checkpoint_SmoothL1Loss=-0.00012947025970788673/beads.b01highc_2_lf/run000/ds0-0/pred/*.tif, remove_singleton_axes_at: [-1], insert_singleton_axes_at: [0, 0]}}}

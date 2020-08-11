@@ -1,6 +1,6 @@
 from .affine import AffineTransformation, AffineTransformationDynamicTraining
 from .base import ComposedTransformation, Transform, TransformLike
-from .generic import Assert, Cast, Clip
+from .generic import Assert, Cast, Clip, AddSingletonDimension, RemoveSingletonDimension
 from .image import (
     Crop,
     CropLSforDynamicTraining,

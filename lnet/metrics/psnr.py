@@ -46,12 +46,13 @@ def psnr(pred: torch.Tensor, target: torch.Tensor, data_range: float) -> float:
     assert pred.shape == target.shape
     if data_range is None:
         data_range = target.max() - target.min()
+        assert data_range == 1, "todo: remove"
 
     with torch.no_grad():
         ret = 0
         # average psnr over batch dim
         for p, t in zip(pred, target):
-            ret += 10 * torch.log10(data_range ** 2 / torch.nn.functional.mse_loss(p, t)).item()
+            ret += (20 * torch.log10(data_range) - 10 * torch.log10(torch.nn.functional.mse_loss(p, t))).item()
 
     return ret / target.shape[0]
 
@@ -75,3 +76,4 @@ class PSNR(ignite.metrics.Metric):
         if self._num_examples == 0:
             raise NotComputableError("PSNR must have at least one example before it can be computed.")
         return self._sum / self._num_examples
+

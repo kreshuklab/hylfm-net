@@ -195,7 +195,7 @@ class DatasetSetup:
             if isinstance(info_name, str):
                 info = get_tensor_info(info_name=info_name, name=name, meta=meta)
             elif isinstance(info_name, dict):
-                info = TensorInfo(**info_name)
+                info = TensorInfo(name=name, **info_name)
             else:
                 raise TypeError(info_name)
 

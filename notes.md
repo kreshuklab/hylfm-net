@@ -37,8 +37,6 @@ extra crop on rectified: [323, 133, 1273, 988] %[xmin, ymin, width, height]
     fish2 (best fish)
         5 Hz
         10 Hz
-        
-        
 
 
 ## 10Hz

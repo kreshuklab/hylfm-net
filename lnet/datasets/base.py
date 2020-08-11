@@ -116,7 +116,7 @@ class TensorInfo:
     @property
     def description(self):
         descr = {
-            "name": self.name,
+            # "name": self.name,
             "root": self.root,
             "location": self.location,
             "transformations": [trf for trf in self.transformations if "Assert" not in trf],
@@ -352,19 +352,21 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
         )
         data_file_path.with_suffix(".txt").write_text(description)
 
-        logger.warning("cache %s_%s to %s", dataset.info.tag, dataset.tensor_name, data_file_path)
-        tensor_name = self.dataset.tensor_name
-        self.data_file = data_file = z5py.File(path=str(data_file_path), mode="a", use_zarr_format=False)
-        shape = data_file[tensor_name].shape if tensor_name in data_file else None
+        self.from_source = not dataset.transform.transforms
+        if not self.from_source:
+            logger.warning("cache %s_%s to %s", dataset.info.tag, dataset.tensor_name, data_file_path)
+            tensor_name = self.dataset.tensor_name
+            self.data_file = data_file = z5py.File(path=str(data_file_path), mode="a", use_zarr_format=False)
+            shape = data_file[tensor_name].shape if tensor_name in data_file else None
 
-        if shape is None:
-            _len = len(dataset)
-            sample = dataset[0]
-            tensor = sample[tensor_name]
-            tensor_shape = tuple(tensor.shape)
-            assert tensor_shape[0] == 1, tensor_shape  # expected explicit batch dimension
-            shape = (_len,) + tensor_shape[1:]
-            data_file.create_dataset(tensor_name, shape=shape, chunks=tensor_shape, dtype=tensor.dtype)
+            if shape is None:
+                _len = len(dataset)
+                sample = dataset[0]
+                tensor = sample[tensor_name]
+                tensor_shape = tuple(tensor.shape)
+                assert tensor_shape[0] == 1, tensor_shape  # expected explicit batch dimension
+                shape = (_len,) + tensor_shape[1:]
+                data_file.create_dataset(tensor_name, shape=shape, chunks=tensor_shape, dtype=tensor.dtype)
 
         # self.futures = {}
         # global N5CachedDataset_executor, N5CachedDataset_executor_user_count
@@ -402,10 +404,15 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
     def __getitem__(self, idx) -> typing.OrderedDict[str, numpy.ndarray]:
         idx = int(idx)
         idx //= self.repeat
-        self.submit(idx)  # .result()
-        z5dataset = self.data_file[self.dataset.tensor_name]
-        assert idx < z5dataset.shape[0], z5dataset.shape
-        return OrderedDict([(self.dataset.tensor_name, z5dataset[idx : idx + 1])])
+        if self.from_source:
+            tensor = self.dataset[idx][self.dataset.tensor_name]
+        else:
+            self.submit(idx)  # .result()
+            z5dataset = self.data_file[self.dataset.tensor_name]
+            assert idx < z5dataset.shape[0], z5dataset.shape
+            tensor = z5dataset[idx : idx + 1]
+
+        return OrderedDict([(self.dataset.tensor_name, tensor)])
 
     def __len__(self):
         return len(self.dataset) * self.repeat
@@ -596,7 +603,6 @@ class ZipDataset(torch.utils.data.Dataset):
         super().__init__()
         datasets: typing.OrderedDict[str, N5CachedDatasetFromInfoSubset] = OrderedDict(**datasets)
         assert len(datasets) > 0
-
         if join_dataset_masks:
             base_len = len(list(datasets.values())[0].dataset)
             assert all([len(ds.dataset) == base_len for ds in datasets.values()]), (
@@ -611,7 +617,7 @@ class ZipDataset(torch.utils.data.Dataset):
                 ds.mask = joined_mask
 
         _len = len(list(datasets.values())[0])
-        assert all(len(ds) == _len for ds in datasets.values())
+        assert all(len(ds) == _len for ds in datasets.values()), {name: len(ds) for name, ds in datasets.items()}
         self._len = _len
         self.datasets = datasets
         self.transformation = transformation

@@ -40,7 +40,7 @@ class Transform:
         if self.apply_to is not None:
             cant_apply = [at for at in self.apply_to if at not in tensors]
             if cant_apply:
-                raise ValueError(f"`apply_to` keys {cant_apply} not found in tensors {tensors}")
+                raise ValueError(f"`apply_to` keys {cant_apply} not found in tensors {list(tensors.keys())}")
 
         initial_meta = tensors.get("meta", None)
         if initial_meta is None:

@@ -1,6 +1,7 @@
 import numpy
 import torch
 import torch.nn.functional
+import typing
 from ignite.exceptions import NotComputableError
 from skimage.measure.simple_metrics import compare_nrmse
 
@@ -44,8 +45,15 @@ class NRMSE_SkImage(Metric):
 
 
 class NRMSE(Metric):
-    def __init__(self, pred: str = "pred", tgt: str = "tgt", **super_kwargs):
-        super().__init__(pred=pred, tgt=tgt, **super_kwargs)
+    def __init__(self, *super_args, tensor_names: typing.Dict[str, str], **super_kwargs):
+        if "pred" not in tensor_names:
+            tensor_names["pred"] = "pred"
+
+        if "tgt" not in tensor_names:
+            tensor_names["tgt"] = "tgt"
+
+        assert len(tensor_names) == 2
+        super().__init__(*super_args, tensor_names=tensor_names, **super_kwargs)
 
     def reset(self):
         self._num_samples: int = 0

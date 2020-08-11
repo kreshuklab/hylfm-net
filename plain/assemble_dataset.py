@@ -1,8 +1,17 @@
 import logging.config
+import os
 from argparse import ArgumentParser
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, Sequence
+
+if __name__ == "__main__":
+    os.nice(21)
+    os.environ["OMP_NUM_THREADS"] = "1"
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+    os.environ["MKL_NUM_THREADS"] = "1"
+    os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+    os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 import numpy
 import tifffile
@@ -82,7 +91,8 @@ def assemble_dataset_for_care(config: Dict[str, Any], data_path: Path, names: Se
 
             file_path = data_path / name / f"{idx:05}.tif"
             # assert not file_path.exists(), file_path
-            volwrite(file_path, tensor)
+            if not file_path.exists():
+                volwrite(file_path, tensor)
 
     with ThreadPoolExecutor(max_workers=16) as executor:
         futs = []
@@ -96,30 +106,57 @@ def assemble_dataset_for_care(config: Dict[str, Any], data_path: Path, names: Se
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description="care prepper")
+    parser = ArgumentParser(description="assemble dataset")
     parser.add_argument("config_path", type=Path)
-    parser.add_argument("names", nargs="+")
-    parser.add_argument("--data_root", type=Path, default=Path("/scratch/beuttenm/lnet/care"))
+    parser.add_argument("subpaths", nargs="+")
+    parser.add_argument("--test_data_root", type=Path, default=Path("/g/kreshuk/LF_computed/lnet/plain"))
+    parser.add_argument("--train_data_root", type=Path, default=Path("/scratch/beuttenm/lnet/plain"))
 
     args = parser.parse_args()
     config_path = args.config_path.absolute()
+
+    test_data_root = args.test_data_root / config_path.stem
+    train_data_root = args.train_data_root / config_path.stem
+
     logger.info("config_path: %s", config_path)
     assert config_path.exists()
-    data_path = args.data_root / config_path.stem
     config = yaml.load(args.config_path)
-    logger.info("selection: %s", args.names)
-    for name in args.names:
-        sub_config = config
-        sub_data_path = data_path
-        for name_part in name.split("/"):
-            sub_config = sub_config[name_part]
-            sub_data_path /= name_part
+    for subpath in args.subpaths:
+        logger.info("subpath %s", subpath)
+        if subpath.split("/")[-1] == "train":
+            data_path = train_data_root / subpath
+        elif subpath.split("/")[-1] == "test":
+            data_path = test_data_root / subpath
+        else:
+            raise ValueError(subpath)
 
-        logger.info("save to: %s", sub_data_path)
+        logger.info("save %s to: %s", subpath, data_path)
+
+        sub_config = config
+        for name_part in subpath.split("/"):
+            sub_config = sub_config[name_part]
+
+        data_names = ["lr"]
+        if "01highc" in subpath:
+            data_names.append("ls_reg")
+            data_names.append("hylfm")
+        elif "dynamic" in subpath:
+            data_names.append("ls_slice")
+            data_names.append("hylfm_stat")
+            data_names.append("hylfm_dyn")
+        elif "static1" in subpath:
+            data_names.append("ls_trf")
+            data_names.append("hylfm_stat")
+            data_names.append("hylfm_dyn")
+        elif "static2" in subpath:
+            data_names.append("ls_trf")
+            data_names.append("hylfm_stat")
+            data_names.append("hylfm_dyn")
+        else:
+            raise NotImplementedError(subpath)
+
         try:
-            assemble_dataset_for_care(
-                sub_config, data_path=sub_data_path, names=("lr", "pred", "ls_reg" if config_path.stem == "beads" else "ls_trf")
-            )
+            assemble_dataset_for_care(sub_config, data_path=data_path, names=tuple(data_names))
         except Exception as e:
             logger.error(e, exc_info=True)
             raise e
