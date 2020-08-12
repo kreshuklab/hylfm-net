@@ -1,5 +1,6 @@
 import typing
 from collections import OrderedDict
+from copy import deepcopy
 
 import numpy
 import torch.nn
@@ -22,12 +23,18 @@ class Metric:
             assert to_minimize is not None
             assert vs is not None
 
-            self.vs_norm = f"vs_{vs}_normalized"
+            self.vs_norm = f"{vs}_normalized"
             scaled = f"scaled_{scale}_to_minimize_{to_minimize}_vs_{self.vs_norm}"
-            tensor_names = {
-                name: scaled if expected_name == scale else self.vs_norm if expected_name == vs else expected_name
-                for name, expected_name in tensor_names.items()
-            }
+            if isinstance(tensor_names, list):
+                tensor_names = [
+                    scaled if expected_name == scale else self.vs_norm if expected_name == vs else expected_name
+                    for expected_name in tensor_names
+                ]
+            else:
+                tensor_names = {
+                    name: scaled if expected_name == scale else self.vs_norm if expected_name == vs else expected_name
+                    for name, expected_name in tensor_names.items()
+                }
 
             scale_fn_name = f"scale_to_minimize_{to_minimize}"
             if not hasattr(self, scale_fn_name):
@@ -53,7 +60,7 @@ class Metric:
     def reset(self):
         raise NotImplementedError
 
-    def update(self, tensors: typing.OrderedDict) -> None:
+    def prepare_for_update(self, tensors: typing.OrderedDict) -> typing.OrderedDict:
         for unnormed, normed in self.map_unnormed.items():
             if normed not in tensors:
                 tensors[normed] = self.norm(tensors[unnormed])
@@ -62,11 +69,35 @@ class Metric:
             if scaled not in tensors:
                 tensors[scaled] = self.scale(tensors[unscaled], tensors[self.vs_norm])
 
-        assert all([expected_name in tensors for expected_name in self.tensor_names.values()]), (
-            self.tensor_names,
-            list(tensors.keys()),
-        )
-        self.update_impl(**{name: tensors[expected_name] for name, expected_name in self.tensor_names.items()})
+        if isinstance(self.tensor_names, list):
+            assert all([expected_name in tensors for expected_name in self.tensor_names]), (
+                self.tensor_names,
+                list(tensors.keys()),
+            )
+        else:
+            assert all([expected_name in tensors for expected_name in self.tensor_names.values()]), (
+                self.tensor_names,
+                list(tensors.keys()),
+            )
+
+        return tensors
+
+    def update(self, tensors: typing.OrderedDict) -> None:
+        tensors = self.prepare_for_update(tensors)
+
+        # def clone_tensor(tensor):
+        #     if isinstance(tensor, torch.Tensor):
+        #         return tensor.clone()
+        #     elif isinstance(tensor, numpy.ndarray):
+        #         return numpy.copy(tensor)
+        #     elif isinstance(tensor, list):
+        #         return deepcopy(tensor)
+        #     else:
+        #         raise NotImplementedError(type(tensor))
+
+        self.update_impl(
+            **{name: tensors[expected_name] for name, expected_name in self.tensor_names.items()}
+        )  # todo: remove clone and test that metric does not change input data instead
 
     def update_impl(self, **kwargs) -> None:
         raise NotImplementedError
@@ -193,7 +224,7 @@ class LossAsMetric(Metric):
 #     pass
 
 
-class AlongDimMetric:
+class AlongDimMetric(Metric):
     def __init__(
         self,
         *,
@@ -201,21 +232,31 @@ class AlongDimMetric:
         dim_len: int,
         metric_class,
         dim_names: typing.Optional[typing.Dict[int, str]] = None,
-        **metric_kwargs,
+        postfix: str = "",
+        tensor_names: typing.Optional[typing.Dict[str, str]],
+        scale: typing.Optional[str] = None,
+        to_minimize: typing.Optional[str] = None,  # for scale
+        vs: typing.Optional[str] = None,  # for scale,
+        **sub_metric_kwargs,
     ):
+
+        self.submetrics = []  # for reset
+        super().__init__(postfix=postfix, tensor_names=tensor_names, scale=scale, to_minimize=to_minimize, vs=vs)
+        self.submetrics = [metric_class(tensor_names=self.tensor_names, **sub_metric_kwargs) for i in range(dim_len)]
+        self.along_dim = along_dim
         assert dim_len > 0
+
         if dim_names is None:
             dim_names = {0: "batch", 1: "channel", 2: "z", 3: "y", 4: "x"}
 
-        self.submetrics = [metric_class(**metric_kwargs) for i in range(dim_len)]
-        self.additional_postfix = f"-along_{dim_names[along_dim]}"
-        self.along_dim = along_dim
+        self.postfix += f"-along_{dim_names[along_dim]}"
 
     def reset(self):
         for metric in self.submetrics:
             metric.reset()
 
     def update(self, tensors: typing.OrderedDict) -> None:
+        tensors = self.prepare_for_update(tensors)
         subtensors = list(self.slice_along(self.along_dim, tensors))
         assert len(subtensors) == len(self.submetrics), (len(subtensors), len(self.submetrics))
         for metric, stensors in zip(self.submetrics, subtensors):
@@ -224,11 +265,11 @@ class AlongDimMetric:
     def compute(self) -> typing.Dict[str, typing.List[float]]:
         subresults = [metric.compute() for metric in self.submetrics]
         subresults_keys = {k for k in subresults[0]}
-        result = {k + self.additional_postfix: [] for k in subresults_keys}
+        result = {k + self.postfix: [] for k in subresults_keys}
         for sr in subresults:
             assert set(sr.keys()) == subresults_keys
             for k, v in sr.items():
-                result[k + self.additional_postfix].append(v)
+                result[k + self.postfix].append(v)
 
         return result
 

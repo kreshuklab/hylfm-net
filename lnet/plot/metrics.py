@@ -21,7 +21,7 @@ from ruamel.yaml import YAML
 yaml = YAML(typ="safe")
 
 
-def get_datasets(all_paths, scalar_data, metric_name):
+def get_datasets(all_paths, scalar_data, metric_name, z_slice_mod):
     length = None
     lengths = None
     datasets = []
@@ -51,7 +51,7 @@ def get_datasets(all_paths, scalar_data, metric_name):
                     type(mps) for mps in metric_per_sample
                 ]
                 if lengths is None:
-                    lengths = [1 for mps in metric_per_sample]
+                    lengths = [1] * len(metric_per_sample)
                     # assert isinstance(metric_per_sample, list)
                 else:
                     assert lengths == [len(mps) for mps in metric_per_sample]
@@ -59,6 +59,8 @@ def get_datasets(all_paths, scalar_data, metric_name):
         else:
             assert length // z_slice_mod == length / z_slice_mod
 
+        # print(n)
+        # print(metric_per_sample[length // 2 - 5: length//2+5])
         datasets.append(metric_per_sample)
 
     if z_slice_mod is None:
@@ -68,37 +70,74 @@ def get_datasets(all_paths, scalar_data, metric_name):
         else:
             assert lengths is not None
             z_slice = numpy.concatenate([numpy.arange(l) for l in lengths])
-            z = (z_slice - 49 / 2) * 5
+            z = (z_slice - z_slice.max() // 2) * 5
+            assert -z.min() == z.max()
     else:
         z_slice = numpy.tile(numpy.arange(z_slice_mod), length // z_slice_mod)
-        z = (z_slice - 209 / 2) * 2
+        z = -z_slice + z_slice.max() // 2
+        assert -z.min() == z.max()
 
     return datasets, z_slice, z
 
 
-if __name__ == "__main__":
-    parser = ArgumentParser(description="plot metrics")
-    # parser.add_argument("paths", nargs="+", type=Path)
-    # parser.add_argument("--names", nargs="+", type=str)
-    # parser.add_argument("--slice_mod", default=209, type=int)
-
-    # args = parser.parse_args()
-    #
-    # assert len(args.paths) == len(args.names)
-
+def add_plot(plot_name, axes):
+    # metric_postfix = "-clip0-0_98-0"
+    # metric_postfix = "-clip4-0_96-0"
+    # metric_postfix = "-clip5-0_99-9"
+    # metric_postfix = "-clip5-0_98-0"
+    # metric_postfix = "-clip20-0_80-0"
+    # metric_postfix = "-80-80"
     metric_postfix = ""
+    use_local_data = False
 
-    use_local_data = True
-    if use_local_data:
-        test_data_path = Path("C:/Users/fbeut/Desktop/lnet_stuff/plots/data/heart/static1")
+    if plot_name == "heart_static_1":
+        along_z = "-along_z"
+        scalar_data = [
+            ["hylfm_dyn", True],
+            ["hylfm_stat", True],
+            ["lr", True],
+            # ["v0_on_48x88x88", True],
+            # ["hylfm_dyn", False],
+            # ["hylfm_stat", False],
+            # ["v0_on_48x88x88", False],
+        ]
+        z_slice_mod: typing.Optional[int] = None  # 209 None
+        nets = ["lr", "hylfm_dyn", "hylfm_stat", "v0_on_48x88x88"]
+        if use_local_data:
+            test_data_path = Path("C:/Users/fbeut/Desktop/lnet_stuff/plots/data/heart/static1")
+        else:
+            test_data_path = Path("K:/LF_computed/lnet/plain/heart/static1/test")
+    elif plot_name == "heart_dynamic_1" and not use_local_data:
+        along_z = ""
+        scalar_data = [
+            ["hylfm_dyn", True],
+            ["hylfm_stat", True],
+            ["lr", True],
+            # ["v0_on_48x88x88", True],
+            # ["hylfm_dyn", False],
+            # ["hylfm_stat", False],
+            # ["v0_on_48x88x88", False],
+        ]
+        z_slice_mod: typing.Optional[int] = 209  # 209 None
+        nets = ["lr", "hylfm_dyn", "hylfm_stat", "v0_on_48x88x88"]
+        test_data_path = Path("K:/LF_computed/lnet/plain/heart/dynamic1/test/metric_copy")
+    elif plot_name == "beads" and not use_local_data:
+        along_z = "-along_z"
+        scalar_data = [["hylfm", True], ["lr", True]]
+        scalar_data.append(["v0_on_56x80x80", True])
+        z_slice_mod: typing.Optional[int] = None  # 209 None
+        nets = ["lr", "hylfm", "v0_on_56x80x80"]
+        test_data_path = Path("K:/LF_computed/lnet/plain/beads/f8_01highc/test")
     else:
-        test_data_path = Path("K:/LF_computed/lnet/plain/heart/static1/test")
-    z_slice_mod: typing.Optional[int] = None  # 209 None
-    # care_result_path = Path("K:/LF_computed/lnet/care/results/heart")
-    # hylfm_result_path = Path("K:/LF_computed/lnet/hylfm/results")
-    # lr_result_path = Path("K:/LF_computed/lnet/hylfm/results")
+        raise NotImplementedError
+
+    plot_name += metric_postfix + ""
+    title = ""  #  f"{net} {metric} on static heart"
+    x_name = "z"
+    map_labels = {}
+
     all_paths = {}
-    for net in ["lr", "hylfm_dyn", "hylfm_stat", "v0_on_48x88x88"]:
+    for net in nets:
         all_paths[net] = {}
         if use_local_data:
             result_path = test_data_path / net
@@ -106,89 +145,140 @@ if __name__ == "__main__":
             result_path = test_data_path / net / "metrics"
 
         all_paths[net] = {}
-        for metric_name in ["PSNR", "NRMSE", "SSIM", "MS-SSIM", "MSE"]:
+        for metric_name in ["PSNR", "NRMSE", "SSIM", "MS-SSIM", "MSE", "Smooth L1"]:
             all_paths[net][metric_name] = {}
-            if metric_name in ["MSE"]:
+            if metric_name in ["MSE", "Smooth L1"]:
                 in_file_metric_name = metric_name + "_loss"
             else:
                 in_file_metric_name = metric_name
 
-            in_file_metric_name = in_file_metric_name.replace("-", "_")
+            in_file_metric_name = in_file_metric_name.replace("-", "_").replace(" ", "_")
             for scaled in [False, True]:
                 ifmn = in_file_metric_name + metric_postfix
                 if scaled:
                     ifmn += "-scaled"
 
-                ifmn += "-along_z"
+                ifmn += along_z
                 file_name = f"{ifmn.lower()}.yml"
                 all_paths[net][metric_name][scaled] = result_path / file_name
 
     # pprint(all_paths)
 
     better_network_names = {
+        "hylfm": "HyLFM-Net",
         "hylfm_dyn": "HyLFM-Net dyn",
         "hylfm_stat": "HyLFM-Net stat",
-        "v0_on_48x88x88": "CARE",
+        "v0_on_48x88x88": "LFD+CARE",
+        "v0_on_56x80x80": "LFD+CARE",
         "lr": "LFD",
     }
     palette = {
+        "HyLFM-Net": "#648FFF",
         "HyLFM-Net stat": "#648FFF",
         "HyLFM-Net dyn": "#785EF0",
-        "CARE": "#DC267F",
+        "LFD+CARE": "#DC267F",
         "LFD": "#FFB000",
     }  # blue: #648FFF, purple: #785EF0, red: #DC267F, dark orange: #FE6100, orange: #FFB000
 
-    legend_loc = {"PSNR": "upper right", "NRMSE": "upper center", "SSIM": "lower left", "MS-SSIM": "lower left", "MSE": "upper left"}
+    # legend_loc = {
+    #     "PSNR": "upper right",
+    #     "NRMSE": None, #"off",
+    #     "SSIM": None, #"off",
+    #     "MS-SSIM": None, #"off",
+    #     "MSE": None, #"off",
+    #     "Smooth L1": None, #"off",
+    # }
+    legend_loc = {
+        "PSNR": "off"
+        if plot_name.startswith("beads")
+        else "upper center"
+        if plot_name.startswith("heart_dynamic_1")
+        else "upper right",
+        "NRMSE": "off",
+        "SSIM": "off",
+        "MS-SSIM": "lower right" if plot_name.startswith("beads") else "off",
+        "MSE": "off",
+        "Smooth L1": "off",
+    }
 
     # fig, axes = plt.subplots(2, 3, figsize=(18, 10), squeeze=False)
-    fig, axes = plt.subplots(3, 1, figsize=(4, 10))
-    axes = axes.flatten()
+    # fig, axes = plt.subplots(2, 3, figsize=(9, 5))
 
-    plot_name = "fig2d"
+    scalar_columns = ["network", "scaled", "key"]
+
+    plot_name += "overview"
     # metrics = ["PSNR", "MSE", "NRMSE", "SSIM", "MS-SSIM", None]
-    metrics = ["PSNR", "SSIM", "MS-SSIM"]  #, "PSNR", "MSE", "NRMSE", "SSIM", "MS-SSIM", None]
+    metrics = [
+        "MS-SSIM",
+        "SSIM",
+        "PSNR",
+        "NRMSE",
+        # "MSE",
+        # "Smooth L1",
+    ]  # , "PSNR", "MSE", "NRMSE", "SSIM", "MS-SSIM", None]
+    # metrics = ["PSNR"]
+    # legends = [None, {}, None, None, None, None]
     for i, metric_name in enumerate(metrics):
+        scalar_data_here = [list(sd) for sd in scalar_data]
         ax = axes[i]
+        if plot_name.startswith("heart_static_1"):
+            if metric_name == "MSE":
+                ax.set_ylim(0, 0.006)
+            elif metric_name == "NRMSE":
+                ax.set_ylim(0.2645, 1.6)
+            elif metric_name == "PSNR":
+                ax.set_ylim(19.8, 48)
+            elif metric_name == "SSIM":
+                ax.set_ylim(0.255, 1.0)
+            elif metric_name == "MS-SSIM":
+                ax.set_ylim(-0.1, 1.1)
+            elif metric_name == "Smooth L1":
+                ax.set_ylim(0, 0.006)
+            else:
+                raise NotImplementedError
+        elif plot_name.startswith("heart_dynamic_1"):
+            if metric_name == "MSE":
+                ax.set_ylim(0, 0.006)
+            elif metric_name == "NRMSE":
+                ax.set_ylim(0.56, 1.01)
+            elif metric_name == "PSNR":
+                ax.set_ylim(23, 48)
+            elif metric_name == "SSIM":
+                ax.set_ylim(0.61, 1)
+            elif metric_name == "MS-SSIM":
+                ax.set_ylim(0.74, 1)
+            elif metric_name == "Smooth L1":
+                ax.set_ylim(0, 0.006)
+            else:
+                raise NotImplementedError
+
         if metric_name is None:
             ax.axis("off")
             continue
 
-        scalar_columns = ["network", "scaled"]
-        scalar_data = [
-            ["hylfm_dyn", True],
-            # ["hylfm_dyn", False],
-            ["hylfm_stat", True],
-            # ["hylfm_stat", False],
-            ["lr", True],
-            # ["lr", False],
-            ["v0_on_48x88x88", True],
-            # ["v0_on_48x88x88", False],
-        ]
-        title = ""  #  f"{net} {metric} on static heart"
-        # plot_name = "_".join("".join(str(s) for s in sd) for sd in scalar_data)
-
-        x_name = "z"
-        map_labels = {}
-        ############################
-        scalar_columns.append("key")
-        for i, dat in enumerate(scalar_data):
+        for i, dat in enumerate(scalar_data_here):
             dat.append(i)
 
         # print(scalar_df)
-
-        datasets, z_slice, z = get_datasets(all_paths, scalar_data, metric_name)
-
+        datasets, z_slice, z = get_datasets(all_paths, scalar_data_here, metric_name, z_slice_mod)
         # value_dfs = [pandas.DataFrame(numpy.asarray([numpy.repeat([k], len(dat)), dat, z_slice, z]).T, columns=["key", metric_name, "z slice", "z"]) for k, dat in enumerate(datasets)]
         value_dfs = [
             pandas.DataFrame({"key": numpy.repeat([k], len(dat)), metric_name: dat, "z_slice": z_slice, "z": z})
             for k, dat in enumerate(datasets)
         ]
-        # for vdf in value_dfs:
-        #     print(vdf)
 
-        for sd in scalar_data:
+        for sd in scalar_data_here:
             sd[0] = better_network_names[sd[0]]
-        scalar_df = pandas.DataFrame(scalar_data, columns=scalar_columns)
+
+        avg_values = {}
+        for sd, vdf in zip(scalar_data_here, value_dfs):
+            avg_values[sd[0]] = vdf[metric_name].mean(), vdf[metric_name].std()
+
+        print(metric_name)
+        pprint(avg_values)
+        avg_values = None
+
+        scalar_df = pandas.DataFrame(scalar_data_here, columns=scalar_columns)
         df = scalar_df.merge(pandas.concat(value_dfs), on="key")
         # df = df.reset_index(drop=True)
         # print(df)
@@ -209,12 +299,13 @@ if __name__ == "__main__":
             ax=ax,
         )  # , legend="full", ax=ax)
         seaborn.despine(ax=ax)
-        ax.legend(loc=legend_loc[metric_name])
         if x_name == "z slice":
             ax.set_xlim(0, z_slice.max())
         elif x_name == "z":
             ax.set(xlabel="z [μm]")
             ax.set_xlim(z.min(), z.max())
+            # ax.set_xlim(-104, 104)
+            # ax.set_xlim(-80, 80)
 
         # for name in metrics[slice(0, to_twin_at)]:
         # print(df)
@@ -228,13 +319,58 @@ if __name__ == "__main__":
 
         ax.set_title(title)
         handles, labels = ax.get_legend_handles_labels()
-        ax.legend(handles=handles[1:], labels=labels[1:])
+        loc = legend_loc[metric_name]
+        if loc == "off":
+            ax.get_legend().remove()
+        else:
+            labels = labels[1:]  # remove 'network' category name
+            if avg_values is not None:
+                for i in range(len(labels)):
+                    mean, std = avg_values[labels[i]]
+                    if metric_name in ["PSNR"]:
+                        labels[i] += f" ({mean:.1f}±{std:.1f})"
+                    elif metric_name in ["MS-SSIM", "SSIM"]:
+                        labels[i] += f" ({mean:.2}±{std:.2})"
+                    elif metric_name in ["NRMSE"]:
+                        labels[i] += f" ({mean:.2f}±{std:.2f})"
+                    else:
+                        raise NotImplementedError(metric_name)
+
+            ax.legend(handles=handles[1:], labels=labels, loc=loc)
+
+        ax.ticklabel_format(axis="y", style="sci", scilimits=(-2, 2))
         # ax.set(ylabel=metric)
         # plt.legend()
         # plt.show()
+
+    return axes[len(metrics) :]
+
+
+if __name__ == "__main__":
+    # parser = ArgumentParser(description="plot metrics")
+    # args = parser.parse_args()
+    #
+
+    # fig, axes = plt.subplots(4, 2, figsize=(7, 12))
+    # fig, axes = plt.subplots(4, 2, figsize=(6, 10.5))
+    # fig, axes = plt.subplots(2, 2, figsize=(6, 5))
+    fig, axes = plt.subplots(4, 1, figsize=(3, 10))
+    if isinstance(axes, numpy.ndarray):
+        axes = axes.flatten()
+    else:
+        axes = [axes]
+
+    plot_name = ""
+    # axes = add_plot("heart_static_1", axes)
+    # plot_name += "heart_static_1"
+    # axes = add_plot("heart_dynamic_1", axes)
+    # plot_name += "heart_dynamic_1"
+    axes = add_plot("beads", axes)
+    plot_name += "beads"
 
     plt.tight_layout()
     out_dir = Path("/Users/fbeut/Desktop/lnet_stuff/plots/figs")
     out_dir.mkdir(exist_ok=True, parents=True)
     fig.savefig(out_dir / f"{plot_name.replace(' ', '_')}.png")
     fig.savefig(out_dir / "svgs" / f"{plot_name.replace(' ', '_')}.svg")
+    # plt.show()

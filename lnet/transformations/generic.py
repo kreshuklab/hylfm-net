@@ -62,10 +62,10 @@ class Cast(Transform, DTypeMapping):
             raise NotImplementedError(type(tensor))
 
 
-class AddSingletonDimension(Transform, DTypeMapping):
+class InsertSingletonDimension(Transform, DTypeMapping):
     def __init__(self, axis: int, **super_kwargs):
         super().__init__(**super_kwargs)
-        self.axis = axis
+        self.axis = axis + 1
 
     def apply_to_tensor(self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: List[dict]):
         if isinstance(tensor, torch.Tensor):
@@ -94,17 +94,63 @@ class RemoveSingletonDimension(Transform, DTypeMapping):
             logger.error(f"%s %s %s", type(tensor), tensor.shape, self.axis)
             raise e
 
+
+class Squeeze(Transform, DTypeMapping):
+    def apply_to_sample(
+        self,
+        sample: typing.Union[numpy.ndarray, torch.Tensor],
+        *,
+        tensor_name: str,
+        tensor_idx: int,
+        batch_idx: int,
+        meta: dict,
+    ) -> typing.Union[numpy.ndarray, torch.Tensor]:
+        if isinstance(sample, torch.Tensor):
+            return torch.squeeze(sample)
+        elif isinstance(sample, numpy.ndarray):
+            return numpy.squeeze(sample)
+        else:
+            raise NotImplementedError(type(sample))
+
+
 class Clip(Transform):
-    def __init__(self, min_: float, max_: float, **super_kwargs):
+    def __init__(
+        self,
+        *,
+        min_: Optional[float] = None,
+        max_: Optional[float] = None,
+        as_local_percentile: bool = False,
+        **super_kwargs,
+    ):
+        assert min_ is not None or max_ is not None
         super().__init__(**super_kwargs)
         self.min_ = min_
         self.max_ = max_
+        self.as_local_percentile = as_local_percentile
 
     def apply_to_tensor(self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: List[dict]):
         if isinstance(tensor, numpy.ndarray):
-            return tensor.clip(self.min_, self.max_)
+            if self.as_local_percentile:
+                if self.min_ is None:
+                    min_ = [None] * tensor.shape[0]
+                else:
+                    min_ = numpy.percentile(tensor, q=self.min_, axis=0)
+
+                if self.max_ is None:
+                    max_ = [None] * tensor.shape[0]
+                else:
+                    max_ = numpy.percentile(tensor, q=self.max_, axis=0)
+
+                return numpy.stack([sample.clip(mi, ma) for sample, mi, ma in zip(tensor, min_, max_)])
+            else:
+                return tensor.clip(self.min_, self.max_)
+
         elif isinstance(tensor, torch.Tensor):
-            return tensor.clamp(self.min_, self.max_)
+            if self.as_local_percentile:
+                raise NotImplementedError("percentiles")
+            else:
+                return tensor.clamp(self.min_, self.max_)
+
         else:
             raise NotImplementedError(type(tensor))
 
@@ -127,14 +173,15 @@ class Assert(Transform):
     def apply(self, tensors: typing.OrderedDict[str, typing.Any]) -> typing.OrderedDict[str, typing.Any]:
         if isinstance(self.expected_shape, str):
             for at in self.apply_to:
-                tensors["meta"][0][at]["Assert_expected_tensor_shape"] = tensors[self.expected_shape].shape
+                tensors["meta"][0][at]["Assert_expected_tensor_shape"] = tensors[self.expected_shape].shape[1:]
 
         return super().apply(tensors)
 
     def apply_to_tensor(
         self, tensor: Any, *, name: str, idx: int, meta: typing.List[dict]
     ) -> Union[numpy.ndarray, torch.Tensor]:
-        shape_is = tuple(tensor.shape)
+        b, *shape_is = tensor.shape
+
         expected_shape = (
             meta[0][name]["Assert_expected_tensor_shape"]
             if isinstance(self.expected_shape, str)
@@ -143,7 +190,7 @@ class Assert(Transform):
         expected_shape_from = f" (from {self.expected_shape})" if isinstance(self.expected_shape, str) else ""
         if len(shape_is) != len(expected_shape):
             raise ValueError(
-                f"expected shape {expected_shape}{expected_shape_from}, but found {shape_is} for tensor {name}"
+                f"expected shape b,{expected_shape}{expected_shape_from}, but found b={b},{shape_is} for tensor {name}"
             )
 
         for si, s in zip(shape_is, expected_shape):
@@ -151,8 +198,8 @@ class Assert(Transform):
                 continue
             elif si != s:
                 raise ValueError(
-                    f"expected shape {expected_shape}{expected_shape_from}, but found {shape_is} for tensor {name}"
+                    f"expected shape b,{expected_shape}{expected_shape_from}, but found b={b},{shape_is} for tensor {name}"
                 )
 
-        logger.debug(f"{name} has expected shape: {shape_is}{expected_shape_from}")
+        logger.debug(f"{name} has expected shape: b={b},{shape_is}{expected_shape_from}")
         return tensor

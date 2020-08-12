@@ -2,9 +2,12 @@ from collections import OrderedDict
 from pathlib import Path
 
 import pytest
+import typing
+from ruamel.yaml import YAML
 
 from lnet.datasets import N5CachedDatasetFromInfo, ZipDataset, get_dataset_from_info, get_tensor_info
 
+yaml = YAML("safe")
 
 @pytest.fixture
 def data_path() -> Path:
@@ -41,3 +44,15 @@ def beads_dataset(meta) -> N5CachedDatasetFromInfo:
         datasets[name] = get_dataset_from_info(info=info, cache=True)
 
     return ZipDataset(datasets)
+
+
+@pytest.fixture
+def scaled_metrics_config() -> typing.Dict[str, typing.Dict[str, typing.Any]]:
+    return yaml.load("""
+    MS_SSIM: {scale: pred, to_minimize: mse, vs: ls_trf, tensor_names: [pred, ls_trf], data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
+    SSIM: {scale: pred, to_minimize: mse, vs: ls_trf, tensor_names: [pred, ls_trf], data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
+    NRMSE: {scale: pred, to_minimize: mse, vs: ls_trf, tensor_names: {pred: pred, tgt: ls_trf}}
+    PSNR: {scale: pred, to_minimize: mse, vs: ls_trf, tensor_names: {pred: pred, tgt: ls_trf}, data_range: 1}
+    SmoothL1Loss: {scale: pred, to_minimize: mse, vs: ls_trf, tensor_names: [pred, ls_trf]}
+    MSELoss: {scale: pred, to_minimize: mse, vs: ls_trf, tensor_names: [pred, ls_trf]}
+    """)

@@ -1,4 +1,15 @@
+- Squeeze: {apply_to: [pred, ls_trf]}
+- Assert: {apply_to: [pred, ls_trf], expected_tensor_shape: [null, null, null]}
+- InsertSingletonDimension: {apply_to: [pred, ls_trf], axis: 0}
+- Assert: {apply_to: [pred, ls_trf], expected_tensor_shape: [1, null, null, null]}
 #- Crop: {apply_to: [pred, ls_trf], crop: [[0, null], [10, -10], [0, null], [0, null]]}
-- Cast: {apply_to: [pred, ls_trf], dtype: float32, device: cpu}
 #- Clip: {apply_to: [pred, ls_trf], min_: .2, max_: 99999999}
 #- Clip: {apply_to: [pred], min_: 0, max_: 1}
+#- Normalize01: {apply_to: pred, max_percentile: 99}
+#- Normalize01: {apply_to: ls_trf, max_percentile: 99}
+#- Clip: {apply_to: pred, max_: 98, as_local_percentile: true}
+#- Clip: {apply_to: ls_trf, max_: 98, as_local_percentile: true}
+#- Clip: {apply_to: pred,  min_: 5.0, max_: 96, as_local_percentile: true}
+#- Clip: {apply_to: ls_trf, min_: 5.0, max_: 96, as_local_percentile: true}
+- Cast: {apply_to: [pred, ls_trf], dtype: float32, device: cpu}
+- Assert: {apply_to: [pred, ls_trf], expected_tensor_shape: [1, null, null, null]}

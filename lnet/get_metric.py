@@ -46,7 +46,7 @@ def get_metric(name: str, kwargs: typing.Dict[str, Any]):
                 dim_len=dim_len,
                 tensor_names=tensor_names,
                 metric_class=metric_class,
-                **metric_kwargs,
+                **metric_kwargs
             )
     # if loss_class is None:
     #     loss_class = getattr(lnet.plain_criteria, name.replace("Scaled", ""))

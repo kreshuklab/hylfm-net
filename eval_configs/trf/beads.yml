@@ -1,2 +1,6 @@
 #- Crop: {apply_to: [pred, ls_reg], crop: [[0, null], [3, -2], [2, -2], [0, null]]}  already cropped
+- Squeeze: {apply_to: [pred, ls_reg]}
+- Assert: {apply_to: [pred, ls_reg], expected_tensor_shape: [null, null, null]}
+- InsertSingletonDimension: {apply_to: [pred, ls_reg], axis: 0}
+- Assert: {apply_to: [pred, ls_reg], expected_tensor_shape: [1, null, null, null]}
 - Cast: {apply_to: [pred, ls_reg], dtype: float32, device: cpu}

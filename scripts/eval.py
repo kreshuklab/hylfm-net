@@ -10,13 +10,13 @@ from typing import Dict
 
 from plain.plain_setup import get_setup
 
-# if __name__ == "__main__":
-#     os.environ["OMP_NUM_THREADS"] = "1"
-#     os.environ["OPENBLAS_NUM_THREADS"] = "1"
-#     os.environ["MKL_NUM_THREADS"] = "1"
-#     os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-#     os.environ["NUMEXPR_NUM_THREADS"] = "1"
-#     os.nice(19)
+if __name__ == "__main__":
+    os.environ["OMP_NUM_THREADS"] = "1"
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+    os.environ["MKL_NUM_THREADS"] = "1"
+    os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+    os.environ["NUMEXPR_NUM_THREADS"] = "1"
+    os.nice(19)
 
 
 from ruamel.yaml import YAML
@@ -118,6 +118,7 @@ def compute_and_reset_metrics(metrics: Dict[str, Metric]) -> Dict[str, float]:
 
 
 if __name__ == "__main__":
+    os.nice(21)
     parser = ArgumentParser(description="eval")
     parser.add_argument("subpath")
     parser.add_argument("trfs", type=Path)
@@ -145,8 +146,8 @@ if __name__ == "__main__":
             name="pred",
             root=test_data_path / model_name,
             location=f"*.tif",
-            insert_singleton_axes_at=[0, 0],
-            remove_singleton_axes_at=[],  #  if care_setup else [-1]
+            insert_singleton_axes_at=[0],
+            # remove_singleton_axes_at=[],  #  if care_setup else [-1]
             meta={"log_path": log_path},
         )
     )
@@ -156,7 +157,7 @@ if __name__ == "__main__":
             name=gt_name,
             root=test_data_path / gt_name,
             location=f"*.tif",
-            insert_singleton_axes_at=[0, 0],
+            insert_singleton_axes_at=[0],
             # remove_singleton_axes_at=[-1],
         )
     )
@@ -167,7 +168,7 @@ if __name__ == "__main__":
     # print(ds[0][setup["pred"]].shape, ds[0][gt_name].shape)
 
     metrics = yaml.load(args.metrics)
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    with ThreadPoolExecutor(max_workers=16) as executor:
 
         def compute_metrics_individually_from_idx(idx: int):
             return compute_metrics_individually(metrics, ds[idx], per_z=args.per_z)
@@ -177,7 +178,11 @@ if __name__ == "__main__":
         for fut in tqdm(as_completed(futs), total=len(futs)):
             e = fut.exception()
             if e is not None:
-                raise e
+                logger.error(e, exc_info=True)
+                for fut in futs:
+                    fut.cancel()
+
+                raise RuntimeError from e
 
             assert e is None
 
