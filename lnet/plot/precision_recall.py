@@ -10,73 +10,12 @@ import pandas
 import seaborn
 from ruamel.yaml import YAML
 
+from lnet.plot.metrics import get_datasets
+
 yaml = YAML(typ="safe")
 
 
-def get_datasets(all_paths, scalar_data, metric_name, z_slice_mod):
-    length = None
-    lengths = None
-    datasets = []
-    per_vol = False
-    for net, hyperparameter_name, key in scalar_data:
-        path = all_paths[net][metric_name][hyperparameter_name]
-        metric_per_sample = yaml.load(path)
-        if length is None:
-            length = len(metric_per_sample)
-        else:
-            assert len(metric_per_sample) == length, (len(metric_per_sample), length)
-
-        if z_slice_mod is None:
-            if any(isinstance(mps, list) for mps in metric_per_sample):
-                assert not per_vol
-                assert all(isinstance(mps, list) for mps in metric_per_sample), [type(mps) for mps in metric_per_sample]
-                if lengths is None:
-                    lengths = [len(mps) for mps in metric_per_sample]
-                    # assert isinstance(metric_per_sample, list)
-                else:
-                    assert lengths == [len(mps) for mps in metric_per_sample]
-
-                metric_per_sample = numpy.concatenate(metric_per_sample)
-            else:
-                assert per_vol
-                assert not any(isinstance(mps, list) for mps in metric_per_sample), [
-                    type(mps) for mps in metric_per_sample
-                ]
-                if lengths is None:
-                    lengths = [1] * len(metric_per_sample)
-                    # assert isinstance(metric_per_sample, list)
-                else:
-                    assert lengths == [len(mps) for mps in metric_per_sample]
-                metric_per_sample = metric_per_sample
-        else:
-            assert length // z_slice_mod == length / z_slice_mod
-
-        # print(n)
-        # print(metric_per_sample[length // 2 - 5: length//2+5])
-        datasets.append(metric_per_sample)
-
-    if z_slice_mod is None:
-        if per_vol:
-            z_slice = None
-            z = None
-        else:
-            assert lengths is not None
-            z_slice = numpy.concatenate([numpy.arange(l) for l in lengths])
-            z = (z_slice - z_slice.max() // 2) * 5
-            assert -z.min() == z.max()
-    elif z_slice_mod == 51:
-        z_slice = numpy.tile(numpy.arange(z_slice_mod), length // z_slice_mod)
-        z = (z_slice - z_slice.max() // 2) * 2
-        assert -z.min() == z.max()
-    else:
-        z_slice = numpy.tile(numpy.arange(z_slice_mod), length // z_slice_mod)
-        z = -z_slice + z_slice.max() // 2
-        assert -z.min() == z.max()
-
-    return datasets, z_slice, z
-
-
-def add_plot(plot_name, axes):
+def add_plot(plot_name, axes, out_dir):
     metric_postfix = ""
     use_local_data = False
 
@@ -114,18 +53,37 @@ def add_plot(plot_name, axes):
     elif plot_name.startswith("beads") and not use_local_data:
         along_z = "_along_z"
         if plot_name == "beads":
+            z_slice_mod: typing.Optional[int] = None  # 209 None
             scalar_data = [["hylfm", "scaled-True"], ["lr", "scaled-True"]]
             scalar_data.append(["v0_on_56x80x80", "scaled-True"])
         elif plot_name == "beads_pr":
+            z_slice_mod: typing.Optional[int] = 51  # 209 None
             scalar_data = []
-            for threshold in ["0.1", "0.05", "0.01", "0.001"]:
-                hyper_parameter_name = f"distthreshold-3.0_excludeborder-False_maxsigma-6.0_minsigma-1.0_overlap-0.5_sigmaratio-3.0_threshold-{threshold}_scaled-True"
+            tgt_threshold = "0.1"
+            # for threshold in ["1.0", "0.75", "0.5", "0.25", "0.1", "0.075", "0.05", "0.025", "0.01", "0.0075", "0.005", "0.0025", "0.001", "0.0005", "0.0001"]:
+            for threshold in [
+                "0.75",
+                "0.5",
+                "0.25",
+                "0.1",
+                "0.075",
+                "0.05",
+                "0.025",
+                "0.01",
+                "0.0075",
+                "0.005",
+                "0.0025",
+                "0.001",
+                "0.0005",
+                "0.0001",
+            ]:
+                hyper_parameter_name = f"distthreshold-3.0_excludeborder-False_maxsigma-6.0_minsigma-1.0_overlap-0.5_sigmaratio-3.0_threshold-{threshold}_tgtthreshold-{tgt_threshold}_scaled-True"
                 scalar_data.append(["hylfm", hyper_parameter_name])
                 scalar_data.append(["lr", hyper_parameter_name])
                 scalar_data.append(["v0_on_56x80x80", hyper_parameter_name])
         else:
             raise NotImplementedError(plot_name)
-        z_slice_mod: typing.Optional[int] = None  # 209 None
+
         nets = ["lr", "hylfm", "v0_on_56x80x80"]
         test_data_path = Path("K:/LF_computed/lnet/plain/beads/f8_01highc/test")
     else:
@@ -133,7 +91,6 @@ def add_plot(plot_name, axes):
 
     plot_name += metric_postfix + ""
     title = ""  #  f"{net} {metric} on static heart"
-    x_name = "z"
     map_labels = {}
     all_paths = {}
     for net in nets:
@@ -170,6 +127,7 @@ def add_plot(plot_name, axes):
         for metric_name in ["Precision", "Recall"]:
             all_paths[net][metric_name] = {}
             metric_file_name_start = f"bead_{metric_name.lower()}{along_z}-"
+            # print('search in ', result_path / metric_file_name_start)
             for file_path in result_path.glob(f"{metric_file_name_start}*.yml"):
                 hyperparameter_name = file_path.stem[len(metric_file_name_start) :]
                 if hyperparameter_name.endswith("-scaled"):
@@ -177,6 +135,7 @@ def add_plot(plot_name, axes):
                 else:
                     hyperparameter_name += "_scaled-False"
 
+                # print('adding', hyperparameter_name)
                 all_paths[net][metric_name][hyperparameter_name] = file_path
 
     # pprint(all_paths)
@@ -197,6 +156,14 @@ def add_plot(plot_name, axes):
         "LFD": "#FFB000",
     }  # blue: #648FFF, purple: #785EF0, red: #DC267F, dark orange: #FE6100, orange: #FFB000
 
+    hue_order = None
+    # [
+    #     "LFD+CARE",
+    #     "LFD",
+    #     "HyLFM-Net",
+    #     "HyLFM-Net dyn",
+    #     "HyLFM-Net stat",
+    # ]
     # legend_loc = {
     #     "PSNR": "upper right",
     #     "NRMSE": None, #"off",
@@ -240,7 +207,8 @@ def add_plot(plot_name, axes):
     # legends = [None, {}, None, None, None, None]
 
     avg_values = {}
-    dfs = []
+    # dfs = []
+    df = pandas.DataFrame(columns=["key"])
     for i, metric_name in enumerate(metrics):
         scalar_data_here = [list(sd) for sd in scalar_data]
         scalar_columns_here = list(scalar_columns)
@@ -291,8 +259,8 @@ def add_plot(plot_name, axes):
             pandas.DataFrame(
                 {
                     "key": numpy.repeat([k], len(dat)),
-                    "metric_name": metric_name,
-                    "metric_value": dat,
+                    # "metric_name": metric_name,
+                    metric_name: dat,
                     "z_slice": z_slice,
                     "z": z,
                 }
@@ -318,14 +286,15 @@ def add_plot(plot_name, axes):
 
         avg_values[metric_name] = {}
         for sd, vdf in zip(scalar_data_here, value_dfs):
-            avg_values[metric_name][sd[0]] = vdf["metric_value"].mean(), vdf["metric_value"].std()
+            avg_values[metric_name][sd[0]] = vdf[metric_name].mean(), vdf[metric_name].std()
 
         print(metric_name)
         pprint(avg_values[metric_name])
         avg_values[metric_name] = None
 
         scalar_df = pandas.DataFrame(scalar_data_here, columns=scalar_columns_here)
-        dfs.append(scalar_df.merge(pandas.concat(value_dfs), on="key"))
+        df = df.merge(scalar_df.merge(pandas.concat(value_dfs)), how="outer")
+
         # df = df.reset_index(drop=True)
         # print(df)
         # seaborn.set(style="ticks", color_codes=False)
@@ -401,8 +370,6 @@ def add_plot(plot_name, axes):
         #
         # ax.ticklabel_format(axis="y", style="sci", scilimits=(-2, 2))
 
-    df = pandas.concat(dfs)
-
     # g = seaborn.FacetGrid(df, col="threshold", row="metric_name",
     #                    margin_titles=True)
     # g = g.map(plt.plot, x_name, "metric_value")#, label="metric_name")
@@ -418,22 +385,94 @@ def add_plot(plot_name, axes):
     #     # This only works for the left ylabels
     #     ax.set_ylabel(ax.get_ylabel(), fontsize='xx-large')
 
+    # g = seaborn.relplot(
+    #     x="Recall",
+    #     y="Precision",
+    #     hue="network",
+    #     # size="threshold",
+    #     # col="threshold",
+    #     # row="metric_name",
+    #     palette=palette,
+    #     height=5,
+    #     # aspect=0.75,
+    #     # facet_kws=dict(sharex=False),
+    #     kind="line",
+    #     # legend="brief",
+    #     # legend="out",
+    #     data=df,
+    # )
+    # g = seaborn.scatterplot(
+    #     x="Recall",
+    #     y="Precision",
+    #     hue="network",
+    #     size="threshold",
+    #     # col="threshold",
+    #     # row="metric_name",
+    #     palette=palette,
+    #     # height=5,
+    #     # aspect=0.75,
+    #     # facet_kws=dict(sharex=False),
+    #     # kind="line",
+    #     # legend="brief",
+    #     # legend="out",
+    #     data=df,
+    # )
+    df["abs(z)"] = numpy.abs(df["z"])
+    df = df[numpy.logical_and(df["threshold"] > 0.001, df["threshold"] < 0.5)]
+    # df = df["abs(z)"] < 40]
+
+    z_mean_df = df.groupby(["network", "hyperparameter_name"], as_index=False).mean()
+
+    # z mean
     g = seaborn.relplot(
-        x=x_name,
-        y="metric_value",
+        x="Recall",
+        y="Precision",
         hue="network",
         # size="threshold",
-        col="threshold",
-        row="metric_name",
+        # style="z",
+        # col="z",
+        # col_wrap=8,
+        # row="metric_name",
         palette=palette,
-        height=5,
+        # height=5,
         # aspect=0.75,
         # facet_kws=dict(sharex=False),
-        kind="line",
+        # kind="line",
         # legend="brief",
         # legend="out",
-        data=df,
+        data=z_mean_df,
     )
+
+    plt.savefig(out_dir / f"{plot_name}z_mean.png")
+    plt.savefig(out_dir / "svgs" / f"{plot_name}z_mean.svg")
+
+
+    for selected_threshold in [0.1, 0.05, 0.01]:
+        z_rolling_df = df[df["threshold"] == selected_threshold].groupby(["network", "hyperparameter_name"]).rolling(5, center=True).mean().reset_index()
+        g = seaborn.relplot(
+            x="Recall",
+            y="Precision",
+            hue="network",
+            # size="threshold",
+            # style="z",
+            # col="z",
+            # col_wrap=8,
+            # row="metric_name",
+            palette=palette,
+            hue_order=hue_order,
+            # height=5,
+            # aspect=0.75,
+            # facet_kws=dict(sharex=False),
+            # kind="line",
+            # legend="brief",
+            # legend="out",
+            data=z_rolling_df,
+        )
+        g.axes[0, 0].set_title(f"threshold={selected_threshold}")
+        plt.tight_layout()
+        plt.savefig(out_dir / f"{plot_name}_threshold={selected_threshold}.png")
+        plt.savefig(out_dir / "svgs" / f"{plot_name}_threshold={selected_threshold}.svg")
+
     # for ax in g.axes:
     #     print(ax)
     #
@@ -459,6 +498,8 @@ if __name__ == "__main__":
     # else:
     #     axes = [axes]
 
+    out_dir = Path("/Users/fbeut/Desktop/lnet_stuff/plots/figs/pr")
+    out_dir.mkdir(exist_ok=True, parents=True)
     plot_name = ""
     # axes = add_plot("heart_static_1", axes)
     # plot_name += "heart_static_1"
@@ -466,12 +507,8 @@ if __name__ == "__main__":
     # plot_name += "heart_dynamic_1"
     # axes = add_plot("beads", axes)
     # plot_name += "beads"
-    axes = add_plot("beads_pr", [])
+    axes = add_plot("beads_pr", [], out_dir)
     plot_name += "beads_pr"
 
     # plt.tight_layout()
-    out_dir = Path("/Users/fbeut/Desktop/lnet_stuff/plots/figs")
-    out_dir.mkdir(exist_ok=True, parents=True)
-    plt.savefig(out_dir / f"{plot_name.replace(' ', '_')}.png")
-    plt.savefig(out_dir / "svgs" / f"{plot_name.replace(' ', '_')}.svg")
     # plt.show()

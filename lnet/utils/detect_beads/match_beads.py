@@ -70,6 +70,8 @@ def match_beads(
     scaling: Tuple[float, float, float],
     min_sigma: float,
     max_sigma: float,
+    threshold: float,
+    tgt_threshold: float,
     **kwargs
 ) -> Tuple[
     List[numpy.ndarray], List[numpy.ndarray], List[Tuple[int, int, int]], List[numpy.ndarray], List[numpy.ndarray]
@@ -78,23 +80,24 @@ def match_beads(
     max_sigma = [max_sigma / s for s in scaling]
     kwargs.update(min_sigma=min_sigma, max_sigma=max_sigma)
 
-    bead_pos_pred = get_bead_pos(pred, **kwargs)
-    no_beads_found = all([bpp.shape[0] == 0 for bpp in bead_pos_pred])
-    if no_beads_found:
-        b = len(bead_pos_pred)
-        return (
-            [numpy.array([])] * b,
-            [numpy.array([])] * b,
-            [(0, -1, 0)] * b,
-            [numpy.array([])] * b,
-            [numpy.array([])] * b,
-        )
-    else:
-        bead_pos_tgt = get_bead_pos(tgt, **kwargs)
-        btgt_idx, bpred_idx, found_missing_extra = match_beads_from_pos(
-            btgt=bead_pos_tgt, bpred=bead_pos_pred, dist_threshold=dist_threshold, scaling=scaling
-        )
-        return btgt_idx, bpred_idx, found_missing_extra, bead_pos_tgt, bead_pos_pred
+    bead_pos_pred = get_bead_pos(pred, threshold=threshold, **kwargs)
+    # no_beads_found = all([bpp.shape[0] == 0 for bpp in bead_pos_pred])
+    # if no_beads_found:
+    #     b = len(bead_pos_pred)
+    #     return (
+    #         [numpy.array([])] * b,
+    #         [numpy.array([])] * b,
+    #         [(0, -1, 0)] * b,
+    #         [numpy.array([])] * b,
+    #         [numpy.array([])] * b,
+    #     )
+    # else:
+
+    bead_pos_tgt = get_bead_pos(tgt, threshold=tgt_threshold, **kwargs)
+    btgt_idx, bpred_idx, found_missing_extra = match_beads_from_pos(
+        btgt=bead_pos_tgt, bpred=bead_pos_pred, dist_threshold=dist_threshold, scaling=scaling
+    )
+    return btgt_idx, bpred_idx, found_missing_extra, bead_pos_tgt, bead_pos_pred
 
 
 if __name__ == "__main__":

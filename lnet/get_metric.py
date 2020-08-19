@@ -22,6 +22,7 @@ def get_metric(name: str, kwargs: typing.Dict[str, Any]):
         postfix = name[postfix_idx:]
         name = name[:postfix_idx]
 
+    postfix = postfix.format_map(kwargs)
     along_dim = kwargs.pop("along_dim", None)
     dim_len = kwargs.pop("dim_len", None)
     try:

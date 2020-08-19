@@ -1,11 +1,236 @@
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: 1.
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: .1
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: .01
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: .001
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: .0001
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: .0005
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: .0025
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: .005
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: .0075
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: .025
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: .05
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: .075
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: .25
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: .5
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+- BeadPrecisionRecall-distthreshold-{dist_threshold}_excludeborder-{exclude_border}_maxsigma-{max_sigma}_minsigma-{min_sigma}_overlap-{overlap}_sigmaratio-{sigma_ratio}_threshold-{threshold}_tgtthreshold-{tgt_threshold}:
+    dist_threshold: 3.0
+    exclude_border: false
+    max_sigma: 6.0
+    min_sigma: 1.0
+    overlap: 0.5
+    sigma_ratio: 3.0
+    threshold: 0.75
+    tgt_threshold: .05
+    ### fixed hyperparameters
+    scaling: [2., 0.7, 0.7]
+    tensor_names: {pred: pred, tgt: ls_reg}
+    scale: pred
+    to_minimize: mse
+    vs: ls_reg
+
 # scaled per z
-- MS_SSIM: {along_dim: 2, dim_len: 51, scale: pred, to_minimize: mse, vs: ls_reg, tensor_names: [pred, ls_reg], data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
-  SSIM: {along_dim: 2, dim_len: 51, scale: pred, to_minimize: mse, vs: ls_reg, tensor_names: [pred, ls_reg], data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
-  NRMSE: {along_dim: 2, dim_len: 51, scale: pred, to_minimize: mse, vs: ls_reg, tensor_names: {pred: pred, tgt: ls_reg}}
-  PSNR: {along_dim: 2, dim_len: 51, scale: pred, to_minimize: mse, vs: ls_reg, tensor_names: {pred: pred, tgt: ls_reg}, data_range: 1}
-  SmoothL1Loss: {along_dim: 2, dim_len: 51, scale: pred, to_minimize: mse, vs: ls_reg, tensor_names: [pred, ls_reg]}
-  MSELoss: {along_dim: 2, dim_len: 51, scale: pred, to_minimize: mse, vs: ls_reg, tensor_names: [pred, ls_reg]}
-#  BeadPrecisionRecall-dthres3.0: {along_dim: 2, dim_len: 51, scale: pred, to_minimize: mse, vs: ls_reg, tensor_names: {pred: pred, tgt: ls_reg}, dist_threshold: 3.0, scaling: [2., 0.7, 0.7], min_sigma: 1.0, max_sigma: 6.0, sigma_ratio: 3.0, threshold: .05, overlap: 0.5, exclude_border: false}
+#- MS_SSIM: {along_dim: 2, dim_len: 51, scale: pred, to_minimize: mse, vs: ls_reg, tensor_names: [pred, ls_reg], data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
+#  SSIM: {along_dim: 2, dim_len: 51, scale: pred, to_minimize: mse, vs: ls_reg, tensor_names: [pred, ls_reg], data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
+#  NRMSE: {along_dim: 2, dim_len: 51, scale: pred, to_minimize: mse, vs: ls_reg, tensor_names: {pred: pred, tgt: ls_reg}}
+#  PSNR: {along_dim: 2, dim_len: 51, scale: pred, to_minimize: mse, vs: ls_reg, tensor_names: {pred: pred, tgt: ls_reg}, data_range: 1}
+#  SmoothL1Loss: {along_dim: 2, dim_len: 51, scale: pred, to_minimize: mse, vs: ls_reg, tensor_names: [pred, ls_reg]}
+#  MSELoss: {along_dim: 2, dim_len: 51, scale: pred, to_minimize: mse, vs: ls_reg, tensor_names: [pred, ls_reg]}
 
 ## per z
 #- MS_SSIM: {along_dim: 2, dim_len: 51, tensor_names: [pred, ls_reg], data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
