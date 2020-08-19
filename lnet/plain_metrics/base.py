@@ -107,7 +107,7 @@ class Metric:
         if isinstance(computed, float):
             return {camel_to_snake(self.__class__.__name__) + self.postfix: float(computed)}
         elif isinstance(computed, (dict, OrderedDict)):
-            return {key + self.postfix: float(value) for key, value in computed.items()}
+            return {key + self.postfix: value for key, value in computed.items()}
         else:
             raise NotImplementedError(type(computed))
 

@@ -1,7 +1,5 @@
 import warnings
 
-from .get_metric import get_metric
-
 try:
     from .settings import settings
 except ImportError as e:

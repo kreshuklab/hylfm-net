@@ -11,11 +11,11 @@ from typing import Dict
 from plain.plain_setup import get_setup
 
 if __name__ == "__main__":
-    os.environ["OMP_NUM_THREADS"] = "1"
-    os.environ["OPENBLAS_NUM_THREADS"] = "1"
-    os.environ["MKL_NUM_THREADS"] = "1"
-    os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-    os.environ["NUMEXPR_NUM_THREADS"] = "1"
+    # os.environ["OMP_NUM_THREADS"] = "1"
+    # os.environ["OPENBLAS_NUM_THREADS"] = "1"
+    # os.environ["MKL_NUM_THREADS"] = "1"
+    # os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+    # os.environ["NUMEXPR_NUM_THREADS"] = "1"
     os.nice(19)
 
 
@@ -23,7 +23,7 @@ from ruamel.yaml import YAML
 from tqdm import tqdm
 
 import lnet.transformations
-from lnet.get_metric import get_metric
+from lnet import get_metric
 from lnet.datasets import TensorInfo, ZipDataset, get_dataset_from_info
 from lnet.plain_metrics import Metric
 from lnet.transformations import ComposedTransformation
@@ -132,26 +132,46 @@ if __name__ == "__main__":
     ds = ZipDataset(datasets, join_dataset_masks=False, transformation=trf)
     # print(ds[0][setup["pred"]].shape, ds[0][gt_name].shape)
 
-    metrics = yaml.load(args.metrics)
-    with ThreadPoolExecutor(max_workers=32) as executor:
+    metrics_groups = [
+        {name: get_metric(name=name, kwargs=kwargs) for name, kwargs in metrics_group.items()}
+        for metrics_group in yaml.load(args.metrics)
+    ]
+    print("update metrics")
+    for idx in tqdm(range(len(ds)), total=len(ds)):
+        tensors = ds[idx]
+        for metrics_group in tqdm(metrics_groups):
+            for name, m in metrics_group.items():
+                m.update(tensors)
 
-        def compute_metrics_individually_from_idx(idx: int):
-            return compute_metrics_individually(metrics, ds[idx], per_z=args.per_z)
+    computed_metrics = {}
+    print("compute metrics")
+    for metrics_group in tqdm(metrics_groups):
+        for name, m in metrics_group.items():
+            out = m.compute()
+            assert isinstance(out, dict)
+            for k, v in out.items():
+                assert k not in computed_metrics, (k, list(computed_metrics.keys()))
+                computed_metrics[k] = v
 
-        futs = [executor.submit(compute_metrics_individually_from_idx, idx) for idx in range(len(ds))]
-
-        for fut in tqdm(as_completed(futs), total=len(futs)):
-            e = fut.exception()
-            if e is not None:
-                logger.error(e, exc_info=True)
-                for fut in futs:
-                    fut.cancel()
-
-                raise RuntimeError from e
-
-            assert e is None
-
-        computed_metrics = [fut.result() for fut in futs]
+    # with ThreadPoolExecutor(max_workers=1) as executor:
+    #
+    #     def compute_metrics_individually_from_idx(idx: int):
+    #         return compute_metrics_individually(metrics, ds[idx], per_z=args.per_z)
+    #
+    #     futs = [executor.submit(compute_metrics_individually_from_idx, idx) for idx in range(len(ds))]
+    #
+    #     for fut in tqdm(as_completed(futs), total=len(futs)):
+    #         e = fut.exception()
+    #         if e is not None:
+    #             logger.error(e, exc_info=True)
+    #             for fut in futs:
+    #                 fut.cancel()
+    #
+    #             raise RuntimeError from e
+    #
+    #         assert e is None
+    #
+    #     computed_metrics = [fut.result() for fut in futs]
 
     # # metrics_for_epoch = {name: get_metric(name=name, kwargs=kwargs) for name, kwargs in metrics.items()}
     # dataloader = DataLoader(ds, num_workers=2, collate_fn=collate_fn)
@@ -159,7 +179,7 @@ if __name__ == "__main__":
     # for tensors in dataloader:
     #     computed_metrics.append(compute_metrics_individually(metrics, tensors))
 
-    computed_metrics = {name: [cm[name] for cm in computed_metrics] for name in computed_metrics[0]}
+    # computed_metrics = {name: [cm[name] for cm in computed_metrics] for name in computed_metrics[0]}
 
     pprint(list(computed_metrics.keys()))
     # yaml.dump({"metrics": {key: float(val) for key, val in out.metrics.items()}}, log_path / "_summary.yml")
