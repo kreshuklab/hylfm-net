@@ -15,7 +15,7 @@ build:
   noarch: python
   number: {{ GIT_DESCRIBE_NUMBER }}
   script: python -m pip install --no-deps --ignore-installed .
-  string: np{{CONDA_NPY}}py{{CONDA_PY}}_{{PKG_BUILDNUM}}_h{{PKG_HASH}}_g{{GIT_FULL_HASH[:7]}}
+  string: py{{CONDA_PY}}_{{PKG_BUILDNUM}}_h{{PKG_HASH}}_g{{GIT_FULL_HASH[:7]}}
   entry_points:
     - hylfm = hylfm.__main__:main
 
@@ -24,6 +24,7 @@ requirements:
     - pip
     - python >=3.7
   run:
+    - cudatoolkit=10.2
     - dill
     - h5py>=2.9.0
     - ignite>=0.3.0
