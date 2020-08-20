@@ -7,7 +7,7 @@ from ruamel.yaml import YAML
 
 from lnet.datasets import N5CachedDatasetFromInfo, ZipDataset, get_dataset_from_info, get_tensor_info
 
-yaml = YAML("safe")
+yaml = YAML(typ="safe")
 
 @pytest.fixture
 def data_path() -> Path:

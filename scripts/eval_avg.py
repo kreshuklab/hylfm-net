@@ -23,7 +23,7 @@ from ruamel.yaml import YAML
 from tqdm import tqdm
 
 import lnet.transformations
-from lnet import get_metric
+from lnet.get_metric import get_metric
 from lnet.datasets import TensorInfo, ZipDataset, get_dataset_from_info
 from lnet.plain_metrics import Metric
 from lnet.transformations import ComposedTransformation

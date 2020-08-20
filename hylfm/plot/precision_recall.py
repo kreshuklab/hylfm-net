@@ -15,7 +15,7 @@ from lnet.plot.metrics import get_datasets
 yaml = YAML(typ="safe")
 
 
-def add_plot(plot_name, axes, out_dir):
+def make_plots(plot_name, axes, out_dir):
     metric_postfix = ""
     use_local_data = False
 
@@ -59,7 +59,11 @@ def add_plot(plot_name, axes, out_dir):
         elif plot_name == "beads_pr":
             z_slice_mod: typing.Optional[int] = 51  # 209 None
             scalar_data = []
-            tgt_threshold = "0.1"
+            tgt_threshold = "0.05"
+            # tgt_threshold = "0.1"
+            plot_name += "_tgtt" + tgt_threshold
+            scaled = "False"
+            plot_name += "_scaled" + scaled
             # for threshold in ["1.0", "0.75", "0.5", "0.25", "0.1", "0.075", "0.05", "0.025", "0.01", "0.0075", "0.005", "0.0025", "0.001", "0.0005", "0.0001"]:
             for threshold in [
                 "0.75",
@@ -77,7 +81,7 @@ def add_plot(plot_name, axes, out_dir):
                 "0.0005",
                 "0.0001",
             ]:
-                hyper_parameter_name = f"distthreshold-3.0_excludeborder-False_maxsigma-6.0_minsigma-1.0_overlap-0.5_sigmaratio-3.0_threshold-{threshold}_tgtthreshold-{tgt_threshold}_scaled-True"
+                hyper_parameter_name = f"distthreshold-3.0_excludeborder-False_maxsigma-6.0_minsigma-1.0_overlap-0.5_sigmaratio-3.0_threshold-{threshold}_tgtthreshold-{tgt_threshold}_scaled-{scaled}"
                 scalar_data.append(["hylfm", hyper_parameter_name])
                 scalar_data.append(["lr", hyper_parameter_name])
                 scalar_data.append(["v0_on_56x80x80", hyper_parameter_name])
@@ -190,9 +194,10 @@ def add_plot(plot_name, axes, out_dir):
     # fig, axes = plt.subplots(2, 3, figsize=(18, 10), squeeze=False)
     # fig, axes = plt.subplots(2, 3, figsize=(9, 5))
 
-    scalar_columns = ["network", "hyperparameter_name", "key"]
+    network = ""
+    scalar_columns = [network, "hyperparameter_name", "key"]
 
-    plot_name += "overview"
+    plot_name += ""
     # metrics = ["PSNR", "MSE", "NRMSE", "SSIM", "MS-SSIM", None]
     # metrics = [
     #     "MS-SSIM",
@@ -303,7 +308,7 @@ def add_plot(plot_name, axes, out_dir):
         # size_order=["T1", "T2"]
 
         # plt.close(fg.fig)
-        # g = seaborn.FacetGrid(df, col="threshold", height=1.5, hue="network", palette=palette)  # , col_wrap=2
+        # g = seaborn.FacetGrid(df, col="threshold", height=1.5, hue=network, palette=palette)  # , col_wrap=2
         # g.map(plt.line,
         #     x=x_name,
         #     y=metric_name,
@@ -319,7 +324,7 @@ def add_plot(plot_name, axes, out_dir):
         #     x=x_name,
         #     y=metric_name,
         #     data=df,
-        #     hue="network",
+        #     hue=network,
         #     palette=palette,
         #     # style="scaled",
         #     # style_order=[True, False],
@@ -373,8 +378,8 @@ def add_plot(plot_name, axes, out_dir):
     # g = seaborn.FacetGrid(df, col="threshold", row="metric_name",
     #                    margin_titles=True)
     # g = g.map(plt.plot, x_name, "metric_value")#, label="metric_name")
-    # # g = g.map_dataframe(seaborn.relplot, x_name, "metric_value", hue="network")#, label="metric_name")
-    # # g = g.map_dataframe(seaborn.relplot, x_name, "metric_value", hue="network")#, label="metric_name")
+    # # g = g.map_dataframe(seaborn.relplot, x_name, "metric_value", hue=network)#, label="metric_name")
+    # # g = g.map_dataframe(seaborn.relplot, x_name, "metric_value", hue=network)#, label="metric_name")
     # # g.set(xlim=(0, 60), ylim=(0, 12),
     # #       xticks=[10, 30, 50], yticks=[2, 6, 10])
     # g.fig.subplots_adjust(wspace=.05, hspace=.05)
@@ -388,7 +393,7 @@ def add_plot(plot_name, axes, out_dir):
     # g = seaborn.relplot(
     #     x="Recall",
     #     y="Precision",
-    #     hue="network",
+    #     hue=network,
     #     # size="threshold",
     #     # col="threshold",
     #     # row="metric_name",
@@ -404,7 +409,7 @@ def add_plot(plot_name, axes, out_dir):
     # g = seaborn.scatterplot(
     #     x="Recall",
     #     y="Precision",
-    #     hue="network",
+    #     hue=network,
     #     size="threshold",
     #     # col="threshold",
     #     # row="metric_name",
@@ -418,41 +423,71 @@ def add_plot(plot_name, axes, out_dir):
     #     data=df,
     # )
     df["abs(z)"] = numpy.abs(df["z"])
-    df = df[numpy.logical_and(df["threshold"] > 0.001, df["threshold"] < 0.5)]
+    # df = df[numpy.logical_and(df["threshold"] > 0.001, df["threshold"] < 0.5)]
     # df = df["abs(z)"] < 40]
 
-    z_mean_df = df.groupby(["network", "hyperparameter_name"], as_index=False).mean()
+    z_mean_df = df.groupby([network, "hyperparameter_name"], as_index=False).mean()
 
     # z mean
+    # g = seaborn.relplot(
+    #     x="Recall",
+    #     y="Precision",
+    #     hue=network,
+    #     # size="threshold",
+    #     # style="z",
+    #     # col="z",
+    #     # col_wrap=8,
+    #     # row="metric_name",
+    #     palette=palette,
+    #     # height=5,
+    #     # aspect=0.75,
+    #     # facet_kws=dict(sharex=False),
+    #     # kind="line",
+    #     # legend="brief",
+    #     # legend="out",
+    #     data=z_mean_df,
+    # )
     g = seaborn.relplot(
-        x="Recall",
-        y="Precision",
-        hue="network",
-        # size="threshold",
-        # style="z",
-        # col="z",
-        # col_wrap=8,
-        # row="metric_name",
-        palette=palette,
-        # height=5,
-        # aspect=0.75,
-        # facet_kws=dict(sharex=False),
-        # kind="line",
-        # legend="brief",
-        # legend="out",
-        data=z_mean_df,
-    )
-
+            x="Recall",
+            y="Precision",
+            hue=network,
+            # size="threshold",
+            # style="z",
+            # col="z",
+            # col_wrap=8,
+            # row="metric_name",
+            palette=palette,
+            # height=5,
+            # aspect=0.75,
+            # facet_kws=dict(sharex=False),
+            # kind="line",
+            # legend="brief",
+            # legend="out",
+            data=z_mean_df,
+        )
+    ax = g.axes[0, 0]
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    # plt.tight_layout()
     plt.savefig(out_dir / f"{plot_name}z_mean.png")
     plt.savefig(out_dir / "svgs" / f"{plot_name}z_mean.svg")
 
+    # # remove 'network' category name
+    # handles, labels = ax.get_legend_handles_labels()
+    # g.add_legend({label: handel for label, handel in zip(labels[1:], handles[1:])})
 
     for selected_threshold in [0.1, 0.05, 0.01]:
-        z_rolling_df = df[df["threshold"] == selected_threshold].groupby(["network", "hyperparameter_name"]).rolling(5, center=True).mean().reset_index()
+        z_rolling_df = (
+            df[df["threshold"] == selected_threshold]
+            .groupby([network, "hyperparameter_name"])
+            .rolling(5, center=True)
+            .mean()
+            .reset_index()
+        )
         g = seaborn.relplot(
             x="Recall",
             y="Precision",
-            hue="network",
+            hue=network,
             # size="threshold",
             # style="z",
             # col="z",
@@ -468,8 +503,12 @@ def add_plot(plot_name, axes, out_dir):
             # legend="out",
             data=z_rolling_df,
         )
-        g.axes[0, 0].set_title(f"threshold={selected_threshold}")
-        plt.tight_layout()
+        ax = g.axes[0, 0]
+        ax.set_title(f"threshold={selected_threshold}", pad=-60)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+
+        # plt.tight_layout()
         plt.savefig(out_dir / f"{plot_name}_threshold={selected_threshold}.png")
         plt.savefig(out_dir / "svgs" / f"{plot_name}_threshold={selected_threshold}.svg")
 
@@ -507,8 +546,4 @@ if __name__ == "__main__":
     # plot_name += "heart_dynamic_1"
     # axes = add_plot("beads", axes)
     # plot_name += "beads"
-    axes = add_plot("beads_pr", [], out_dir)
-    plot_name += "beads_pr"
-
-    # plt.tight_layout()
-    # plt.show()
+    axes = make_plots("beads_pr", [], out_dir)

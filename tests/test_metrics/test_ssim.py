@@ -1,6 +1,6 @@
 import torch
 
-from lnet.metrics import MSSSIM, MSSSIM_Skimage
+from lnet.metrics.msssim import SSIM, SSIM_SkImage
 
 
 def test_mssim(beads_dataset):
@@ -12,9 +12,9 @@ def test_mssim(beads_dataset):
     ls_trf = torch.from_numpy(ls_trf)
     lr = torch.from_numpy(lr)
 
-    kwargs = {"window_size": 11, "size_average": True, "val_range": None, "normalize": False}
-    torch_metric = MSSSIM(**kwargs)
-    skimage_metric = MSSSIM_Skimage(**kwargs)
+    kwargs = {"window_size": 11, "size_average": True, "val_range": None}
+    torch_metric = SSIM(**kwargs)
+    skimage_metric = SSIM_SkImage(**kwargs)
 
     torch_metric.update((lr, ls_trf))
     skimage_metric.update((lr, ls_trf))

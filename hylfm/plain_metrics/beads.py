@@ -159,7 +159,7 @@ class BeadPrecisionRecall(Metric):
             # recall_along_dim[counts_along_dim == 0] = numpy.nan
             # ret[f"bead_precision_along_{self.dim_names[k]}"] = precision_along_dim.tolist()
             # ret[f"bead_recall_along_{self.dim_names[k]}"] = recall_along_dim.tolist()
-            pprint(fme_per_p[numpy.logical_or(fme_per_p[:, 0] != 0, fme_per_p[:, 2] != 0)])
+            # pprint(fme_per_p[numpy.logical_or(fme_per_p[:, 0] != 0, fme_per_p[:, 2] != 0)])
             ret[f"bead_precision_along_{self.dim_names[dim]}"] = [
                 1.0 if e == 0 else float(f / (f + e)) for f, m, e in fme_per_p
             ]
