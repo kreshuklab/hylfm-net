@@ -14,7 +14,7 @@ source:
 build:
   noarch: python
   number: {{ GIT_DESCRIBE_NUMBER }}
-  script: python -m pip install --no-deps --ignore-installed csbdeep=0.6.0 .
+  script: pip install --no-deps  --ignore-installed https://files.pythonhosted.org/packages/3a/8b/552c6a5976229bc411d17480b00c7acd3db34e31572dbb72bc606942c9a2/csbdeep-0.6.0-py2.py3-none-any.whl .
   string: py{{CONDA_PY}}_{{PKG_BUILDNUM}}_h{{PKG_HASH}}_g{{GIT_FULL_HASH[:7]}}
   entry_points:
     - hylfm = hylfm.__main__:main
@@ -43,7 +43,7 @@ requirements:
     - scipy>=1.2.1
     - six
     - tensorboard
-    - tensorflow-gpu 1.14
+    - tensorflow-gpu 1.14.*
     - tifffile>=0.15.1
     - torchvision>=0.2.1
     - tqdm
