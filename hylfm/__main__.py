@@ -2,6 +2,7 @@ import argparse
 import logging.config
 import os
 import shutil
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -35,7 +36,8 @@ CONFIG = {
 logging.config.dictConfig(CONFIG)
 logger = logging.getLogger(__name__)
 
-if __name__ == "__main__":
+
+def main(args=None):
     try:
         os.nice(10)
     except Exception as e:
@@ -43,20 +45,16 @@ if __name__ == "__main__":
     if settings.multiprocessing_start_method:
         torch.multiprocessing.set_start_method(settings.multiprocessing_start_method)
 
-    # try:
-    #     os.nice(10)
-    # except Exception as e:
-    #     logger.error(e)
+    if args is None:
+        parser = argparse.ArgumentParser(description="lnet")
+        parser.add_argument("experiment_config", type=Path)
+        parser.add_argument("--cuda", metavar="CUDA_VISIBLE_DEVICES", type=str, nargs="?", const="0", default=None)
+        parser.add_argument("--setup", action="store_true")
+        parser.add_argument("--checkpoint", type=Path, default=None)
+        parser.add_argument("--test", action="store_true")
+        parser.add_argument("--delete_existing_log_folder", action="store_true")
 
-    parser = argparse.ArgumentParser(description="lnet")
-    parser.add_argument("experiment_config", type=Path)
-    parser.add_argument("--cuda", metavar="CUDA_VISIBLE_DEVICES", type=str, nargs="?", const="0", default=None)
-    parser.add_argument("--setup", action="store_true")
-    parser.add_argument("--checkpoint", type=Path, default=None)
-    parser.add_argument("--test", action="store_true")
-    parser.add_argument("--delete_existing_log_folder", action="store_true")
-
-    args = parser.parse_args()
+        args = parser.parse_args()
 
     experiment_config: Path = args.experiment_config
     assert experiment_config.exists(), experiment_config.absolute()
@@ -109,3 +107,7 @@ if __name__ == "__main__":
     else:
         log_path = setup.run()
         print(f"done logging to {log_path}")
+
+
+if __name__ == "__main__":
+    sys.exit(main())
