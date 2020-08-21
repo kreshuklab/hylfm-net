@@ -2,7 +2,7 @@ channels:
     - conda-forge
     - defaults
 name:
-    csbdeep-gpu
+    care
 dependencies:
     - tifffile
     - jupyter

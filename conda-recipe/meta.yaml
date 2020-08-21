@@ -24,19 +24,21 @@ requirements:
     - pip
     - python >=3.7
   run:
-    - cudatoolkit=10.2
     - dill
     - h5py>=2.9.0
     - ignite>=0.3.0
+    - imagecodecs
     - jupyter
     - matplotlib>=3.0.3
     - numpy>=1.16.3
     - pandas
     - pip>=19.1
+    - plotly
     - python>=3.7.3
-    - pytorch-msssim>=0.1
+    - pytorch-msssim
     - pytorch>=1.4.0
     - pyyaml>=5.1
+    - scikit-image
     - scikit-image>=0.15.0
     - scikit-learn>=0.20.3
     - scipy>=1.2.1
@@ -47,7 +49,6 @@ requirements:
     - torchvision>=0.2.1
     - tqdm
     - z5py>=1.4.1
-#    - typing_extensions  # for python <3.7
 
 about:
   home: https://github.com/kreshuklab/hylfm-net
