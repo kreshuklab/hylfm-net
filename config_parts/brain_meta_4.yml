@@ -1,7 +1,0 @@
-interpolation_order: 2
-nnum: 19
-pred_z_max: 620
-pred_z_min: 142
-scale: 4
-shrink: 8
-z_out: 49

@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from lnet.transformations import Normalize01, PoissonNoise
+from hylfm.transformations import Normalize01, PoissonNoise
 
 
 def compare_slices(sample, title, *names):

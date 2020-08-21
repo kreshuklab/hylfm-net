@@ -1,6 +1,6 @@
 import numpy
 
-from lnet.utils.tracer import get_motion_compensated_peaks
+from hylfm.utils.tracer import get_motion_compensated_peaks
 
 
 def test_get_motion_compensated_peaks(output_path):
