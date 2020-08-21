@@ -14,7 +14,7 @@ source:
 build:
   noarch: python
   number: {{ GIT_DESCRIBE_NUMBER }}
-  script: python -m pip install --no-deps --ignore-installed .
+  script: python -m pip install --no-deps --ignore-installed csbdeep=0.6.0 .
   string: py{{CONDA_PY}}_{{PKG_BUILDNUM}}_h{{PKG_HASH}}_g{{GIT_FULL_HASH[:7]}}
   entry_points:
     - hylfm = hylfm.__main__:main
@@ -38,7 +38,6 @@ requirements:
     - pytorch-msssim
     - pytorch>=1.4.0
     - pyyaml>=5.1
-    - scikit-image
     - scikit-image>=0.15.0
     - scikit-learn>=0.20.3
     - scipy>=1.2.1
