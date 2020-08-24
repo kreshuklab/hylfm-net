@@ -1,22 +1,16 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
+import typing
 
-@dataclass
-class DataRoots:
-    GHUFNAGELLFLenseLeNet_Microscope: Path = Path("H:/")
-    GKRESHUK: Path = Path("K:/")
-    lnet: Path = Path("C:/repos/lnet")
-    logs: Path = Path("K:/LF_computed/lnet/logs")
 
 @dataclass
 class Settings:
-    log_path: Path
-    cache_path: Path
+    log_path: Path = Path(__file__).parent / "../logs"
+    cache_path: Path = Path(__file__).parent / "../cache"
     experiment_configs_folder: str = "experiment_configs"
 
-    data_roots: DataRoots = DataRoots()
-    wait_for_data: bool = False
+    data_roots: typing.Dict[str, Path] = field(default_factory=dict)
 
     num_workers_train_data_loader: int = 0
     num_workers_validate_data_loader: int = 0
