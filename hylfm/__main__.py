@@ -8,7 +8,7 @@ from typing import Optional
 
 import torch.multiprocessing
 
-from lnet import settings
+from hylfm import settings
 
 CONFIG = {
     "version": 1,
@@ -76,7 +76,7 @@ def main(args=None):
         if cuda_env != cuda_arg:
             raise ValueError("env and arg values for 'CUDA_VISIBLE_DEVICES' unequal!")
 
-    from lnet.setup import Setup
+    from hylfm.setup import Setup
 
     if args.test:
         standard_log_path = Setup.get_log_path(experiment_config).parent

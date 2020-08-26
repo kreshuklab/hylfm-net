@@ -1,0 +1,127 @@
+precision: &precision float
+nnum: &nnum 19
+z_out: &z_out 51
+
+toolbox: # defines yaml placeholders
+  interpol: &interpol 2
+  ls_roi: &ls_roi [[0, 0], [35, -35], [8, -8], [8, -8]]
+  metrics: &metrics
+    MS_SSIM: {tensor_names: {y_pred: pred, y: ls}, data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 3}
+    SSIM: {tensor_names: {y_pred: pred, y: ls}, data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 3}
+    NRMSE: {tensor_names: {y_pred: pred, y: ls}}
+    PSNR: {tensor_names: {y_pred: pred, y: ls}, data_range: 1.0}
+    SmoothL1Loss: {tensor_names: {y_pred: pred, y: ls}}
+    MSELoss: {tensor_names: {y_pred: pred, y: ls}}
+    BeadPrecision: {tensor_names: {y_pred: pred, y: ls}, dist_threshold: &beadPR 3.0}
+    BeadRecall: {tensor_names: {y_pred: pred, y: ls}, dist_threshold: *beadPR}
+
+  eval_log: &eval_log
+    TqdmLogger:
+      scalars_every: {value: 1, unit: iteration}
+    TensorBoardLogger:
+      scalars_every: {value: 1, unit: iteration}
+      tensors_every: {value: 1, unit: epoch}
+      tensor_names: [lf, pred, ls]
+    FileLogger:
+      scalars_every: {value: 1, unit: iteration}
+      tensors_every: {value: 1, unit: iteration}
+      tensor_names: [lf, pred, ls]
+
+  eval_batch_size: &eval_batch_size 1
+  sample_trfs: &sample_trfs
+    - Resize: {apply_to: ls, shape: [1.0, 121, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895, ], order: 2}  # 0.42105263157894736842105263157895‬=8/19
+    - Assert: {apply_to: ls, expected_tensor_shape: [null, 1, 121, null, null]}
+  eval_sample_prepr: &eval_sample_prepr
+    - Crop: {apply_to: ls, crop: *ls_roi}
+    - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+    - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
+    - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
+  eval_batch_prepr: &eval_batch_prepr []
+  batch_prepr_in_step: &batch_prepr_in_step
+    - Cast: {apply_to: [lfc, ls], dtype: *precision, device: cuda, non_blocking: true}
+  batch_postpr: &batch_postpr []
+
+model:
+  name: A04
+  kwargs:
+    input_name: lfc
+    prediction_name: pred
+    nnum: *nnum
+    z_out: *z_out
+  checkpoint:
+
+stages:
+  - train:
+      max_epochs: 500
+      metrics: {}
+      log:
+        TqdmLogger:
+          scalars_every: {value: 1, unit: iteration}
+        TensorBoardLogger:
+          scalars_every: {value: 1, unit: iteration}
+          tensors_every: {value: 1, unit: epoch}
+          tensor_names: [lf, pred, ls]
+
+      criterion:
+        name: WeightedSmoothL1Loss
+        kwargs: {threshold: 0.5, initial_weight: .05, apply_below_threshold: true, decay_by: .8, every_nth_epoch: 1}
+        tensor_names: {input: pred, target: ls}
+
+      optimizer:
+        name: Adam
+        kwargs: {lr: 2.0e-4, eps: 1.0e-8}
+
+      sampler:
+        base: RandomSampler
+        drop_last: false
+
+      batch_preprocessing:
+        - RandomRotate90: {apply_to: [lf, ls]}
+        - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
+      batch_preprocessing_in_step: *batch_prepr_in_step
+      batch_postprocessing: *batch_postpr
+
+      data:
+        - batch_size: 1
+          interpolation_order: *interpol
+          sample_preprocessing:
+            - Crop: {apply_to: ls, crop: *ls_roi}
+            - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+            - Normalize01: {apply_to: ls, min_percentile: 5.0, max_percentile: 99.99}
+            - AdditiveGaussianNoise: {apply_to: lf, sigma: 0.1}
+            - AdditiveGaussianNoise: {apply_to: ls, sigma: 0.05}
+            - RandomIntensityScale: {apply_to: [lf, ls], factor_min: .8, factor_max: 1.2}
+            - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -1}
+            - RandomlyFlipAxis: {apply_to: [lf, ls], axis: -2}
+
+          datasets:
+            - {tensors: {lf: beads.b01highc_2_lf, ls: beads.b01highc_2_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+
+      validate:
+        metrics: *metrics
+        log: *eval_log
+        score_metric: -SmoothL1Loss
+        period: {value: 1, unit: epoch}
+        patience: 10
+        batch_preprocessing: *eval_batch_prepr
+        batch_preprocessing_in_step: *batch_prepr_in_step
+        batch_postprocessing: *batch_postpr
+        data:
+          - batch_size: *eval_batch_size
+            interpolation_order: *interpol
+            sample_preprocessing: *eval_sample_prepr
+            datasets:
+              - {tensors: {lf: beads.b01highc_0_lf, ls: beads.b01highc_0_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}
+
+  - test:
+      metrics: *metrics
+      log: *eval_log
+      batch_preprocessing: *eval_batch_prepr
+      batch_preprocessing_in_step: *batch_prepr_in_step
+      batch_postprocessing: *batch_postpr
+      data:
+        - batch_size: *eval_batch_size
+          interpolation_order: *interpol
+          sample_preprocessing: *eval_sample_prepr
+          datasets:
+            - {tensors: {lf: beads.b01highc_1_lf, ls: beads.b01highc_1_ls}, interpolation_order: *interpol, sample_transformations: *sample_trfs}

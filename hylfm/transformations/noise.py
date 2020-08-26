@@ -1,8 +1,8 @@
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 import numpy
 
-from lnet.transformations.base import Transform
+from hylfm.transformations.base import Transform
 
 
 class AdditiveGaussianNoise(Transform):
@@ -44,7 +44,7 @@ class PoissonNoise(Transform):
         self,
         peak: Optional[float] = None,
         peak_percentile: Optional[float] = None,
-        min_peak: int = .001,
+        min_peak: int = 0.001,
         seed: Optional[int] = None,
         **super_kwargs
     ):

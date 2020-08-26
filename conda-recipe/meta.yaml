@@ -24,6 +24,7 @@ requirements:
     - pip
     - python >=3.7
   run:
+    - cudatoolkit 10.*
     - dill
     - h5py>=2.9.0
     - ignite>=0.3.0

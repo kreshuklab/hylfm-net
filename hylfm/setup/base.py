@@ -19,22 +19,22 @@ import torch.utils.data
 import yaml
 from ignite.handlers import global_step_from_engine
 
-import lnet.criteria
-import lnet.log
-import lnet.metrics
-import lnet.optimizers
-import lnet.transformations
-from lnet import settings, post_run
-from lnet.datasets import ConcatDataset, ZipDataset, get_collate_fn, get_dataset_from_info, get_tensor_info
-from lnet.datasets.base import TensorInfo
-from lnet.models import LnetModel
-from lnet.setup._utils import indice_string_to_list
-from lnet.step import inference_step, training_step
-from lnet.transformations import ComposedTransformation, Transform
-from lnet.transformations.utils import get_composed_transformation_from_config
-from lnet.utils import Period, PeriodUnit
-from lnet.utils.batch_sampler import NoCrossBatchSampler
-from lnet.utils.general import delete_empty_dirs
+import hylfm.criteria
+import hylfm.log
+import hylfm.metrics
+import hylfm.optimizers
+import hylfm.transformations
+from hylfm import settings, post_run
+from hylfm.datasets import ConcatDataset, ZipDataset, get_collate_fn, get_dataset_from_info, get_tensor_info
+from hylfm.datasets.base import TensorInfo
+from hylfm.models import LnetModel
+from hylfm.setup._utils import indice_string_to_list
+from hylfm.step import inference_step, training_step
+from hylfm.transformations import ComposedTransformation, Transform
+from hylfm.transformations.utils import get_composed_transformation_from_config
+from hylfm.utils import Period, PeriodUnit
+from hylfm.utils.batch_sampler import NoCrossBatchSampler
+from hylfm.utils.general import delete_empty_dirs
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class ModelSetup:
         self.strict = True
 
     def get_model(self, device: torch.device, dtype: torch.dtype) -> LnetModel:
-        model_module = import_module("." + self.name.lower(), "lnet.models")
+        model_module = import_module("." + self.name.lower(), "hylfm.models")
         model_class = getattr(model_module, self.name)
         model = model_class(**self.kwargs)
         model = model.to(device=device, dtype=dtype)
@@ -90,7 +90,7 @@ class PerLoggerSetup:
         tensors_every: Optional[Dict[str, Union[int, str]]] = None,
         tensor_names: Optional[Sequence[str]] = None,
     ):
-        self.backend: lnet.log.BaseLogger = getattr(lnet.log, name)(stage=stage, tensor_names=tensor_names)
+        self.backend: hylfm.log.BaseLogger = getattr(hylfm.log, name)(stage=stage, tensor_names=tensor_names)
         self.scalars_every = None if scalars_every is None else Period(**scalars_every)
         self.tensors_every = None if tensors_every is None else Period(**tensors_every)
 
@@ -303,17 +303,17 @@ class Stage:
         self._epoch_length: Optional[int] = None
         self.model = model
         batch_preprocessing_instances: List[Transform] = [
-            getattr(lnet.transformations, name)(**kwargs) for trf in batch_preprocessing for name, kwargs in trf.items()
+            getattr(hylfm.transformations, name)(**kwargs) for trf in batch_preprocessing for name, kwargs in trf.items()
         ]
         self.batch_preprocessing = ComposedTransformation(*batch_preprocessing_instances)
         batch_preprocessing_in_step_instances: List[Transform] = [
-            getattr(lnet.transformations, name)(**kwargs)
+            getattr(hylfm.transformations, name)(**kwargs)
             for trf in batch_preprocessing_in_step
             for name, kwargs in trf.items()
         ]
         self.batch_preprocessing_in_step = ComposedTransformation(*batch_preprocessing_in_step_instances)
         batch_postprocessing_instances: List[Transform] = [
-            getattr(lnet.transformations, name)(**kwargs)
+            getattr(hylfm.transformations, name)(**kwargs)
             for trf in batch_postprocessing
             for name, kwargs in trf.items()
         ]
@@ -384,7 +384,7 @@ class Stage:
         metric_instances = {}
         for metric_name, kwargs in self.metrics.items():
             kwargs = dict(kwargs)
-            metric_class = getattr(lnet.metrics, metric_name, None)
+            metric_class = getattr(hylfm.metrics, metric_name, None)
             if metric_class is None:
                 if (
                     isinstance(self, TrainStage)
@@ -393,9 +393,9 @@ class Stage:
                 ):
                     metric = ignite.metrics.Average(output_transform=lambda out: out[metric_name])
                 else:
-                    criterion_class = getattr(lnet.criteria, metric_name, None)
+                    criterion_class = getattr(hylfm.criteria, metric_name, None)
                     if criterion_class is None:
-                        metric_getter = getattr(lnet.metrics, "get_" + metric_name, None)
+                        metric_getter = getattr(hylfm.metrics, "get_" + metric_name, None)
                         if metric_getter is None:
                             raise ValueError(f"{metric_name} is not a valid metric name")
 
@@ -411,7 +411,7 @@ class Stage:
             else:
                 try:
                     metric = metric_class(
-                        output_transform=lnet.metrics.get_output_transform(kwargs.pop("tensor_names")), **kwargs
+                        output_transform=hylfm.metrics.get_output_transform(kwargs.pop("tensor_names")), **kwargs
                     )
                 except Exception:
                     logger.error("Cannot init %s", metric_name)
@@ -492,7 +492,7 @@ class CriterionSetup:
     postfix: str = ""
 
     def __post_init__(self):
-        self._class = getattr(lnet.criteria, self.name)
+        self._class = getattr(hylfm.criteria, self.name)
         self.name += self.postfix
         assert "engine" not in self.kwargs
         assert "tensor_names" not in self.kwargs
@@ -503,7 +503,7 @@ class CriterionSetup:
         if "engine" in sig.parameters:
             kwargs["engine"] = engine
 
-        return lnet.criteria.CriterionWrapper(
+        return hylfm.criteria.CriterionWrapper(
             tensor_names=self.tensor_names, criterion_class=self._class, postfix=self.postfix, **kwargs
         )
 
@@ -514,7 +514,7 @@ class OptimizerSetup:
     kwargs: Dict[str, Any]
 
     def __post_init__(self):
-        self._class = getattr(lnet.optimizers, self.name)
+        self._class = getattr(hylfm.optimizers, self.name)
         assert "engine" not in self.kwargs
         assert "parameters" not in self.kwargs
 
