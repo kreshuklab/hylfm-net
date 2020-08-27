@@ -1,9 +1,9 @@
 import shutil
 from pathlib import Path
 
-from lnet.settings import settings
+from hylfm.settings import settings
 
-# root = settings.log_path
+# root = settings.log_dir
 
 # delete = """
 # /g/kreshuk/LF_computed/lnet/logs/beads/z_out51/01highc_f4/20-04-29_16-24-00
@@ -17,7 +17,7 @@ from lnet.settings import settings
 #     # for file_path in data_path.glob(f"{name}.*"):
 #     #     file_path.unlink()
 
-# rm_paths = list(settings.cache_path.glob("*mask.npy"))
+# rm_paths = list(settings.cache_dir.glob("*mask.npy"))
 # for rm_path in rm_paths:
 #     print(rm_path)
 #     try:
@@ -29,7 +29,7 @@ from lnet.settings import settings
     # if "index_mask" not in str(txt_path) and "quality" in txt:
     #     print(txt)
     #     print(txt_path.with_suffix(""))
-    #     rm_paths = list(settings.cache_path.glob((txt_path.with_suffix("").name + "*")))
+    #     rm_paths = list(settings.cache_dir.glob((txt_path.with_suffix("").name + "*")))
     #     if len(rm_paths) == 1:
     #         rm_path = rm_paths[0]
     #         print(rm_path)

@@ -5,8 +5,8 @@ import imageio
 import yaml
 import warnings
 
-from lnet.datasets.base import TensorInfo, get_dataset_from_info, N5CachedDatasetFromInfoSubset
-from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241
+from hylfm.datasets.base import TensorInfo, get_dataset_from_info, N5CachedDatasetFromInfoSubset
+from hylfm.datasets.heart_utils import get_transformations, idx2z_slice_241
 
 
 def get_tensor_info(tag: str, name: str, meta: dict):

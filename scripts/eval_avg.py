@@ -3,7 +3,6 @@ import os
 import typing
 from argparse import ArgumentParser
 from collections import OrderedDict, defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from pprint import pprint
 from typing import Dict
@@ -22,11 +21,11 @@ if __name__ == "__main__":
 from ruamel.yaml import YAML
 from tqdm import tqdm
 
-import lnet.transformations
-from lnet.get_metric import get_metric
-from lnet.datasets import TensorInfo, ZipDataset, get_dataset_from_info
-from lnet.plain_metrics import Metric
-from lnet.transformations import ComposedTransformation
+import hylfm.transformations
+from hylfm.get_metric import get_metric
+from hylfm.datasets import TensorInfo, ZipDataset, get_dataset_from_info
+from hylfm.plain_metrics import Metric
+from hylfm.transformations import ComposedTransformation
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +112,7 @@ if __name__ == "__main__":
             location=f"*.tif",
             insert_singleton_axes_at=[0],
             # remove_singleton_axes_at=[],  #  if care_setup else [-1]
-            meta={"log_path": log_path},
+            meta={"log_dir": log_path},
         )
     )
     print("get gt from", test_data_path / gt_name)
@@ -127,7 +126,11 @@ if __name__ == "__main__":
         )
     )
     trf = ComposedTransformation(
-        *[getattr(lnet.transformations, name)(**kwargs) for trf in yaml.load(args.trfs) for name, kwargs in trf.items()]
+        *[
+            getattr(hylfm.transformations, name)(**kwargs)
+            for trf in yaml.load(args.trfs)
+            for name, kwargs in trf.items()
+        ]
     )
     ds = ZipDataset(datasets, join_dataset_masks=False, transformation=trf)
     # print(ds[0][setup["pred"]].shape, ds[0][gt_name].shape)
@@ -182,6 +185,6 @@ if __name__ == "__main__":
     # computed_metrics = {name: [cm[name] for cm in computed_metrics] for name in computed_metrics[0]}
 
     pprint(list(computed_metrics.keys()))
-    # yaml.dump({"metrics": {key: float(val) for key, val in out.metrics.items()}}, log_path / "_summary.yml")
+    # yaml.dump({"metrics": {key: float(val) for key, val in out.metrics.items()}}, log_dir / "_summary.yml")
     for name, values in computed_metrics.items():
         yaml.dump(values, log_path / f"{name}.yml")

@@ -40,7 +40,7 @@ def test_poisson(ls_slice_dataset, add_to_tag="pytest"):
 
 
 if __name__ == "__main__":
-    from lnet.datasets import ZipDataset, get_dataset_from_info, get_tensor_info
+    from hylfm.datasets import ZipDataset, get_dataset_from_info, get_tensor_info
 
     meta = {"nnum": 19, "z_out": 49, "interpolation_order": 2, "scale": 2}
     for tag in [

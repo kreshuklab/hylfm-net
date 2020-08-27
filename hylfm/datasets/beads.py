@@ -1,5 +1,5 @@
-from lnet import settings
-from lnet.datasets.base import TensorInfo
+from hylfm import settings
+from hylfm.datasets.base import TensorInfo
 
 b01highc_0_lf = TensorInfo(
     name="lf",
@@ -399,7 +399,7 @@ b01mix4_0_ls = TensorInfo(
 if __name__ == "__main__":
     from hashlib import sha224 as hash_algorithm
 
-    from lnet.datasets.base import get_dataset_from_info, N5CachedDatasetFromInfo
+    from hylfm.datasets.base import get_dataset_from_info, N5CachedDatasetFromInfo
 
     # info = b4mu_3_ls
     for info in [b4mu_0_ls, b4mu_1_ls, b4mu_2_ls, b4mu_3_ls]:
@@ -415,7 +415,7 @@ if __name__ == "__main__":
         ]
         ds = get_dataset_from_info(info)
         print(
-            settings.cache_path / f"{ds.info.tag}_{ds.tensor_name}_{hash_algorithm(ds.description.encode()).hexdigest()}.n5"
+            settings.cache_dir / f"{ds.info.tag}_{ds.tensor_name}_{hash_algorithm(ds.description.encode()).hexdigest()}.n5"
         )
         ds = N5CachedDatasetFromInfo(ds)
 

@@ -23,10 +23,10 @@ from skimage.feature import peak_local_max
 from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 
-from lnet import settings
-from lnet.datasets import TensorInfo
-from lnet.datasets.base import TiffDataset, get_collate_fn
-from lnet.utils.general import print_timing
+from hylfm import settings
+from hylfm.datasets import TensorInfo
+from hylfm.datasets.base import TiffDataset, get_collate_fn
+from hylfm.utils.general import print_timing
 
 plt.rcParams["svg.fonttype"] = "none"
 

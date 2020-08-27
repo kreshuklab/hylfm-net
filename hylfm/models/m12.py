@@ -10,9 +10,9 @@ import torch.nn
 import torch.nn as nn
 from inferno.extensions.initializers import Constant, Initialization
 
-from lnet.models.base import LnetModel
-from lnet.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
-from lnet.models.layers.structural_layers import C2Z
+from hylfm.models.base import LnetModel
+from hylfm.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
+from hylfm.models.layers.structural_layers import C2Z
 
 logger = logging.getLogger(__name__)
 

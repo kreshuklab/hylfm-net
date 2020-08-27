@@ -1,12 +1,11 @@
 import typing
 from collections import OrderedDict
-from copy import deepcopy
 
 import numpy
 import torch.nn
 
-from lnet.plain_criteria import GenericLossOnTensors
-from lnet.utils.general import camel_to_snake
+from hylfm.plain_criteria import GenericLossOnTensors
+from hylfm.utils.general import camel_to_snake
 
 
 class Metric:
@@ -15,9 +14,7 @@ class Metric:
         *,
         postfix: str = "",
         tensor_names: typing.Optional[typing.Dict[str, str]],
-        scale: typing.Optional[str] = None,
-        to_minimize: typing.Optional[str] = None,  # for scale
-        vs: typing.Optional[str] = None,  # for scale
+        scale_minimize_vs: typing.Optional[str] = None,  # for scale
     ):
         if scale is not None:
             assert to_minimize is not None
@@ -216,7 +213,7 @@ class LossAsMetric(Metric):
             self._accumulated += float(self.loss(tensors).item())
 
     def compute_impl(self):
-        loss_name = self.loss.name
+        loss_name = self.loss.namef
         return {loss_name: self._accumulated / self._n}
 
 

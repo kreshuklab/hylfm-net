@@ -5,7 +5,7 @@ import numpy
 from matplotlib.figure import Figure
 from tifffile import imread
 
-from lnet.utils.plotting import turbo_colormap
+from hylfm.utils.plotting import turbo_colormap
 
 
 def plot_img_projections(img: numpy.ndarray, b=0) -> Figure:

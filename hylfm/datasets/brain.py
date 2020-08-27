@@ -5,9 +5,9 @@ from pathlib import Path
 
 import yaml
 
-from lnet.datasets.base import TensorInfo, get_dataset_from_info
-from lnet.settings import settings
-from lnet.transformations.affine_utils import (
+from hylfm.datasets.base import TensorInfo, get_dataset_from_info
+from hylfm.settings import settings
+from hylfm.transformations.affine_utils import (
     get_lf_shape,
     get_precropped_ls_roi_in_raw_ls,
     get_precropped_ls_shape,

@@ -70,7 +70,7 @@ def cached_to_disk(func):
         cache_key = cache_key.hexdigest()
 
         result_description_path = (
-            settings.cache_path / cached_to_disk.__name__ / func.__name__ / f"{cache_key}.descr.pickle"
+                settings.cache_dir / cached_to_disk.__name__ / func.__name__ / f"{cache_key}.descr.pickle"
         )
 
         try:

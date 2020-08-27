@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     task = tasks[task_nr]
 
-    subprocess.call(f"run_lnet.sh {task}")
+    subprocess.call(f"run_hylfm.sh {task}")
 #     try:
 #         ret = subprocess.run(f"{sys.executable} -m lnet {task}".split(), shell=True, check=True, stderr=subprocess.STDOUT)
 #     except subprocess.CalledProcessError as e:

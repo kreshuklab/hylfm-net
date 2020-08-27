@@ -6,7 +6,7 @@
 # import typing
 # from scipy.special import expit
 #
-# from lnet.transformations.base import DTypeMapping, Transform
+# from hylfm.transformations.base import DTypeMapping, Transform
 #
 #
 # logger = logging.getLogger(__name__)

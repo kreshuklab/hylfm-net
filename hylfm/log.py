@@ -4,8 +4,7 @@ import logging
 import time
 import typing
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from math import ceil
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy
@@ -16,12 +15,12 @@ from ignite.engine import Engine, Events
 from tifffile import imsave as imwrite
 from tqdm import tqdm
 
-from lnet import settings
-from lnet.utils import PeriodUnit, Period
-from lnet.utils.plotting import get_batch_figure
+from hylfm import settings
+from hylfm.utils import Period, PeriodUnit
+from hylfm.utils.plotting import get_batch_figure
 
 if typing.TYPE_CHECKING:
-    from lnet.setup import Stage
+    from hylfm.setup import Stage
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +178,7 @@ class FileLogger(BaseLogger):
 
         for tn in tensor_names:
             for tensor, bmeta in zip(tensors[tn], tensors["meta"]):
-                self.executor.submit(self._save_tensor, bmeta["idx"], tensor, bmeta[tn]["log_path"])
+                self.executor.submit(self._save_tensor, bmeta["idx"], tensor, bmeta[tn]["log_dir"])
 
         return unit, step
 

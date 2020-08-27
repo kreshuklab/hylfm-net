@@ -14,14 +14,14 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from tensorboardX import SummaryWriter
 from torch.utils.data import ConcatDataset
 
-from lnet.config import Config
-from lnet.datasets import Result
-from lnet.engine import EvalEngine, TrainEngine, TunedEngine
-from lnet.metrics import BEAD_PRECISION_RECALL, LOSS_NAME
-from lnet.output import AuxOutput, Output
-from lnet.old_step_functions import inference_step, training_step
-from lnet.transformations.light_field import LightFieldFromChannel
-from lnet.utils.plotting import Box, turbo_colormap_data
+from hylfm.config import Config
+from hylfm.datasets import Result
+from hylfm.engine import EvalEngine, TrainEngine, TunedEngine
+from hylfm.metrics import BEAD_PRECISION_RECALL, LOSS_NAME
+from hylfm.output import AuxOutput, Output
+from hylfm.old_step_functions import inference_step, training_step
+from hylfm.transformations.light_field import LightFieldFromChannel
+from hylfm.utils.plotting import Box, turbo_colormap_data
 
 
 class Experiment:

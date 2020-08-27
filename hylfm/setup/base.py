@@ -41,7 +41,11 @@ logger = logging.getLogger(__name__)
 
 class ModelSetup:
     def __init__(
-        self, name: str, kwargs: Dict[str, Any], checkpoint: Optional[Union[Path, str]] = None, partial_weights: bool = False
+        self,
+        name: str,
+        kwargs: Dict[str, Any],
+        checkpoint: Optional[Union[Path, str]] = None,
+        partial_weights: bool = False,
     ):
         self.name = name
         self.kwargs = kwargs
@@ -303,7 +307,9 @@ class Stage:
         self._epoch_length: Optional[int] = None
         self.model = model
         batch_preprocessing_instances: List[Transform] = [
-            getattr(hylfm.transformations, name)(**kwargs) for trf in batch_preprocessing for name, kwargs in trf.items()
+            getattr(hylfm.transformations, name)(**kwargs)
+            for trf in batch_preprocessing
+            for name, kwargs in trf.items()
         ]
         self.batch_preprocessing = ComposedTransformation(*batch_preprocessing_instances)
         batch_preprocessing_in_step_instances: List[Transform] = [
@@ -414,8 +420,11 @@ class Stage:
                         output_transform=hylfm.metrics.get_output_transform(kwargs.pop("tensor_names")), **kwargs
                     )
                 except Exception:
-                    logger.error("Cannot init %s", metric_name)
-                    raise
+                    try:
+                        metric = metric_class(**kwargs)
+                    except Exception:
+                        logger.error("Cannot init %s", metric_name)
+                        raise
 
             metric_instances[metric_name] = metric
             metric.attach(engine, metric_name)
@@ -567,7 +576,7 @@ class TrainStage(Stage):
             score_name=self.validate.score_metric,
             n_saved=self.log.save_n_checkpoints,
             create_dir=True,
-            global_step_transform=global_step_from_engine(self.engine)
+            global_step_transform=global_step_from_engine(self.engine),
         )
 
         early_stopper = ignite.handlers.EarlyStopping(
@@ -640,7 +649,7 @@ class Setup:
                 valid_path_until = checkpoint[:star_pos].rfind("/")
                 checkpoint_dir = Path(checkpoint[:valid_path_until])
                 assert checkpoint_dir.exists(), checkpoint_dir
-                glob_expr = checkpoint[valid_path_until + 1:]
+                glob_expr = checkpoint[valid_path_until + 1 :]
                 checkpoint = max([(float(c.stem.split("=")[1]), c) for c in checkpoint_dir.glob(glob_expr)])[1]
 
             checkpoint = Path(checkpoint)
@@ -662,7 +671,7 @@ class Setup:
 
         self.config_path = config_path
         self.log_path = self.get_log_path(config_path=config_path) if log_path is None else Path(log_path)
-        logger.info("log_path: %s", self.log_path)
+        logger.info("log_dir: %s", self.log_path)
 
         self.config = {
             "config_path": str(config_path),
@@ -671,7 +680,7 @@ class Setup:
             "device": device,
             "model": model,
             "stages": stages,
-            "log_path": str(log_path),
+            "log_dir": str(log_path),
         }
 
     @classmethod
@@ -688,7 +697,7 @@ class Setup:
         assert len(log_sub_dir) == 2, log_sub_dir
         log_sub_dir: str = log_sub_dir[1]
         if root is None:
-            root = settings.log_path
+            root = settings.log_dir
         return root / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:

@@ -1,7 +1,7 @@
 from typing import Any, Dict
 
 from lnet import registration
-from lnet.models.base import LnetModel
+from hylfm.models.base import LnetModel
 
 
 class AffineTransformationAndSliceWrapper(LnetModel):

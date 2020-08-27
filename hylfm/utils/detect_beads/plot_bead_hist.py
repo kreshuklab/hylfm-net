@@ -3,7 +3,7 @@ import numpy
 from matplotlib.figure import Figure
 from tifffile import imread
 
-from lnet.utils.detect_beads import get_bead_pos
+from hylfm.utils.detect_beads import get_bead_pos
 
 
 def plot_bead_hist(bead_pos_tgt, bead_pos_pred, bi=0) -> Figure:

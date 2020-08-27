@@ -4,8 +4,8 @@ from typing import Optional, Sequence, Tuple
 import torch.nn
 import torch.nn as nn
 
-from lnet.models.base import LnetModel
-from lnet.models.layers.conv_layers import ResnetBlock
+from hylfm.models.base import LnetModel
+from hylfm.models.layers.conv_layers import ResnetBlock
 
 logger = logging.getLogger(__name__)
 

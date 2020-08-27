@@ -7,8 +7,8 @@ import skimage.transform
 import torch
 from scipy.ndimage import zoom
 
-from lnet.transformations.affine_utils import get_ls_roi, get_lf_roi_in_raw_lf
-from lnet.transformations.base import Transform
+from hylfm.transformations.affine_utils import get_lf_roi_in_raw_lf, get_ls_roi
+from hylfm.transformations.base import Transform
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,10 @@ class Crop(Transform):
         if any([crop[i][j] is not None and crop[i][j] != cc for i, c in enumerate(int_crop) for j, cc in enumerate(c)]):
             raise ValueError(f"Crop contains fractions: {crop}")
 
-        assert all([c[1] is None or c[1] < 0 or c[1] <= s for c, s in zip(int_crop, tensor.shape[1:])]), (tensor.shape, int_crop)
+        assert all([c[1] is None or c[1] < 0 or c[1] <= s for c, s in zip(int_crop, tensor.shape[1:])]), (
+            tensor.shape,
+            int_crop,
+        )
         out = tensor[(slice(None),) + tuple(slice(c[0], c[1]) for c in int_crop)]
         logger.debug("Crop tensor: %s %s by %s to %s", name, tensor.shape, crop, out.shape)
         return out

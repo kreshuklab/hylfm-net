@@ -10,7 +10,7 @@ import pandas
 import seaborn
 from ruamel.yaml import YAML
 
-from lnet.plot.metrics import get_datasets
+from hylfm.plot.metrics import get_datasets
 
 yaml = YAML(typ="safe")
 

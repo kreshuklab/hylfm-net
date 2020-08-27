@@ -8,9 +8,9 @@ from ruamel.yaml import YAML
 from tifffile import imread, imsave
 from tqdm import tqdm
 
-from lnet.datasets import TensorInfo, ZipDataset, get_dataset_from_info, get_tensor_info
-from lnet.datasets.heart_utils import idx2z_slice_241
-from lnet.transformations.utils import get_composed_transformation_from_config
+from hylfm.datasets import TensorInfo, ZipDataset, get_dataset_from_info, get_tensor_info
+from hylfm.datasets.heart_utils import idx2z_slice_241
+from hylfm.transformations.utils import get_composed_transformation_from_config
 
 yaml = YAML(typ="safe")
 

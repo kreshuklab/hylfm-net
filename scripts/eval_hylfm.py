@@ -11,11 +11,11 @@ from typing import Dict
 from ruamel.yaml import YAML
 from tqdm import tqdm
 
-import lnet.transformations
+import hylfm.transformations
 from lnet import get_metric
-from lnet.datasets import TensorInfo, ZipDataset, get_dataset_from_info
-from lnet.plain_metrics import Metric
-from lnet.transformations import ComposedTransformation
+from hylfm.datasets import TensorInfo, ZipDataset, get_dataset_from_info
+from hylfm.plain_metrics import Metric
+from hylfm.transformations import ComposedTransformation
 from notebooks.care.setup_inference import get_care_setup, get_hylfm_setup
 
 logger = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ if __name__ == "__main__":
             location=f"*.tif",
             insert_singleton_axes_at=[0, 0],
             remove_singleton_axes_at=[-1],
-            meta={"log_path": log_path},
+            meta={"log_dir": log_path},
         )
     )
     datasets[setup["gt"]] = get_dataset_from_info(
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     print("get trfs from", args.trfs.absolute())
     assert args.trfs.exists()
     trf = ComposedTransformation(
-        *[getattr(lnet.transformations, name)(**kwargs) for trf in yaml.load(args.trfs) for name, kwargs in trf.items()]
+        *[getattr(hylfm.transformations, name)(**kwargs) for trf in yaml.load(args.trfs) for name, kwargs in trf.items()]
     )
     ds = ZipDataset(datasets, join_dataset_masks=False, transformation=trf)
     # print(ds[0][setup["pred"]].shape, ds[0][gt_name].shape)
@@ -135,6 +135,6 @@ if __name__ == "__main__":
     computed_metrics = {name: [cm[name] for cm in computed_metrics] for name in computed_metrics[0]}
 
     pprint(computed_metrics)
-    # yaml.dump({"metrics": {key: float(val) for key, val in out.metrics.items()}}, log_path / "_summary.yml")
+    # yaml.dump({"metrics": {key: float(val) for key, val in out.metrics.items()}}, log_dir / "_summary.yml")
     for name, values in computed_metrics.items():
         yaml.dump(values, log_path / f"{name}.yml")

@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from lnet.utils.tracer import add_paths_to_plots, trace_and_plot
+from hylfm.utils.tracer import add_paths_to_plots, trace_and_plot
 
 logger = logging.getLogger(__name__)
 

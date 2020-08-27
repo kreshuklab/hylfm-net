@@ -85,34 +85,3 @@ class PSNR(Metric):
             raise NotComputableError("PSNR must have at least one example before it can be computed.")
 
         return self._sum / self._num_examples
-
-#
-# class ScaledPSNR(PSNR, ScaledMetric):
-#     pass
-
-
-# class ScaledPSNR(Metric):
-#     def __init__(self, *, data_range=None, pred: str = "pred", tgt: str = "tgt", **super_kwargs):
-#         super().__init__(pred=pred, tgt=tgt, **super_kwargs)
-#         self.data_range = data_range
-#
-#     def reset(self):
-#         self._sum = 0.0
-#         self._num_examples = 0
-#
-#     def update_impl(self, *, pred, tgt):
-#         n = pred.shape[0]
-#         # if normalize_gt:
-#         #     gt = normalize(gt, 0.1, 99.9, clip=False).astype(np.float32, copy = False)
-#         pred_numpy = pred.numpy()
-#         offset = pred_numpy.mean()
-#         tgt_numpy = tgt.numpy()
-#         scale = numpy.cov(pred_numpy.flatten() - pred_numpy.mean(), tgt_numpy.flatten() - tgt_numpy.mean())[0, 1] / numpy.var(pred_numpy.flatten())
-#         self._sum += psnr((pred.flatten(end_dim=1) - offset) * scale, tgt.flatten(end_dim=1), data_range=self.data_range) * n  # bc > b
-#         self._num_examples += n
-#
-#     def compute_impl(self):
-#         if self._num_examples == 0:
-#             raise NotComputableError("PSNR must have at least one example before it can be computed.")
-#
-#         return self._sum / self._num_examples

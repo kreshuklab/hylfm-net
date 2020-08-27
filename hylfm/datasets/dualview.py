@@ -1,4 +1,4 @@
-from lnet.datasets import TensorInfo
+from hylfm.datasets import TensorInfo
 
 beads_right = TensorInfo(
     name="lf",

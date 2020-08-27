@@ -17,7 +17,7 @@ import numpy
 import tifffile
 from ruamel.yaml import YAML
 
-from lnet.setup.base import DatasetGroupSetup
+from hylfm.setup.base import DatasetGroupSetup
 
 logging.config.dictConfig(
     {

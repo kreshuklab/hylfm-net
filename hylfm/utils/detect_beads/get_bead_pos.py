@@ -17,7 +17,7 @@ def get_bead_pos(img: numpy.ndarray, *, min_sigma: Union[float, Sequence[float]]
 #     smooth2 = ndimage.gaussian_filter(img, [0, 0, 3, 7 * xy_factor, 7 * xy_factor], mode="constant", cval=img.mean())
 #     gdiff = numpy.array(smooth, dtype=numpy.float64) - smooth2
 #
-#     # from lnet.utils.plotting import turbo_colormap
+#     # from hylfm.utils.plotting import turbo_colormap
 #     # fig = plt.figure()
 #     # plt.imshow(smooth[0, 0].max(0), cmap=turbo_colormap)
 #     # plt.colorbar()
@@ -69,8 +69,8 @@ def get_bead_pos(img: numpy.ndarray, *, min_sigma: Union[float, Sequence[float]]
 
 
 if __name__ == "__main__":
-    from lnet.utils.detect_beads.plot_bead_proj import plot_bead_projections
-    from lnet.utils.detect_beads.plot_img_proj import plot_img_projections_with_beads, plot_img_projections
+    from hylfm.utils.detect_beads.plot_bead_proj import plot_bead_projections
+    from hylfm.utils.detect_beads.plot_img_proj import plot_img_projections_with_beads, plot_img_projections
     import matplotlib.pyplot as plt
 
     tgt = imread("/g/kreshuk/LF_computed/lnet/logs/beads/01highc/20-04-21_11-41-43/test/output/0/pred.tif")[None, ...]

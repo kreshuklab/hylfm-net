@@ -16,17 +16,16 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import h5py
 import imageio
 import numpy
-
 import torch.utils.data
 import yaml
 import z5py
 
-import lnet
-import lnet.datasets.filters
-from lnet import settings
-from lnet.datasets.utils import get_paths
-from lnet.stat import DatasetStat
-from lnet.transformations.base import ComposedTransformation
+import hylfm
+import hylfm.datasets.filters
+from hylfm import settings
+from hylfm.datasets.utils import get_paths
+from hylfm.stat import DatasetStat
+from hylfm.transformations.base import ComposedTransformation
 
 logger = logging.getLogger(__name__)
 
@@ -142,9 +141,9 @@ class DatasetFromInfo(torch.utils.data.Dataset):
         self.tensor_name = info.name
         self.info = info
         self.description = info.description
-        self.transform = lnet.transformations.ComposedTransformation(
+        self.transform = hylfm.transformations.ComposedTransformation(
             *[
-                getattr(lnet.transformations, name)(**kwargs)
+                getattr(hylfm.transformations, name)(**kwargs)
                 for trf in info.transformations
                 for name, kwargs in trf.items()
             ]
@@ -347,7 +346,7 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
         self.repeat = dataset.info.repeat
         description = dataset.description
         data_file_path = (
-            settings.cache_path
+            settings.cache_dir
             / f"{dataset.info.tag}_{dataset.tensor_name}_{hash_algorithm(description.encode()).hexdigest()}.n5"
         )
         data_file_path.with_suffix(".txt").write_text(description)
@@ -486,7 +485,7 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
         self.description = description
         indices = numpy.arange(len(dataset)) if indices is None else indices
         mask_file_path = (
-            settings.cache_path
+            settings.cache_dir
             / f"{dataset.dataset.info.tag}_{hash_algorithm(description.encode()).hexdigest()}.index_mask.npy"
         )
         mask_description_file_path = mask_file_path.with_suffix(".txt")
@@ -511,7 +510,7 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
                             kwargs[k] = mean + std * v[kk]
 
             filters = [
-                partial(getattr(lnet.datasets.filters, name), dataset=dataset, **kwargs) for name, kwargs in filters
+                partial(getattr(hylfm.datasets.filters, name), dataset=dataset, **kwargs) for name, kwargs in filters
             ]
 
             def apply_filters_to_mask(idx: int) -> None:

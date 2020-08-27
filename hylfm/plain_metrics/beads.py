@@ -1,12 +1,11 @@
 import logging
+import typing
 from collections import defaultdict
-from pprint import pprint
 from typing import Tuple, Union
 
 import numpy
-import typing
 
-from lnet.utils.detect_beads import match_beads
+from hylfm.utils.detect_beads import match_beads
 from .base import Metric
 
 logger = logging.getLogger(__name__)
@@ -89,32 +88,32 @@ class BeadPrecisionRecall(Metric):
                                     (found_at_p, missing_at_p, extra_at_p)
                                 )
 
-                    # log_path = smeta[self.pred_name].get("log_path", smeta.get("log_path", None))
-                    # assert log_path is not None
+                    # log_dir = smeta[self.pred_name].get("log_dir", smeta.get("log_dir", None))
+                    # assert log_dir is not None
                     # sample_idx = smeta["idx"]
                     # numpy.savetxt(
-                    #     str(log_path / f"{sample_idx:05}_matched_tgt_beads.txt"),
+                    #     str(log_dir / f"{sample_idx:05}_matched_tgt_beads.txt"),
                     #     tgt_idx,
                     #     fmt="%3i",
                     #     delimiter="\t",
                     #     newline="\n",
                     # )
                     # numpy.savetxt(
-                    #     str(log_path / f"{sample_idx:05}_matched_pred_beads.txt"),
+                    #     str(log_dir / f"{sample_idx:05}_matched_pred_beads.txt"),
                     #     pred_idx,
                     #     fmt="%3i",
                     #     delimiter="\t",
                     #     newline="\n",
                     # )
                     # numpy.savetxt(
-                    #     str(log_path / f"{sample_idx:05}_tgt_bead_pos.txt"),
+                    #     str(log_dir / f"{sample_idx:05}_tgt_bead_pos.txt"),
                     #     bead_pos_tgt,
                     #     fmt="%3i",
                     #     delimiter="\t",
                     #     newline="\n",
                     # )
                     # numpy.savetxt(
-                    #     str(log_path / f"{sample_idx:05}_pred_bead_pos.txt"),
+                    #     str(log_dir / f"{sample_idx:05}_pred_bead_pos.txt"),
                     #     bead_pos_pred,
                     #     fmt="%3i",
                     #     delimiter="\t",

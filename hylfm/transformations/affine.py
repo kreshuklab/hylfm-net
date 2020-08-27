@@ -6,14 +6,13 @@ import torch.nn.functional
 import torch.nn.functional
 from scipy.ndimage import affine_transform
 
-from lnet.transformations.affine_utils import (
+from hylfm.transformations.affine_utils import (
+    MAX_SRHINK_IN_LENSLETS,
     get_bdv_affine_transformations_by_name,
     get_lf_shape,
-    get_pred_roi_in_precropped_lf,
-    get_ls_roi,
     get_ls_ref_shape,
+    get_ls_roi,
     get_raw_lf_shape,
-    MAX_SRHINK_IN_LENSLETS,
 )
 
 logger = logging.getLogger(__name__)
@@ -537,15 +536,15 @@ def static():
     from torch.utils.data import DataLoader
     import matplotlib.pyplot as plt
 
-    from lnet.datasets import (
+    from hylfm.datasets import (
         get_dataset_from_info,
         ZipDataset,
         N5CachedDatasetFromInfo,
         get_collate_fn,
         N5CachedDatasetFromInfoSubset,
     )
-    from lnet.datasets.gcamp import ref0_lr, ref0_ls
-    from lnet.transformations import ComposedTransformation, Cast, Crop
+    from hylfm.datasets.gcamp import ref0_lr, ref0_ls
+    from hylfm.transformations import ComposedTransformation, Cast, Crop
 
     ref0_lr.transformations += [
         {
@@ -710,15 +709,15 @@ def dynamic():
     from torch.utils.data import DataLoader
     import matplotlib.pyplot as plt
 
-    from lnet.datasets import (
+    from hylfm.datasets import (
         get_dataset_from_info,
         ZipDataset,
         N5CachedDatasetFromInfo,
         get_collate_fn,
         N5CachedDatasetFromInfoSubset,
     )
-    from lnet.datasets.gcamp import ref0_lr, ref0_sample_ls_slice
-    from lnet.transformations import ComposedTransformation, Cast, Crop, Assert
+    from hylfm.datasets.gcamp import ref0_lr, ref0_sample_ls_slice
+    from hylfm.transformations import ComposedTransformation, Cast, Crop, Assert
 
     ref0_lr.transformations += [
         {

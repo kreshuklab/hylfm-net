@@ -1,5 +1,6 @@
 import re
 import typing
+from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
 from time import perf_counter

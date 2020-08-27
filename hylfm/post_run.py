@@ -6,14 +6,14 @@ import typing
 from torch.utils.tensorboard import SummaryWriter
 
 if typing.TYPE_CHECKING:
-    from lnet.setup import Stage
+    from hylfm.setup import Stage
 
-from lnet.utils.tracer import trace_and_plot
+from hylfm.utils.tracer import trace_and_plot
 
 
 def trace_neurons(stage: Stage, tgt_path: Optional[Union[Path, str]] = None, tgt="ls_slice", compare_to: typing.Sequence[str] = ("pred", )):
     # if tgt_path is None:
-    #     tgt = stage.log_path
+    #     tgt = stage.log_dir
     for ds_out_path in stage.log_path.glob("ds*-*"):
         if tgt_path is None:
             this_tgt_path = ds_out_path

@@ -5,170 +5,95 @@ import typing
 from collections import OrderedDict
 
 import torch.nn
-from ignite.engine import Engine, Events
-from torch import FloatTensor, Tensor
 from torch.autograd import Variable
 
 import pytorch_msssim
-from lnet.utils.general import percentile
+from hylfm.utils.general import camel_to_snake
 
 logger = logging.getLogger(__name__)
 
 
-L1Loss = torch.nn.L1Loss
-MSELoss = torch.nn.MSELoss
-SmoothL1Loss = torch.nn.SmoothL1Loss
-SSIM = pytorch_msssim.SSIM
-MS_SSIM = pytorch_msssim.MS_SSIM
-
-
-class CriterionWrapper(torch.nn.Module):
-    def __init__(
-        self,
-        tensor_names: typing.Dict[str, str],
-        criterion_class: torch.nn.Module,
-        postfix: str = "",
-        output_scalar: bool = False,
-        **kwargs,
-    ):
-        super().__init__()
+class GenericLossOnTensors:
+    def __init__(self, *args, tensor_names: typing.Union[typing.Sequence[str]], prefix: str = "", **kwargs):
+        # self.pred = tensor_names.get("pred", "pred")
+        # self.tgt = tensor_names.pop("tgt", "tgt")
+        # assert not tensor_names, tensor_names
         self.tensor_names = tensor_names
-        self.criterion = criterion_class(**kwargs)
-        self.postfix = postfix
-        self.output_scalar = output_scalar
+        super().__init__(*args, **kwargs)
+        self.name = camel_to_snake(prefix + self.__class__.__name__)
 
-    def forward(self, tensors: typing.OrderedDict[str, typing.Any]):
-        out = self.criterion.forward(**{name: tensors[tensor_name] for name, tensor_name in self.tensor_names.items()})
-        loss_name = self.criterion.__class__.__name__ + self.postfix
-        assert loss_name not in tensors
-        if isinstance(out, OrderedDict):
-            for returned_loss_name, loss_value in out.items():
-                returned_loss_name += self.postfix
-                assert returned_loss_name not in tensors
-                tensors[returned_loss_name] = loss_value
-
-            assert loss_name in tensors
-        else:
-            tensors[loss_name] = out
-
-        if self.output_scalar:
-            return tensors[loss_name]
-        else:
-            return tensors
-
-
-class WeightedL1Loss(torch.nn.L1Loss):
-    def __init__(
-        self,
-        engine: Engine,
-        threshold: typing.Union[float, str],
-        initial_weight: float,
-        decay_by: float,
-        every_nth_epoch: int,
-        apply_below_threshold: bool = False,
-    ):
-        super().__init__(reduction="none")
-        if isinstance(threshold, float):
-            self.threshold = threshold
-            self.percentile = None
-        else:
-            assert isinstance(threshold, str) and "percentile" in threshold
-            self.percentile = float(threshold.replace("percentile", ""))
-            self.threshold = None
-
-        self.apply_below_threshold = apply_below_threshold
-
-        self.weight = initial_weight - 1.0
-
-        @engine.on(Events.EPOCH_COMPLETED)
-        def decay_weight(engine):
-            if engine.state.epoch % every_nth_epoch == 0:
-                self.weight *= decay_by
-                logger.info("decayed loss weight to %f (+1.0)", self.weight)
-
-    def forward(self, input, target):
-        l1 = super().forward(input, target)
-
-        if self.training:
-            if self.threshold is None:
-                threshold = percentile(target, q=self.percentile)
+    def __call__(self, tensors: typing.OrderedDict):
+        try:
+            assert self.name not in tensors, f"{self.name} already in tensors: {list(tensors.keys())}"
+            # if tensors[self.pred].shape != tensors[self.tgt].shape:
+            #     logger.warning(f"pred shape {tensors[self.pred].shape} != tgt shape {tensors[self.tgt].shape}")
+            if isinstance(self.tensor_names, dict):
+                loss_value = super().__call__(  # noqa
+                    **{name: tensors[expected_name] for name, expected_name in self.tensor_names.items()}
+                )
             else:
-                threshold = self.threshold
+                loss_value = super().__call__(*[tensors[expected_name] for expected_name in self.tensor_names])  # noqa
 
-            if self.apply_below_threshold:
-                mask = target < threshold
-            else:
-                mask = target >= threshold
-
-            l1_additional_weights = torch.zeros_like(l1)
-            l1_additional_weights[mask] = l1[mask] * self.weight
-            l1 = l1 + l1_additional_weights
-
-        return OrderedDict([(self.__class__.__name__, l1.mean()), (f"{self.__class__.__name__}_pixelwise", l1)])
+            tensors[self.name] = loss_value
+            return loss_value
+        except Exception as e:
+            logger.error("Could not call %s", self)
+            raise e
 
 
-class WeightedSmoothL1Loss(torch.nn.SmoothL1Loss):
-    def __init__(
-        self,
-        engine: Engine,
-        threshold: typing.Union[float, str],
-        initial_weight: float,
-        decay_by: float,
-        every_nth_epoch: int,
-        apply_below_threshold: bool = False,
-    ):
-        super().__init__(reduction="none")
-        if isinstance(threshold, float):
-            self.threshold = threshold
-            self.percentile = None
-        else:
-            assert isinstance(threshold, str) and "percentile" in threshold
-            self.percentile = float(threshold.replace("percentile", ""))
-            self.threshold = None
-
-        self.apply_below_threshold = apply_below_threshold
-
-        self.weight = initial_weight - 1.0
-
-        @engine.on(Events.EPOCH_COMPLETED)
-        def decay_weight(engine):
-            if engine.state.epoch % every_nth_epoch == 0:
-                self.weight *= decay_by
-                logger.info("decayed loss weight to %f (+1.0)", self.weight)
-
-    def forward(self, input, target):
-        l1 = super().forward(input, target)
-
-        if self.training:
-            if self.threshold is None:
-                threshold = percentile(target, q=self.percentile)
-            else:
-                threshold = self.threshold
-
-            if self.apply_below_threshold:
-                mask = target < threshold
-            else:
-                mask = target >= threshold
-
-            l1_additional_weights = torch.zeros_like(l1)
-            l1_additional_weights[mask] = l1[mask] * self.weight
-            l1 = l1 + l1_additional_weights
-
-        return OrderedDict([(self.__class__.__name__, l1.mean()), (f"{self.__class__.__name__}_pixelwise", l1)])
+class L1Loss(GenericLossOnTensors, torch.nn.L1Loss):
+    pass
 
 
-class BCEWithLogitsLoss(torch.nn.BCEWithLogitsLoss):
-    def __init__(self, weight=None, pos_weight=None, **kwargs):
-        if weight is not None:
-            weight = FloatTensor(weight)
+class MSELoss(GenericLossOnTensors, torch.nn.MSELoss):
+    pass
 
-        if pos_weight is not None:
-            pos_weight = FloatTensor(pos_weight)
 
-        super().__init__(weight=weight, pos_weight=pos_weight, **kwargs)
+class SmoothL1Loss(GenericLossOnTensors, torch.nn.SmoothL1Loss):
+    pass
 
-    def forward(self, input: Tensor, target: Tensor) -> Tensor:
-        raise NotImplementedError
+
+class SSIM(GenericLossOnTensors, pytorch_msssim.SSIM):
+    pass
+
+
+class MS_SSIM(GenericLossOnTensors, pytorch_msssim.MS_SSIM):
+    pass
+
+
+# class CriterionWrapper(torch.nn.Module):
+#     def __init__(
+#         self,
+#         tensor_names: typing.Dict[str, str],
+#         criterion_class: torch.nn.Module,
+#         postfix: str = "",
+#         output_scalar: bool = False,
+#         **kwargs,
+#     ):
+#         super().__init__()
+#         self.tensor_names = tensor_names
+#         self.criterion = criterion_class(**kwargs)
+#         self.postfix = postfix
+#         self.output_scalar = output_scalar
+#
+#     def forward(self, tensors: typing.OrderedDict[str, typing.Any]):
+#         out = self.criterion.forward(**{name: tensors[tensor_name] for name, tensor_name in self.tensor_names.items()})
+#         loss_name = self.criterion.__class__.__name__ + self.postfix
+#         assert loss_name not in tensors
+#         if isinstance(out, OrderedDict):
+#             for returned_loss_name, loss_value in out.items():
+#                 returned_loss_name += self.postfix
+#                 assert returned_loss_name not in tensors
+#                 tensors[returned_loss_name] = loss_value
+#
+#             assert loss_name in tensors
+#         else:
+#             tensors[loss_name] = out
+#
+#         if self.output_scalar:
+#             return tensors[loss_name]
+#         else:
+#             return tensors
 
 
 def flatten_samples(tensor_or_variable):
@@ -195,7 +120,7 @@ def flatten_samples(tensor_or_variable):
     return flattened
 
 
-class SorensenDiceLoss(torch.nn.Module):
+class _SorensenDiceLoss(torch.nn.Module):
     """
     adapted from inferno
     Computes a loss scalar, which when minimized maximizes the Sorensen-Dice similarity
@@ -213,7 +138,7 @@ class SorensenDiceLoss(torch.nn.Module):
             Whether to apply the loss channelwise and sum the results (True)
             or to apply it on all channels jointly (False).
         """
-        super(SorensenDiceLoss, self).__init__()
+        super(_SorensenDiceLoss, self).__init__()
         self.register_buffer("weight", weight)
         self.channelwise = channelwise
         self.eps = eps
@@ -252,3 +177,7 @@ class SorensenDiceLoss(torch.nn.Module):
             # Sum over the channels to compute the total loss
             loss = channelwise_loss.sum()
         return loss
+
+
+class SorensenDiceLoss(GenericLossOnTensors, _SorensenDiceLoss):
+    pass

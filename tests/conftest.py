@@ -5,7 +5,7 @@ import pytest
 import typing
 from ruamel.yaml import YAML
 
-from lnet.datasets import N5CachedDatasetFromInfo, ZipDataset, get_dataset_from_info, get_tensor_info
+from hylfm.datasets import N5CachedDatasetFromInfo, ZipDataset, get_dataset_from_info, get_tensor_info
 
 yaml = YAML(typ="safe")
 

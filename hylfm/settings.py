@@ -29,4 +29,4 @@ elif platform == "win32":
         }
     )
 else:
-    raise NotImplementedError
+    raise NotImplementedError(platform)

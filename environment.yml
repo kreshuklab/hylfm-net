@@ -1,33 +1,36 @@
 name: hylfm
 channels:
   - pytorch
-  - defaults
   - conda-forge
+  - defaults
   - fynnbe
 dependencies:
   - dill
   - h5py>=2.9.0
   - ignite 0.3.*
+  - inferno 0.3.2.post14
   - imagecodecs
   - jupyter
   - matplotlib>=3.0.3
   - numpy>=1.16.3
   - pip>=19.1
+  - pytest
   - python>=3.7.3
   - pytorch-msssim
   - pytorch>=1.4.0
   - pyyaml>=5.1
-  - scikit-image
-  - scikit-image>=0.15.0
+  - ruamel.yaml
+  - scikit-image 0.15.*
   - scikit-learn>=0.20.3
   - scipy>=1.2.1
-  - six
   - seaborn
-  - tensorboard
-  - tensorflow-gpu 1.14
+  - six
+  - tensorboard 1.15
+  - tensorflow-gpu 1.*
   - tifffile>=0.15.1
   - torchvision>=0.2.1
   - tqdm
+  - typing_extensions
   - z5py>=1.4.1
   - pip:
       - csbdeep

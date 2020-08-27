@@ -1,4 +1,4 @@
-from lnet.datasets.base import TensorInfo
+from hylfm.datasets.base import TensorInfo
 
 t0454c2_lf = TensorInfo(
     name="lf",
@@ -1137,8 +1137,8 @@ if __name__ == "__main__":
     import logging
 
     from hashlib import sha224 as hash_algorithm
-    from lnet.settings import settings
-    from lnet.datasets.base import get_dataset_from_info, N5CachedDatasetFromInfo
+    from hylfm.settings import settings
+    from hylfm.datasets.base import get_dataset_from_info, N5CachedDatasetFromInfo
 
     logger = logging.getLogger("fdyn")
 
@@ -1158,7 +1158,7 @@ t0454c2_ls,
             ]  # bcyx
             dslf = get_dataset_from_info(info_lf)
             print(
-                settings.cache_path
+                settings.cache_dir
                 / f"{dslf.info.tag}_{dslf.tensor_name}_{hash_algorithm(dslf.description.encode()).hexdigest()}.n5"
             )
             dslf = N5CachedDatasetFromInfo(dslf)
@@ -1178,7 +1178,7 @@ t0454c2_ls,
             ]
             dsls = get_dataset_from_info(info_ls)
             print(
-                settings.cache_path
+                settings.cache_dir
                 / f"{dsls.info.tag}_{dsls.tensor_name}_{hash_algorithm(dsls.description.encode()).hexdigest()}.n5"
             )
             dsls = N5CachedDatasetFromInfo(dsls)
