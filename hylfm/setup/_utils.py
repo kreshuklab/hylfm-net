@@ -7,6 +7,7 @@ from typing import List, Optional, Union, _SpecialForm, ClassVar, Any
 
 logger = logging.getLogger(__name__)
 
+
 def enforce_types(callable):
     spec = inspect.getfullargspec(callable)
 

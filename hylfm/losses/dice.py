@@ -1,99 +1,5 @@
-from __future__ import annotations
-
-import logging
-import typing
-from collections import OrderedDict
-
 import torch.nn
 from torch.autograd import Variable
-
-import pytorch_msssim
-from hylfm.utils.general import camel_to_snake
-
-logger = logging.getLogger(__name__)
-
-
-class GenericLossOnTensors:
-    def __init__(self, *args, tensor_names: typing.Union[typing.Sequence[str]], prefix: str = "", **kwargs):
-        # self.pred = tensor_names.get("pred", "pred")
-        # self.tgt = tensor_names.pop("tgt", "tgt")
-        # assert not tensor_names, tensor_names
-        self.tensor_names = tensor_names
-        super().__init__(*args, **kwargs)
-        self.name = camel_to_snake(prefix + self.__class__.__name__)
-
-    def __call__(self, tensors: typing.OrderedDict):
-        try:
-            assert self.name not in tensors, f"{self.name} already in tensors: {list(tensors.keys())}"
-            # if tensors[self.pred].shape != tensors[self.tgt].shape:
-            #     logger.warning(f"pred shape {tensors[self.pred].shape} != tgt shape {tensors[self.tgt].shape}")
-            if isinstance(self.tensor_names, dict):
-                loss_value = super().__call__(  # noqa
-                    **{name: tensors[expected_name] for name, expected_name in self.tensor_names.items()}
-                )
-            else:
-                loss_value = super().__call__(*[tensors[expected_name] for expected_name in self.tensor_names])  # noqa
-
-            tensors[self.name] = loss_value
-            return loss_value
-        except Exception as e:
-            logger.error("Could not call %s", self)
-            raise e
-
-
-class L1Loss(GenericLossOnTensors, torch.nn.L1Loss):
-    pass
-
-
-class MSELoss(GenericLossOnTensors, torch.nn.MSELoss):
-    pass
-
-
-class SmoothL1Loss(GenericLossOnTensors, torch.nn.SmoothL1Loss):
-    pass
-
-
-class SSIM(GenericLossOnTensors, pytorch_msssim.SSIM):
-    pass
-
-
-class MS_SSIM(GenericLossOnTensors, pytorch_msssim.MS_SSIM):
-    pass
-
-
-# class CriterionWrapper(torch.nn.Module):
-#     def __init__(
-#         self,
-#         tensor_names: typing.Dict[str, str],
-#         criterion_class: torch.nn.Module,
-#         postfix: str = "",
-#         output_scalar: bool = False,
-#         **kwargs,
-#     ):
-#         super().__init__()
-#         self.tensor_names = tensor_names
-#         self.criterion = criterion_class(**kwargs)
-#         self.postfix = postfix
-#         self.output_scalar = output_scalar
-#
-#     def forward(self, tensors: typing.OrderedDict[str, typing.Any]):
-#         out = self.criterion.forward(**{name: tensors[tensor_name] for name, tensor_name in self.tensor_names.items()})
-#         loss_name = self.criterion.__class__.__name__ + self.postfix
-#         assert loss_name not in tensors
-#         if isinstance(out, OrderedDict):
-#             for returned_loss_name, loss_value in out.items():
-#                 returned_loss_name += self.postfix
-#                 assert returned_loss_name not in tensors
-#                 tensors[returned_loss_name] = loss_value
-#
-#             assert loss_name in tensors
-#         else:
-#             tensors[loss_name] = out
-#
-#         if self.output_scalar:
-#             return tensors[loss_name]
-#         else:
-#             return tensors
 
 
 def flatten_samples(tensor_or_variable):
@@ -120,7 +26,7 @@ def flatten_samples(tensor_or_variable):
     return flattened
 
 
-class _SorensenDiceLoss(torch.nn.Module):
+class SorensenDiceLoss(torch.nn.Module):
     """
     adapted from inferno
     Computes a loss scalar, which when minimized maximizes the Sorensen-Dice similarity
@@ -138,7 +44,7 @@ class _SorensenDiceLoss(torch.nn.Module):
             Whether to apply the loss channelwise and sum the results (True)
             or to apply it on all channels jointly (False).
         """
-        super(_SorensenDiceLoss, self).__init__()
+        super().__init__()
         self.register_buffer("weight", weight)
         self.channelwise = channelwise
         self.eps = eps
@@ -169,7 +75,6 @@ class _SorensenDiceLoss(torch.nn.Module):
                 # With pytorch < 0.2, channelwise_loss.size = (C, 1).
                 if channelwise_loss.dim() == 2:
                     channelwise_loss = channelwise_loss.squeeze(1)
-                # Wrap weights in a variable
                 weight = Variable(self.weight, requires_grad=False)
                 assert weight.size() == channelwise_loss.size()
                 # Apply weight
@@ -177,7 +82,3 @@ class _SorensenDiceLoss(torch.nn.Module):
             # Sum over the channels to compute the total loss
             loss = channelwise_loss.sum()
         return loss
-
-
-class SorensenDiceLoss(GenericLossOnTensors, _SorensenDiceLoss):
-    pass

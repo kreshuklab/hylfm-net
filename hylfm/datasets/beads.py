@@ -407,7 +407,12 @@ if __name__ == "__main__":
             {
                 "Resize": {
                     "apply_to": "ls",
-                    "shape": [1.0, 0.14439140811455847255369928400955, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895],
+                    "shape": [
+                        1.0,
+                        0.14439140811455847255369928400955,
+                        0.42105263157894736842105263157895,
+                        0.42105263157894736842105263157895,
+                    ],
                     "order": 2,
                 }
             },
@@ -415,7 +420,8 @@ if __name__ == "__main__":
         ]
         ds = get_dataset_from_info(info)
         print(
-            settings.cache_dir / f"{ds.info.tag}_{ds.tensor_name}_{hash_algorithm(ds.description.encode()).hexdigest()}.n5"
+            settings.cache_dir
+            / f"{ds.info.tag}_{ds.tensor_name}_{hash_algorithm(ds.description.encode()).hexdigest()}.n5"
         )
         ds = N5CachedDatasetFromInfo(ds)
 

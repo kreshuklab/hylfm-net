@@ -29,4 +29,3 @@ if __name__ == "__main__":
         Path("/g/kreshuk/LF_computed/LenseLeNet_Microscope/DualView_comparison_heart_movie/heart/Rectified_RC"),
         "Cam_Right_*.tif",
     )
-

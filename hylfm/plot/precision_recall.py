@@ -446,9 +446,14 @@ def add_plot(plot_name, axes, out_dir):
     plt.savefig(out_dir / f"{plot_name}z_mean.png")
     plt.savefig(out_dir / "svgs" / f"{plot_name}z_mean.svg")
 
-
     for selected_threshold in [0.1, 0.05, 0.01]:
-        z_rolling_df = df[df["threshold"] == selected_threshold].groupby(["network", "hyperparameter_name"]).rolling(5, center=True).mean().reset_index()
+        z_rolling_df = (
+            df[df["threshold"] == selected_threshold]
+            .groupby(["network", "hyperparameter_name"])
+            .rolling(5, center=True)
+            .mean()
+            .reset_index()
+        )
         g = seaborn.relplot(
             x="Recall",
             y="Precision",

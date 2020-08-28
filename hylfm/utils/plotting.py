@@ -11,6 +11,7 @@ from hylfm.utils.turbo_colormap import turbo_colormap
 
 logger = logging.getLogger(__name__)
 
+
 class Box:
     def __init__(self, slice_x: slice, slice_y: slice, color: str):
         self.slice_x = slice_x
@@ -37,7 +38,9 @@ class ColorSelection:
         return self.colors[item % len(self.colors)]
 
 
-def get_batch_figure(*, tensors: OrderedDict[str, numpy.ndarray], return_array: bool = False, meta: Optional[List[dict]] = None):
+def get_batch_figure(
+    *, tensors: OrderedDict[str, numpy.ndarray], return_array: bool = False, meta: Optional[List[dict]] = None
+):
     ncols = len(tensors)
     nrows = tensors[list(tensors.keys())[0]].shape[0]
 

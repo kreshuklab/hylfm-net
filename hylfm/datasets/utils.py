@@ -32,7 +32,7 @@ def get_paths(location: Path):
         found_paths = [location]
 
     length = len(str(found_paths[0]))
-    if not all([len(str(p))  == length for p in found_paths]):
+    if not all([len(str(p)) == length for p in found_paths]):
         raise ValueError("not all found paths have same lenght. make sure numbers are zero-padded.")
 
     return sorted(found_paths)

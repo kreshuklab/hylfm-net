@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 yaml = YAML(typ="safe")
 
+
 def compute_metrics_individually(
     metrics: Dict[str, Dict[str, typing.Any]], tensors: typing.OrderedDict
 ) -> Dict[str, float]:
@@ -104,7 +105,11 @@ if __name__ == "__main__":
     print("get trfs from", args.trfs.absolute())
     assert args.trfs.exists()
     trf = ComposedTransformation(
-        *[getattr(hylfm.transformations, name)(**kwargs) for trf in yaml.load(args.trfs) for name, kwargs in trf.items()]
+        *[
+            getattr(hylfm.transformations, name)(**kwargs)
+            for trf in yaml.load(args.trfs)
+            for name, kwargs in trf.items()
+        ]
     )
     ds = ZipDataset(datasets, join_dataset_masks=False, transformation=trf)
     # print(ds[0][setup["pred"]].shape, ds[0][gt_name].shape)

@@ -1,17 +1,18 @@
-from typing import Dict, List, Optional, OrderedDict, Tuple
+from typing import Dict, List, Optional, OrderedDict, Tuple, Type
 
 from hylfm.metrics import Metric
+from hylfm.metrics.scale_minimize_vs import ScaleMinimizeVsMetric
 
 
-class MetricAlongDim(Metric):
+class AlongDimMetric(ScaleMinimizeVsMetric):
     def __init__(
         self,
         *,
         along_dim__dim_len: Tuple[int, int],
-        metric_class,
+        metric_class: Type[Metric],
         postfix: str = "",
         tensor_names: Optional[Dict[str, str]],
-        scale_minimize_vs: Optional[Tuple[str, str, str]],
+        scale_minimize_vs: Optional[Tuple[str, str, str]] = None,
         scale_each: bool = False,
         **sub_metric_kwargs,
     ):
@@ -21,12 +22,12 @@ class MetricAlongDim(Metric):
 
         self.submetrics = []  # for reset call in super init
         super().__init__(postfix=postfix, tensor_names=tensor_names, scale_minimize_vs=scale_minimize_vs)
-        self.submetrics = [metric_class(tensor_names=self.tensor_names, **sub_metric_kwargs) for _ in range(dim_len)]
 
         along_dim, dim_len = along_dim__dim_len
         self.along_dim = along_dim
         assert dim_len > 0
         self.dim_len = dim_len
+        self.submetrics = [metric_class(tensor_names=self.tensor_names, **sub_metric_kwargs) for _ in range(dim_len)]
 
         self.postfix += f"-along_dim_{along_dim}"
 

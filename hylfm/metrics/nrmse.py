@@ -1,11 +1,12 @@
+import typing
+
 import numpy
 import torch
 import torch.nn.functional
-import typing
 from ignite.exceptions import NotComputableError
 from skimage.measure.simple_metrics import compare_nrmse
 
-from .base import Metric
+from .scale_minimize_vs import ScaleMinimizeVsMetric
 
 
 def nrmse_skimage(pred, target, **kwargs):
@@ -13,7 +14,7 @@ def nrmse_skimage(pred, target, **kwargs):
     return compare_nrmse(target, pred, **kwargs)
 
 
-class NRMSE_SkImage(Metric):
+class NRMSE_SkImage(ScaleMinimizeVsMetric):
     def __init__(self, *, norm_type="Euclidean", pred: str = "pred", tgt: str = "tgt", **super_kwargs):
         super().__init__(pred=pred, tgt=tgt, **super_kwargs)
         self.norm_type = norm_type
@@ -44,7 +45,9 @@ class NRMSE_SkImage(Metric):
 #         # return torch.sqrt(torch.sum((pred - target) ** 2) / torch.sum(target ** 2))
 
 
-class NRMSE(Metric):
+class NRMSE(ScaleMinimizeVsMetric):
+    higher_is_better = False
+
     def __init__(self, *super_args, tensor_names: typing.Dict[str, str], **super_kwargs):
         if "pred" not in tensor_names:
             tensor_names["pred"] = "pred"

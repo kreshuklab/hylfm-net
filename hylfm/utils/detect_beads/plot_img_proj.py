@@ -31,7 +31,7 @@ def plot_img_projections(img: numpy.ndarray, b=0) -> Figure:
     # ax3
     ax3 = fig.add_subplot(gs[0, 0], sharex=ax1, anchor="E")
     # ax3.set_xlabel("x")
-    ax3.set_ylabel('z')
+    ax3.set_ylabel("z")
     plt.setp(ax3.get_xticklabels(), visible=False)
 
     ax1.imshow(img.max(0), cmap=turbo_colormap)
@@ -105,9 +105,7 @@ def plot_img_projections_with_beads(
 
 if __name__ == "__main__":
     tgt = (
-        imread("K:/beuttenm/repos/lnet/logs/beads/19-08-23_18-32_c307a5a_aux1_/result/test/target/0000.tif")[
-            None, ...
-        ]
+        imread("K:/beuttenm/repos/lnet/logs/beads/19-08-23_18-32_c307a5a_aux1_/result/test/target/0000.tif")[None, ...]
         / numpy.iinfo(numpy.uint16).max
     )
     pred = (

@@ -3,12 +3,18 @@ import logging
 import matplotlib.pyplot as plt
 import numpy
 import torch.nn as nn
-from inferno.extensions.initializers import (
-    KaimingNormalWeightsZeroBias,
-)
+from inferno.extensions.initializers import KaimingNormalWeightsZeroBias
 from inferno.extensions.layers.convolutional import (
-    BNReLUConv2D, BNReLUConv3D, ConvActivation, ConvReLU2D, ConvReLU3D, ValidBNReLUConv2D, ValidBNReLUConv3D,
-    ValidConvActivation, ValidConvReLU2D, ValidConvReLU3D,
+    BNReLUConv2D,
+    BNReLUConv3D,
+    ConvActivation,
+    ConvReLU2D,
+    ConvReLU3D,
+    ValidBNReLUConv2D,
+    ValidBNReLUConv3D,
+    ValidConvActivation,
+    ValidConvReLU2D,
+    ValidConvReLU3D,
 )
 
 from .structural_layers import Crop

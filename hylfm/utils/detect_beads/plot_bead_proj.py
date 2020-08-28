@@ -73,9 +73,7 @@ def plot_bead_projections(
 
 if __name__ == "__main__":
     tgt = (
-        imread("K:/beuttenm/repos/lnet/logs/beads/19-08-23_18-32_c307a5a_aux1_/result/test/target/0000.tif")[
-            None, ...
-        ]
+        imread("K:/beuttenm/repos/lnet/logs/beads/19-08-23_18-32_c307a5a_aux1_/result/test/target/0000.tif")[None, ...]
         / numpy.iinfo(numpy.uint16).max
     )
     pred = (

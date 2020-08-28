@@ -11,11 +11,7 @@ from hylfm.models.layers.structural_layers import C2Z
 
 class M14dout(torch.nn.Module):
     def __init__(
-        self,
-        z_out: int,
-        nnum: int,
-        final_activation: Optional[str] = None,
-        aux_activation: Optional[str] = None,
+        self, z_out: int, nnum: int, final_activation: Optional[str] = None, aux_activation: Optional[str] = None
     ):
         super().__init__()
         inplanes = nnum ** 2
@@ -28,7 +24,7 @@ class M14dout(torch.nn.Module):
         self.res2d_1_side = ResnetBlock(in_n_filters=inplanes, n_filters=side_planes, valid=False)
         self.res2d_1_this = ResnetBlock(in_n_filters=inplanes, n_filters=planes, valid=False)
 
-        self.seq.add_module("res2d-2", ResnetBlock(in_n_filters=planes+side_planes, n_filters=planes, valid=False))
+        self.seq.add_module("res2d-2", ResnetBlock(in_n_filters=planes + side_planes, n_filters=planes, valid=False))
         self.seq.add_module("res2d-3", ResnetBlock(in_n_filters=planes, n_filters=planes, valid=False))
 
         inplanes = planes

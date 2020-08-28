@@ -11,11 +11,7 @@ from hylfm.models.layers.structural_layers import C2Z
 
 class M13dout(torch.nn.Module):
     def __init__(
-        self,
-        z_out: int,
-        nnum: int,
-        final_activation: Optional[str] = None,
-        aux_activation: Optional[str] = None,
+        self, z_out: int, nnum: int, final_activation: Optional[str] = None, aux_activation: Optional[str] = None
     ):
         super().__init__()
         inplanes = nnum ** 2

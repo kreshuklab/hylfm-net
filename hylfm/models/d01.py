@@ -150,7 +150,7 @@ class D01(LnetModel):
         return x
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
-        s = max(1, 2**len(self.n_res3d))
+        s = max(1, 2 ** len(self.n_res3d))
         return s, s
 
     def get_shrinkage(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[int, int]:
@@ -342,6 +342,7 @@ fish2_20191209_dynamic.t0402c11p100a: {indices: null, interpolation_order: 0}
 
 if __name__ == "__main__":
     import os
+
     # try_static()
     assert os.environ["CUDA_VISIBLE_DEVICES"] == "6"
     try_dynamic()

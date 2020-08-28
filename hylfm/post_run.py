@@ -11,7 +11,12 @@ if typing.TYPE_CHECKING:
 from hylfm.utils.tracer import trace_and_plot
 
 
-def trace_neurons(stage: Stage, tgt_path: Optional[Union[Path, str]] = None, tgt="ls_slice", compare_to: typing.Sequence[str] = ("pred", )):
+def trace_neurons(
+    stage: Stage,
+    tgt_path: Optional[Union[Path, str]] = None,
+    tgt="ls_slice",
+    compare_to: typing.Sequence[str] = ("pred",),
+):
     # if tgt_path is None:
     #     tgt = stage.log_dir
     for ds_out_path in stage.log_path.glob("ds*-*"):
@@ -30,10 +35,11 @@ def trace_neurons(stage: Stage, tgt_path: Optional[Union[Path, str]] = None, tgt
                 tb_writer.add_figure(f"{stage.name}/{ds_out_path.name}-{name.replace(' ', '_')}", fig)
 
 
-
 if __name__ == "__main__":
+
     class DummyStage:
         log_path = Path("/g/kreshuk/LF_computed/lnet/logs/brain1/z_out49/f2_only11_2/20-05-19_12-27-16/test/run000")
+
         class log:
             loggers = {}
 

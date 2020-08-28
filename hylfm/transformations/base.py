@@ -84,7 +84,6 @@ class Transform:
 
                 ret[out_name] = self.apply_to_tensor(t, name=n, idx=i, meta=tensors["meta"])
 
-
         return ret
 
     def apply_to_tensor(

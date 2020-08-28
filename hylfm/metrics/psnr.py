@@ -6,10 +6,10 @@ import torch.nn.functional
 from ignite.exceptions import NotComputableError
 from skimage.measure.simple_metrics import compare_psnr
 
-from .base import Metric
+from .scale_minimize_vs import ScaleMinimizeVsMetric
 
 
-class PSNR_SkImage(Metric):
+class PSNR_SkImage(ScaleMinimizeVsMetric):
     def __init__(self, *, data_range=None, **super_kwargs):
         super().__init__(**super_kwargs)
         self.data_range = data_range
@@ -33,7 +33,7 @@ class PSNR_SkImage(Metric):
         return self._sum / self._num_examples
 
 
-class PSNR(Metric):
+class PSNR(ScaleMinimizeVsMetric):
     def __init__(self, *super_args, tensor_names: Dict[str, str], data_range: float, **super_kwargs):
         if "pred" not in tensor_names:
             tensor_names["pred"] = "pred"

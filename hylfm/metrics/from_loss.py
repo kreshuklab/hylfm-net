@@ -1,18 +1,22 @@
-from typing import Type
+from typing import Any, Dict, List, Optional, Type, Union
 
-from hylfm.metrics.base import Metric
+import torch
+
+from hylfm.losses.on_tensors import LossOnTensors
+from hylfm.metrics.scale_minimize_vs import ScaleMinimizeVsMetric
 
 
-class MetricFromCriterion(Metric):
+class MetricFromLoss(ScaleMinimizeVsMetric):
+    higher_is_better = False
+
     def __init__(
         self,
         *super_args,
-        loss_class: Type[GenericLossOnTensors],
+        tensor_names: Union[List[str], Dict[str, str]],
+        loss_class: Type[LossOnTensors],
         loss_kwargs: Dict[str, Any],
-        tensor_names: Optional[Union[List[str], Dict[str, str]]],
         **super_kwargs,
     ):
-        """note: override 'update_impl if custom_tensor_names need to be specified"""
         metric_tensor_names = {"meta": "meta"}
         if isinstance(tensor_names, dict):
             metric_tensor_names.update({expected_name: expected_name for expected_name in tensor_names.values()})
@@ -27,11 +31,12 @@ class MetricFromCriterion(Metric):
         self._n = 0
 
     def update_impl(self, **tensors) -> None:
-        b = len(tensors["meta"])
-        assert b > 0
-        self._n += b
+        batch_len = len(tensors["meta"])
+        assert batch_len > 0
+        self._n += batch_len
         with torch.no_grad():
-            self._accumulated += float(self.loss(tensors).item())
+            self.loss(tensors)
+            self._accumulated += float(tensors[self.loss.name].item())
 
     def compute_impl(self):
         loss_name = self.loss.name

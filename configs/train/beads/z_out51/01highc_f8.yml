@@ -45,7 +45,7 @@ model:
 stages:
   - train:
       max_epochs: 500
-      metrics: {}
+      metrics: []
       log:
         TqdmLogger:
           scalars_every: {value: 1, unit: iteration}

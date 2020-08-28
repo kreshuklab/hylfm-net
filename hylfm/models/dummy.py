@@ -6,9 +6,7 @@ from .base import LnetModel
 
 
 class Dummy(LnetModel):
-    def __init__(
-        self, input_name: str = "lfc", output_name: str = "pred", shrink: typing.Optional[int] = None
-    ):
+    def __init__(self, input_name: str = "lfc", output_name: str = "pred", shrink: typing.Optional[int] = None):
         super().__init__()
         self.input_name = input_name
         self.output_name = output_name

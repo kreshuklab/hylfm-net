@@ -16,17 +16,20 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, U
 
 import ignite
 import torch.utils.data
-import yaml
 from ignite.handlers import global_step_from_engine
+from ruamel.yaml import YAML
 
-import hylfm.criteria
 import hylfm.log
+import hylfm.losses
 import hylfm.metrics
 import hylfm.optimizers
 import hylfm.transformations
-from hylfm import settings, post_run
+from hylfm import post_run, settings
 from hylfm.datasets import ConcatDataset, ZipDataset, get_collate_fn, get_dataset_from_info, get_tensor_info
 from hylfm.datasets.base import TensorInfo
+from hylfm.losses.on_tensors import LossOnTensors
+from hylfm.metrics import get_metric
+from hylfm.metrics.base import MetricValue
 from hylfm.models import LnetModel
 from hylfm.setup._utils import indice_string_to_list
 from hylfm.step import inference_step, training_step
@@ -34,9 +37,11 @@ from hylfm.transformations import ComposedTransformation, Transform
 from hylfm.transformations.utils import get_composed_transformation_from_config
 from hylfm.utils import Period, PeriodUnit
 from hylfm.utils.batch_sampler import NoCrossBatchSampler
-from hylfm.utils.general import delete_empty_dirs
+from hylfm.utils.general import camel_to_snake, delete_empty_dirs
 
 logger = logging.getLogger(__name__)
+
+yaml = YAML(typ="safe")
 
 
 class ModelSetup:
@@ -287,7 +292,7 @@ class Stage:
         name: str,
         data: List[Dict[str, Any]],
         sampler: Dict[str, Any],
-        metrics: Dict[str, Dict[str, Any]],
+        metrics: List[Dict[str, Any]],
         log: Dict[str, Any],
         batch_preprocessing: List[Dict[str, Dict[str, Any]]],
         batch_preprocessing_in_step: List[Dict[str, Dict[str, Any]]],
@@ -386,50 +391,7 @@ class Stage:
     def setup_engine(self, engine: ignite.engine.Engine):
         engine.add_event_handler(ignite.engine.Events.STARTED, self.start_engine)
         engine.add_event_handler(ignite.engine.Events.COMPLETED, self.log_compute_time)
-
-        metric_instances = {}
-        for metric_name, kwargs in self.metrics.items():
-            kwargs = dict(kwargs)
-            metric_class = getattr(hylfm.metrics, metric_name, None)
-            if metric_class is None:
-                if (
-                    isinstance(self, TrainStage)
-                    and metric_name == self.criterion_setup.name
-                    and {k: v for k, v in kwargs.items() if k != "tensor_names"} == self.criterion_setup.kwargs
-                ):
-                    metric = ignite.metrics.Average(output_transform=lambda out: out[metric_name])
-                else:
-                    criterion_class = getattr(hylfm.criteria, metric_name, None)
-                    if criterion_class is None:
-                        metric_getter = getattr(hylfm.metrics, "get_" + metric_name, None)
-                        if metric_getter is None:
-                            raise ValueError(f"{metric_name} is not a valid metric name")
-
-                        metric = metric_getter(initialized_metrics=metric_instances, kwargs=kwargs)
-                    else:
-                        postfix = kwargs.pop("postfix", "")
-                        metric_name += postfix
-                        tensor_names = kwargs.pop("tensor_names")
-                        criterion = criterion_class(**kwargs)
-                        criterion.eval()
-                        arg_names = [tensor_names[an] for an in ("y_pred", "y", "kwargs") if an in tensor_names]
-                        metric = ignite.metrics.Loss(criterion, lambda tensors: [tensors[an] for an in arg_names])
-            else:
-                try:
-                    metric = metric_class(
-                        output_transform=hylfm.metrics.get_output_transform(kwargs.pop("tensor_names")), **kwargs
-                    )
-                except Exception:
-                    try:
-                        metric = metric_class(**kwargs)
-                    except Exception:
-                        logger.error("Cannot init %s", metric_name)
-                        raise
-
-            metric_instances[metric_name] = metric
-            metric.attach(engine, metric_name)
-
-        self.metric_instances = metric_instances
+        self.metric_instances = [get_metric(**kwargs) for kwargs in self.metrics]
 
     @property
     def engine(self):
@@ -480,29 +442,26 @@ class ValidateStage(EvalStage):
         patience: int,
         train_stage: TrainStage,
         metrics: Dict[str, Any],
-        score_metric: Optional[str] = None,
+        score_metric: str,
         **super_kwargs,
     ):
         super().__init__(metrics=metrics, **super_kwargs)
         self.period = Period(**period)
         self.patience = patience
         self.train_stage = train_stage
-        assert score_metric in metrics or score_metric.startswith("-") and score_metric[1:] in metrics
-        self.negate_score_metric = score_metric.startswith("-")
-        self.score_metric = score_metric[int(self.negate_score_metric) :]
+        self.score_metric = score_metric
 
 
 @dataclass
 class CriterionSetup:
     name: str
     kwargs: Dict[str, Any]
-    _class: Type[torch.nn.Module] = field(init=False)
+    _class: Type[LossOnTensors] = field(init=False)
     tensor_names: Dict[str, str]
-    postfix: str = ""
 
     def __post_init__(self):
-        self._class = getattr(hylfm.criteria, self.name)
-        self.name += self.postfix
+        self._class = getattr(hylfm.losses, self.name)
+        self.name = camel_to_snake(self.name)
         assert "engine" not in self.kwargs
         assert "tensor_names" not in self.kwargs
 
@@ -512,9 +471,7 @@ class CriterionSetup:
         if "engine" in sig.parameters:
             kwargs["engine"] = engine
 
-        return hylfm.criteria.CriterionWrapper(
-            tensor_names=self.tensor_names, criterion_class=self._class, postfix=self.postfix, **kwargs
-        )
+        return self._class(tensor_names=self.tensor_names, **kwargs)
 
 
 @dataclass
@@ -593,8 +550,9 @@ class TrainStage(Stage):
         @engine.on(event(every=self.validate.period.value))
         def validate(e: ignite.engine.Engine):
             validation_state = self.validate.run()
-            validation_score = validation_state.metrics.get(self.validate.score_metric)
-            if self.validate.negate_score_metric:
+            metric_value: MetricValue = validation_state.metrics.get(self.validate.score_metric)
+            validation_score = metric_value.value
+            if not metric_value.higher_is_better:
                 validation_score *= -1
 
             e.state.validation_score = validation_score
@@ -673,32 +631,41 @@ class Setup:
         self.log_path = self.get_log_path(config_path=config_path) if log_path is None else Path(log_path)
         logger.info("log_dir: %s", self.log_path)
 
-        self.config = {
-            "config_path": str(config_path),
-            "checkpoint": None if checkpoint is None else str(checkpoint),
-            "precision": precision,
-            "device": device,
-            "model": model,
-            "stages": stages,
-            "log_dir": str(log_path),
-        }
+        self.config = self.load_subconfig_yaml(
+            {
+                "config_path": str(config_path),
+                "checkpoint": None if checkpoint is None else str(checkpoint),
+                "precision": precision,
+                "device": device,
+                "model": model,
+                "stages": stages,
+                "log_dir": str(log_path),
+            }
+        )
+
+    def load_subconfig_yaml(self, part: Any, subconfig_dir: Path = settings.configs_dir / "subconfigs"):
+        if isinstance(part, list):
+            return [self.load_subconfig_yaml(p) for p in part]
+        elif isinstance(part, dict):
+            return {k: self.load_subconfig_yaml(v, subconfig_dir.parent / k) for k, v in part.items()}
+        elif isinstance(part, str) and part.endswith(".yml"):
+            if (subconfig_dir / part).exists():
+                return yaml.load(subconfig_dir / part)
+
+        return part
 
     @classmethod
     def from_yaml(cls, yaml_path: Path, **overwrite_kwargs) -> "Setup":
-        with yaml_path.open() as f:
-            config = yaml.safe_load(f)
-
+        config = yaml.load(yaml_path)
         config.update(overwrite_kwargs)
         return cls(**config, config_path=yaml_path)
 
     @staticmethod
-    def get_log_path(config_path: Path, *, root: Optional[Path] = None, split_at: str = "experiment_configs") -> Path:
-        log_sub_dir: List[str] = config_path.with_suffix("").resolve().as_posix().split(f"/{split_at.strip('/')}/")
-        assert len(log_sub_dir) == 2, log_sub_dir
-        log_sub_dir: str = log_sub_dir[1]
-        if root is None:
-            root = settings.log_dir
-        return root / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
+    def get_log_path(config_path: Path, *, root: Optional[Path] = None) -> Path:
+        config_path = config_path.resolve()
+        assert settings.configs_dir in config_path.parents, (settings.configs_dir, config_path)
+        log_sub_dir = config_path.relative_to(settings.configs_dir).with_suffix("")
+        return (root or settings.log_dir) / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
         return self.model.get_scaling(ipt_shape)
@@ -707,8 +674,8 @@ class Setup:
         self.log_path.mkdir(parents=True, exist_ok=False)
         # save original config as template
         shutil.copy(str(self.config_path), str(self.log_path / "template.yaml"))
-        with (self.log_path / "config.yaml").open("w") as f:
-            yaml.safe_dump(self.config, f)  # save actual config to log path
+        # save actual config to log path
+        yaml.dump(self.config, self.log_path / "config.yaml")
 
         self.dtype: torch.dtype = getattr(torch, self.config["precision"])
         assert isinstance(self.dtype, torch.dtype)

@@ -1,12 +1,12 @@
-from typing import Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import numpy
 import torch
 
+from hylfm.metrics import Metric
 
-class ScaleMinimizeVsMixin:
-    postfix: str
 
+class ScaleMinimizeVsMetric(Metric):
     def __init__(
         self, *super_args, tensor_names, scale_minimize_vs: Optional[Tuple[str, str, str]] = None, **super_kwargs
     ):
@@ -14,7 +14,7 @@ class ScaleMinimizeVsMixin:
             scale, minimize, vs = scale_minimize_vs
             self.vs_norm = f"{vs}_normalized"
             scaled = f"scaled_{scale}_to_minimize_{minimize}_vs_{self.vs_norm}"
-            self.tensor_names = {
+            tensor_names = {
                 name: scaled if expected_name == scale else self.vs_norm if expected_name == vs else expected_name
                 for name, expected_name in tensor_names.items()
             }
@@ -26,15 +26,27 @@ class ScaleMinimizeVsMixin:
             self.scale = getattr(self, scale_fn_name)
             self.map_unnormed = {vs: self.vs_norm}
             self.map_unscaled = {scale: scaled}
-            self.postfix += "-scaled"
+            add_to_postfix = "-scaled"
         else:
-            self.tensor_names = tensor_names
             self.scale = None
             self.map_unnormed = {}
             self.map_unscaled = {}
             self.vs_norm = None
+            add_to_postfix = ""
 
-        super().__init__(*super_args, **super_kwargs)
+        super().__init__(*super_args, tensor_names=tensor_names, **super_kwargs)
+        self.postfix += add_to_postfix
+
+    def prepare_for_update(self, tensors: Dict) -> Dict:
+        for unnormed, normed in self.map_unnormed.items():
+            if normed not in tensors:
+                tensors[normed] = self.norm(tensors[unnormed])
+
+        for unscaled, scaled in self.map_unscaled.items():
+            if scaled not in tensors:
+                tensors[scaled] = self.scale(tensors[unscaled], tensors[self.vs_norm])
+
+        return super().prepare_for_update(tensors)
 
     @staticmethod
     def scale_minimize_mse(ipt: Union[numpy.ndarray, torch.Tensor], vs_norm: Union[numpy.ndarray, torch.Tensor]):

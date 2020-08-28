@@ -365,9 +365,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
 
         if tag == "plane_100/2019-12-03_02.09.03_125Hz":
             if name == "lf":
-                transformations.insert(
-                    0, {"Crop": {"apply_to": name, "crop": [(0, None), (0, 931), (0, None)]}}
-                )
+                transformations.insert(0, {"Crop": {"apply_to": name, "crop": [(0, None), (0, 931), (0, None)]}})
             elif name == "lr":
                 transformations.insert(
                     0, {"Crop": {"apply_to": name, "crop": [(0, None), (0, None), (0, 931), (0, None)]}}
@@ -639,7 +637,7 @@ def quick_check_all(meta: dict):
         "plane_160/2019-12-09_03.58.24_5ms",
         "plane_160/2019-12-09_03.58.24_10ms",
         "plane_160/2019-12-09_03.59.45_5ms",
-        "plane_160/2019-12-09_03.59.45_10ms"
+        "plane_160/2019-12-09_03.59.45_10ms",
     ]
     for tag in tags:
         try:

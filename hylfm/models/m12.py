@@ -112,14 +112,13 @@ class M12(LnetModel):
         return 13, 13
 
     def get_output_shape(self, ipt_shape: Tuple[int, int]):
-        return tuple(
-            [i * sc - 2 * sr for i, sc, sr in zip(ipt_shape, self.get_scaling(), self.get_shrinkage())]
-        )
+        return tuple([i * sc - 2 * sr for i, sc, sr in zip(ipt_shape, self.get_scaling(), self.get_shrinkage())])
+
 
 if __name__ == "__main__":
     # import sys
     # sys.path.append("/g/kreshuk/beuttenm/repos/lnet")
-    ipt = torch.ones(1, 19**2, 10, 20)
+    ipt = torch.ones(1, 19 ** 2, 10, 20)
     model = M12(z_out=7, nnum=19)
-    print('srhink')
+    print("srhink")
     print((ipt).shape)

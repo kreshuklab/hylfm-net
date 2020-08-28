@@ -127,7 +127,11 @@ if __name__ == "__main__":
         )
     )
     trf = ComposedTransformation(
-        *[getattr(hylfm.transformations, name)(**kwargs) for trf in yaml.load(args.trfs) for name, kwargs in trf.items()]
+        *[
+            getattr(hylfm.transformations, name)(**kwargs)
+            for trf in yaml.load(args.trfs)
+            for name, kwargs in trf.items()
+        ]
     )
     ds = ZipDataset(datasets, join_dataset_masks=False, transformation=trf)
     # print(ds[0][setup["pred"]].shape, ds[0][gt_name].shape)

@@ -104,5 +104,8 @@ class M18(LnetModel):
 
     def get_output_shape(self, ipt_shape: Tuple[int, int]):
         return tuple(
-            [i * sc - 2 * sr for i, sc, sr in zip(ipt_shape, self.get_scaling(ipt_shape), self.get_shrinkage(ipt_shape))]
+            [
+                i * sc - 2 * sr
+                for i, sc, sr in zip(ipt_shape, self.get_scaling(ipt_shape), self.get_shrinkage(ipt_shape))
+            ]
         )

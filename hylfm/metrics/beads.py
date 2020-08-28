@@ -6,12 +6,12 @@ from typing import Tuple, Union
 import numpy
 
 from hylfm.utils.detect_beads import match_beads
-from .base import Metric
+from .scale_minimize_vs import ScaleMinimizeVsMetric
 
 logger = logging.getLogger(__name__)
 
 
-class BeadPrecisionRecall(Metric):
+class BeadPrecisionRecall(ScaleMinimizeVsMetric):
     def __init__(
         self,
         *super_args,

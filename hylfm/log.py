@@ -53,9 +53,8 @@ class BaseLogger:
         return unit, step
 
     def log_scalars(self, engine: Engine) -> typing.Tuple[str, int]:
-        for name, metric in self.stage.metric_instances.items():
-            if name in self.stage.metrics:
-                metric.completed(engine=engine, name=name)
+        for i, metric in enumerate(self.stage.metric_instances):
+            metric.completed(engine=engine, name=f"{i:02}")
 
         return self.get_unit_and_step(engine, self.scalar_event)
 

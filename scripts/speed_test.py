@@ -107,7 +107,7 @@ if __name__ == "__main__":
         except RuntimeError as e:
             print(e)
             upper_bound = batch_size - 1
-            print('upper bound', upper_bound)
+            print("upper bound", upper_bound)
         else:
             lower_bound = batch_size
-            print('lower bound', lower_bound)
+            print("lower bound", lower_bound)
