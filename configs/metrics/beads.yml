@@ -1,6 +1,10 @@
-- name: MS_SSIM
+- name: SmoothL1Loss
   scale_minimize_vs: &scale_minimize_vs [pred, mse, ls_reg]
   tensor_names: &tensor_names {pred: pred, tgt: ls_reg}
+  loss_kwargs: {}
+- name: MS_SSIM
+  scale_minimize_vs: *scale_minimize_vs
+  tensor_names: *tensor_names
   loss_kwargs:
     data_range: &data_range 1
     size_average: true
@@ -8,52 +12,48 @@
     win_sigma: 1.5
     channel: 1
     spatial_dims: 3
-- name: MS_SSIM
-  postfix: along_dim__dim_len_{along_dim__dim_len}
-  along_dim__dim_len: [1, 51]
-  scale_minimize_vs: *scale_minimize_vs
-  tensor_names: *tensor_names
-  loss_kwargs:
-    data_range: *data_range
-    size_average: true
-    win_size: 11
-    win_sigma: 1.5
-    channel: 1
-    spatial_dims: 2
-- name: SSIM
-  scale_minimize_vs: *scale_minimize_vs
-  tensor_names: *tensor_names
-  loss_kwargs:
-    data_range: *data_range
-    size_average: true
-    win_size: 11
-    win_sigma: 1.5
-    channel: 1
-    spatial_dims: 3
-- name: NRMSE
-  scale_minimize_vs: *scale_minimize_vs
-  tensor_names: *tensor_names
-- name: PSNR
-  scale_minimize_vs: *scale_minimize_vs
-  tensor_names: *tensor_names
-  data_range: *data_range
-- name: SmoothL1Loss
-  scale_minimize_vs: *scale_minimize_vs
-  tensor_names: *tensor_names
-  loss_kwargs: {}
-- name: MSELoss
-  scale_minimize_vs: *scale_minimize_vs
-  tensor_names: *tensor_names
-  loss_kwargs: {}
-- name: BeadPrecisionRecall
-  scale_minimize_vs: *scale_minimize_vs
-  tensor_names: *tensor_names
-  dist_threshold: 3.0
-  exclude_border: false
-  max_sigma: 6.0
-  min_sigma: 1.0
-  overlap: 0.5
-  sigma_ratio: 3.0
-  threshold: .05
-  tgt_threshold: .05
-  scaling: [2., 0.7, 0.7]
+#- name: MS_SSIM
+#  postfix: along_dim__dim_len_{along_dim__dim_len}
+#  along_dim__dim_len: [1, 51]
+#  scale_minimize_vs: *scale_minimize_vs
+#  tensor_names: *tensor_names
+#  loss_kwargs:
+#    data_range: *data_range
+#    size_average: true
+#    win_size: 11
+#    win_sigma: 1.5
+#    channel: 1
+#    spatial_dims: 2
+#- name: SSIM
+#  scale_minimize_vs: *scale_minimize_vs
+#  tensor_names: *tensor_names
+#  loss_kwargs:
+#    data_range: *data_range
+#    size_average: true
+#    win_size: 11
+#    win_sigma: 1.5
+#    channel: 1
+#    spatial_dims: 3
+#- name: NRMSE
+#  scale_minimize_vs: *scale_minimize_vs
+#  tensor_names: *tensor_names
+#- name: PSNR
+#  scale_minimize_vs: *scale_minimize_vs
+#  tensor_names: *tensor_names
+#  data_range: *data_range
+#- name: MSELoss
+#  scale_minimize_vs: *scale_minimize_vs
+#  tensor_names: *tensor_names
+#  loss_kwargs: {}
+#- name: BeadPrecisionRecall
+#  scale_minimize_vs: *scale_minimize_vs
+#  tensor_names: *tensor_names
+#  dist_threshold: 3.0
+#  exclude_border: false
+#  max_sigma: 6.0
+#  min_sigma: 1.0
+#  overlap: 0.5
+#  sigma_ratio: 3.0
+#  threshold: .05
+#  tgt_threshold: .05
+#  scaling: [2., 0.7, 0.7]

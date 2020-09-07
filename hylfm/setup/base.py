@@ -29,7 +29,7 @@ from hylfm.datasets import ConcatDataset, ZipDataset, get_collate_fn, get_datase
 from hylfm.datasets.base import TensorInfo
 from hylfm.losses.on_tensors import LossOnTensors
 from hylfm.metrics import get_metric
-from hylfm.metrics.base import MetricValue
+from hylfm.metrics.base import Metric, MetricValue
 from hylfm.models import LnetModel
 from hylfm.setup._utils import indice_string_to_list
 from hylfm.step import inference_step, training_step
@@ -104,6 +104,7 @@ class PerLoggerSetup:
         self.tensors_every = None if tensors_every is None else Period(**tensors_every)
 
     def register_callbacks(self, engine: ignite.engine.Engine):
+
         self.backend.register_callbacks(
             engine=engine, scalars_every=self.scalars_every, tensors_every=self.tensors_every
         )
@@ -117,7 +118,7 @@ class LogSetup:
         if os.environ.get("SLURM_JOB_ID", None) is not None:
             loggers.pop("TqdmLogger", None)  # no TqdmLogger in slurm jobs (progress bar spams output)
 
-        self.loggers = {name: PerLoggerSetup(name=name, stage=stage, **lgr) for name, lgr in loggers.items()}
+        self.loggers: Dict[str, PerLoggerSetup] = {name: PerLoggerSetup(name=name, stage=stage, **lgr) for name, lgr in loggers.items()}
 
     def register_callbacks(self, engine: ignite.engine.Engine):
         [lgr.register_callbacks(engine) for lgr in self.loggers.values()]
@@ -388,16 +389,23 @@ class Stage:
             msecs,
         )
 
-    def setup_engine(self, engine: ignite.engine.Engine):
-        engine.add_event_handler(ignite.engine.Events.STARTED, self.start_engine)
-        engine.add_event_handler(ignite.engine.Events.COMPLETED, self.log_compute_time)
-        self.metric_instances = [get_metric(**kwargs) for kwargs in self.metrics]
+    def _setup_engine(self):
+        self.engine.add_event_handler(ignite.engine.Events.STARTED, self.start_engine)
+        self.engine.add_event_handler(ignite.engine.Events.COMPLETED, self.log_compute_time)
+        self._attach_metrics()
+
+    def _attach_metrics(self):
+        metric_instances = [get_metric(**kwargs) for kwargs in self.metrics]
+        for metric in metric_instances:
+            metric.attach(self.engine, "")
+            if any([lgr.scalars_every for lgr in self.log.loggers.values()]):
+                self.engine.add_event_handler(ignite.engine.Events.ITERATION_COMPLETED, metric.completed, "")
 
     @property
     def engine(self):
         if self._engine is None:
             self._engine = ignite.engine.Engine(self.step_function)
-            self.setup_engine(self._engine)
+            self._setup_engine()
             self.log.register_callbacks(engine=self._engine)
 
         return self._engine
@@ -441,7 +449,7 @@ class ValidateStage(EvalStage):
         period: Dict[str, Union[int, str]],
         patience: int,
         train_stage: TrainStage,
-        metrics: Dict[str, Any],
+        metrics: List[Dict[str, Any]],
         score_metric: str,
         **super_kwargs,
     ):
@@ -521,10 +529,10 @@ class TrainStage(Stage):
             name="validate_" + self.name, train_stage=self, model=model, log_path=log_path, **validate
         )
 
-    def setup_engine(self, engine: ignite.engine.Engine):
-        super().setup_engine(engine)
+    def _setup_engine(self):
+        super()._setup_engine()
         running_loss = ignite.metrics.RunningAverage(output_transform=lambda out: out[self.criterion_setup.name])
-        running_loss.attach(engine, f"{self.criterion_setup.name}-running")
+        running_loss.attach(self.engine, f"{self.criterion_setup.name}-running")
 
         checkpointer = ignite.handlers.ModelCheckpoint(
             (self.log_path / "checkpoints").as_posix(),
@@ -547,7 +555,7 @@ class TrainStage(Stage):
         else:
             raise NotImplementedError(self.validate.period.unit)
 
-        @engine.on(event(every=self.validate.period.value))
+        @self.engine.on(event(every=self.validate.period.value))
         def validate(e: ignite.engine.Engine):
             validation_state = self.validate.run()
             metric_value: MetricValue = validation_state.metrics.get(self.validate.score_metric)
@@ -561,7 +569,7 @@ class TrainStage(Stage):
             )
             early_stopper(e)
 
-        @engine.on(ignite.engine.Events.COMPLETED)
+        @self.engine.on(ignite.engine.Events.COMPLETED)
         def load_best_model(e: ignite.engine.Engine):
             best_score, best_checkpoint = checkpointer._saved[-1]
             assert best_score == max([item.priority for item in checkpointer._saved])
@@ -714,7 +722,7 @@ class Setup:
             for parallel_stages in self.stages:
                 for stage in parallel_stages:
                     logger.info("starting stage: %s", stage.name)
-                    stage.run()
+                    state = stage.run()
                     stage.shutdown()
         finally:
             self.shutdown()

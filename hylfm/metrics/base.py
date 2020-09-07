@@ -75,5 +75,5 @@ class Metric(ignite.metrics.Metric):
     def compute_impl(self) -> Union[MetricValue, float, Dict[str, Union[MetricValue, float]]]:
         raise NotImplementedError
 
-    def update_impl(self, **kwargs) -> None:
+    def update_impl(self, *args, **kwargs) -> None:
         raise NotImplementedError

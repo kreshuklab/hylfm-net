@@ -16,6 +16,7 @@ from tifffile import imsave as imwrite
 from tqdm import tqdm
 
 from hylfm import settings
+from hylfm.metrics.base import MetricValue
 from hylfm.utils import Period, PeriodUnit
 from hylfm.utils.plotting import get_batch_figure
 
@@ -53,8 +54,8 @@ class BaseLogger:
         return unit, step
 
     def log_scalars(self, engine: Engine) -> typing.Tuple[str, int]:
-        for i, metric in enumerate(self.stage.metric_instances):
-            metric.completed(engine=engine, name=f"{i:02}")
+        # for i, metric in enumerate(self.stage.metric_instances):
+        #     metric.completed(engine=engine, name=f"{i:02}")
 
         return self.get_unit_and_step(engine, self.scalar_event)
 
@@ -218,19 +219,28 @@ class FileLogger(BaseLogger):
 
 
 class TensorBoardLogger(BaseLogger):
+    tensorboard_writers = {}
     _writer = None
 
     @property
     def writer(self):
-        if self._writer is None:
-            self._writer = torch.utils.tensorboard.SummaryWriter(str(self.stage.log_path.parent.parent))
+        tensorboard_logdir = str(self.stage.log_path.parent.parent.resolve())
+        if tensorboard_logdir in self.tensorboard_writers:
+            self._writer = self.__class__.tensorboard_writers[tensorboard_logdir]
+        else:
+            self._writer = torch.utils.tensorboard.SummaryWriter(tensorboard_logdir)
+            self.__class__.tensorboard_writers[tensorboard_logdir] = self._writer
 
         return self._writer
 
     @log_exception
     def log_scalars(self, engine: Engine):
+        assert engine.state.metrics
         unit, step = super().log_scalars(engine)
         for k, v in engine.state.metrics.items():
+            if isinstance(v, MetricValue):
+                v = v.value
+
             self.writer.add_scalar(tag=f"{self.stage.name}-{unit}/{k}", scalar_value=v, global_step=step)
 
         return unit, step

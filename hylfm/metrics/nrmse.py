@@ -1,4 +1,4 @@
-import typing
+from typing import Dict, Sequence, Union
 
 import numpy
 import torch
@@ -48,13 +48,7 @@ class NRMSE_SkImage(ScaleMinimizeVsMetric):
 class NRMSE(ScaleMinimizeVsMetric):
     higher_is_better = False
 
-    def __init__(self, *super_args, tensor_names: typing.Dict[str, str], **super_kwargs):
-        if "pred" not in tensor_names:
-            tensor_names["pred"] = "pred"
-
-        if "tgt" not in tensor_names:
-            tensor_names["tgt"] = "tgt"
-
+    def __init__(self, *super_args, tensor_names: Union[Sequence[str], Dict[str, str]], **super_kwargs):
         assert len(tensor_names) == 2
         super().__init__(*super_args, tensor_names=tensor_names, **super_kwargs)
 
@@ -63,7 +57,7 @@ class NRMSE(ScaleMinimizeVsMetric):
         self._mse: float = 0.0
         self._norm: float = 0.0
 
-    def update_impl(self, *, pred, tgt):
+    def update_impl(self, pred, tgt):
         n = pred.shape[0]
         self._num_samples += n
         self._mse += torch.nn.functional.mse_loss(pred, tgt).item() * n

@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional, Type, Union
 
 import torch
+from ignite.exceptions import NotComputableError
 
 from hylfm.losses.on_tensors import LossOnTensors
 from hylfm.metrics.scale_minimize_vs import ScaleMinimizeVsMetric
@@ -40,4 +41,9 @@ class MetricFromLoss(ScaleMinimizeVsMetric):
 
     def compute_impl(self):
         loss_name = self.loss.name
+        if not self._n:
+            raise NotComputableError(
+                f"{self.__class__.__name__} must have at least one example before it can be computed."
+            )
+
         return {loss_name: self._accumulated / self._n}

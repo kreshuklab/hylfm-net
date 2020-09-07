@@ -1,6 +1,6 @@
-import pytorch_msssim
 import torch.nn
 
+import pytorch_msssim
 from hylfm.losses import dice
 from hylfm.losses.on_tensors import LossOnTensorsTorchMixin
 from hylfm.losses.weighted import WeightedLossOnTensorsTorchMixin

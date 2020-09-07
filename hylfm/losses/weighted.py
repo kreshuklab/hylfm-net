@@ -41,19 +41,19 @@ class WeightedLossOnTensorsTorchMixin(LossOnTensorsTorchMixin):
                 self.weight *= decay_by
                 logger.info("decayed loss weight to %f (+1.0)", self.weight)
 
-    def forward(self, input, target):
-        loss = super().forward(input, target)  # noqa
+    def forward(self, pred, tgt):
+        loss = super().forward(pred, tgt)  # noqa
 
         if self.training:  # noqa
             if self.threshold is None:
-                threshold = numpy.percentile(target, q=self.percentile)
+                threshold = numpy.percentile(tgt, q=self.percentile)
             else:
                 threshold = self.threshold
 
             if self.apply_below_threshold:
-                mask = target < threshold
+                mask = tgt < threshold
             else:
-                mask = target >= threshold
+                mask = tgt >= threshold
 
             loss_additional_weights = torch.zeros_like(loss)
             loss_additional_weights[mask] = loss[mask] * self.weight
