@@ -82,11 +82,11 @@ def main(args=None):
 
 
 if __name__ == "__main__":
-    os.environ["OMP_NUM_THREADS"] = "1"
-    os.environ["OPENBLAS_NUM_THREADS"] = "1"
-    os.environ["MKL_NUM_THREADS"] = "1"
-    os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-    os.environ["NUMEXPR_NUM_THREADS"] = "1"
+    # os.environ["OMP_NUM_THREADS"] = "8"
+    # os.environ["OPENBLAS_NUM_THREADS"] = "4"
+    # os.environ["MKL_NUM_THREADS"] = "8"
+    # os.environ["VECLIB_MAXIMUM_THREADS"] = "4"
+    # os.environ["NUMEXPR_NUM_THREADS"] = "8"
     try:
         os.nice(10)
     except Exception as e:

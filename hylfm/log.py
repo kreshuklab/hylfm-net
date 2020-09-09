@@ -252,13 +252,13 @@ class TensorBoardLogger(BaseLogger):
             v = self.metric_value_as_float(v)
             if isinstance(v, list):
                 v = numpy.asarray(v)
-                self.writer.add_histogram(tag=f"{self.stage.name}-{unit}/hist_{k}", values=v, global_step=step)
+                self.writer.add_histogram(tag=f"{self.stage.name}-{unit}_hist_{k}", values=v, global_step=step)
                 fig, ax = plt.subplots()
-                ax.plot(v)
+                ax.scatter(numpy.arange(len(v)), v)
                 ax.grid()
-                self.writer.add_figure(tag=f"{self.stage.name}-{unit}/{k}", figure=fig, global_step=step)
+                self.writer.add_figure(tag=f"{self.stage.name}-{unit}_{k}", figure=fig, global_step=step)
             else:
-                self.writer.add_scalar(tag=f"{self.stage.name}-{unit}/{k}", scalar_value=v, global_step=step)
+                self.writer.add_scalar(tag=f"{self.stage.name}-{unit}_{k}", scalar_value=v, global_step=step)
 
         return unit, step
 
@@ -279,7 +279,7 @@ class TensorBoardLogger(BaseLogger):
         fig = get_batch_figure(tensors=tensors, return_array=False, meta=meta)
         # fig_array = get_batch_figure(tensors=tensors, return_array=True)
 
-        self.writer.add_figure(tag=f"{self.stage.name}-{unit}/batch", figure=fig, global_step=step)
+        self.writer.add_figure(tag=f"{self.stage.name}-{unit}_tensors", figure=fig, global_step=step)
         # self.writer.add_image(tag=f"{self.stage.name}/batch", img_tensor=fig_array, global_step=iteration, dataformats="HWC")
         # self.writer.add_image(tag=f"{self.stage.name}/batch", img_tensor=fig_array[..., :3].astype("float") / 255, global_step=iteration, dataformats="HWC")
         return unit, step
