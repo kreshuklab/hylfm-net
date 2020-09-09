@@ -76,9 +76,10 @@ class AlongDimMetric(ScaleMinimizeVsMetric):
                 k: v if isinstance(v, list) or k not in sliceable_tensors else v[tuple([slice(None)] * slice_dim + [i])]
                 for k, v in tensors.items()
             }
-            for meta in slice_tensors["meta"]:
-                assert slice_meta_key not in meta, meta
+            if "meta" in slice_tensors:
+                for meta in slice_tensors["meta"]:
+                    assert slice_meta_key not in meta, meta
 
-            slice_tensors["meta"] = [{slice_meta_key: i, **meta} for meta in slice_tensors["meta"]]
+                slice_tensors["meta"] = [{slice_meta_key: i, **meta} for meta in slice_tensors["meta"]]
 
             yield slice_tensors

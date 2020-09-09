@@ -31,14 +31,9 @@ class BeadPrecisionRecall(ScaleMinimizeVsMetric):
         if tensor_names is None:
             tensor_names = {}
 
-        if "pred" not in tensor_names:
-            tensor_names["pred"] = "pred"
-
-        if "tgt" not in tensor_names:
-            tensor_names["tgt"] = "tgt"
-
-        if "meta" not in tensor_names:
-            tensor_names["meta"] = "meta"
+        assert "pred" in tensor_names
+        assert "tgt" in tensor_names
+        assert "meta" in tensor_names
 
         self.dim_names = "zyx" if dim_names is None else dim_names
         super().__init__(*super_args, tensor_names=tensor_names, **super_kwargs)

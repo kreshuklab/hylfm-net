@@ -18,11 +18,10 @@ class MetricFromLoss(ScaleMinimizeVsMetric):
         loss_kwargs: Dict[str, Any],
         **super_kwargs,
     ):
-        metric_tensor_names = {"meta": "meta"}
         if isinstance(tensor_names, dict):
-            metric_tensor_names.update({expected_name: expected_name for expected_name in tensor_names.values()})
+            metric_tensor_names = {expected_name: expected_name for expected_name in tensor_names.values()}
         else:
-            metric_tensor_names.update({expected_name: expected_name for expected_name in tensor_names})
+            metric_tensor_names = {expected_name: expected_name for expected_name in tensor_names}
 
         super().__init__(*super_args, tensor_names=metric_tensor_names, **super_kwargs)
         self.loss = loss_class(tensor_names=tensor_names, **loss_kwargs)
@@ -32,7 +31,7 @@ class MetricFromLoss(ScaleMinimizeVsMetric):
         self._n = 0
 
     def update_impl(self, **tensors) -> None:
-        batch_len = len(tensors["meta"])
+        batch_len = len(next(iter(tensors.values())))
         assert batch_len > 0
         self._n += batch_len
         with torch.no_grad():

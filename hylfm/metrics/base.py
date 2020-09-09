@@ -3,7 +3,7 @@ from __future__ import annotations
 import collections.abc
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import ignite.metrics
 import numpy
@@ -18,6 +18,12 @@ logger = logging.getLogger(__name__)
 class MetricValue:
     value: float
     higher_is_better: bool
+
+    def as_float(self):
+        if self.higher_is_better:
+            return self.value
+        else:
+            return -self.value
 
 
 class Metric(ignite.metrics.Metric):
@@ -35,11 +41,6 @@ class Metric(ignite.metrics.Metric):
         assert isinstance(output, dict)
         output = self.prepare_for_update(output)
         assert isinstance(output, dict)
-        if isinstance(output, collections.abc.Mapping) and not all([k in output for k in self._required_output_keys]):
-            raise ValueError(
-                "When transformed engine's output is a mapping, "
-                "it should contain {} keys, but given {}".format(self._required_output_keys, list(output.keys()))
-            )
         self.update(output)
 
     def prepare_for_update(self, tensors: Dict) -> Dict:
@@ -66,9 +67,12 @@ class Metric(ignite.metrics.Metric):
         for subname, value in result.items():
             engine.state.metrics[name + subname] = value
 
-    def value_to_metric_value(self, value: float):
-        assert isinstance(value, float)
-        return MetricValue(value, self.higher_is_better)
+    def value_to_metric_value(self, value: Union[float, List[float]]):
+        if isinstance(value, list):
+            return [self.value_to_metric_value(v) for v in value]
+        else:
+            assert isinstance(value, float)
+            return MetricValue(value, self.higher_is_better)
 
     def compute(self) -> Dict[str, MetricValue]:
         computed = self.compute_impl()

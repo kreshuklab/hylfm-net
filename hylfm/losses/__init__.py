@@ -19,11 +19,13 @@ class SmoothL1Loss(LossOnTensorsTorchMixin, torch.nn.SmoothL1Loss):
 
 
 class SSIM(LossOnTensorsTorchMixin, pytorch_msssim.SSIM):
-    pass
+    def forward(self, *args, **kwargs):
+        return -super().forward(*args, **kwargs)
 
 
 class MS_SSIM(LossOnTensorsTorchMixin, pytorch_msssim.MS_SSIM):
-    pass
+    def forward(self, *args, **kwargs):
+        return -super().forward(*args, **kwargs)
 
 
 class WeightedL1Loss(WeightedLossOnTensorsTorchMixin, torch.nn.L1Loss):

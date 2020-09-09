@@ -102,6 +102,16 @@ class BaseLogger:
 
             engine.add_event_handler(self.tensor_event(every=tensors_every.value), self.log_tensors)
 
+    @staticmethod
+    def metric_value_as_float(metric_value: typing.Union[MetricValue, float, list]):
+        if isinstance(metric_value, list):
+            return [BaseLogger.metric_value_as_float(mv) for mv in metric_value]
+        elif isinstance(metric_value, MetricValue):
+            return metric_value.as_float()
+        else:
+            assert isinstance(metric_value, float)
+            return metric_value
+
 
 class TqdmLogger(BaseLogger):
     _pbar = None
@@ -163,7 +173,7 @@ class FileLogger(BaseLogger):
     def _log_metric(self, engine: Engine, name: str, unit: str, step: int):
         metric_log_file = self.stage.log_path / f"{name}.txt"
         with metric_log_file.open(mode="a") as file:
-            file.write(f"{unit}\t{step}\t{engine.state.metrics[name]}\n")
+            file.write(f"{unit}\t{step}\t{self.metric_value_as_float(engine.state.metrics[name])}\n")
 
     @log_exception
     def log_scalars(self, engine: Engine):
@@ -239,15 +249,10 @@ class TensorBoardLogger(BaseLogger):
         assert engine.state.metrics
         unit, step = super().log_scalars(engine)
         for k, v in engine.state.metrics.items():
-            if isinstance(v, MetricValue):
-                v = v.value
-
+            v = self.metric_value_as_float(v)
             if isinstance(v, list):
-                if isinstance(v[0], MetricValue):
-                    v = [vv.value for vv in v]
-
                 v = numpy.asarray(v)
-                self.writer.add_histogram(tag=f"{self.stage.name}-{unit}/{k}", values=v, global_step=step)
+                self.writer.add_histogram(tag=f"{self.stage.name}-{unit}/hist_{k}", values=v, global_step=step)
                 fig, ax = plt.subplots()
                 ax.plot(v)
                 ax.grid()

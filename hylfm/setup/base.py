@@ -559,10 +559,7 @@ class TrainStage(Stage):
         def validate(e: ignite.engine.Engine):
             validation_state = self.validate.run()
             metric_value: MetricValue = validation_state.metrics.get(self.validate.score_metric)
-            validation_score = metric_value.value
-            if not metric_value.higher_is_better:
-                validation_score *= -1
-
+            validation_score = metric_value.as_float()
             e.state.validation_score = validation_score
             checkpointer(
                 e, {"model": e.state.model, "optimizer": e.state.optimizer, "criterion": e.state.criterion, "engine": e}

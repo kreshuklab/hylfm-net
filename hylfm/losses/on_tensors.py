@@ -14,7 +14,6 @@ class LossOnTensors:
         self.name = camel_to_snake(prefix + self.__class__.__name__)
         super().__init__(*super_args, **super_kwargs)
 
-
 class LossOnTensorsTorchMixin(LossOnTensors):
     def __call__(self, tensors: Dict[str, Any]) -> None:
         try:

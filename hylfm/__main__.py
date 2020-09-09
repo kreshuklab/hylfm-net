@@ -6,8 +6,6 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-import torch.multiprocessing
-
 from hylfm import settings
 
 CONFIG = {
@@ -84,10 +82,18 @@ def main(args=None):
 
 
 if __name__ == "__main__":
+    os.environ["OMP_NUM_THREADS"] = "1"
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+    os.environ["MKL_NUM_THREADS"] = "1"
+    os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+    os.environ["NUMEXPR_NUM_THREADS"] = "1"
     try:
         os.nice(10)
     except Exception as e:
         logger.error(e)
+
+    import torch.multiprocessing
+
     if settings.multiprocessing_start_method:
         torch.multiprocessing.set_start_method(settings.multiprocessing_start_method)
 
