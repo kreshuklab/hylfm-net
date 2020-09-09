@@ -8,8 +8,8 @@ dependencies:
   - dill
   - h5py>=2.9.0
   - ignite 0.3.*
-  - inferno 0.3.2.post14
   - imagecodecs
+  - inferno 0.3.2.post14
   - jupyter
   - matplotlib>=3.0.3
   - numpy>=1.16.3
@@ -19,6 +19,7 @@ dependencies:
   - pytorch-msssim
   - pytorch>=1.4.0
   - pyyaml>=5.1
+  - requests
   - ruamel.yaml
   - scikit-image 0.15.*
   - scikit-learn>=0.20.3
