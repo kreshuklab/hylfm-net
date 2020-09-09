@@ -1,5 +1,33 @@
 from hylfm import settings
 from hylfm.datasets.base import TensorInfo
+from hylfm.datasets.online import OnlineTensorInfo
+
+
+def get_tensor_info(tag: str, name: str, meta: dict):
+    if tag == "small_0":
+        doi = "10.5281/zenodo.4019246"
+        archive_name_with_suffix = f"{tag}_{name}.zip"
+        glob_expression = "TP_*.tif"
+    elif tag == "small_1":
+        doi = "10.5281/zenodo.4020352"
+        archive_name_with_suffix = f"{tag}_{name}.zip"
+        glob_expression = "TP_*.tif"
+    else:
+        raise NotImplementedError(tag, name)
+
+    info = OnlineTensorInfo(
+        name=name,
+        doi=doi,
+        archive_name_with_suffix=archive_name_with_suffix,
+        glob_expression=glob_expression,
+        meta=meta,
+        insert_singleton_axes_at=[0, 0],
+        tag=f"{tag}_{name}",
+    )
+    info.download()
+    info.extract()
+    return info
+
 
 b01highc_0_lf = TensorInfo(
     name="lf",

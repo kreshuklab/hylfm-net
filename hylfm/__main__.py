@@ -38,13 +38,6 @@ logger = logging.getLogger(__name__)
 
 
 def main(args=None):
-    try:
-        os.nice(10)
-    except Exception as e:
-        logger.error(e)
-    if settings.multiprocessing_start_method:
-        torch.multiprocessing.set_start_method(settings.multiprocessing_start_method)
-
     if args is None:
         parser = argparse.ArgumentParser(description="lnet")
         parser.add_argument("experiment_config", type=Path)
@@ -78,36 +71,24 @@ def main(args=None):
 
     from hylfm.setup import Setup
 
-    if args.test:
-        standard_log_path = Setup.get_log_path(experiment_config).parent
-        for common_parent in standard_log_path.parents:
-            split_at = common_parent.name
-            if split_at in [p.name for p in checkpoint.parents]:
-                log_dir_long = Setup.get_log_path(
-                    checkpoint, root=standard_log_path, split_at=split_at
-                ).parent.as_posix()
-                break
-        else:
-            raise NotImplementedError("Found no common folder structure. Where to log test output to?")
-
-        log_dir_long = log_dir_long.replace("/checkpoints/", "/")
-        log_dir_long = log_dir_long.replace("/run000/", "/")
-        log_dir_long = log_dir_long.replace("/train/", "/")
-        test_log_path = Path(log_dir_long)
-        if test_log_path.exists() and args.delete_existing_log_folder:
-            shutil.rmtree(test_log_path)
-    else:
-        test_log_path = None
-
-    setup = Setup.from_yaml(experiment_config, checkpoint=checkpoint, log_path=test_log_path)
+    setup = Setup.from_yaml(experiment_config, checkpoint=checkpoint)
 
     if args.setup:
         log_path = setup.setup()
         shutil.rmtree(log_path)
     else:
+        print(f"run tensorboard with:\ntensorboard --logdir={settings.log_dir}")
+        print(f"or:\ntensorboard --logdir={setup.log_path.parent}")
         log_path = setup.run()
         print(f"done logging to {log_path}")
 
 
 if __name__ == "__main__":
+    try:
+        os.nice(10)
+    except Exception as e:
+        logger.error(e)
+    if settings.multiprocessing_start_method:
+        torch.multiprocessing.set_start_method(settings.multiprocessing_start_method)
+
     sys.exit(main())

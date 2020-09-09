@@ -22,12 +22,12 @@ class Settings:
     num_workers_test_data_loader: int = 1 if debug_mode else 4
     pin_memory: bool = False
 
-    max_workers_per_dataset: int = 1 if debug_mode else 8
+    max_workers_per_dataset: int = 1 if debug_mode else 4
     reserved_workers_per_dataset_for_getitem: int = 0
-    max_workers_file_logger: int = 1 if debug_mode else 8
-    max_workers_for_hist: int = 1 if debug_mode else 16
-    max_workers_for_stat: int = 1 if debug_mode else 8
-    max_workers_for_trace: int = 1 if debug_mode else 8
+    max_workers_file_logger: int = 1 if debug_mode else 4
+    max_workers_for_hist: int = 1 if debug_mode else 4
+    max_workers_for_stat: int = 1 if debug_mode else 4
+    max_workers_for_trace: int = 1 if debug_mode else 4
     multiprocessing_start_method: str = ""
 
     data_roots: typing.Dict[str, Path] = field(default_factory=dict)

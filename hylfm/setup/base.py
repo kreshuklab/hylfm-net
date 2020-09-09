@@ -722,7 +722,7 @@ class Setup:
             for parallel_stages in self.stages:
                 for stage in parallel_stages:
                     logger.info("starting stage: %s", stage.name)
-                    state = stage.run()
+                    stage.run()
                     stage.shutdown()
         finally:
             self.shutdown()

@@ -1,14 +1,13 @@
 from __future__ import annotations
-from pathlib import Path
-from typing import Union, Optional
+
 import typing
+from pathlib import Path
+from typing import Optional, Union
 
 from torch.utils.tensorboard import SummaryWriter
 
 if typing.TYPE_CHECKING:
     from hylfm.setup import Stage
-
-from hylfm.utils.tracer import trace_and_plot
 
 
 def trace_neurons(
@@ -26,6 +25,8 @@ def trace_neurons(
         else:
             this_tgt_path = tgt_path
             this_compare_to = {ct: ds_out_path for ct in compare_to}
+
+        from hylfm.utils.tracer import trace_and_plot
 
         peaks, peak_pos_figs, traces = trace_and_plot(tgt_path=this_tgt_path, tgt=tgt, compare_to=this_compare_to)
         tbl = stage.log.loggers.get("TensorBoardLogger", None)

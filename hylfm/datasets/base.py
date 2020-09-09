@@ -5,6 +5,7 @@ import logging
 import re
 import typing
 import warnings
+import zipfile
 from collections import OrderedDict
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -16,6 +17,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import h5py
 import imageio
 import numpy
+import requests
 import torch.utils.data
 import yaml
 import z5py
@@ -37,7 +39,6 @@ class PathOfInterest:
     def __init__(self, *points: Tuple[int, int, int, int], sigma: int = 1):
         self.points = points
         self.sigma = sigma
-
 
 class TensorInfo:
     def __init__(
@@ -93,7 +94,7 @@ class TensorInfo:
         self.repeat = repeat
         self.kwargs = kwargs
         self.path: Path = (getattr(settings.data_roots, root) if isinstance(root, str) else root) / location
-        self.root = str(root)
+        self.root = root
 
     @property
     def transformations(self) -> List[Dict[str, Any]]:
@@ -115,19 +116,17 @@ class TensorInfo:
     @property
     def description(self):
         descr = {
-            # "name": self.name,
-            "root": self.root,
+            "root": str(self.root),
             "location": self.location,
             "transformations": [trf for trf in self.transformations if "Assert" not in trf],
             "datasets_per_file": self.datasets_per_file,
             "samples_per_dataset": self.samples_per_dataset,
+            "remove_singleton_axes_at": self.remove_singleton_axes_at,
             "insert_singleton_axes_at": self.insert_singleton_axes_at,
             "z_slice": self.z_slice.__name__ if callable(self.z_slice) else self.z_slice,
             "skip_indices": list(self.skip_indices),
             "kwargs": self.kwargs,
         }
-        if self.remove_singleton_axes_at:
-            descr["remove_singleton_axes_at"] = self.remove_singleton_axes_at
 
         return yaml.safe_dump(descr)
 

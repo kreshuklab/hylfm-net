@@ -1,7 +1,10 @@
-from typing import Dict, List, Optional, OrderedDict, Tuple, Type
+import logging
+from typing import Dict, List, Optional, Tuple, Type
 
 from hylfm.metrics import Metric
 from hylfm.metrics.scale_minimize_vs import ScaleMinimizeVsMetric
+
+logger = logging.getLogger(__name__)
 
 
 class AlongDimMetric(ScaleMinimizeVsMetric):
@@ -35,8 +38,10 @@ class AlongDimMetric(ScaleMinimizeVsMetric):
         for metric in self.submetrics:
             metric.reset()
 
-    def update(self, tensors: OrderedDict) -> None:
+    def update(self, tensors: Dict) -> None:
+        assert isinstance(tensors, dict)
         tensors = self.prepare_for_update(tensors)
+        assert isinstance(tensors, dict)
         for metric, sub_tensors in zip(self.submetrics, self.slice_along(self.along_dim, tensors)):
             metric.update(sub_tensors)
 
@@ -51,15 +56,25 @@ class AlongDimMetric(ScaleMinimizeVsMetric):
 
         return result
 
-    def slice_along(self, slice_dim: int, tensors: OrderedDict):
+    def slice_along(self, slice_dim: int, tensors: Dict):
+        assert slice_dim >= 0
+        slice_dim += 1  # add batch dim
+        sliceable_tensors = set()
         for name, tensor in tensors.items():
-            if not isinstance(tensor, list):
-                assert tensor.shape[slice_dim] == self.dim_len, (tensor.shape, self.dim_len)
+            if not isinstance(tensor, list) and slice_dim < len(tensor.shape):
+                if tensor.shape[slice_dim] == self.dim_len:
+                    sliceable_tensors.add(name)
+                else:
+                    logger.debug(
+                        "Not slicing along dim %s of tensor %s with b,shape %s", slice_dim - 1, name, tensor.shape
+                    )
 
-        slice_meta_key = f"slice_at_dim_{slice_dim}"
+        assert sliceable_tensors
+        slice_meta_key = f"slice_at_dim_{slice_dim - 1}"
         for i in range(self.dim_len):
             slice_tensors = {
-                k: v if isinstance(v, list) else v[tuple([slice(None)] * slice_dim + [i])] for k, v in tensors.items()
+                k: v if isinstance(v, list) or k not in sliceable_tensors else v[tuple([slice(None)] * slice_dim + [i])]
+                for k, v in tensors.items()
             }
             for meta in slice_tensors["meta"]:
                 assert slice_meta_key not in meta, meta

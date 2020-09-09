@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import collections
+import collections.abc
 import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Tuple, Union
@@ -25,9 +25,22 @@ class Metric(ignite.metrics.Metric):
 
     def __init__(self, *, postfix: str = "", tensor_names: Dict[str, str]):
         self.postfix = postfix
-        self._required_output_keys = list(tensor_names.keys())
+        self._required_output_keys = list(tensor_names.values())
         self.tensor_names = tensor_names
         super().__init__()
+
+    @torch.no_grad()
+    def iteration_completed(self, engine):
+        output = self._output_transform(engine.state.output)
+        assert isinstance(output, dict)
+        output = self.prepare_for_update(output)
+        assert isinstance(output, dict)
+        if isinstance(output, collections.abc.Mapping) and not all([k in output for k in self._required_output_keys]):
+            raise ValueError(
+                "When transformed engine's output is a mapping, "
+                "it should contain {} keys, but given {}".format(self._required_output_keys, list(output.keys()))
+            )
+        self.update(output)
 
     def prepare_for_update(self, tensors: Dict) -> Dict:
         assert all([expected_name in tensors for expected_name in self.tensor_names.values()]), (

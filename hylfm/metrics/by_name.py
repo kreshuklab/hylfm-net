@@ -9,10 +9,16 @@ from hylfm.metrics.from_loss import MetricFromLoss
 logger = logging.getLogger(__name__)
 
 
+def _format_postfix(postfix: str, kwargs) -> str:
+    postfix = postfix.format_map(kwargs)
+    # remove problematic characters
+    return postfix.replace("[", "").replace("]", "").replace(" ", "_").replace(",", "_")
+
+
 def get_metric(
     name: str, *args, postfix: str = "", along_dim__dim_len: Optional[Tuple[int, int]] = None, **kwargs: Dict[str, Any]
 ) -> Metric:
-    kwargs = {"postfix": postfix.format_map({"along_dim__dim_len": along_dim__dim_len, **kwargs}), **kwargs}
+    kwargs = {"postfix": _format_postfix(postfix, {"along_dim__dim_len": along_dim__dim_len, **kwargs}), **kwargs}
     if hasattr(hylfm.metrics, name):
         metric_class = getattr(hylfm.metrics, name)
     elif hasattr(hylfm.losses, name):

@@ -7,6 +7,7 @@ from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy
 import torch
 import torch.utils.tensorboard
@@ -241,7 +242,18 @@ class TensorBoardLogger(BaseLogger):
             if isinstance(v, MetricValue):
                 v = v.value
 
-            self.writer.add_scalar(tag=f"{self.stage.name}-{unit}/{k}", scalar_value=v, global_step=step)
+            if isinstance(v, list):
+                if isinstance(v[0], MetricValue):
+                    v = [vv.value for vv in v]
+
+                v = numpy.asarray(v)
+                self.writer.add_histogram(tag=f"{self.stage.name}-{unit}/{k}", values=v, global_step=step)
+                fig, ax = plt.subplots()
+                ax.plot(v)
+                ax.grid()
+                self.writer.add_figure(tag=f"{self.stage.name}-{unit}/{k}", figure=fig, global_step=step)
+            else:
+                self.writer.add_scalar(tag=f"{self.stage.name}-{unit}/{k}", scalar_value=v, global_step=step)
 
         return unit, step
 

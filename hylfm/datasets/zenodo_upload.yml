@@ -1,0 +1,107 @@
+# # b01highc_0_lf
+small_0_lf:
+    root: GHUFNAGELLFLenseLeNet_Microscope
+    location: 20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif
+
+## b01highc_0_ls
+small_0_ls_reg:
+    root: GHUFNAGELLFLenseLeNet_Microscope
+    location: 20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif
+
+# b01highc_0_lr
+small_0_lr:
+    root: GHUFNAGELLFLenseLeNet_Microscope
+    location: 20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_02.57.02/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif
+
+
+# b01highc_1_lf
+small_1_lf:
+    root: GHUFNAGELLFLenseLeNet_Microscope
+    location: 20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_03.01.49/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif
+
+# b01highc_1_ls
+small_1_ls_reg:
+    root: GHUFNAGELLFLenseLeNet_Microscope
+    location: 20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_03.01.49/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif
+
+# b01highc_1_lr
+small_1_lr:
+    root: GHUFNAGELLFLenseLeNet_Microscope
+    location: 20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_03.01.49/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif
+
+
+# b01highc_2_lf
+small_2_lf:
+    root: GHUFNAGELLFLenseLeNet_Microscope
+    location: 20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif
+
+# b01highc_2_ls
+small_2_ls_reg:
+    root: GHUFNAGELLFLenseLeNet_Microscope
+    location: 20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif
+
+# b01highc_2_lr
+small_2_lr:
+    root: GHUFNAGELLFLenseLeNet_Microscope
+    location: 20191031_Beads_MixedSizes/Beads_01micron_highConcentration/2019-10-31_04.57.13/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif
+
+## b4mu_0_lf
+#medium_0_lf:
+#    root: GHUFNAGELLFLenseLeNet_Microscope
+#    location: 20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.15.32/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif
+#
+## b4mu_0_lr
+#medium_0_lr:
+#    root: GHUFNAGELLFLenseLeNet_Microscope
+#    location: 20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.15.32/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif
+#
+## b4mu_0_ls
+#medium_0_ls_reg:
+#    root: GHUFNAGELLFLenseLeNet_Microscope
+#    location: 20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.15.32/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif
+#
+## b4mu_1_lf
+#medium_1_lf:
+#    root: GHUFNAGELLFLenseLeNet_Microscope
+#    location: 20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.34.35/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif
+#
+## b4mu_1_lr
+#medium_1_lr:
+#    root: GHUFNAGELLFLenseLeNet_Microscope
+#    location: 20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.34.35/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif
+#
+## b4mu_1_ls
+#medium_1_ls_reg:
+#    root: GHUFNAGELLFLenseLeNet_Microscope
+#    location: 20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.34.35/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif
+#
+## b4mu_2_lf
+#medium_2_lf:
+#    root: GHUFNAGELLFLenseLeNet_Microscope
+#    location: 20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.53.53/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif
+#
+## b4mu_2_lr
+#medium_2_lr:
+#    root: GHUFNAGELLFLenseLeNet_Microscope
+#    location: 20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.53.53/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif
+#
+## b4mu_2_ls
+#medium_2_ls_reg:
+#    root: GHUFNAGELLFLenseLeNet_Microscope
+#    location: 20191030_Beads_massiveGT/Beads_4micron/2019-10-30_08.53.53/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif
+#
+#
+## b4mu_3_lf
+#medium_3_lf:
+#    root: GHUFNAGELLFLenseLeNet_Microscope
+#    location: 20191030_Beads_massiveGT/Beads_4micron/2019-10-30_09.14.05/stack_0_channel_0/TP_*/RC_rectified/Cam_Right_1_rectified.tif
+#
+## b4mu_3_lr
+#medium_3_lr:
+#    root: GHUFNAGELLFLenseLeNet_Microscope
+#    location: 20191030_Beads_massiveGT/Beads_4micron/2019-10-30_09.14.05/stack_0_channel_0/TP_*/RCout/Cam_Right_1.tif
+#
+## b4mu_3_ls
+#medium_3_ls_reg:
+#    root: GHUFNAGELLFLenseLeNet_Microscope
+#    location: 20191030_Beads_massiveGT/Beads_4micron/2019-10-30_09.14.05/stack_1_channel_1/TP_*/LC/Cam_Left_registered.tif
