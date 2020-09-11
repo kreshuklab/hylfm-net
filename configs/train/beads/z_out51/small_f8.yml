@@ -39,7 +39,6 @@ model:
     prediction_name: pred
     nnum: *nnum
     z_out: *z_out
-  checkpoint:
 
 stages:
   - train:
@@ -84,7 +83,7 @@ stages:
             - RandomlyFlipAxis: {apply_to: [lf, ls_reg], axis: -2}
 
           datasets:
-            - {tensors: {lf: beads.b01highc_2_lf, ls_reg: beads.b01highc_2_ls}, sample_transformations: *sample_trfs, indices: null}
+            - {tensors: {lf: beads.small_2, ls_reg: beads.small_2}, indices: null}
 
       validate:
         metrics: beads.yml
@@ -99,7 +98,7 @@ stages:
           - batch_size: *eval_batch_size
             sample_preprocessing: *eval_sample_prepr
             datasets:
-              - {tensors: {lf: beads.b01highc_0_lf, ls_reg: beads.b01highc_0_ls}, sample_transformations: *sample_trfs, indices: null}
+              - {tensors: {lf: beads.small_0, ls_reg: beads.small_0}, sample_transformations: *sample_trfs, indices: null}
 
   - test:
       metrics: beads.yml
@@ -111,4 +110,4 @@ stages:
         - batch_size: *eval_batch_size
           sample_preprocessing: *eval_sample_prepr
           datasets:
-            - {tensors: {lf: beads.b01highc_1_lf, ls_reg: beads.b01highc_1_ls}, sample_transformations: *sample_trfs}
+            - {tensors: {lf: beads.small_1, ls_reg: beads.small_1}, sample_transformations: *sample_trfs}
