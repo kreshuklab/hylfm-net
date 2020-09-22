@@ -41,7 +41,7 @@ class TensorInfo:
         self,
         *,
         name: str,
-        root: Union[str, Path],
+        root: Union[str, Path] = Path(),
         location: str,
         transformations: Sequence[Dict[str, Any]] = tuple(),
         datasets_per_file: int = 1,
