@@ -13,9 +13,9 @@ from ruamel.yaml import YAML
 import matplotlib.pyplot as plt
 import numpy
 
-from lnet.datasets.base import TensorInfo, TiffDataset
-from lnet.utils.cache import cached_to_disk
-from lnet.utils.tracer import trace_and_plot
+from hylfm.datasets.base import TensorInfo, TiffDataset
+from hylfm.utils.cache import cached_to_disk
+from hylfm.utils.tracer import trace_and_plot
 
 yaml = YAML(typ="safe")
 

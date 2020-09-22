@@ -2,7 +2,7 @@ from typing import Optional, Tuple
 
 import numpy
 
-from lnet.transformations.base import Transform
+from hylfm.transformations.base import Transform
 
 
 class Normalize01(Transform):

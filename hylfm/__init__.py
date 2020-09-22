@@ -1,9 +1,1 @@
-import warnings
-
-try:
-    from .settings import settings
-except ImportError as e:
-    warnings.warn(f"{e}\nUsing default settings instead.")
-    from .settings_default import Settings, DataRoots
-
-    settings = Settings(data_roots=DataRoots())
+from hylfm._settings import settings

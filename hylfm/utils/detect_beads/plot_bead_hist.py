@@ -3,7 +3,7 @@ import numpy
 from matplotlib.figure import Figure
 from tifffile import imread
 
-from lnet.utils.detect_beads import get_bead_pos
+from hylfm.utils.detect_beads import get_bead_pos
 
 
 def plot_bead_hist(bead_pos_tgt, bead_pos_pred, bi=0) -> Figure:
@@ -31,9 +31,7 @@ def plot_bead_hist(bead_pos_tgt, bead_pos_pred, bi=0) -> Figure:
 
 if __name__ == "__main__":
     tgt = (
-        imread("K:/beuttenm/repos/lnet/logs/beads/19-08-23_18-32_c307a5a_aux1_/result/test/target/0000.tif")[
-            None, ...
-        ]
+        imread("K:/beuttenm/repos/lnet/logs/beads/19-08-23_18-32_c307a5a_aux1_/result/test/target/0000.tif")[None, ...]
         / numpy.iinfo(numpy.uint16).max
     )
     pred = (

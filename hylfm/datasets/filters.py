@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import sys
 import typing
 import warnings
 
 import numpy
 
-from lnet.transformations.affine_utils import get_ls_roi
+from hylfm.transformations.affine_utils import get_ls_roi
 
 if typing.TYPE_CHECKING:
-    from lnet.datasets import N5CachedDatasetFromInfo
+    from hylfm.datasets import N5CachedDatasetFromInfo
 
 
 def z_range(dataset: N5CachedDatasetFromInfo, idx: int, *, z_min: int = None, z_max: int = None) -> bool:

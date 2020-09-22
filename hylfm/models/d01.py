@@ -8,10 +8,10 @@ import torch.nn as nn
 from inferno.extensions.initializers import Constant, Initialization
 
 from lnet import registration
-from lnet.models.base import LnetModel
-from lnet.models.layers.conv_layers import ResnetBlock
-from lnet.models.layers.dense_block import DenseBlock
-from lnet.models.layers.transition import Transition2D, Transition3D
+from hylfm.models.base import LnetModel
+from hylfm.models.layers.conv_layers import ResnetBlock
+from hylfm.models.layers.dense_block import DenseBlock
+from hylfm.models.layers.transition import Transition2D, Transition3D
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +150,7 @@ class D01(LnetModel):
         return x
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
-        s = max(1, 2**len(self.n_res3d))
+        s = max(1, 2 ** len(self.n_res3d))
         return s, s
 
     def get_shrinkage(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[int, int]:
@@ -342,6 +342,7 @@ fish2_20191209_dynamic.t0402c11p100a: {indices: null, interpolation_order: 0}
 
 if __name__ == "__main__":
     import os
+
     # try_static()
     assert os.environ["CUDA_VISIBLE_DEVICES"] == "6"
     try_dynamic()

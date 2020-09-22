@@ -5,9 +5,9 @@ from pathlib import Path
 
 import yaml
 
-from lnet.datasets.base import TensorInfo, get_dataset_from_info
-from lnet.settings import settings
-from lnet.transformations.affine_utils import (
+from hylfm.datasets.base import TensorInfo, get_dataset_from_info
+from hylfm.settings import settings
+from hylfm.transformations.affine_utils import (
     get_lf_shape,
     get_precropped_ls_roi_in_raw_ls,
     get_precropped_ls_shape,
@@ -504,7 +504,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     )
 
 
-def check_lr(tag: str, meta: dict, cache: bool=True):
+def check_lr(tag: str, meta: dict, cache: bool = True):
     lr_info = get_tensor_info(tag, "lr", meta=meta)
     lr = get_dataset_from_info(lr_info, cache=cache)
     ls = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=cache)
@@ -604,7 +604,15 @@ if __name__ == "__main__":
     #     check_lr(tag, meta=meta)
     #     # except:
     #     # print("quick check")
-    meta = {"z_out": 49, "nnum": 19, "interpolation_order": 2, "pred_z_min": 142, "pred_z_max": 620, "shrink": 8, "scale": 4}
+    meta = {
+        "z_out": 49,
+        "nnum": 19,
+        "interpolation_order": 2,
+        "pred_z_min": 142,
+        "pred_z_max": 620,
+        "shrink": 8,
+        "scale": 4,
+    }
     # # quick_check_all(meta=meta)
     # for tag in [
     for tag in [
@@ -633,7 +641,6 @@ if __name__ == "__main__":
         # "11_2__2020-03-11_10.21.14__SinglePlane_-305",
         # "11_2__2020-03-11_08.12.13__SinglePlane_-310",
         # "11_2__2020-03-11_06.53.14__SinglePlane_-330",
-
         # "09_3__2020-03-09_06.43.40__SinglePlane_-320",
         # "09_3__2020-03-09_06.43.40__SinglePlane_-330",
         # "09_3__2020-03-09_06.43.40__SinglePlane_-340",
@@ -643,7 +650,7 @@ if __name__ == "__main__":
         "11_2__2020-03-11_10.33.17__SinglePlane_-340",
         "11_2__2020-03-11_10.34.15__SinglePlane_-340",
         "11_2__2020-03-11_10.35.41__SinglePlane_-340",
-        ]:
+    ]:
         check_data(tag, meta=meta)
         # check_filter(tag, meta=meta)
         # check_lr(tag, meta=meta, cache=True)

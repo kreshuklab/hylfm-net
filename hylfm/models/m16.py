@@ -6,9 +6,9 @@ import torch.nn
 import torch.nn as nn
 from inferno.extensions.initializers import Constant, Initialization
 
-from lnet.models.base import LnetModel
-from lnet.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
-from lnet.models.layers.structural_layers import C2Z
+from hylfm.models.base import LnetModel
+from hylfm.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
+from hylfm.models.layers.structural_layers import C2Z
 
 logger = logging.getLogger(__name__)
 
@@ -111,8 +111,9 @@ class M16(LnetModel):
     def get_output_shape(self, ipt_shape: Tuple[int, int]):
         return tuple([i * sc - 2 * sr for i, sc, sr in zip(ipt_shape, self.get_scaling(), self.get_shrinkage())])
 
+
 if __name__ == "__main__":
-    m = M16(input_name="dummy", prediction_name="pred",     nnum=19, z_out=49, final_activation=None)
+    m = M16(input_name="dummy", prediction_name="pred", nnum=19, z_out=49, final_activation=None)
     m = m.cuda()
     dummy = {"dummy": torch.ones(1, 361, 49, 74).cuda()}
     out = m(dummy)["pred"]

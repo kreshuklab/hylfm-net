@@ -8,8 +8,8 @@ import torch.nn as nn
 from inferno.extensions.initializers import Constant, Initialization
 
 from lnet import registration
-from lnet.models.base import LnetModel
-from lnet.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
+from hylfm.models.base import LnetModel
+from hylfm.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
 
 logger = logging.getLogger(__name__)
 
@@ -161,9 +161,9 @@ def try_a01_static():
     import yaml
 
     import matplotlib.pyplot as plt
-    from lnet.setup import DataConfig, DataCategory
+    from hylfm.setup import DataConfig, DataCategory
 
-    from lnet.setup import ModelConfig
+    from hylfm.setup import ModelConfig
 
     model_config = ModelConfig.load(
         "A01",
@@ -246,9 +246,9 @@ def try_a01_dynamic():
     import yaml
 
     import matplotlib.pyplot as plt
-    from lnet.setup import DataConfig, DataCategory
+    from hylfm.setup import DataConfig, DataCategory
 
-    from lnet.setup import ModelConfig
+    from hylfm.setup import ModelConfig
 
     model_config = ModelConfig.load(
         "A01",

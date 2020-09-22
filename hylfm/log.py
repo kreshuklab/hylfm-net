@@ -4,10 +4,10 @@ import logging
 import time
 import typing
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from math import ceil
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy
 import torch
 import torch.utils.tensorboard
@@ -16,12 +16,13 @@ from ignite.engine import Engine, Events
 from tifffile import imsave as imwrite
 from tqdm import tqdm
 
-from lnet import settings
-from lnet.utils import PeriodUnit, Period
-from lnet.utils.plotting import get_batch_figure
+from hylfm import settings
+from hylfm.metrics.base import MetricValue
+from hylfm.utils import Period, PeriodUnit
+from hylfm.utils.plotting import get_batch_figure
 
 if typing.TYPE_CHECKING:
-    from lnet.setup import Stage
+    from hylfm.setup import Stage
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +55,8 @@ class BaseLogger:
         return unit, step
 
     def log_scalars(self, engine: Engine) -> typing.Tuple[str, int]:
-        for name, metric in self.stage.metric_instances.items():
-            if name in self.stage.metrics:
-                metric.completed(engine=engine, name=name)
+        # for i, metric in enumerate(self.stage.metric_instances):
+        #     metric.completed(engine=engine, name=f"{i:02}")
 
         return self.get_unit_and_step(engine, self.scalar_event)
 
@@ -101,6 +101,16 @@ class BaseLogger:
                 raise NotImplementedError
 
             engine.add_event_handler(self.tensor_event(every=tensors_every.value), self.log_tensors)
+
+    @staticmethod
+    def metric_value_as_float(metric_value: typing.Union[MetricValue, float, list]):
+        if isinstance(metric_value, list):
+            return [BaseLogger.metric_value_as_float(mv) for mv in metric_value]
+        elif isinstance(metric_value, MetricValue):
+            return metric_value.as_float()
+        else:
+            assert isinstance(metric_value, float)
+            return metric_value
 
 
 class TqdmLogger(BaseLogger):
@@ -163,7 +173,7 @@ class FileLogger(BaseLogger):
     def _log_metric(self, engine: Engine, name: str, unit: str, step: int):
         metric_log_file = self.stage.log_path / f"{name}.txt"
         with metric_log_file.open(mode="a") as file:
-            file.write(f"{unit}\t{step}\t{engine.state.metrics[name]}\n")
+            file.write(f"{unit}\t{step}\t{self.metric_value_as_float(engine.state.metrics[name])}\n")
 
     @log_exception
     def log_scalars(self, engine: Engine):
@@ -179,7 +189,7 @@ class FileLogger(BaseLogger):
 
         for tn in tensor_names:
             for tensor, bmeta in zip(tensors[tn], tensors["meta"]):
-                self.executor.submit(self._save_tensor, bmeta["idx"], tensor, bmeta[tn]["log_path"])
+                self.executor.submit(self._save_tensor, bmeta["idx"], tensor, bmeta[tn]["log_dir"])
 
         return unit, step
 
@@ -220,20 +230,35 @@ class FileLogger(BaseLogger):
 
 
 class TensorBoardLogger(BaseLogger):
+    tensorboard_writers = {}
     _writer = None
 
     @property
     def writer(self):
-        if self._writer is None:
-            self._writer = torch.utils.tensorboard.SummaryWriter(str(self.stage.log_path.parent.parent))
+        tensorboard_logdir = str(self.stage.log_path.parent.parent.resolve())
+        if tensorboard_logdir in self.tensorboard_writers:
+            self._writer = self.__class__.tensorboard_writers[tensorboard_logdir]
+        else:
+            self._writer = torch.utils.tensorboard.SummaryWriter(tensorboard_logdir)
+            self.__class__.tensorboard_writers[tensorboard_logdir] = self._writer
 
         return self._writer
 
     @log_exception
     def log_scalars(self, engine: Engine):
+        assert engine.state.metrics
         unit, step = super().log_scalars(engine)
         for k, v in engine.state.metrics.items():
-            self.writer.add_scalar(tag=f"{self.stage.name}-{unit}/{k}", scalar_value=v, global_step=step)
+            v = self.metric_value_as_float(v)
+            if isinstance(v, list):
+                v = numpy.asarray(v)
+                self.writer.add_histogram(tag=f"{self.stage.name}-{unit}_hist_{k}", values=v, global_step=step)
+                fig, ax = plt.subplots()
+                ax.scatter(numpy.arange(len(v)), v)
+                ax.grid()
+                self.writer.add_figure(tag=f"{self.stage.name}-{unit}_{k}", figure=fig, global_step=step)
+            else:
+                self.writer.add_scalar(tag=f"{self.stage.name}-{unit}_{k}", scalar_value=v, global_step=step)
 
         return unit, step
 
@@ -254,7 +279,7 @@ class TensorBoardLogger(BaseLogger):
         fig = get_batch_figure(tensors=tensors, return_array=False, meta=meta)
         # fig_array = get_batch_figure(tensors=tensors, return_array=True)
 
-        self.writer.add_figure(tag=f"{self.stage.name}-{unit}/batch", figure=fig, global_step=step)
+        self.writer.add_figure(tag=f"{self.stage.name}-{unit}_tensors", figure=fig, global_step=step)
         # self.writer.add_image(tag=f"{self.stage.name}/batch", img_tensor=fig_array, global_step=iteration, dataformats="HWC")
         # self.writer.add_image(tag=f"{self.stage.name}/batch", img_tensor=fig_array[..., :3].astype("float") / 255, global_step=iteration, dataformats="HWC")
         return unit, step

@@ -14,14 +14,14 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from tensorboardX import SummaryWriter
 from torch.utils.data import ConcatDataset
 
-from lnet.config import Config
-from lnet.datasets import Result
-from lnet.engine import EvalEngine, TrainEngine, TunedEngine
-from lnet.metrics import BEAD_PRECISION_RECALL, LOSS_NAME
-from lnet.output import AuxOutput, Output
-from lnet.old_step_functions import inference_step, training_step
-from lnet.transformations.light_field import LightFieldFromChannel
-from lnet.utils.plotting import Box, turbo_colormap_data
+from hylfm.config import Config
+from hylfm.datasets import Result
+from hylfm.engine import EvalEngine, TrainEngine, TunedEngine
+from hylfm.metrics import BEAD_PRECISION_RECALL, LOSS_NAME
+from hylfm.output import AuxOutput, Output
+from hylfm.old_step_functions import inference_step, training_step
+from hylfm.transformations.light_field import LightFieldFromChannel
+from hylfm.utils.plotting import Box, turbo_colormap_data
 
 
 class Experiment:
@@ -35,7 +35,6 @@ class Experiment:
 
         self.config = config = Config(**raw_config)
         self.dtype = getattr(torch, config.precision)
-
 
         self.max_num_epochs = 0 if config.train is None else config.train.max_num_epochs
 
@@ -53,11 +52,10 @@ class Experiment:
 
         self.logger = logging.getLogger(config.log.time_stamp)
 
-
     def test(self):
-        self.run(epochs = 0)
+        self.run(epochs=0)
 
-    def run(self, epochs: Optional[int] =None):
+    def run(self, epochs: Optional[int] = None):
         config = self.config
         # tensorboardX
         writer = SummaryWriter(self.config.log.dir.as_posix())
@@ -136,6 +134,7 @@ class Experiment:
             writer.add_scalar(f"{engine.name}/loss", engine.state.output.loss, step)
 
         lightfield_from_channel = LightFieldFromChannel(nnum=config.nnum)
+
         def log_images(engine: TunedEngine, step: int, boxes: Iterable[Box] = tuple()):
             output: Union[AuxOutput, Output] = engine.state.output
             ipt_batch = numpy.stack(
@@ -247,7 +246,7 @@ class Experiment:
             col_so_far = col
             for loss_nr, vl_batch in enumerate(voxel_losses):
                 for i, vl in enumerate(vl_batch):
-                    if len(vl.shape) ==  3:
+                    if len(vl.shape) == 3:
                         vl = vl[None, ...]
                     col = col_so_far
                     make_subplot(

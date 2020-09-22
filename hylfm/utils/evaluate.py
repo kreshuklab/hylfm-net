@@ -7,7 +7,7 @@ from tifffile import imread
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 
-from lnet.metrics import MSSSIM, NRMSE, PSNR, SSIM  # SSIMSkImage != SSIM
+from hylfm.metrics import MSSSIM, NRMSE, PSNR, SSIM  # SSIMSkImage != SSIM
 
 GRESHUK = os.environ.get("GRESHUK", "/g/kreshuk")
 

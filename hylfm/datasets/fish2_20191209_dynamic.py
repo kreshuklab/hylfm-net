@@ -1,4 +1,4 @@
-from lnet.datasets.base import TensorInfo
+from hylfm.datasets.base import TensorInfo
 
 t0454c2_lf = TensorInfo(
     name="lf",
@@ -102,7 +102,7 @@ t0521c3_ls = TensorInfo(
 # name = "lf",
 # #     root = "KRESHUK",
 # #     location="LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_04.54.38/stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
-insert_singleton_axes_at=[0, 0],
+insert_singleton_axes_at = ([0, 0],)
 # #   tag=  "t0454",
 # # #     length=241*?,
 # #
@@ -111,7 +111,7 @@ insert_singleton_axes_at=[0, 0],
 # name = "lf",
 # #     root = "KRESHUK",
 # #     location="LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/2019-12-09_04.54.38/stack_1_channel_3/TP_*/RC_rectified/Cam_Right_*_rectified.tif",
-insert_singleton_axes_at=[0, 0],
+insert_singleton_axes_at = ([0, 0],)
 # #   tag=  "t0454",
 # # #     length=241*?,
 # #
@@ -123,7 +123,7 @@ insert_singleton_axes_at=[0, 0],
 # name = "lf",
 # #     root = "KRESHUK",
 # #     location="LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/fast_cropped_8ms/singlePlanes/plane_080/2019-12-09_04.02.24/stack_2_channel_10/TP_00000/RC_rectified/Cam_Right_*_rectified.tif",
-insert_singleton_axes_at=[0, 0],
+insert_singleton_axes_at = ([0, 0],)
 # #   tag=  "t0402c10",
 # # #     length=200,
 # #     z_slice=241-80],
@@ -131,7 +131,7 @@ insert_singleton_axes_at=[0, 0],
 # name = "lf",
 # #     root = "KRESHUK",
 # #     location="LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/fast_cropped_8ms/singlePlanes/plane_080/2019-12-09_04.02.24/stack_2_channel_10/TP_00000/RC_rectified/Cam_Right_*_rectified.tif",
-insert_singleton_axes_at=[0, 0],
+insert_singleton_axes_at = ([0, 0],)
 # #   tag=  "t0402c10",
 # # #     length=200,
 # #     z_slice=241-80],
@@ -1137,19 +1137,19 @@ if __name__ == "__main__":
     import logging
 
     from hashlib import sha224 as hash_algorithm
-    from lnet.settings import settings
-    from lnet.datasets.base import get_dataset_from_info, N5CachedDatasetFromInfo
+    from hylfm.settings import settings
+    from hylfm.datasets.base import get_dataset_from_info, N5CachedDatasetFromInfo
 
     logger = logging.getLogger("fdyn")
 
     for info_lf, info_ls in zip(
         [
-t0454c2_lf,
-# t0521c2_lf
+            t0454c2_lf,
+            # t0521c2_lf
         ],
         [
-t0454c2_ls,
-# t0521c2_ls
+            t0454c2_ls,
+            # t0521c2_ls
         ],
     ):
         try:
@@ -1158,7 +1158,7 @@ t0454c2_ls,
             ]  # bcyx
             dslf = get_dataset_from_info(info_lf)
             print(
-                settings.cache_path
+                settings.cache_dir
                 / f"{dslf.info.tag}_{dslf.tensor_name}_{hash_algorithm(dslf.description.encode()).hexdigest()}.n5"
             )
             dslf = N5CachedDatasetFromInfo(dslf)
@@ -1178,7 +1178,7 @@ t0454c2_ls,
             ]
             dsls = get_dataset_from_info(info_ls)
             print(
-                settings.cache_path
+                settings.cache_dir
                 / f"{dsls.info.tag}_{dsls.tensor_name}_{hash_algorithm(dsls.description.encode()).hexdigest()}.n5"
             )
             dsls = N5CachedDatasetFromInfo(dsls)

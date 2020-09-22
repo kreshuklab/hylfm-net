@@ -16,32 +16,41 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, U
 
 import ignite
 import torch.utils.data
-import yaml
 from ignite.handlers import global_step_from_engine
+from ruamel.yaml import YAML
 
-import lnet.criteria
-import lnet.log
-import lnet.metrics
-import lnet.optimizers
-import lnet.transformations
-from lnet import settings, post_run
-from lnet.datasets import ConcatDataset, ZipDataset, get_collate_fn, get_dataset_from_info, get_tensor_info
-from lnet.datasets.base import TensorInfo
-from lnet.models import LnetModel
-from lnet.setup._utils import indice_string_to_list
-from lnet.step import inference_step, training_step
-from lnet.transformations import ComposedTransformation, Transform
-from lnet.transformations.utils import get_composed_transformation_from_config
-from lnet.utils import Period, PeriodUnit
-from lnet.utils.batch_sampler import NoCrossBatchSampler
-from lnet.utils.general import delete_empty_dirs
+import hylfm.log
+import hylfm.losses
+import hylfm.metrics
+import hylfm.optimizers
+import hylfm.transformations
+from hylfm import post_run, settings
+from hylfm.datasets import ConcatDataset, ZipDataset, get_collate_fn, get_dataset_from_info, get_tensor_info
+from hylfm.datasets.base import TensorInfo
+from hylfm.losses.on_tensors import LossOnTensors
+from hylfm.metrics import get_metric
+from hylfm.metrics.base import Metric, MetricValue
+from hylfm.models import LnetModel
+from hylfm.setup._utils import indice_string_to_list
+from hylfm.step import inference_step, training_step
+from hylfm.transformations import ComposedTransformation, Transform
+from hylfm.transformations.utils import get_composed_transformation_from_config
+from hylfm.utils import Period, PeriodUnit
+from hylfm.utils.batch_sampler import NoCrossBatchSampler
+from hylfm.utils.general import camel_to_snake, delete_empty_dirs
 
 logger = logging.getLogger(__name__)
+
+yaml = YAML(typ="safe")
 
 
 class ModelSetup:
     def __init__(
-        self, name: str, kwargs: Dict[str, Any], checkpoint: Optional[Union[Path, str]] = None, partial_weights: bool = False
+        self,
+        name: str,
+        kwargs: Dict[str, Any],
+        checkpoint: Optional[Union[Path, str]] = None,
+        partial_weights: bool = False,
     ):
         self.name = name
         self.kwargs = kwargs
@@ -50,7 +59,7 @@ class ModelSetup:
         self.strict = True
 
     def get_model(self, device: torch.device, dtype: torch.dtype) -> LnetModel:
-        model_module = import_module("." + self.name.lower(), "lnet.models")
+        model_module = import_module("." + self.name.lower(), "hylfm.models")
         model_class = getattr(model_module, self.name)
         model = model_class(**self.kwargs)
         model = model.to(device=device, dtype=dtype)
@@ -90,11 +99,12 @@ class PerLoggerSetup:
         tensors_every: Optional[Dict[str, Union[int, str]]] = None,
         tensor_names: Optional[Sequence[str]] = None,
     ):
-        self.backend: lnet.log.BaseLogger = getattr(lnet.log, name)(stage=stage, tensor_names=tensor_names)
+        self.backend: hylfm.log.BaseLogger = getattr(hylfm.log, name)(stage=stage, tensor_names=tensor_names)
         self.scalars_every = None if scalars_every is None else Period(**scalars_every)
         self.tensors_every = None if tensors_every is None else Period(**tensors_every)
 
     def register_callbacks(self, engine: ignite.engine.Engine):
+
         self.backend.register_callbacks(
             engine=engine, scalars_every=self.scalars_every, tensors_every=self.tensors_every
         )
@@ -108,7 +118,7 @@ class LogSetup:
         if os.environ.get("SLURM_JOB_ID", None) is not None:
             loggers.pop("TqdmLogger", None)  # no TqdmLogger in slurm jobs (progress bar spams output)
 
-        self.loggers = {name: PerLoggerSetup(name=name, stage=stage, **lgr) for name, lgr in loggers.items()}
+        self.loggers: Dict[str, PerLoggerSetup] = {name: PerLoggerSetup(name=name, stage=stage, **lgr) for name, lgr in loggers.items()}
 
     def register_callbacks(self, engine: ignite.engine.Engine):
         [lgr.register_callbacks(engine) for lgr in self.loggers.values()]
@@ -283,7 +293,7 @@ class Stage:
         name: str,
         data: List[Dict[str, Any]],
         sampler: Dict[str, Any],
-        metrics: Dict[str, Dict[str, Any]],
+        metrics: List[Dict[str, Any]],
         log: Dict[str, Any],
         batch_preprocessing: List[Dict[str, Dict[str, Any]]],
         batch_preprocessing_in_step: List[Dict[str, Dict[str, Any]]],
@@ -303,17 +313,19 @@ class Stage:
         self._epoch_length: Optional[int] = None
         self.model = model
         batch_preprocessing_instances: List[Transform] = [
-            getattr(lnet.transformations, name)(**kwargs) for trf in batch_preprocessing for name, kwargs in trf.items()
+            getattr(hylfm.transformations, name)(**kwargs)
+            for trf in batch_preprocessing
+            for name, kwargs in trf.items()
         ]
         self.batch_preprocessing = ComposedTransformation(*batch_preprocessing_instances)
         batch_preprocessing_in_step_instances: List[Transform] = [
-            getattr(lnet.transformations, name)(**kwargs)
+            getattr(hylfm.transformations, name)(**kwargs)
             for trf in batch_preprocessing_in_step
             for name, kwargs in trf.items()
         ]
         self.batch_preprocessing_in_step = ComposedTransformation(*batch_preprocessing_in_step_instances)
         batch_postprocessing_instances: List[Transform] = [
-            getattr(lnet.transformations, name)(**kwargs)
+            getattr(hylfm.transformations, name)(**kwargs)
             for trf in batch_postprocessing
             for name, kwargs in trf.items()
         ]
@@ -377,56 +389,23 @@ class Stage:
             msecs,
         )
 
-    def setup_engine(self, engine: ignite.engine.Engine):
-        engine.add_event_handler(ignite.engine.Events.STARTED, self.start_engine)
-        engine.add_event_handler(ignite.engine.Events.COMPLETED, self.log_compute_time)
+    def _setup_engine(self):
+        self.engine.add_event_handler(ignite.engine.Events.STARTED, self.start_engine)
+        self.engine.add_event_handler(ignite.engine.Events.COMPLETED, self.log_compute_time)
+        self._attach_metrics()
 
-        metric_instances = {}
-        for metric_name, kwargs in self.metrics.items():
-            kwargs = dict(kwargs)
-            metric_class = getattr(lnet.metrics, metric_name, None)
-            if metric_class is None:
-                if (
-                    isinstance(self, TrainStage)
-                    and metric_name == self.criterion_setup.name
-                    and {k: v for k, v in kwargs.items() if k != "tensor_names"} == self.criterion_setup.kwargs
-                ):
-                    metric = ignite.metrics.Average(output_transform=lambda out: out[metric_name])
-                else:
-                    criterion_class = getattr(lnet.criteria, metric_name, None)
-                    if criterion_class is None:
-                        metric_getter = getattr(lnet.metrics, "get_" + metric_name, None)
-                        if metric_getter is None:
-                            raise ValueError(f"{metric_name} is not a valid metric name")
-
-                        metric = metric_getter(initialized_metrics=metric_instances, kwargs=kwargs)
-                    else:
-                        postfix = kwargs.pop("postfix", "")
-                        metric_name += postfix
-                        tensor_names = kwargs.pop("tensor_names")
-                        criterion = criterion_class(**kwargs)
-                        criterion.eval()
-                        arg_names = [tensor_names[an] for an in ("y_pred", "y", "kwargs") if an in tensor_names]
-                        metric = ignite.metrics.Loss(criterion, lambda tensors: [tensors[an] for an in arg_names])
-            else:
-                try:
-                    metric = metric_class(
-                        output_transform=lnet.metrics.get_output_transform(kwargs.pop("tensor_names")), **kwargs
-                    )
-                except Exception:
-                    logger.error("Cannot init %s", metric_name)
-                    raise
-
-            metric_instances[metric_name] = metric
-            metric.attach(engine, metric_name)
-
-        self.metric_instances = metric_instances
+    def _attach_metrics(self):
+        metric_instances = [get_metric(**kwargs) for kwargs in self.metrics]
+        for metric in metric_instances:
+            metric.attach(self.engine, "")
+            if any([lgr.scalars_every for lgr in self.log.loggers.values()]):
+                self.engine.add_event_handler(ignite.engine.Events.ITERATION_COMPLETED, metric.completed, "")
 
     @property
     def engine(self):
         if self._engine is None:
             self._engine = ignite.engine.Engine(self.step_function)
-            self.setup_engine(self._engine)
+            self._setup_engine()
             self.log.register_callbacks(engine=self._engine)
 
         return self._engine
@@ -470,30 +449,27 @@ class ValidateStage(EvalStage):
         period: Dict[str, Union[int, str]],
         patience: int,
         train_stage: TrainStage,
-        metrics: Dict[str, Any],
-        score_metric: Optional[str] = None,
+        metrics: List[Dict[str, Any]],
+        score_metric: str,
         **super_kwargs,
     ):
         super().__init__(metrics=metrics, **super_kwargs)
         self.period = Period(**period)
         self.patience = patience
         self.train_stage = train_stage
-        assert score_metric in metrics or score_metric.startswith("-") and score_metric[1:] in metrics
-        self.negate_score_metric = score_metric.startswith("-")
-        self.score_metric = score_metric[int(self.negate_score_metric) :]
+        self.score_metric = score_metric
 
 
 @dataclass
 class CriterionSetup:
     name: str
     kwargs: Dict[str, Any]
-    _class: Type[torch.nn.Module] = field(init=False)
+    _class: Type[LossOnTensors] = field(init=False)
     tensor_names: Dict[str, str]
-    postfix: str = ""
 
     def __post_init__(self):
-        self._class = getattr(lnet.criteria, self.name)
-        self.name += self.postfix
+        self._class = getattr(hylfm.losses, self.name)
+        self.name = camel_to_snake(self.name)
         assert "engine" not in self.kwargs
         assert "tensor_names" not in self.kwargs
 
@@ -503,9 +479,7 @@ class CriterionSetup:
         if "engine" in sig.parameters:
             kwargs["engine"] = engine
 
-        return lnet.criteria.CriterionWrapper(
-            tensor_names=self.tensor_names, criterion_class=self._class, postfix=self.postfix, **kwargs
-        )
+        return self._class(tensor_names=self.tensor_names, **kwargs)
 
 
 @dataclass
@@ -514,7 +488,7 @@ class OptimizerSetup:
     kwargs: Dict[str, Any]
 
     def __post_init__(self):
-        self._class = getattr(lnet.optimizers, self.name)
+        self._class = getattr(hylfm.optimizers, self.name)
         assert "engine" not in self.kwargs
         assert "parameters" not in self.kwargs
 
@@ -555,10 +529,10 @@ class TrainStage(Stage):
             name="validate_" + self.name, train_stage=self, model=model, log_path=log_path, **validate
         )
 
-    def setup_engine(self, engine: ignite.engine.Engine):
-        super().setup_engine(engine)
+    def _setup_engine(self):
+        super()._setup_engine()
         running_loss = ignite.metrics.RunningAverage(output_transform=lambda out: out[self.criterion_setup.name])
-        running_loss.attach(engine, f"{self.criterion_setup.name}-running")
+        running_loss.attach(self.engine, f"{self.criterion_setup.name}-running")
 
         checkpointer = ignite.handlers.ModelCheckpoint(
             (self.log_path / "checkpoints").as_posix(),
@@ -567,7 +541,7 @@ class TrainStage(Stage):
             score_name=self.validate.score_metric,
             n_saved=self.log.save_n_checkpoints,
             create_dir=True,
-            global_step_transform=global_step_from_engine(self.engine)
+            global_step_transform=global_step_from_engine(self.engine),
         )
 
         early_stopper = ignite.handlers.EarlyStopping(
@@ -581,20 +555,18 @@ class TrainStage(Stage):
         else:
             raise NotImplementedError(self.validate.period.unit)
 
-        @engine.on(event(every=self.validate.period.value))
+        @self.engine.on(event(every=self.validate.period.value))
         def validate(e: ignite.engine.Engine):
             validation_state = self.validate.run()
-            validation_score = validation_state.metrics.get(self.validate.score_metric)
-            if self.validate.negate_score_metric:
-                validation_score *= -1
-
+            metric_value: MetricValue = validation_state.metrics.get(self.validate.score_metric)
+            validation_score = metric_value.as_float()
             e.state.validation_score = validation_score
             checkpointer(
                 e, {"model": e.state.model, "optimizer": e.state.optimizer, "criterion": e.state.criterion, "engine": e}
             )
             early_stopper(e)
 
-        @engine.on(ignite.engine.Events.COMPLETED)
+        @self.engine.on(ignite.engine.Events.COMPLETED)
         def load_best_model(e: ignite.engine.Engine):
             best_score, best_checkpoint = checkpointer._saved[-1]
             assert best_score == max([item.priority for item in checkpointer._saved])
@@ -640,7 +612,7 @@ class Setup:
                 valid_path_until = checkpoint[:star_pos].rfind("/")
                 checkpoint_dir = Path(checkpoint[:valid_path_until])
                 assert checkpoint_dir.exists(), checkpoint_dir
-                glob_expr = checkpoint[valid_path_until + 1:]
+                glob_expr = checkpoint[valid_path_until + 1 :]
                 checkpoint = max([(float(c.stem.split("=")[1]), c) for c in checkpoint_dir.glob(glob_expr)])[1]
 
             checkpoint = Path(checkpoint)
@@ -662,34 +634,43 @@ class Setup:
 
         self.config_path = config_path
         self.log_path = self.get_log_path(config_path=config_path) if log_path is None else Path(log_path)
-        logger.info("log_path: %s", self.log_path)
+        logger.info("log_dir: %s", self.log_path)
 
-        self.config = {
-            "config_path": str(config_path),
-            "checkpoint": None if checkpoint is None else str(checkpoint),
-            "precision": precision,
-            "device": device,
-            "model": model,
-            "stages": stages,
-            "log_path": str(log_path),
-        }
+        self.config = self.load_subconfig_yaml(
+            {
+                "config_path": str(config_path),
+                "checkpoint": None if checkpoint is None else str(checkpoint),
+                "precision": precision,
+                "device": device,
+                "model": model,
+                "stages": stages,
+                "log_dir": str(log_path),
+            }
+        )
+
+    def load_subconfig_yaml(self, part: Any, subconfig_dir: Path = settings.configs_dir / "subconfigs"):
+        if isinstance(part, list):
+            return [self.load_subconfig_yaml(p) for p in part]
+        elif isinstance(part, dict):
+            return {k: self.load_subconfig_yaml(v, subconfig_dir.parent / k) for k, v in part.items()}
+        elif isinstance(part, str) and part.endswith(".yml"):
+            if (subconfig_dir / part).exists():
+                return yaml.load(subconfig_dir / part)
+
+        return part
 
     @classmethod
     def from_yaml(cls, yaml_path: Path, **overwrite_kwargs) -> "Setup":
-        with yaml_path.open() as f:
-            config = yaml.safe_load(f)
-
+        config = yaml.load(yaml_path)
         config.update(overwrite_kwargs)
         return cls(**config, config_path=yaml_path)
 
     @staticmethod
-    def get_log_path(config_path: Path, *, root: Optional[Path] = None, split_at: str = "experiment_configs") -> Path:
-        log_sub_dir: List[str] = config_path.with_suffix("").resolve().as_posix().split(f"/{split_at.strip('/')}/")
-        assert len(log_sub_dir) == 2, log_sub_dir
-        log_sub_dir: str = log_sub_dir[1]
-        if root is None:
-            root = settings.log_path
-        return root / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
+    def get_log_path(config_path: Path, *, root: Optional[Path] = None) -> Path:
+        config_path = config_path.resolve()
+        assert settings.configs_dir in config_path.parents, (settings.configs_dir, config_path)
+        log_sub_dir = config_path.relative_to(settings.configs_dir).with_suffix("")
+        return (root or settings.log_dir) / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
         return self.model.get_scaling(ipt_shape)
@@ -698,8 +679,8 @@ class Setup:
         self.log_path.mkdir(parents=True, exist_ok=False)
         # save original config as template
         shutil.copy(str(self.config_path), str(self.log_path / "template.yaml"))
-        with (self.log_path / "config.yaml").open("w") as f:
-            yaml.safe_dump(self.config, f)  # save actual config to log path
+        # save actual config to log path
+        yaml.dump(self.config, self.log_path / "config.yaml")
 
         self.dtype: torch.dtype = getattr(torch, self.config["precision"])
         assert isinstance(self.dtype, torch.dtype)

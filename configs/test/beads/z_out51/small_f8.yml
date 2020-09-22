@@ -1,0 +1,43 @@
+precision: &precision float
+
+model:
+  name: A04
+  kwargs:
+    scale: 8
+    shrink: &shrink 8
+    input_name: lfc
+    prediction_name: pred
+    nnum: &nnum 19
+    z_out:  51
+
+stages:
+  - test:
+      metrics: beads.yml
+      log:
+        TqdmLogger: {}
+        TensorBoardLogger:
+          scalars_every: {value: 1, unit: epoch}
+          tensors_every: {value: 1, unit: epoch}
+          tensor_names: [lf, pred, ls_reg]
+        FileLogger:
+          scalars_every: {value: 1, unit: iteration}
+          tensors_every: {value: 1, unit: iteration}
+          tensor_names: [pred, ls_reg]
+
+      batch_preprocessing: []
+      batch_preprocessing_in_step:
+        - Cast: {apply_to: [lfc, ls_reg], dtype: *precision, device: cuda, non_blocking: true}
+      batch_postprocessing: []
+      data:
+        - batch_size: 1
+          sample_preprocessing:
+            - Crop: {apply_to: ls_reg, crop: [[0, null], [35, -35], [*shrink, &nshrink -8], [*shrink, *nshrink]]}
+            - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+            - Normalize01: {apply_to: ls_reg, min_percentile: 5.0, max_percentile: 99.99}
+            - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
+
+          datasets:
+            - tensors: {lf: beads.small_1, ls_reg: beads.small_1}
+              sample_transformations:
+                - Resize: {apply_to: ls_reg, shape: [1.0, 121, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895, ], order: 2}  # 0.42105263157894736842105263157895‬=8/19
+                - Assert: {apply_to: ls_reg, expected_tensor_shape: [1, 121, null, null]}

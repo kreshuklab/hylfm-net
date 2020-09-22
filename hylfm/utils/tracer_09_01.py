@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from lnet.utils.tracer import add_paths_to_plots, trace_and_plot
+from hylfm.utils.tracer import add_paths_to_plots, trace_and_plot
 
 logger = logging.getLogger(__name__)
 
@@ -22,16 +22,13 @@ if __name__ == "__main__":
         #     rois[tag] = (slice(25, 225), slice(55, 305))
 
     # add pred
-    for tag in [
-    ]:
+    for tag in []:
         paths_for_tags[tag]["pred"] = Path(
             f"/g/kreshuk/LF_computed/lnet/logs/brain1/test_z_out49/f4/brain2/z_out49/f4_b2_bm2_with11_2_noSP/20-06-18_16-13-38/train2/v1_checkpoint_2000_MS_SSIM=0.6581869482994079/brain.{tag}/run000/ds0-0"
         )
 
     for i, (tag, time_range, manual_peaks) in enumerate(
-        [
-            ("11_2__2020-03-11_07.30.39__SinglePlane_-310", (20, None), False),
-        ]
+        [("11_2__2020-03-11_07.30.39__SinglePlane_-310", (20, None), False)]
     ):
         paths = paths_for_tags[tag]
         output_path = Path(f"/g/kreshuk/LF_computed/lnet/traces/09_1__07-24/{tag}")

@@ -1,22 +1,15 @@
-import ignite
+from math import log10
+from typing import Dict
+
 import torch
 import torch.nn.functional
 from ignite.exceptions import NotComputableError
-
 from skimage.measure.simple_metrics import compare_psnr
 
-
-def psnr_skimage(pred, target, **kwargs):
-    assert pred.shape == target.shape
-    # average psnr over batch dim
-    ret = 0
-    for p, t in zip(pred, target):
-        ret += compare_psnr(im_test=p, im_true=t, **kwargs)
-
-    return ret / target.shape[0]
+from .scale_minimize_vs import ScaleMinimizeVsMetric
 
 
-class PSNR_SkImage(ignite.metrics.Metric):
+class PSNR_SkImage(ScaleMinimizeVsMetric):
     def __init__(self, *, data_range=None, **super_kwargs):
         super().__init__(**super_kwargs)
         self.data_range = data_range
@@ -25,55 +18,47 @@ class PSNR_SkImage(ignite.metrics.Metric):
         self._sum = 0.0
         self._num_examples = 0
 
-    def update(self, output):
-        y_pred, y = output
-        n = y.shape[0]
-        self._sum += (
-            psnr_skimage(
-                y_pred.flatten(end_dim=1).numpy(), y.flatten(end_dim=1).numpy(), data_range=self.data_range
-            )  # bc > b
-            * n
+    def update_impl(self, *, pred, tgt):
+        n = pred.shape[0]
+        self._sum += sum(
+            compare_psnr(im_test=p, im_true=t, data_range=self.data_range)
+            for p, t in zip(pred.cpu().numpy(), tgt.cpu().numpy())
         )
         self._num_examples += n
 
-    def compute(self):
+    def compute_impl(self):
         if self._num_examples == 0:
             raise NotComputableError("PSNR_SKImage must have at least one example before it can be computed.")
+
         return self._sum / self._num_examples
 
 
-def psnr(pred: torch.Tensor, target: torch.Tensor, data_range: float) -> float:
-    assert pred.shape == target.shape
-    if data_range is None:
-        data_range = target.max() - target.min()
-        assert data_range == 1, "todo: remove"
+class PSNR(ScaleMinimizeVsMetric):
+    def __init__(self, *super_args, tensor_names: Dict[str, str], data_range: float, **super_kwargs):
+        if "pred" not in tensor_names:
+            tensor_names["pred"] = "pred"
 
-    with torch.no_grad():
-        ret = 0
-        # average psnr over batch dim
-        for p, t in zip(pred, target):
-            ret += (20 * torch.log10(data_range) - 10 * torch.log10(torch.nn.functional.mse_loss(p, t))).item()
+        if "tgt" not in tensor_names:
+            tensor_names["tgt"] = "tgt"
 
-    return ret / target.shape[0]
+        assert len(tensor_names) == 2
 
-
-class PSNR(ignite.metrics.Metric):
-    def __init__(self, *, data_range=None, **super_kwargs):
-        super().__init__(**super_kwargs)
-        self.data_range = data_range
+        super().__init__(*super_args, tensor_names=tensor_names, **super_kwargs)
+        self.log10dr20 = 20 * log10(data_range)
 
     def reset(self):
         self._sum = 0.0
         self._num_examples = 0
 
-    def update(self, output):
-        y_pred, y = output
-        n = y.shape[0]
-        self._sum += psnr(y_pred.flatten(end_dim=1), y.flatten(end_dim=1), data_range=self.data_range) * n  # bc > b
+    def update_impl(self, *, pred, tgt):
+        n = pred.shape[0]
+        self._sum += sum(
+            self.log10dr20 - 10 * torch.log10(torch.nn.functional.mse_loss(p, t)).item() for p, t in zip(pred, tgt)
+        )
         self._num_examples += n
 
-    def compute(self):
+    def compute_impl(self):
         if self._num_examples == 0:
             raise NotComputableError("PSNR must have at least one example before it can be computed.")
-        return self._sum / self._num_examples
 
+        return self._sum / self._num_examples

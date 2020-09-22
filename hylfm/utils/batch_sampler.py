@@ -1,10 +1,12 @@
-import warnings
+import logging
 from collections import defaultdict
 from typing import DefaultDict, List, Type
 
 import numpy
 import torch.utils.data.sampler
 from torch.utils.data import ConcatDataset
+
+logger = logging.getLogger(__name__)
 
 
 class NoCrossBatchSampler(torch.utils.data.sampler.BatchSampler):
@@ -44,7 +46,7 @@ class NoCrossBatchSampler(torch.utils.data.sampler.BatchSampler):
         self.batch_sizes = batch_sizes
         self.drop_last = drop_last
 
-        warnings.warn("assuming that `len(datasource)=len(sampler_class(datasource))`!")
+        logger.warning("assuming that `len(datasource)=len(sampler_class(datasource))`!")
         self._len = 0
         for i, ds in enumerate(concat_dataset.datasets):
             if self.drop_last:

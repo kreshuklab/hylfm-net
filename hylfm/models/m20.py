@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 import torch.nn
 import torch.nn as nn
 
-from lnet.models.base import LnetModel
+from hylfm.models.base import LnetModel
 
 logger = logging.getLogger(__name__)
 

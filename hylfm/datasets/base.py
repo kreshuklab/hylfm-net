@@ -16,22 +16,18 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import h5py
 import imageio
 import numpy
-
 import torch.utils.data
 import yaml
 import z5py
 
-import lnet
-import lnet.datasets.filters
-from lnet import settings
-from lnet.datasets.utils import get_paths
-from lnet.stat import DatasetStat
-from lnet.transformations.base import ComposedTransformation
+import hylfm
+import hylfm.datasets.filters
+from hylfm import settings
+from hylfm.datasets.utils import get_paths
+from hylfm.stat import DatasetStat
+from hylfm.transformations.base import ComposedTransformation
 
 logger = logging.getLogger(__name__)
-
-GKRESHUK = settings.data_roots.GKRESHUK
-GHUFNAGELLFLenseLeNet_Microscope = settings.data_roots.GHUFNAGELLFLenseLeNet_Microscope
 
 
 class PathOfInterest:
@@ -45,7 +41,7 @@ class TensorInfo:
         self,
         *,
         name: str,
-        root: Union[str, Path],
+        root: Union[str, Path] = Path(),
         location: str,
         transformations: Sequence[Dict[str, Any]] = tuple(),
         datasets_per_file: int = 1,
@@ -62,7 +58,6 @@ class TensorInfo:
         assert not location.endswith(".h5"), "h5 path to dataset missing .h5/Dataset"
         assert all([len(trf) == 1 for trf in transformations]), [list(trf.keys()) for trf in transformations]
         # data specific asserts
-        assert transformations or ".h5" not in location, ".h5 datasets require transformation!"
         if "Heart_tightCrop" in location and z_slice is not None and not isinstance(z_slice, int):
             assert callable(z_slice) and z_slice(0), "z direction is inverted for 'Heart_tightCrop'"
 
@@ -93,8 +88,8 @@ class TensorInfo:
         self.meta: dict = meta or {}
         self.repeat = repeat
         self.kwargs = kwargs
-        self.path: Path = (getattr(settings.data_roots, root) if isinstance(root, str) else root) / location
-        self.root = str(root)
+        self.path: Path = (settings.data_roots[root] if isinstance(root, str) else root) / location
+        self.root = root
 
     @property
     def transformations(self) -> List[Dict[str, Any]]:
@@ -116,19 +111,17 @@ class TensorInfo:
     @property
     def description(self):
         descr = {
-            # "name": self.name,
-            "root": self.root,
+            "root": str(self.root),
             "location": self.location,
             "transformations": [trf for trf in self.transformations if "Assert" not in trf],
             "datasets_per_file": self.datasets_per_file,
             "samples_per_dataset": self.samples_per_dataset,
+            "remove_singleton_axes_at": self.remove_singleton_axes_at,
             "insert_singleton_axes_at": self.insert_singleton_axes_at,
             "z_slice": self.z_slice.__name__ if callable(self.z_slice) else self.z_slice,
             "skip_indices": list(self.skip_indices),
             "kwargs": self.kwargs,
         }
-        if self.remove_singleton_axes_at:
-            descr["remove_singleton_axes_at"] = self.remove_singleton_axes_at
 
         return yaml.safe_dump(descr)
 
@@ -142,9 +135,9 @@ class DatasetFromInfo(torch.utils.data.Dataset):
         self.tensor_name = info.name
         self.info = info
         self.description = info.description
-        self.transform = lnet.transformations.ComposedTransformation(
+        self.transform = hylfm.transformations.ComposedTransformation(
             *[
-                getattr(lnet.transformations, name)(**kwargs)
+                getattr(hylfm.transformations, name)(**kwargs)
                 for trf in info.transformations
                 for name, kwargs in trf.items()
             ]
@@ -347,7 +340,7 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
         self.repeat = dataset.info.repeat
         description = dataset.description
         data_file_path = (
-            settings.cache_path
+            settings.cache_dir
             / f"{dataset.info.tag}_{dataset.tensor_name}_{hash_algorithm(description.encode()).hexdigest()}.n5"
         )
         data_file_path.with_suffix(".txt").write_text(description)
@@ -367,30 +360,6 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
                 assert tensor_shape[0] == 1, tensor_shape  # expected explicit batch dimension
                 shape = (_len,) + tensor_shape[1:]
                 data_file.create_dataset(tensor_name, shape=shape, chunks=tensor_shape, dtype=tensor.dtype)
-
-        # self.futures = {}
-        # global N5CachedDataset_executor, N5CachedDataset_executor_user_count
-        # N5CachedDataset_executor_user_count += 1
-        # if N5CachedDataset_executor is None:
-        #     assert N5CachedDataset_executor_user_count == 1
-        #     N5CachedDataset_executor = ThreadPoolExecutor(max_workers=settings.max_workers_per_dataset)
-
-        # worker_nr = 0
-        # self.nr_background_workers = (
-        #     settings.max_workers_per_dataset - settings.reserved_workers_per_dataset_for_getitem
-        # )
-        # idx = 0
-        # while (
-        #     worker_nr < settings.max_workers_per_dataset - settings.reserved_workers_per_dataset_for_getitem
-        #     and idx < len(self)
-        # ):
-        #     fut = self.submit(idx)
-        #     if isinstance(fut, Future):
-        #         fut.add_done_callback(self.background_worker_callback)
-        #         idx += 1
-        #         worker_nr += 1
-        #     else:
-        #         idx += 1
 
         self.stat = DatasetStat(path=data_file_path.with_suffix(".stat_v1.yml"), dataset=self)
 
@@ -417,27 +386,6 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
     def __len__(self):
         return len(self.dataset) * self.repeat
 
-    def shutdown(self):
-        # if self.futures:
-        #     for fut in self.futures.values():
-        #         fut.cancel()
-
-        # global N5CachedDataset_executor, N5CachedDataset_executor_user_count
-        # N5CachedDataset_executor_user_count -= 1
-        # if N5CachedDataset_executor_user_count == 0:
-        #     N5CachedDataset_executor.shutdown()
-        #     N5CachedDataset_executor = None
-
-        super().shutdown()
-
-    # def background_worker_callback(self, fut: Future):
-    #     idx = fut.result()
-    #     for next_idx in range(idx + self.nr_background_workers, len(self), self.nr_background_workers):
-    #         next_fut = self.submit(next_idx)
-    #         if next_fut is not None:
-    #             next_fut.add_done_callback(self.background_worker_callback)
-    #             break
-
     def ready(self, idx: int) -> bool:
         n5ds = self.data_file[self.dataset.tensor_name]
         chunk_idx = tuple([idx] + [0] * (len(n5ds.shape) - 1))
@@ -445,19 +393,10 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
 
     def submit(self, idx: int) -> Union[int, Future]:
         if self.ready(idx):
-            # fut = Future()
-            # fut.set_result(idx)
             return idx
         else:
             assert self.repeat == 1, "could write same idx in parallel"
             return self.process(idx)
-            # with N5CachedDataset_submit_lock:
-            # fut = self.futures.get(idx, None)
-            # if fut is None:
-            #     fut = N5CachedDataset_executor.submit(self.process, idx)
-            #     self.futures[idx] = fut
-
-        # return fut
 
     def process(self, idx: int) -> int:
         self.data_file[self.dataset.tensor_name][idx, ...] = self.dataset[idx][self.dataset.tensor_name]
@@ -486,7 +425,7 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
         self.description = description
         indices = numpy.arange(len(dataset)) if indices is None else indices
         mask_file_path = (
-            settings.cache_path
+            settings.cache_dir
             / f"{dataset.dataset.info.tag}_{hash_algorithm(description.encode()).hexdigest()}.index_mask.npy"
         )
         mask_description_file_path = mask_file_path.with_suffix(".txt")
@@ -511,7 +450,7 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
                             kwargs[k] = mean + std * v[kk]
 
             filters = [
-                partial(getattr(lnet.datasets.filters, name), dataset=dataset, **kwargs) for name, kwargs in filters
+                partial(getattr(hylfm.datasets.filters, name), dataset=dataset, **kwargs) for name, kwargs in filters
             ]
 
             def apply_filters_to_mask(idx: int) -> None:
@@ -576,7 +515,7 @@ def get_dataset_from_info(
     info.transformations += list(transformations)
     if info.location.endswith(".tif"):
         ds = TiffDataset(info=info)
-    elif ".h5" in info.location:
+    elif ".h5/" in info.path.as_posix():
         ds = H5Dataset(info=info)
     else:
         raise NotImplementedError(info.location)

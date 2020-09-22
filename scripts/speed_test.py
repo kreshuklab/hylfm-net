@@ -2,12 +2,12 @@ import math
 from timeit import Timer
 
 import torch
-from lnet.models.a04 import A04
+from hylfm.models.a04 import A04
 
 # from collections import OrderedDict
 # from torch.utils.data import DataLoader
-# from lnet.datasets import ZipDataset, collate_fn, get_dataset_from_info, get_tensor_info
-# from lnet.transformations import Cast, ChannelFromLightField, CropWhatShrinkDoesNot, Normalize01
+# from hylfm.datasets import ZipDataset, collate_fn, get_dataset_from_info, get_tensor_info
+# from hylfm.transformations import Cast, ChannelFromLightField, CropWhatShrinkDoesNot, Normalize01
 
 if __name__ == "__main__":
     assert torch.cuda.device_count() == 1, torch.cuda.device_count()
@@ -107,7 +107,7 @@ if __name__ == "__main__":
         except RuntimeError as e:
             print(e)
             upper_bound = batch_size - 1
-            print('upper bound', upper_bound)
+            print("upper bound", upper_bound)
         else:
             lower_bound = batch_size
-            print('lower bound', lower_bound)
+            print("lower bound", lower_bound)

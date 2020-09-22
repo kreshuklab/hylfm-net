@@ -1,10 +1,10 @@
 from pathlib import Path
 
 import yaml
-from lnet.transformations.affine_utils import get_ls_shape, get_precropped_ls_roi_in_raw_ls, get_precropped_ls_shape
+from hylfm.transformations.affine_utils import get_ls_shape, get_precropped_ls_roi_in_raw_ls, get_precropped_ls_shape
 
-from lnet.datasets.base import TensorInfo, get_dataset_from_info
-from lnet.datasets.heart_utils import get_transformations, idx2z_slice_241
+from hylfm.datasets.base import TensorInfo, get_dataset_from_info
+from hylfm.datasets.heart_utils import get_transformations, idx2z_slice_241
 
 
 def get_tensor_info(tag: str, name: str, meta: dict):

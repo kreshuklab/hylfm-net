@@ -1,4 +1,4 @@
-from lnet.transformations.base import Transform
+from hylfm.transformations.base import Transform
 
 
 class ChannelFromLightField(Transform):

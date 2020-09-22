@@ -1,4 +1,4 @@
-from lnet.setup import Setup
+from hylfm.setup import Setup
 
 
 def test_setup(dummy_config_path):

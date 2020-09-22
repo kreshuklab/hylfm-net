@@ -9,8 +9,8 @@ import typing
 from inferno.extensions.initializers import Constant, Initialization
 
 from lnet import registration
-from lnet.models.base import LnetModel
-from lnet.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
+from hylfm.models.base import LnetModel
+from hylfm.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
 
 logger = logging.getLogger(__name__)
 

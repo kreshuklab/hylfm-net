@@ -9,7 +9,7 @@
 # import torch.nn.functional
 # from scipy.ndimage import affine_transform
 #
-# from lnet.utils.affine import inv_scipy_form2torch_form_2d, inv_scipy_form2torch_form_3d
+# from hylfm.utils.affine import inv_scipy_form2torch_form_2d, inv_scipy_form2torch_form_3d
 #
 #
 # # commented notes on data organisation from "/g/kreshuk//LF_partially_restored/LenseLeNet_Microscope/README_InfoOnDataStructure.txt":
@@ -87,7 +87,7 @@
 # # Unfortunately the naming here is going to be a little weird. This has to do with the configuration of the ETL, how RL is reconstructing (orientation in z) and the fact, that in the affine transformations, a flip in z had to be precomputed. Therefore during the saving from h5 to tiff, the stack is flipped in z... For a dynamic sample and single planes this is not possible, because the temporal information would be lost (mixed)..
 # # Therefore the flip is done when creating the stack with zeros everywhere, except in the plane of interest. This leads to a weird naming (didnt have this in mind during the experiment). So, files with 'plane_100' actually correspond to stacks with single plane validation in plane (241-100+1 = 142).
 # #
-# from lnet.settings import settings
+# from hylfm.settings import settings
 #
 #
 # class BDVTransform(torch.nn.Module):

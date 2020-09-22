@@ -5,17 +5,13 @@ import torch.nn
 import torch.nn as nn
 from inferno.extensions.initializers import Constant, Initialization
 
-from lnet.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
-from lnet.models.layers.structural_layers import C2Z
+from hylfm.models.layers.conv_layers import Conv2D, ResnetBlock, ValidConv3D
+from hylfm.models.layers.structural_layers import C2Z
 
 
 class M13dout(torch.nn.Module):
     def __init__(
-        self,
-        z_out: int,
-        nnum: int,
-        final_activation: Optional[str] = None,
-        aux_activation: Optional[str] = None,
+        self, z_out: int, nnum: int, final_activation: Optional[str] = None, aux_activation: Optional[str] = None
     ):
         super().__init__()
         inplanes = nnum ** 2

@@ -6,8 +6,8 @@ import numpy
 from scipy.optimize import linear_sum_assignment
 from tifffile import imread
 
-from lnet.utils.detect_beads import get_bead_pos
-from lnet.utils.detect_beads.plot_matched_beads import plot_matched_beads
+from hylfm.utils.detect_beads import get_bead_pos
+from hylfm.utils.detect_beads.plot_matched_beads import plot_matched_beads
 
 logger = logging.getLogger(__name__)
 

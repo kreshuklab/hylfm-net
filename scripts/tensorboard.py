@@ -5,7 +5,7 @@ from pathlib import Path
 from subprocess import STDOUT, TimeoutExpired, check_output
 from time import sleep
 
-from lnet.datasets.base import GKRESHUK
+from hylfm.datasets.base import GKRESHUK
 
 LOG_DIR = Path(GKRESHUK) / "beuttenm/repos/lnet/logs"
 

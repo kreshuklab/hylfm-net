@@ -1,18 +1,10 @@
-tex
-
-data/
-data0/
-data1/
-data2/
-data3/
-data4/
-experiment_configs/
-ref_data/
+cache/
+download/
 logs/
-lnet/experiment_configs
-lnet/settings.py
-slurm_out/
-slurm_out_prep/
+
+hylfm/_settings/local.py
+hylfm/datasets/local/**
+!hylfm/datasets/local/example.py
 
 notebooks/**/*.svg
 notebooks/**/*.npy
