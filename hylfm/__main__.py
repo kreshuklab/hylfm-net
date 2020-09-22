@@ -36,6 +36,8 @@ logger = logging.getLogger(__name__)
 
 
 def main(args=None):
+    import torch
+
     if args is None:
         parser = argparse.ArgumentParser(description="lnet")
         parser.add_argument("experiment_config", type=Path)
@@ -78,19 +80,4 @@ def main(args=None):
 
 
 if __name__ == "__main__":
-    # os.environ["OMP_NUM_THREADS"] = "8"
-    # os.environ["OPENBLAS_NUM_THREADS"] = "4"
-    # os.environ["MKL_NUM_THREADS"] = "8"
-    # os.environ["VECLIB_MAXIMUM_THREADS"] = "4"
-    # os.environ["NUMEXPR_NUM_THREADS"] = "8"
-    try:
-        os.nice(10)
-    except Exception as e:
-        logger.error(e)
-
-    import torch.multiprocessing
-
-    if settings.multiprocessing_start_method:
-        torch.multiprocessing.set_start_method(settings.multiprocessing_start_method)
-
     sys.exit(main())
