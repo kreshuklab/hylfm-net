@@ -5,6 +5,7 @@ channels:
   - defaults
   - fynnbe
 dependencies:
+  - cudatoolkit
   - dill
   - h5py>=2.9.0
   - ignite 0.3.*

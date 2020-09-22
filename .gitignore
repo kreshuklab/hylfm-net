@@ -2,7 +2,7 @@ cache/
 download/
 logs/
 
-#hylfm/settings.py
+hylfm/settings.py
 
 notebooks/**/*.svg
 notebooks/**/*.npy

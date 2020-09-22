@@ -87,7 +87,7 @@ class DatasetStat:
 
                 return ret
 
-            print(f"compute hist with {settings.max_workers_for_hist} workers")
+            logger.info(f"compute hist with {settings.max_workers_for_hist} workers")
             if settings.max_workers_for_hist:
                 futs = []
                 with ThreadPoolExecutor(max_workers=settings.max_workers_for_hist) as executor:

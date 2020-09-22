@@ -5,7 +5,6 @@ import logging
 import re
 import typing
 import warnings
-import zipfile
 from collections import OrderedDict
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -17,7 +16,6 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import h5py
 import imageio
 import numpy
-import requests
 import torch.utils.data
 import yaml
 import z5py
@@ -31,14 +29,12 @@ from hylfm.transformations.base import ComposedTransformation
 
 logger = logging.getLogger(__name__)
 
-GKRESHUK = settings.data_roots.GKRESHUK
-GHUFNAGELLFLenseLeNet_Microscope = settings.data_roots.GHUFNAGELLFLenseLeNet_Microscope
-
 
 class PathOfInterest:
     def __init__(self, *points: Tuple[int, int, int, int], sigma: int = 1):
         self.points = points
         self.sigma = sigma
+
 
 class TensorInfo:
     def __init__(
@@ -92,7 +88,7 @@ class TensorInfo:
         self.meta: dict = meta or {}
         self.repeat = repeat
         self.kwargs = kwargs
-        self.path: Path = (getattr(settings.data_roots, root) if isinstance(root, str) else root) / location
+        self.path: Path = (settings.data_roots[root] if isinstance(root, str) else root) / location
         self.root = root
 
     @property

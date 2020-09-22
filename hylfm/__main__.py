@@ -42,8 +42,6 @@ def main(args=None):
         parser.add_argument("--cuda", metavar="CUDA_VISIBLE_DEVICES", type=str, nargs="?", const="0", default=None)
         parser.add_argument("--setup", action="store_true")
         parser.add_argument("--checkpoint", type=Path, default=None)
-        parser.add_argument("--test", action="store_true")
-        parser.add_argument("--delete_existing_log_folder", action="store_true")
 
         args = parser.parse_args()
 
@@ -51,8 +49,6 @@ def main(args=None):
     assert experiment_config.exists(), experiment_config.absolute()
 
     checkpoint: Optional[Path] = args.checkpoint
-    if args.test and checkpoint is None:
-        raise TypeError("cannot test without checkpoint")
 
     cuda_arg = args.cuda
     cuda_env = os.environ.get("CUDA_VISIBLE_DEVICES", None)
