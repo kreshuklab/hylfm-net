@@ -1,5 +1,3 @@
-precision: &precision float
-
 model:
   name: A04
   kwargs:
@@ -9,6 +7,7 @@ model:
     prediction_name: pred
     nnum: &nnum 19
     z_out:  51
+  precision: &precision float
 
 stages:
   - test:

@@ -81,10 +81,13 @@ def main(args=None):
         log_path = setup.setup()
         shutil.rmtree(log_path)
     else:
-        print(f"run tensorboard with:\ntensorboard --logdir={settings.log_dir}")
-        print(f"or:\ntensorboard --logdir={setup.log_path.parent}")
+        logger.info(
+            "run tensorboard with:\ntensorboard --logdir=%s\nor:\ntensorboard --logdir=%s",
+            settings.log_dir,
+            setup.log_path.parent,
+        )
         log_path = setup.run()
-        print(f"done logging to {log_path}")
+        logger.info("done logging to %s", log_path)
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ import torch.utils.data
 from ignite.handlers import global_step_from_engine
 from ruamel.yaml import YAML
 
-import hylfm.log
+import hylfm.loggers
 import hylfm.losses
 import hylfm.metrics
 import hylfm.optimizers
@@ -29,7 +29,7 @@ from hylfm.datasets import ConcatDataset, ZipDataset, get_collate_fn, get_datase
 from hylfm.datasets.base import TensorInfo
 from hylfm.losses.on_tensors import LossOnTensors
 from hylfm.metrics import get_metric
-from hylfm.metrics.base import Metric, MetricValue
+from hylfm.metrics.base import MetricValue
 from hylfm.models import LnetModel
 from hylfm.setup._utils import indice_string_to_list
 from hylfm.step import inference_step, training_step
@@ -49,20 +49,23 @@ class ModelSetup:
         self,
         name: str,
         kwargs: Dict[str, Any],
+        precision: str = "float",
         checkpoint: Optional[Union[Path, str]] = None,
         partial_weights: bool = False,
     ):
         self.name = name
         self.kwargs = kwargs
+        self.dtype: torch.dtype = getattr(torch, precision)
+        assert isinstance(self.dtype, torch.dtype)
         self.checkpoint = None if checkpoint is None else str(checkpoint)
         self.partial_weights = partial_weights
         self.strict = True
 
-    def get_model(self, device: torch.device, dtype: torch.dtype) -> LnetModel:
+    def get_model(self, device: torch.device) -> LnetModel:
         model_module = import_module("." + self.name.lower(), "hylfm.models")
         model_class = getattr(model_module, self.name)
         model = model_class(**self.kwargs)
-        model = model.to(device=device, dtype=dtype)
+        model = model.to(device=device, dtype=self.dtype)
         if self.checkpoint is not None:
             state = torch.load(self.checkpoint, map_location=device)["model"]
             if self.strict:
@@ -99,7 +102,7 @@ class PerLoggerSetup:
         tensors_every: Optional[Dict[str, Union[int, str]]] = None,
         tensor_names: Optional[Sequence[str]] = None,
     ):
-        self.backend: hylfm.log.BaseLogger = getattr(hylfm.log, name)(stage=stage, tensor_names=tensor_names)
+        self.backend: hylfm.loggers.BaseLogger = getattr(hylfm.loggers, name)(stage=stage, tensor_names=tensor_names)
         self.scalars_every = None if scalars_every is None else Period(**scalars_every)
         self.tensors_every = None if tensors_every is None else Period(**tensors_every)
 
@@ -118,7 +121,9 @@ class LogSetup:
         if os.environ.get("SLURM_JOB_ID", None) is not None:
             loggers.pop("TqdmLogger", None)  # no TqdmLogger in slurm jobs (progress bar spams output)
 
-        self.loggers: Dict[str, PerLoggerSetup] = {name: PerLoggerSetup(name=name, stage=stage, **lgr) for name, lgr in loggers.items()}
+        self.loggers: Dict[str, PerLoggerSetup] = {
+            name: PerLoggerSetup(name=name, stage=stage, **lgr) for name, lgr in loggers.items()
+        }
 
     def register_callbacks(self, engine: ignite.engine.Engine):
         [lgr.register_callbacks(engine) for lgr in self.loggers.values()]
@@ -595,7 +600,6 @@ class Setup:
         self,
         *,
         config_path: Path,
-        precision: str,
         device: Union[int, str] = 0,
         model: Dict[str, Any],
         stages: List[Dict[str, Any]],
@@ -605,7 +609,9 @@ class Setup:
     ):
         # update config with generated and passed arguments
 
-        if checkpoint is not None:
+        if checkpoint is None:
+            model_checkpoint = model.get("checkpoint", None)
+        else:
             checkpoint = checkpoint.as_posix()
             star_pos = checkpoint.find("*")
             if star_pos != -1:
@@ -618,7 +624,8 @@ class Setup:
             checkpoint = Path(checkpoint)
             assert checkpoint.exists(), checkpoint
 
-        model_checkpoint = model.get("checkpoint", None) or checkpoint
+            model_checkpoint = checkpoint
+
         model["checkpoint"] = None if model_checkpoint is None else str(model_checkpoint)
 
         assert all([len(stage) == 1 for stage in stages]), "invalid stage config"
@@ -640,7 +647,6 @@ class Setup:
             {
                 "config_path": str(config_path),
                 "checkpoint": None if checkpoint is None else str(checkpoint),
-                "precision": precision,
                 "device": device,
                 "model": model,
                 "stages": stages,
@@ -648,11 +654,12 @@ class Setup:
             }
         )
 
-    def load_subconfig_yaml(self, part: Any, subconfig_dir: Path = settings.configs_dir / "subconfigs"):
+    @classmethod
+    def load_subconfig_yaml(cls, part: Any, subconfig_dir: Path = settings.configs_dir / "subconfigs"):
         if isinstance(part, list):
-            return [self.load_subconfig_yaml(p) for p in part]
+            return [cls.load_subconfig_yaml(p) for p in part]
         elif isinstance(part, dict):
-            return {k: self.load_subconfig_yaml(v, subconfig_dir.parent / k) for k, v in part.items()}
+            return {k: cls.load_subconfig_yaml(v, subconfig_dir.parent / k) for k, v in part.items()}
         elif isinstance(part, str) and part.endswith(".yml"):
             if (subconfig_dir / part).exists():
                 return yaml.load(subconfig_dir / part)
@@ -662,6 +669,7 @@ class Setup:
     @classmethod
     def from_yaml(cls, yaml_path: Path, **overwrite_kwargs) -> "Setup":
         config = yaml.load(yaml_path)
+        config = cls.load_subconfig_yaml(config)
         config.update(overwrite_kwargs)
         return cls(**config, config_path=yaml_path)
 
@@ -682,8 +690,6 @@ class Setup:
         # save actual config to log path
         yaml.dump(self.config, self.log_path / "config.yaml")
 
-        self.dtype: torch.dtype = getattr(torch, self.config["precision"])
-        assert isinstance(self.dtype, torch.dtype)
         if isinstance(self.config["device"], int) or "cuda" in self.config["device"]:
             cuda_device_count = torch.cuda.device_count()
             if cuda_device_count == 0:
@@ -693,7 +699,7 @@ class Setup:
 
         self.device = torch.device(self.config["device"])
         self.model_setup = ModelSetup(**self.config["model"])
-        self.model: LnetModel = self.model_setup.get_model(device=self.device, dtype=self.dtype)
+        self.model: LnetModel = self.model_setup.get_model(device=self.device)
         self.stages = [
             {
                 (

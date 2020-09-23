@@ -1,5 +1,5 @@
-precision: &precision float
-toolbox: # defines yaml placeholders
+toolbox: # defines yaml anchors
+  precision: &precision float
   nnum: &nnum 19
   z_out: &z_out 51
   shrink: &shrink 8
@@ -39,6 +39,7 @@ model:
     prediction_name: pred
     nnum: *nnum
     z_out: *z_out
+  precision: *precision
 
 stages:
   - train:
