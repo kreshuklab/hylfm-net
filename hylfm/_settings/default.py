@@ -30,7 +30,7 @@ class Settings:
     max_workers_for_hist: int = 1 if debug_mode else 4
     max_workers_for_stat: int = 1 if debug_mode else 4
     max_workers_for_trace: int = 1 if debug_mode else 4
-    multiprocessing_start_method: str = ""
+    multiprocessing_start_method: str = "spawn"
     OMP_NUM_THREADS: typing.Optional[int] = None
     OPENBLAS_NUM_THREADS: typing.Optional[int] = None
     MKL_NUM_THREADS: typing.Optional[int] = None
@@ -63,9 +63,6 @@ class Settings:
 
         os.nice(self.nice)
 
-        if "numpy" in sys.modules:
-            warnings.warn("numpy imported before hylfm. numpy env var settings won't take effect!")
-
         for numpy_env_var in [
             "OMP_NUM_THREADS",
             "OPENBLAS_NUM_THREADS",
@@ -74,13 +71,16 @@ class Settings:
             "NUMEXPR_NUM_THREADS",
         ]:
             value = getattr(self, numpy_env_var)
-            if value is not None:
+            if value is not None and not numpy_env_var in os.environ:
+                if "numpy" in sys.modules:
+                    warnings.warn("numpy imported before hylfm. numpy env var settings won't take effect!")
+
                 os.environ[numpy_env_var] = value
 
         if self.multiprocessing_start_method:
-            assert "torch.multiprocessing" not in sys.modules
             import torch.multiprocessing
-
-            assert "torch.multiprocessing" in sys.modules
-
-            torch.multiprocessing.set_start_method(self.multiprocessing_start_method)
+            start_method = torch.multiprocessing.get_start_method(allow_none=True)
+            if start_method is None:
+                torch.multiprocessing.set_start_method(self.multiprocessing_start_method)
+            else:
+                assert start_method == self.multiprocessing_start_method
