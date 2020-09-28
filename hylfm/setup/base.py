@@ -667,7 +667,7 @@ class Setup:
         return part
 
     @classmethod
-    def from_yaml(cls, yaml_path: Path, **overwrite_kwargs) -> "Setup":
+    def from_yaml(cls, yaml_path: Path, **overwrite_kwargs) -> Setup:
         config = yaml.load(yaml_path)
         config = cls.load_subconfig_yaml(config)
         config.update(overwrite_kwargs)

@@ -1,7 +1,8 @@
 from hylfm.setup import Setup
 
 
-def test_setup(dummy_config_path):
+def test_run_from_setup(dummy_config_path):
+    print(dummy_config_path)
     setup = Setup.from_yaml(dummy_config_path)
     train_states, test_states = setup.run()
     assert len(train_states) == 1
