@@ -18,8 +18,8 @@ cd hylfm-net
 conda env create -f environment.yml
 ```
 ##### Install time
-The install time greatly depends on download speed (several hundred MB).
-Without download (or very fast download), the [installation](#install-hylfm-conda-environment) takes around nine minutes.
+The install time greatly depends on download speed (several hundred MB).<br>
+🕐 Without download (or very fast download), the [installation](#install-hylfm-conda-environment) takes around **9 min**.
 
 ## Demo
 ##### Activate hylfm conda environment
@@ -37,12 +37,15 @@ python -m hylfm --cuda <cuda device, e.g. 0> ...
 ```
 python -m hylfm configs/train/beads/z_out51/small_f8.yml
 ```
+🕐 Excluding download time, this training configuration runs for approximately **1,5 days** (on a GTX 2080 Ti).
+
 
 #### Test HyLFM-Net on beads
 Download (to hylfm-net/download).
 ```
 python -m hylfm configs/test/beads/z_out51/small_f8.yml --checkpoint small_beads_demo
 ```
+🕐 Excluding download time, this test configuration runs for approximately **6,5 min** in total with 12 s per sample (on a GTX 2080 Ti). Most time is spend on computing metrics specified in `configs/metrics/beads.yml`.
 
 
 ##### Monitoring with TensorBoard
