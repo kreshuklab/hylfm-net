@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy
 
 from hylfm.datasets.base import TensorInfo, TiffDataset
-from hylfm.utils.cache import cached_to_disk
 from hylfm.utils.tracer import trace_and_plot
 
 yaml = YAML(typ="safe")

@@ -5,11 +5,10 @@ from concurrent.futures import as_completed, ThreadPoolExecutor
 from pathlib import Path
 
 from ruamel.yaml import YAML
-from tifffile import imread, imsave
+from tifffile import imsave
 from tqdm import tqdm
 
 from hylfm.datasets import TensorInfo, ZipDataset, get_dataset_from_info, get_tensor_info
-from hylfm.datasets.heart_utils import idx2z_slice_241
 from hylfm.transformations.utils import get_composed_transformation_from_config
 
 yaml = YAML(typ="safe")
