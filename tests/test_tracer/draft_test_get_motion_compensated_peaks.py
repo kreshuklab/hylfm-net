@@ -3,7 +3,7 @@ import numpy
 from hylfm.utils.tracer import get_motion_compensated_peaks
 
 
-def test_get_motion_compensated_peaks(output_path):
+def incomplete_test_get_motion_compensated_peaks(output_path):
     H, W = 50, 50
     numpy.random.seed(0)
     frame = numpy.random.random_sample((H, W))
@@ -34,7 +34,7 @@ def test_get_motion_compensated_peaks(output_path):
     assert False
 
 
-def test_get_motion_home_brewed_compensated_peaks(output_path):
+def incomplete_test_get_motion_home_brewed_compensated_peaks(output_path):
     H, W = 50, 50
     numpy.random.seed(0)
     frame = numpy.random.random_sample((H, W))

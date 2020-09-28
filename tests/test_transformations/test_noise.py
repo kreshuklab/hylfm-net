@@ -1,3 +1,5 @@
+import collections
+
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -18,8 +20,7 @@ def compare_slices(sample, title, *names):
     plt.show()
 
 
-def test_poisson(ls_slice_dataset, add_to_tag="pytest"):
-    # for p in [10, 20, 30, 40]:
+def manual_test_poisson(ls_slice_dataset, add_to_tag="pytest"):
     common_trfs = [
         Normalize01(apply_to=["lf"], min_percentile=5.0, max_percentile=99.8),
         Normalize01(apply_to=["ls_slice"], min_percentile=5.0, max_percentile=99.99),
@@ -32,11 +33,6 @@ def test_poisson(ls_slice_dataset, add_to_tag="pytest"):
         sample = PoissonNoise(apply_to={"ls_slice": "ls_slice_trf", "lf": "lf_trf"}, peak=p, seed=0)(sample)
         compare_slices(sample, f"{add_to_tag}_{p}", "ls_slice", "ls_slice_trf")
         compare_slices(sample, f"{add_to_tag}_{p}", "lf", "lf_trf")
-
-    # for p in [0, 5, 50, 99.8, 99.9, 99.99, 100]:
-    #     trf = PoissonNoise(apply_to={"ls_slice": "ls_slice_trf"}, peak_percentile=p, seed=0)
-    #     sample = trf(ls_slice_dataset[0])
-    #     compare_slices(sample, f"percentile{p}", "ls_slice", "ls_slice_trf")
 
 
 if __name__ == "__main__":
@@ -51,10 +47,10 @@ if __name__ == "__main__":
         ls_slice_info = get_tensor_info(tag, "ls_slice", meta=meta)
         lf_info = get_tensor_info(tag, "lf", meta=meta)
         ls_slice_dataset = ZipDataset(
-            {
-                "ls_slice": get_dataset_from_info(info=ls_slice_info, cache=True),
-                "lf": get_dataset_from_info(info=lf_info, cache=True),
-            }
+            collections.OrderedDict([
+                ("ls_slice", get_dataset_from_info(info=ls_slice_info, cache=True)),
+                ("lf", get_dataset_from_info(info=lf_info, cache=True)),
+            ])
         )
 
-        test_poisson(ls_slice_dataset, tag)
+        manual_test_poisson(ls_slice_dataset, tag)

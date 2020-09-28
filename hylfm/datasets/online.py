@@ -24,10 +24,9 @@ class OnlineTensorInfo(TensorInfo):
 
     def _link_download(self):
         if self.root.exists():
-            assert self.root.is_symlink()
             assert self.root.resolve() == self.download_file_path.resolve()
         else:
-            self.root.symlink_to(self.download_file_path)
+            self.root.link_to(self.download_file_path)
 
     def _unzip(self):
         assert self.file_name.endswith(".zip")
