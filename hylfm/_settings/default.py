@@ -19,23 +19,23 @@ class Settings:
     cache_dir: Path = Path(__file__).parent / "../../cache"
     configs_dir: Path = Path(__file__).parent / "../../configs"
 
-    num_workers_train_data_loader: int = 1 if debug_mode else 4
-    num_workers_validate_data_loader: int = 1 if debug_mode else 4
-    num_workers_test_data_loader: int = 1 if debug_mode else 4
+    num_workers_train_data_loader: int = 1 if debug_mode else 2
+    num_workers_validate_data_loader: int = 1 if debug_mode else 2
+    num_workers_test_data_loader: int = 1 if debug_mode else 2
     pin_memory: bool = False
 
     max_workers_per_dataset: int = 1 if debug_mode else 4
     reserved_workers_per_dataset_for_getitem: int = 0
     max_workers_file_logger: int = 1 if debug_mode else 4
     max_workers_for_hist: int = 1 if debug_mode else 4
-    max_workers_for_stat: int = 1 if debug_mode else 4
+    max_workers_for_stat: int = 0  # 1 if debug_mode else 4
     max_workers_for_trace: int = 1 if debug_mode else 4
     multiprocessing_start_method: str = "spawn"
-    OMP_NUM_THREADS: typing.Optional[int] = None
-    OPENBLAS_NUM_THREADS: typing.Optional[int] = None
-    MKL_NUM_THREADS: typing.Optional[int] = None
-    VECLIB_MAXIMUM_THREADS: typing.Optional[int] = None
-    NUMEXPR_NUM_THREADS: typing.Optional[int] = None
+    OMP_NUM_THREADS: typing.Optional[int] = 1
+    OPENBLAS_NUM_THREADS: typing.Optional[int] = 0
+    MKL_NUM_THREADS: typing.Optional[int] = 0
+    VECLIB_MAXIMUM_THREADS: typing.Optional[int] = 0
+    NUMEXPR_NUM_THREADS: typing.Optional[int] = 0
 
     data_roots: typing.Dict[str, Path] = field(default_factory=dict)
 
@@ -75,7 +75,7 @@ class Settings:
                 if "numpy" in sys.modules:
                     warnings.warn("numpy imported before hylfm. numpy env var settings won't take effect!")
 
-                os.environ[numpy_env_var] = value
+                os.environ[numpy_env_var] = str(value)
 
         if self.multiprocessing_start_method:
             import torch.multiprocessing

@@ -85,18 +85,19 @@ Switch to `<address>:<port>/#images` for 2d (and max projections of 3d) tensors 
 ```yaml
 toolbox:                             # defines yaml anchors for convenience (is ignored by hylfm setup)
   eval_batch_size: &eval_batch_size 1  # example for yaml placeholders 
+  <key>: <file name.yml>  # any subconfig part can be substituted by a yml file in configs/<key>/<file name.yml>
 
-precision: float         # model precision
 model:                   # model setup
   name: <str>              # model name as specified in hyflm.models
   kwargs: {...}            # model key word arguments
-  checkpoint:              # path to hylfm checkpoint to load instead of random initialization
-  partial_weights: <bool>  # 
+  checkpoint: <str>        # path to hylfm checkpoint to load instead of random initialization
+  partial_weights: <bool>  # if true ignore additionl/missing tensors in model checkpoint with different architecture
+  precision: <float|half>  # model precision
 
 stages:  # list of stages, each stage may be a training or a test stage, and will be run consecutively
   - train:  # stage name
       optimizer:         # stages with 'optimizer' are training stages
-        name: Adam         # optimizer class as specified in hylfm.optimizers
+        name: <str>      # optimizer class as specified in hylfm.optimizers
         kwargs: {...}
 
       max_epochs: <int>  # stop after max epochs even if validation score is still improving
@@ -104,59 +105,50 @@ stages:  # list of stages, each stage may be a training or a test stage, and wil
       log:               # loggers as specified in hylfm.loggers
         TqdmLogger: {}                          # show tqdm progress bar
         TensorBoardLogger:                      # log to TensorBoard event file
-          scalars_every: {value: 1, unit: epoch}  #  how often to log scalar metrics and loss
-          tensors_every: {value: 1, unit: epoch}  #  how often to log below specified tensors (and plots)
-          tensor_names: [lf, pred, ls_reg]        # names of tensors to be logged as 2d (max projection) images
+          scalars_every: {value: <int>, unit: <epoch|iteration>}  #  how often to log scalar metrics and loss
+          tensors_every: {value: <int>, unit: <epoch|iteration>}  #  how often to log below specified tensors and plots
+          tensor_names: [<str>, ...]            # names of tensors to be logged as 2d (max projection) images
         FileLogger:                             # individual output files
-          scalars_every: {value: 1, unit: iteration}
-          tensors_every: {value: 1, unit: iteration}
-          tensor_names: [pred, ls_reg]            # names of tensors to be logged as .tif files
+          scalars_every: {value: <int>, unit: <epoch|iteration>}
+          tensors_every: {value: <int>, unit: <epoch|iteration>}
+          tensor_names: [<str>, ...]            # names of tensors to be logged as .tif files
 
-      criterion:                          # criterion to optimize ('loss')
-        name: <LossOnTensors child>         # `LossOnTensors` child class specified in hylfm.losses
-        kwargs: {...}                       # key word arguments
-        tensor_names: {...}                 # tensor name mapping
+      criterion:                  # criterion to optimize ('loss')
+        name: <str>                 # `LossOnTensors` child class specified in hylfm.losses
+        kwargs: {...}               # key word arguments
+        tensor_names: {...}         # tensor name mapping
 
-      sampler:                            # data sampling strategy
-        base: RandomSampler                 # `torch.utils.data.sampler.Sampler` child class in torch.utils.data
-        drop_last: <bool>                   # drop last samples if less samples than 'batch_size' remain
+      sampler:                    # data sampling strategy
+        base: <str>               # `torch.utils.data.sampler.Sampler` child class in torch.utils.data
+        drop_last: <bool>           # drop last samples if less samples than 'batch_size' remain
 
-      batch_preprocessing: [...]          # List of `Transform` child classes as specified in hylfm.transformations and their kwargs 
+      batch_preprocessing: [...]  # List of `Transform` child classes as specified in hylfm.transformations with kwargs 
       batch_preprocessing_in_step: [...]  # like 'batch_preprocessing', but in the iteration step (on GPU)
-      batch_postprocessing: [...]         # like 'batch_preprocessing', but after `model.forward()`
+      batch_postprocessing: [...]  # like 'batch_preprocessing', but after `model.forward()`
 
       data:
-        - batch_size: <training batch size>
+        - batch_size: <int>
           sample_preprocessing: [...]  # like 'batch_preprocessing', but before batch assembly on single sample
           datasets:                    # list of datasets=named tensors
-            - tensors: {<tensor name>: <info name>, ...}  # named tensors, each resolved by `hylfm.datasets.get_tensor_info()`
-              [sample_transformations: [...]]                      # overwrites 'sample_preprocessing' for this dataset (optional)    
-              # subselect indices as List[int], single int, or string resolved by `hylfm.setup._utils.indice_string_to_list()`
-              indices: null                                        # null = "all indices"
+            - tensors: {<tensor_name>: <str>, ...}  # named tensors, each resolved by `hylfm.datasets.get_tensor_info()`
+              [sample_transformations: [...]]       # overwrites 'sample_preprocessing' for this dataset (optional)    
+              # subselect indices as List[int], int, or string resolved by `hylfm.setup._utils.indice_string_to_list()`
+              indices: null                         # null = "all indices"
 
-      validate:                            # validation stage of this training stage
-        ...                                  # a validation stage is an evaluation stage with the following additional keys: 
-        score_metric: smooth_l1_loss-scaled  # metric name (that has to exist in this stage's 'metrics') to use as validation score
-        period: {value: 1, unit: epoch}      # how often to validate wrt to parent training stage
-        patience: 10                         # stop after not improvement of 'score_metric' for 'patience' validations
+      validate:            # validation stage of this training stage
+        ...                  # a validation stage is an evaluation stage with the following additional keys: 
+        score_metric: <str>  # metric name (that has to exist in this stage's 'metrics') to use as validation score
+        period: {value: <int>, unit: <epoch|iteration>}  # how often to validate wrt to parent training stage
+        patience: <int>      # stop after not improvement of 'score_metric' for 'patience' validations
 
-  - test:               # stage name of an evaluation stage (no 'optimizer' defined)
-      metrics: beads.yml  # any subconfig part can be substituted by a yml file in configs/<key=metrics>/<file name=beads.yml>
-      log: {...}          # these fields are described above in 'train'
+  - test:  # stage name of an evaluation stage (no 'optimizer' defined)
+      # the following fields are described above in 'train':
+      metrics:  [...]
+      log: {...}      
       batch_preprocessing: [...]
       batch_preprocessing_in_step: [...]
       batch_postprocessing: [...]
       data: [...]
-```
-
-
-#### Logging
-How and if to log to TensorBoard and/or individual output files, as well as if to display a tqdm-progress bar is configurable in the `log` field for each `stage`:
-```yaml
-stages:
-  - test:
-      ...
-
 ```
 
 

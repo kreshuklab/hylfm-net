@@ -96,12 +96,12 @@ class DatasetStat:
 
                     for fut in tqdm(as_completed(futs), total=len(futs)):
                         for name, h in fut.result().items():
-                            hist[name] = hist[name] + h  # somehow `+=` invovles casting to float64 which doesn't fly...
+                            hist[name] = hist[name] + h
             else:
                 for i in tqdm(range(n), total=n):
                     ret = _compute_hist(i)
                     for name, h in ret.items():
-                        hist[name] = hist[name] + h  # somehow `+=` invovles casting to float64 which doesn't fly...
+                        hist[name] = hist[name] + h
 
             numpy.savez_compressed(hist_path, **hist)
 

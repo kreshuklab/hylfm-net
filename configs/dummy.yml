@@ -76,7 +76,7 @@ stages:
             - RandomlyFlipAxis: {apply_to: [lf, ls_reg], axis: -2}
 
           datasets:
-            - {tensors: {lf: beads.small_1, ls_reg: beads.small_1}, indices: 0-3}
+            - {tensors: {lf: beads.small_0, ls_reg: beads.small_0}, indices: 0-3}
 
       validate:
         metrics: beads.yml
@@ -91,7 +91,7 @@ stages:
           - batch_size: *eval_batch_size
             sample_preprocessing: *eval_sample_prepr
             datasets:
-              - {tensors: {lf: beads.small_1, ls_reg: beads.small_1}, sample_transformations: *sample_trfs, indices: 0}
+              - {tensors: {lf: beads.small_0, ls_reg: beads.small_0}, sample_transformations: *sample_trfs, indices: 0}
 
   - test:
       metrics: beads.yml
@@ -103,4 +103,4 @@ stages:
         - batch_size: *eval_batch_size
           sample_preprocessing: *eval_sample_prepr
           datasets:
-            - {tensors: {lf: beads.small_1, ls_reg: beads.small_1}, sample_transformations: *sample_trfs, indices: 0-2}
+            - {tensors: {lf: beads.small_0, ls_reg: beads.small_0}, sample_transformations: *sample_trfs, indices: 0-2}
