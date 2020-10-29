@@ -124,7 +124,7 @@ stages:
             scalars_every: {value: 1, unit: epoch}
             tensors_every: {value: 1, unit: iteration}
             tensor_names: {lf, ls_trf, pred}
-        score_metric: MSSSIM
+        score_metric: ms_ssim-scaled
         period: {value: 500, unit: iteration}
         patience: 30
         batch_preprocessing: *eval_batch_prepr
