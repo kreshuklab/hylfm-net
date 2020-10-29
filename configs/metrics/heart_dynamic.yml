@@ -1,29 +1,35 @@
-# scaled
-- MS_SSIM: {scale: pred, to_minimize: mse, vs: ls_slice, tensor_names: [pred, ls_slice], data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
-  SSIM: {scale: pred, to_minimize: mse, vs: ls_slice, tensor_names: [pred, ls_slice], data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
-  NRMSE: {scale: pred, to_minimize: mse, vs: ls_slice, tensor_names: {pred: pred, tgt: ls_slice}}
-  PSNR: {scale: pred, to_minimize: mse, vs: ls_slice, tensor_names: {pred: pred, tgt: ls_slice}, data_range: 1}
-  SmoothL1Loss: {scale: pred, to_minimize: mse, vs: ls_slice, tensor_names: [pred, ls_slice]}
-  MSELoss: {scale: pred, to_minimize: mse, vs: ls_slice, tensor_names: [pred, ls_slice]}
-
-## vanilla
-#- MS_SSIM: {tensor_names: [pred, ls_slice], data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
-#  SSIM: {tensor_names: [pred, ls_slice], data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
-#  NRMSE: {tensor_names: {pred: pred, tgt: ls_slice}}
-#  PSNR: {tensor_names: {pred: pred, tgt: ls_slice}, data_range: 1}
-#  SmoothL1Loss: {tensor_names: [pred, ls_slice]}
-#  MSELoss: {tensor_names: [pred, ls_slice]}
-
-
-#MS_SSIM: {tensor_names: {tgt: ls_slice}, data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
-#ScaledMS_SSIM: {scale: pred, to_minimize: mse, vs: ls_slice, tensor_names: {tgt: ls_slice}, data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
-#SSIM: {tensor_names: {tgt: ls_slice}, data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
-#ScaledSSIM: {scale: pred, to_minimize: mse, vs: ls_slice, tensor_names: {tgt: ls_slice}, data_range: 1, size_average: true, win_size: 11, win_sigma: 1.5, channel: 1, spatial_dims: 2}
-#NRMSE: {tensor_names: {tgt: ls_slice}}
-#ScaledNRMSE: {scale: pred, to_minimize: mse, vs: ls_slice, tensor_names: {tgt: ls_slice}}
-#PSNR: {tensor_names: {tgt: ls_slice}, data_range: 1}
-#ScaledPSNR: {scale: pred, to_minimize: mse, vs: ls_slice, tensor_names: {tgt: ls_slice}, data_range: 1}
-#SmoothL1Loss: {tensor_names: {tgt: ls_slice}}
-#ScaledSmoothL1Loss: {scale: pred, to_minimize: mse, vs: ls_slice, tensor_names: {tgt: ls_slice}}
-#MSELoss: {tensor_names: {tgt: ls_slice}}
-#ScaledMSELoss: {scale: pred, to_minimize: mse, vs: ls_slice, tensor_names: {tgt: ls_slice}}
+- name: SmoothL1Loss
+  scale_minimize_vs: &scale_minimize_vs [pred, mse, ls_trf]
+  tensor_names: &tensor_names {prediction: pred, target: ls_trf}
+  loss_kwargs: {}
+- name: MS_SSIM
+  scale_minimize_vs: *scale_minimize_vs
+  tensor_names: *tensor_names
+  loss_kwargs:
+    channel: 1
+    data_range: &data_range 1
+    size_average: true
+    spatial_dims: 2
+    win_sigma: 1.5
+    win_size: 11
+- name: SSIM
+  scale_minimize_vs: *scale_minimize_vs
+  tensor_names: *tensor_names
+  loss_kwargs:
+    data_range: *data_range
+    size_average: true
+    win_size: 11
+    win_sigma: 1.5
+    channel: 1
+    spatial_dims: 2
+- name: NRMSE
+  tensor_names: *tensor_names
+  scale_minimize_vs: *scale_minimize_vs
+- name: PSNR
+  tensor_names: *tensor_names
+  scale_minimize_vs: *scale_minimize_vs
+  data_range: *data_range
+- name: MSELoss
+  tensor_names: *tensor_names
+  scale_minimize_vs: *scale_minimize_vs
+  loss_kwargs: {}

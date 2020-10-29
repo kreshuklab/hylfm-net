@@ -1,10 +1,10 @@
 toolbox: # defines yaml anchors
   precision: &precision float
   nnum: &nnum 19
-  z_out: &z_out 51
+  z_out: &z_out 49
   shrink: &shrink 8
   nshrink: &nshrink -8
-  ls_roi: &ls_roi [[0, null], [35, -35], [*shrink, *nshrink], [*shrink, *nshrink]]
+  ls_roi: &ls_roi [[0, null], [36, -36], [*shrink, *nshrink], [*shrink, *nshrink]]
   eval_log: &eval_log
     TqdmLogger: {}
     TensorBoardLogger:
@@ -18,7 +18,7 @@ toolbox: # defines yaml anchors
 
   eval_batch_size: &eval_batch_size 1
   sample_trfs: &sample_trfs
-    - Resize: {apply_to: ls_reg, shape: [1.0, 121, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895, ], order: 2}  # 0.42105263157894736842105263157895‬=8/19
+    - Resize: {apply_to: ls_reg, shape: [1.0, 121, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947, ], order: 2}  # 0.42105263157894736842105263157895‬=8/19; 0.21052631578947368421052631578947=4.19
     - Assert: {apply_to: ls_reg, expected_tensor_shape: [1, 121, null, null]}
   eval_sample_prepr: &eval_sample_prepr
     - Crop: {apply_to: ls_reg, crop: *ls_roi}
@@ -33,12 +33,13 @@ toolbox: # defines yaml anchors
 model:
   name: A04
   kwargs:
-    scale: 8
+    scale: 4
     shrink: *shrink
     input_name: lfc
     prediction_name: pred
     nnum: *nnum
     z_out: *z_out
+    n_res2d: [488, 488, u, 244, 244]
   precision: *precision
 
 stages:
@@ -46,6 +47,7 @@ stages:
       max_epochs: 500
       metrics: []
       log:
+        save_n_checkpoints: 2
         TqdmLogger: {}
         TensorBoardLogger:
           scalars_every: {value: 1, unit: iteration}
@@ -72,7 +74,7 @@ stages:
       batch_postprocessing: *batch_postpr
 
       data:
-        - batch_size: 1
+        - batch_size: 2
           sample_preprocessing:
             - Crop: {apply_to: ls_reg, crop: *ls_roi}
             - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
@@ -84,10 +86,10 @@ stages:
             - RandomlyFlipAxis: {apply_to: [lf, ls_reg], axis: -2}
 
           datasets:
-            - {tensors: {lf: beads.small_2, ls_reg: beads.small_2}, indices: null}
+            - {tensors: {lf: beads.small_2, ls_reg: beads.small_2}, indices: null, sample_transformations: [{Resize: {apply_to: ls_reg, shape: [1.0, 1.0, 0.5, 0.5], order: 2}}]}
 
       validate:
-        metrics: beads.yml
+        metrics: beads_z49.yml
         log: *eval_log
         score_metric: smooth_l1_loss-scaled
         period: {value: 1, unit: epoch}
@@ -102,7 +104,7 @@ stages:
               - {tensors: {lf: beads.small_0, ls_reg: beads.small_0}, sample_transformations: *sample_trfs, indices: null}
 
   - test:
-      metrics: beads.yml
+      metrics: beads_z49.yml
       log: *eval_log
       batch_preprocessing: *eval_batch_prepr
       batch_preprocessing_in_step: *batch_prepr_in_step

@@ -1,10 +1,10 @@
 - name: SmoothL1Loss
-  scale_minimize_vs: &scale_minimize_vs [pred, mse, ls_reg]
-  tensor_names: &tensor_names {prediction: pred, target: ls_reg}
+  scale_minimize_vs: &scale_minimize_vs [pred, mse, ls_trf]
+  tensor_names: &tensor_names {prediction: pred, target: ls_trf}
   loss_kwargs: {}
 - name: SmoothL1Loss
   scale_minimize_vs: *scale_minimize_vs
-  along_dim__dim_len: &along_dim__dim_len [1, 51]
+  along_dim__dim_len: &along_dim__dim_len [1, 49]
   tensor_names: *tensor_names
   loss_kwargs: {}
 - name: MS_SSIM
@@ -64,7 +64,7 @@
   along_dim__dim_len: *along_dim__dim_len
   loss_kwargs: {}
 - name: BeadPrecisionRecall
-  tensor_names: {prediction: pred, target: ls_reg, meta: meta}
+  tensor_names: {prediction: pred, target: ls_trf, meta: meta}
   scale_minimize_vs: *scale_minimize_vs
   dist_threshold: 3.0
   exclude_border: false

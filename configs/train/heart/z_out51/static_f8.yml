@@ -1,0 +1,292 @@
+toolbox: # defines yaml placeholders
+  precision: &precision float
+  nnum: &nnum 19
+  z_out: &z_out 51
+  shrink: &shrink 8
+  nshrink: &nshrink -8
+  meta: &meta {nnum: *nnum, z_out: *z_out, scale: &scale 8, shrink: *shrink, interpolation_order: 2, crop_names: [Heart_tightCrop, wholeFOV, staticHeartFOV]}
+
+  metrics: &metrics z51_heart_static.yml
+  train_batch_size: &train_batch_size 1
+  eval_batch_size: &eval_batch_size 1
+  sample_trfs: &sample_trfs []
+  eval_sample_prepr: &eval_sample_prepr
+    - CropWhatShrinkDoesNot: {apply_to: lf, meta: *meta, wrt_ref: true}
+    - CropWhatShrinkDoesNot: {apply_to: ls_trf, meta: *meta, wrt_ref: false}
+    - Crop: {apply_to: ls_trf, crop: [[0, null], [0, null], [*shrink, *nshrink], [*shrink, *nshrink]]}
+    - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+    - Normalize01: {apply_to: ls_trf, min_percentile: 5.0, max_percentile: 99.99}
+    - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
+  eval_batch_prepr: &eval_batch_prepr []
+  batch_prepr_in_step: &batch_prepr_in_step
+    - Cast: {apply_to: [lfc, ls_trf], dtype: *precision, device: cuda, non_blocking: true}
+  batch_postpr: &batch_postpr
+    - Assert: {apply_to: pred, expected_tensor_shape: [1, *z_out, null, null]}
+    - Assert: {apply_to: pred, expected_tensor_shape: ls_trf}
+
+model:
+  name: A04
+  kwargs:
+    scale: *scale
+    shrink: *shrink
+    input_name: lfc
+    prediction_name: pred
+    nnum: *nnum
+    z_out: *z_out
+#    n_res2d: [488, 488, u, 244, 244]
+#    n_res3d: [[7], [7], [7]]
+  checkpoint:
+
+stages:
+  - train:
+      max_epochs: 500
+      metrics: []
+      log:
+        save_n_checkpoints: 500  # dangerously high! for post eval at each epoch
+        TqdmLogger: {}
+        TensorBoardLogger:
+          scalars_every: {value: 1, unit: iteration}
+          tensors_every: {value: 100, unit: iteration}
+          tensor_names: [lf, pred, ls_trf]
+        FileLogger:
+          scalars_every: {value: 1, unit: epoch}
+      criterion:
+#        name: MSELoss
+#        kwargs: {}
+        name: WeightedSmoothL1Loss
+        kwargs: {threshold: 1.0, initial_weight: .05, apply_below_threshold: true, decay_by: .95, every_nth_epoch: 1}
+        tensor_names: {prediction: pred, target: ls_trf}
+      optimizer:
+        name: Adam
+        kwargs: {lr: 2.0e-4, eps: 1.0e-8}
+      sampler:
+        base: RandomSampler
+        drop_last: false
+      batch_preprocessing:
+        - RandomRotate90: {apply_to: [lf, ls_trf]}
+        - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
+      batch_preprocessing_in_step: *batch_prepr_in_step
+      batch_postprocessing: *batch_postpr
+      data:
+        - batch_size: *train_batch_size
+          sample_transformations: *sample_trfs
+          sample_preprocessing: &train_sample_prep
+            - CropWhatShrinkDoesNot: {apply_to: lf, meta: *meta, wrt_ref: true}
+            - CropWhatShrinkDoesNot: {apply_to: ls_trf, meta: *meta, wrt_ref: false}
+            - Crop: {apply_to: ls_trf, crop: [[0, null], [0, null], [*shrink, *nshrink], [*shrink, *nshrink]]}
+            - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+            - Normalize01: {apply_to: ls_trf, min_percentile: 5.0, max_percentile: 99.99}
+#             - AdditiveGaussianNoise: {apply_to: lf, sigma: 0.1}
+#             - AdditiveGaussianNoise: {apply_to: ls_trf, sigma: 0.05}
+            - RandomIntensityScale: {apply_to: [lf, ls_trf], factor_min: .8, factor_max: 1.2}
+            - PoissonNoise: {apply_to: lf, peak: 10}
+            - PoissonNoise: {apply_to: ls_trf, peak: 10}
+            - RandomlyFlipAxis: {apply_to: [lf, ls_trf], axis: -1}
+            - RandomlyFlipAxis: {apply_to: [lf, ls_trf], axis: -2}
+          filters: []
+          datasets:
+            - {tensors: {lf: heart_static.2019-12-10_04.24.29, ls_trf: heart_static.2019-12-10_04.24.29, meta: *meta}} # fish3
+            - {tensors: {lf: heart_static.2019-12-10_05.14.57, ls_trf: heart_static.2019-12-10_05.14.57, meta: *meta}} # fish3
+            - {tensors: {lf: heart_static.2019-12-10_05.41.48, ls_trf: heart_static.2019-12-10_05.41.48, meta: *meta}} # fish3
+            - {tensors: {lf: heart_static.2019-12-10_06.03.37, ls_trf: heart_static.2019-12-10_06.03.37, meta: *meta}} # fish3
+            - {tensors: {lf: heart_static.2019-12-10_06.25.14, ls_trf: heart_static.2019-12-10_06.25.14, meta: *meta}} # fish3
+        - batch_size: *train_batch_size
+          sample_transformations: *sample_trfs
+          sample_preprocessing: *train_sample_prep
+          filters: []
+          datasets:
+            - {tensors: {lf: heart_static.2019-12-09_02.16.30, ls_trf: heart_static.2019-12-09_02.16.30, meta: *meta}} # fish1
+            - {tensors: {lf: heart_static.2019-12-09_02.23.01, ls_trf: heart_static.2019-12-09_02.23.01, meta: *meta}} # fish1
+            - {tensors: {lf: heart_static.2019-12-09_02.29.34, ls_trf: heart_static.2019-12-09_02.29.34, meta: *meta}} # fish1
+            - {tensors: {lf: heart_static.2019-12-09_02.35.49, ls_trf: heart_static.2019-12-09_02.35.49, meta: *meta}} # fish1
+            - {tensors: {lf: heart_static.2019-12-09_02.42.03, ls_trf: heart_static.2019-12-09_02.42.03, meta: *meta}} # fish1
+            - {tensors: {lf: heart_static.2019-12-09_02.48.24, ls_trf: heart_static.2019-12-09_02.48.24, meta: *meta}} # fish1
+            - {tensors: {lf: heart_static.2019-12-09_02.54.46, ls_trf: heart_static.2019-12-09_02.54.46, meta: *meta}} # fish1
+        - batch_size: *train_batch_size
+          sample_transformations: *sample_trfs
+          sample_preprocessing: *train_sample_prep
+          filters: []
+          datasets:
+            - {tensors: {lf: heart_static.2019-12-08_06.35.52, ls_trf: heart_static.2019-12-08_06.35.52, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.38.47, ls_trf: heart_static.2019-12-08_06.38.47, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.10.34, ls_trf: heart_static.2019-12-08_06.10.34, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.41.39, ls_trf: heart_static.2019-12-08_06.41.39, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.18.09, ls_trf: heart_static.2019-12-08_06.18.09, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.46.09, ls_trf: heart_static.2019-12-08_06.46.09, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.23.13, ls_trf: heart_static.2019-12-08_06.23.13, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.49.08, ls_trf: heart_static.2019-12-08_06.49.08, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.25.02, ls_trf: heart_static.2019-12-08_06.25.02, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.51.57, ls_trf: heart_static.2019-12-08_06.51.57, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.30.40, ls_trf: heart_static.2019-12-08_06.30.40, meta: *meta}, indices: 1-} # fish5 val selected
+      validate:
+        metrics: *metrics
+        log:
+          TqdmLogger: {}
+          TensorBoardLogger:
+            scalars_every: {value: 1, unit: epoch}
+            tensors_every: {value: 1, unit: epoch}
+            tensor_names: [lf, pred, ls_trf]
+          FileLogger:
+            scalars_every: {value: 1, unit: epoch}
+        score_metric: ms_ssim-scaled
+        period: {value: 1, unit: epoch}
+        patience: 50
+        batch_preprocessing: *eval_batch_prepr
+        batch_preprocessing_in_step: *batch_prepr_in_step
+        batch_postprocessing: *batch_postpr
+        data:
+          - batch_size: *eval_batch_size
+            sample_preprocessing: *eval_sample_prepr
+            filters: []
+            datasets:
+              - {tensors: {lf: heart_static.2019-12-08_06.35.52, ls_trf: heart_static.2019-12-08_06.35.52, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.38.47, ls_trf: heart_static.2019-12-08_06.38.47, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.10.34, ls_trf: heart_static.2019-12-08_06.10.34, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.41.39, ls_trf: heart_static.2019-12-08_06.41.39, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.18.09, ls_trf: heart_static.2019-12-08_06.18.09, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.46.09, ls_trf: heart_static.2019-12-08_06.46.09, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.23.13, ls_trf: heart_static.2019-12-08_06.23.13, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.49.08, ls_trf: heart_static.2019-12-08_06.49.08, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.25.02, ls_trf: heart_static.2019-12-08_06.25.02, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.51.57, ls_trf: heart_static.2019-12-08_06.51.57, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.30.40, ls_trf: heart_static.2019-12-08_06.30.40, meta: *meta}, indices: 0} # fish5 val selected
+#              - {tensors: {lf: heart_static.2019-12-08_06.57.57, ls_trf: heart_static.2019-12-08_06.57.57, meta: *meta}} # fish5 val
+#              - {tensors: {lf: heart_static.2019-12-08_06.59.59, ls_trf: heart_static.2019-12-08_06.59.59, meta: *meta}} # fish5 val
+#              - {tensors: {lf: heart_static.2019-12-08_10.32.03, ls_trf: heart_static.2019-12-08_10.32.03, meta: *meta}} # fish5 val
+
+  - train2:
+      max_epochs: 500
+      metrics: []
+      log:
+        save_n_checkpoints: 500  # dangerously high! for post eval at each epoch
+        TqdmLogger: {}
+        TensorBoardLogger:
+          scalars_every: {value: 1, unit: iteration}
+          tensors_every: {value: 100, unit: iteration}
+          tensor_names: [lf, pred, ls_trf]
+        FileLogger:
+          scalars_every: {value: 1, unit: epoch}
+      criterion:
+#        name: MSELoss
+#        kwargs: {}
+        name: SmoothL1Loss
+        kwargs: {}
+        tensor_names: {prediction: pred, target: ls_trf}
+      optimizer:
+        name: Adam
+        kwargs: {lr: 1.0e-5, eps: 1.0e-8}
+      sampler:
+        base: RandomSampler
+        drop_last: false
+      batch_preprocessing:
+        - RandomRotate90: {apply_to: [lf, ls_trf]}
+        - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
+      batch_preprocessing_in_step: *batch_prepr_in_step
+      batch_postprocessing: *batch_postpr
+      data:
+        - batch_size: *train_batch_size
+          sample_transformations: *sample_trfs
+          sample_preprocessing: *train_sample_prep
+          filters: []
+          datasets:
+            - {tensors: {lf: heart_static.2019-12-10_04.24.29, ls_trf: heart_static.2019-12-10_04.24.29, meta: *meta}} # fish3
+            - {tensors: {lf: heart_static.2019-12-10_05.14.57, ls_trf: heart_static.2019-12-10_05.14.57, meta: *meta}} # fish3
+            - {tensors: {lf: heart_static.2019-12-10_05.41.48, ls_trf: heart_static.2019-12-10_05.41.48, meta: *meta}} # fish3
+            - {tensors: {lf: heart_static.2019-12-10_06.03.37, ls_trf: heart_static.2019-12-10_06.03.37, meta: *meta}} # fish3
+            - {tensors: {lf: heart_static.2019-12-10_06.25.14, ls_trf: heart_static.2019-12-10_06.25.14, meta: *meta}} # fish3
+        - batch_size: *train_batch_size
+          sample_transformations: *sample_trfs
+          sample_preprocessing: *train_sample_prep
+          filters: []
+          datasets:
+            - {tensors: {lf: heart_static.2019-12-09_02.16.30, ls_trf: heart_static.2019-12-09_02.16.30, meta: *meta}} # fish1
+            - {tensors: {lf: heart_static.2019-12-09_02.23.01, ls_trf: heart_static.2019-12-09_02.23.01, meta: *meta}} # fish1
+            - {tensors: {lf: heart_static.2019-12-09_02.29.34, ls_trf: heart_static.2019-12-09_02.29.34, meta: *meta}} # fish1
+            - {tensors: {lf: heart_static.2019-12-09_02.35.49, ls_trf: heart_static.2019-12-09_02.35.49, meta: *meta}} # fish1
+            - {tensors: {lf: heart_static.2019-12-09_02.42.03, ls_trf: heart_static.2019-12-09_02.42.03, meta: *meta}} # fish1
+            - {tensors: {lf: heart_static.2019-12-09_02.48.24, ls_trf: heart_static.2019-12-09_02.48.24, meta: *meta}} # fish1
+            - {tensors: {lf: heart_static.2019-12-09_02.54.46, ls_trf: heart_static.2019-12-09_02.54.46, meta: *meta}} # fish1
+        - batch_size: *train_batch_size
+          sample_transformations: *sample_trfs
+          sample_preprocessing: *train_sample_prep
+          filters: []
+          datasets:
+            - {tensors: {lf: heart_static.2019-12-08_06.35.52, ls_trf: heart_static.2019-12-08_06.35.52, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.38.47, ls_trf: heart_static.2019-12-08_06.38.47, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.10.34, ls_trf: heart_static.2019-12-08_06.10.34, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.41.39, ls_trf: heart_static.2019-12-08_06.41.39, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.18.09, ls_trf: heart_static.2019-12-08_06.18.09, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.46.09, ls_trf: heart_static.2019-12-08_06.46.09, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.23.13, ls_trf: heart_static.2019-12-08_06.23.13, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.49.08, ls_trf: heart_static.2019-12-08_06.49.08, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.25.02, ls_trf: heart_static.2019-12-08_06.25.02, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.51.57, ls_trf: heart_static.2019-12-08_06.51.57, meta: *meta}, indices: 1-} # fish5 val selected
+            - {tensors: {lf: heart_static.2019-12-08_06.30.40, ls_trf: heart_static.2019-12-08_06.30.40, meta: *meta}, indices: 1-} # fish5 val selected
+      validate:
+        metrics: *metrics
+        log:
+          TqdmLogger: {}
+          TensorBoardLogger:
+            scalars_every: {value: 1, unit: epoch}
+            tensors_every: {value: 1, unit: epoch}
+            tensor_names: [lf, pred, ls_trf]
+          FileLogger:
+            scalars_every: {value: 1, unit: epoch}
+        score_metric: ms_ssim-scaled
+        period: {value: 1, unit: epoch}
+        patience: 50
+        batch_preprocessing: *eval_batch_prepr
+        batch_preprocessing_in_step: *batch_prepr_in_step
+        batch_postprocessing: *batch_postpr
+        data:
+          - batch_size: *eval_batch_size
+            sample_preprocessing: *eval_sample_prepr
+            filters: []
+            datasets:
+              - {tensors: {lf: heart_static.2019-12-08_06.35.52, ls_trf: heart_static.2019-12-08_06.35.52, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.38.47, ls_trf: heart_static.2019-12-08_06.38.47, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.10.34, ls_trf: heart_static.2019-12-08_06.10.34, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.41.39, ls_trf: heart_static.2019-12-08_06.41.39, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.18.09, ls_trf: heart_static.2019-12-08_06.18.09, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.46.09, ls_trf: heart_static.2019-12-08_06.46.09, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.23.13, ls_trf: heart_static.2019-12-08_06.23.13, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.49.08, ls_trf: heart_static.2019-12-08_06.49.08, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.25.02, ls_trf: heart_static.2019-12-08_06.25.02, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.51.57, ls_trf: heart_static.2019-12-08_06.51.57, meta: *meta}, indices: 0} # fish5 val selected
+              - {tensors: {lf: heart_static.2019-12-08_06.30.40, ls_trf: heart_static.2019-12-08_06.30.40, meta: *meta}, indices: 0} # fish5 val selected
+#              - {tensors: {lf: heart_static.2019-12-08_06.57.57, ls_trf: heart_static.2019-12-08_06.57.57, meta: *meta}} # fish5 val
+#              - {tensors: {lf: heart_static.2019-12-08_06.59.59, ls_trf: heart_static.2019-12-08_06.59.59, meta: *meta}} # fish5 val
+#              - {tensors: {lf: heart_static.2019-12-08_10.32.03, ls_trf: heart_static.2019-12-08_10.32.03, meta: *meta}} # fish5 val
+
+  - test:
+      metrics: *metrics
+      log:
+        TqdmLogger: {}
+        TensorBoardLogger:
+          scalars_every: {value: 1, unit: epoch}
+          tensors_every: {value: 1, unit: epoch}
+        FileLogger:
+          scalars_every: {value: 1, unit: epoch}
+          tensors_every: {value: 1, unit: iteration}
+          tensor_names: {lf, ls_trf, pred}
+      batch_preprocessing: *eval_batch_prepr
+      batch_preprocessing_in_step: *batch_prepr_in_step
+      batch_postprocessing: *batch_postpr
+      data:
+        - batch_size: *eval_batch_size
+          sample_transformations: *sample_trfs
+          sample_preprocessing: *eval_sample_prepr
+          filters: []
+          datasets:
+#            - {tensors: {lf: heart_static.2019-12-09_09.52.38, ls_trf: heart_static.2019-12-09_09.52.38, meta: *meta}} # fish2 test
+#            - {tensors: {lf: heart_static.2019-12-09_08.34.44, ls_trf: heart_static.2019-12-09_08.34.44, meta: *meta}} # fish2 test
+            - {tensors: {lf: heart_static.2019-12-09_08.41.41, ls_trf: heart_static.2019-12-09_08.41.41, meta: *meta}, indices: 0} # fish2 test selected
+#            - {tensors: {lf: heart_static.2019-12-09_08.51.01, ls_trf: heart_static.2019-12-09_08.51.01, meta: *meta}} # fish2 test
+#            - {tensors: {lf: heart_static.2019-12-09_09.01.28, ls_trf: heart_static.2019-12-09_09.01.28, meta: *meta}} # fish2 test
+#            - {tensors: {lf: heart_static.2019-12-09_09.11.59, ls_trf: heart_static.2019-12-09_09.11.59, meta: *meta}} # fish2 test
+#            - {tensors: {lf: heart_static.2019-12-09_09.18.01, ls_trf: heart_static.2019-12-09_09.18.01, meta: *meta}} # fish2 test
+#            - {tensors: {lf: heart_static.2019-12-09_08.15.07, ls_trf: heart_static.2019-12-09_08.15.07, meta: *meta}} # fish2 test
+#            - {tensors: {lf: heart_static.2019-12-09_08.19.40, ls_trf: heart_static.2019-12-09_08.19.40, meta: *meta}} # fish2 test
+#            - {tensors: {lf: heart_static.2019-12-09_08.27.14, ls_trf: heart_static.2019-12-09_08.27.14, meta: *meta}} # fish2 test
+#            - {tensors: {lf: heart_static.2019-12-09_07.42.47, ls_trf: heart_static.2019-12-09_07.42.47, meta: *meta}} # fish2 test
+#            - {tensors: {lf: heart_static.2019-12-09_07.50.24, ls_trf: heart_static.2019-12-09_07.50.24, meta: *meta}} # fish2 test

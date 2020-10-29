@@ -36,7 +36,7 @@ class DatasetStat:
         self.dataset = dataset
         self.computed = defaultdict(dict)
         if path.exists():
-            logger.warning(f"restoring computed stat from {path}")
+            logger.debug(f"restoring computed stat from {path}")
             with path.open() as f:
                 data = yaml.safe_load(f)
                 data = data or {}  # may restore 'None'

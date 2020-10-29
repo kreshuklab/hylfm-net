@@ -18,11 +18,11 @@ class PSNR_SkImage(ScaleMinimizeVsMetric):
         self._sum = 0.0
         self._num_examples = 0
 
-    def update_impl(self, *, pred, tgt):
-        n = pred.shape[0]
+    def update_impl(self, *, prediction, target):
+        n = prediction.shape[0]
         self._sum += sum(
             compare_psnr(im_test=p, im_true=t, data_range=self.data_range)
-            for p, t in zip(pred.cpu().numpy(), tgt.cpu().numpy())
+            for p, t in zip(prediction.cpu().numpy(), target.cpu().numpy())
         )
         self._num_examples += n
 
@@ -35,14 +35,6 @@ class PSNR_SkImage(ScaleMinimizeVsMetric):
 
 class PSNR(ScaleMinimizeVsMetric):
     def __init__(self, *super_args, tensor_names: Dict[str, str], data_range: float, **super_kwargs):
-        if "pred" not in tensor_names:
-            tensor_names["pred"] = "pred"
-
-        if "tgt" not in tensor_names:
-            tensor_names["tgt"] = "tgt"
-
-        assert len(tensor_names) == 2
-
         super().__init__(*super_args, tensor_names=tensor_names, **super_kwargs)
         self.log10dr20 = 20 * log10(data_range)
 
@@ -50,10 +42,10 @@ class PSNR(ScaleMinimizeVsMetric):
         self._sum = 0.0
         self._num_examples = 0
 
-    def update_impl(self, *, pred, tgt):
-        n = pred.shape[0]
+    def update_impl(self, *, prediction, target):
+        n = prediction.shape[0]
         self._sum += sum(
-            self.log10dr20 - 10 * torch.log10(torch.nn.functional.mse_loss(p, t)).item() for p, t in zip(pred, tgt)
+            self.log10dr20 - 10 * torch.log10(torch.nn.functional.mse_loss(p, t)).item() for p, t in zip(prediction, target)
         )
         self._num_examples += n
 

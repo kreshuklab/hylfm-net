@@ -1,10 +1,10 @@
 from pathlib import Path
 
-slurm_out_path = Path("/scratch/beuttenm/lnet/slurm_out")
-slurm_out_prep_path = Path("/scratch/beuttenm/lnet/slurm_out_prep")
+slurm_out_path = Path("/scratch/beuttenm/hylfm/slurm_out")
+slurm_out_prep_path = Path("/scratch/beuttenm/hylfm/slurm_out_prep")
 
 if __name__ == "__main__":
-    job_id = "61124551".strip()
+    job_id = "4564452".strip()
     for outpath in slurm_out_path.glob(f"*{job_id}*.out"):
         print("slurm out")
         print(outpath.read_text())

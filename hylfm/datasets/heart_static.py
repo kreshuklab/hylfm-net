@@ -1,10 +1,11 @@
+import warnings
 from pathlib import Path
 
 import yaml
-from hylfm.transformations.affine_utils import get_ls_shape, get_precropped_ls_roi_in_raw_ls, get_precropped_ls_shape
 
 from hylfm.datasets.base import TensorInfo, get_dataset_from_info
 from hylfm.datasets.heart_utils import get_transformations, idx2z_slice_241
+from hylfm.transformations.affine_utils import get_ls_shape, get_precropped_ls_roi_in_raw_ls, get_precropped_ls_shape
 
 
 def get_tensor_info(tag: str, name: str, meta: dict):
@@ -175,7 +176,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "stack_1_channel_1/Cam_Left_*.h5/Data"
 
     elif tag in ["2019-12-08_06.57.57", "2019-12-08_06.59.59", "2019-12-08_10.32.03"]:
-        raise NotImplementedError("raw data looks really bad!")
+        warnings.warn("raw data looks really bad!")
         crop_name = "staticHeartFOV"
         transformations = get_transformations(name, "staticHeartFOV", meta=meta)
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191207_StaticHeart/fish1/static/staticHeartFOV/Sliding_stepsize2_CompleteSlide/{tag}/"

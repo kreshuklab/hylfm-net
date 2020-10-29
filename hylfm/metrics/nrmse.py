@@ -23,9 +23,9 @@ class NRMSE_SkImage(ScaleMinimizeVsMetric):
         self._preds = []
         self._tgts = []
 
-    def update_impl(self, *, pred, tgt):
-        self._preds.append(pred)
-        self._tgts.append(tgt)
+    def update_impl(self, *, prediction, target):
+        self._preds.append(prediction)
+        self._tgts.append(target)
 
     def compute_impl(self):
         if not self._preds:
@@ -57,11 +57,11 @@ class NRMSE(ScaleMinimizeVsMetric):
         self._mse: float = 0.0
         self._norm: float = 0.0
 
-    def update_impl(self, pred, tgt):
-        n = pred.shape[0]
+    def update_impl(self, prediction, target):
+        n = prediction.shape[0]
         self._num_samples += n
-        self._mse += torch.nn.functional.mse_loss(pred, tgt).item() * n
-        self._norm += torch.mean(tgt ** 2).item() * n
+        self._mse += torch.nn.functional.mse_loss(prediction, target).item() * n
+        self._norm += torch.mean(target ** 2).item() * n
 
     def compute_impl(self):
         if self._num_samples == 0:

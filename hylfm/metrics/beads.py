@@ -31,13 +31,13 @@ class BeadPrecisionRecall(ScaleMinimizeVsMetric):
         if tensor_names is None:
             tensor_names = {}
 
-        assert "pred" in tensor_names
-        assert "tgt" in tensor_names
+        assert "prediction" in tensor_names
+        assert "target" in tensor_names
         assert "meta" in tensor_names
 
         self.dim_names = "zyx" if dim_names is None else dim_names
         super().__init__(*super_args, tensor_names=tensor_names, **super_kwargs)
-        self.pred_name = tensor_names["pred"]
+        self.pred_name = tensor_names["prediction"]
         self.match_beads_kwargs = {
             "min_sigma": min_sigma,
             "max_sigma": max_sigma,
@@ -55,12 +55,12 @@ class BeadPrecisionRecall(ScaleMinimizeVsMetric):
         self.found_missing_extra_alongdim = defaultdict(lambda: defaultdict(list))
         self.max_shape = numpy.zeros(len(self.dim_names), dtype=numpy.int)
 
-    def update_impl(self, *, pred, tgt, meta):
-        assert len(self.max_shape) == len(tgt.shape) - 2, "does init kwarg 'dim_names' have correct length?"
-        self.max_shape = numpy.maximum(self.max_shape, tgt.shape[2:])
+    def update_impl(self, *, prediction, target, meta):
+        assert len(self.max_shape) == len(target.shape) - 2, "does init kwarg 'dim_names' have correct length?"
+        self.max_shape = numpy.maximum(self.max_shape, target.shape[2:])
         try:
             btgt_idx, bpred_idx, fme, bead_pos_btgt, bead_pos_bpred = match_beads(
-                tgt.detach().cpu().numpy(), pred.detach().cpu().numpy(), **self.match_beads_kwargs
+                target.detach().cpu().numpy(), prediction.detach().cpu().numpy(), **self.match_beads_kwargs
             )
         except Exception as e:
             logger.warning("could not match beads, due to exception %s", e)

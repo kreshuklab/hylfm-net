@@ -35,5 +35,5 @@ class LossOnTensorsTorchMixin(LossOnTensors):
             logger.error("Could not call %s", self)
             raise e
 
-    def forward(self, pred, tgt):
-        return super().forward(pred, tgt)
+    def forward(self, prediction, target):
+        return super().forward(prediction, target)

@@ -347,7 +347,7 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
 
         self.from_source = not dataset.transform.transforms
         if not self.from_source:
-            logger.warning("cache %s_%s to %s", dataset.info.tag, dataset.tensor_name, data_file_path)
+            logger.debug("cache %s_%s to %s", dataset.info.tag, dataset.tensor_name, data_file_path)
             tensor_name = self.dataset.tensor_name
             self.data_file = data_file = z5py.File(path=str(data_file_path), mode="a", use_zarr_format=False)
             shape = data_file[tensor_name].shape if tensor_name in data_file else None
@@ -432,7 +432,7 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
         if not mask_description_file_path.exists():
             mask_description_file_path.write_text(description)
 
-        logger.warning("using dataset mask %s", mask_description_file_path)
+        logger.debug("using dataset mask %s", mask_description_file_path)
         if mask_file_path.exists():
             mask: numpy.ndarray = numpy.repeat(numpy.load(str(mask_file_path)), dataset.repeat)
         else:

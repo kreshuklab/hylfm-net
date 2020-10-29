@@ -4,7 +4,7 @@
   loss_kwargs: {}
 - name: SmoothL1Loss
   scale_minimize_vs: *scale_minimize_vs
-  along_dim__dim_len: &along_dim__dim_len [1, 51]
+  along_dim__dim_len: &along_dim__dim_len [1, 49]
   tensor_names: *tensor_names
   loss_kwargs: {}
 - name: MS_SSIM
