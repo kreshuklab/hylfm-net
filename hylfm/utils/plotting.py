@@ -100,14 +100,16 @@ def get_batch_figure(
             if "slice" in name:
                 try:
                     z_slice = meta[r][name]["z_slice"]
-                    title = f"{name} z: {z_slice}"
                 except Exception as e:
-                    logger.error(e)
+                    logger.debug("Could not retrieve z_slice for %s: %s", name, e)
                     try:
                         z_slice = meta[r]["ls_slice"]["z_slice"]
-                        title = f"{name} z: {z_slice}"
                     except Exception as e:
-                        logger.error(e)
+                        logger.error("Could not retrieve z_slice for fallback ls_slice: %s", e)
+                    else:
+                        title = f"{name} z: {z_slice}"
+                else:
+                    title = f"{name} z: {z_slice}"
 
             make_subplot(ax[r, c], title=title, img=img, side_view=side_view)
 

@@ -1,6 +1,6 @@
 - name: SmoothL1Loss
-  scale_minimize_vs: &scale_minimize_vs [pred, mse, ls_trf]
-  tensor_names: &tensor_names {prediction: pred, target: ls_trf}
+  scale_minimize_vs: &scale_minimize_vs [pred, mse, ls_slice]
+  tensor_names: &tensor_names {prediction: pred, target: ls_slice}
   loss_kwargs: {}
 - name: MS_SSIM
   scale_minimize_vs: *scale_minimize_vs

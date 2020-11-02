@@ -515,8 +515,9 @@ class TrainStage(Stage):
 
     def __init__(
         self,
+        *,
         max_epochs: int,
-        validate: Dict[str, Any],
+        validate: Optional[Dict[str, Any]] = None,
         criterion: Dict[str, Dict[str, Any]],
         optimizer: Dict[str, Dict[str, Any]],
         model: Callable,
@@ -530,8 +531,12 @@ class TrainStage(Stage):
         self.batch_multiplier = batch_multiplier
         self.criterion_setup = CriterionSetup(**criterion)
         self.optimizer_setup = OptimizerSetup(**optimizer)
-        self.validate = ValidateStage(
-            name="validate_" + self.name, train_stage=self, model=model, log_path=log_path, **validate
+        self.validate = (
+            None
+            if validate is None
+            else ValidateStage(
+                name="validate_" + self.name, train_stage=self, model=model, log_path=log_path, **validate
+            )
         )
 
     def _setup_engine(self):
@@ -539,37 +544,72 @@ class TrainStage(Stage):
         running_loss = ignite.metrics.RunningAverage(output_transform=lambda out: out[self.criterion_setup.name])
         running_loss.attach(self.engine, f"{self.criterion_setup.name}-running")
 
+        if self.validate is None:
+
+            def score_function(e):
+                return e.state.epoch
+
+            score_name = "epoch"
+        else:
+
+            def score_function(e):
+                return e.state.validation_score
+
+            score_name = self.validate.score_metric
+
         checkpointer = ignite.handlers.ModelCheckpoint(
             (self.log_path / "checkpoints").as_posix(),
             "v1",
-            score_function=lambda e: e.state.validation_score,
-            score_name=self.validate.score_metric,
+            score_function=score_function,
+            score_name=score_name,
             n_saved=self.log.save_n_checkpoints,
             create_dir=True,
             global_step_transform=global_step_from_engine(self.engine),
         )
 
-        early_stopper = ignite.handlers.EarlyStopping(
-            patience=self.validate.patience, score_function=lambda e: e.state.validation_score, trainer=self.engine
-        )
-
-        if self.validate.period.unit == PeriodUnit.epoch:
-            event = ignite.engine.Events.EPOCH_COMPLETED
-        elif self.validate.period.unit == PeriodUnit.iteration:
-            event = ignite.engine.Events.ITERATION_COMPLETED
-        else:
-            raise NotImplementedError(self.validate.period.unit)
-
-        @self.engine.on(event(every=self.validate.period.value))
-        def validate(e: ignite.engine.Engine):
-            validation_state = self.validate.run()
-            metric_value: MetricValue = validation_state.metrics.get(self.validate.score_metric)
-            validation_score = metric_value.as_float()
-            e.state.validation_score = validation_score
-            checkpointer(
-                e, {"model": e.state.model, "optimizer": e.state.optimizer, "criterion": e.state.criterion, "engine": e}
+        if self.validate is not None:
+            early_stopper = ignite.handlers.EarlyStopping(
+                patience=self.validate.patience, score_function=lambda e: e.state.validation_score, trainer=self.engine
             )
-            early_stopper(e)
+
+            if self.validate.period.unit == PeriodUnit.epoch:
+                event = ignite.engine.Events.EPOCH_COMPLETED
+            elif self.validate.period.unit == PeriodUnit.iteration:
+                event = ignite.engine.Events.ITERATION_COMPLETED
+            else:
+                raise NotImplementedError(self.validate.period.unit)
+
+            @self.engine.on(ignite.engine.Events.STARTED)  # epoch 0, no training (important for previous checkpoint)
+            @self.engine.on(event(every=self.validate.period.value))
+            def validate(e: ignite.engine.Engine):
+                validation_state = self.validate.run()
+                metric_value: MetricValue = validation_state.metrics.get(self.validate.score_metric)
+                validation_score = metric_value.as_float()
+                e.state.validation_score = validation_score
+                checkpointer(
+                    e,
+                    {
+                        "model": e.state.model,
+                        "optimizer": e.state.optimizer,
+                        "criterion": e.state.criterion,
+                        "engine": e,
+                    },
+                )
+                early_stopper(e)
+
+        else:
+
+            @self.engine.on(ignite.engine.Events.EPOCH_COMPLETED)
+            def dont_validate(e: ignite.engine.Engine):
+                checkpointer(
+                    e,
+                    {
+                        "model": e.state.model,
+                        "optimizer": e.state.optimizer,
+                        "criterion": e.state.criterion,
+                        "engine": e,
+                    },
+                )
 
         @self.engine.on(ignite.engine.Events.COMPLETED)
         def load_best_model(e: ignite.engine.Engine):
@@ -587,11 +627,15 @@ class TrainStage(Stage):
         engine.state.criterion_name = self.criterion_setup.name
 
     def shutdown(self):
-        self.validate.shutdown()
+        if self.validate is not None:
+            self.validate.shutdown()
+
         super().shutdown()
 
     def setup(self):
-        self.validate.setup()
+        if self.validate is not None:
+            self.validate.setup()
+
         super().setup()
 
 
@@ -678,7 +722,7 @@ class Setup:
         config_path = config_path.resolve()
         assert settings.configs_dir in config_path.parents, (settings.configs_dir, config_path)
         log_sub_dir = config_path.relative_to(settings.configs_dir).with_suffix("")
-        return (root or settings.log_dir) / log_sub_dir / datetime.now().strftime("%y-%m-%d_%H-%M-%S")
+        return (root or settings.log_dir) / log_sub_dir / f"{datetime.now():%y-%m-%d_%H-%M-%S}"
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
         return self.model.get_scaling(ipt_shape)
