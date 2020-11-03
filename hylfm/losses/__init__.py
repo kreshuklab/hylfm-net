@@ -19,13 +19,11 @@ class SmoothL1Loss(LossOnTensorsTorchMixin, torch.nn.SmoothL1Loss):
 
 
 class SSIM(LossOnTensorsTorchMixin, pytorch_msssim.SSIM):
-    def forward(self, prediction, target):
-        return -super().forward(prediction, target)
+    is_inverted_metric = True
 
 
 class MS_SSIM(LossOnTensorsTorchMixin, pytorch_msssim.MS_SSIM):
-    def forward(self, prediction, target):
-        return -super().forward(prediction, target)
+    is_inverted_metric = True
 
 
 class WeightedL1Loss(WeightedLossOnTensorsTorchMixin, torch.nn.L1Loss):

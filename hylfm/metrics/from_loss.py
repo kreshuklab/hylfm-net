@@ -25,6 +25,8 @@ class MetricFromLoss(ScaleMinimizeVsMetric):
 
         super().__init__(*super_args, tensor_names=metric_tensor_names, **super_kwargs)
         self.loss = loss_class(tensor_names=tensor_names, **loss_kwargs)
+        if self.loss.is_inverted_metric:
+            self.higher_is_better = True
 
     def reset(self):
         self._accumulated = 0.0
@@ -44,5 +46,8 @@ class MetricFromLoss(ScaleMinimizeVsMetric):
             raise NotComputableError(
                 f"{self.__class__.__name__} must have at least one example before it can be computed."
             )
+        value = self._accumulated  #  loss is already averaged / self._n
+        if self.loss.is_inverted_metric:
+            value *= -1
 
-        return {loss_name: self._accumulated / self._n}
+        return {loss_name: value}

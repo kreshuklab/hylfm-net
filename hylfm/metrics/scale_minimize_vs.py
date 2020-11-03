@@ -48,8 +48,25 @@ class ScaleMinimizeVsMetric(Metric):
 
         return super().prepare_for_update(tensors)
 
+    @classmethod
+    def scale_minimize_mse(cls, ipt: Union[numpy.ndarray, torch.Tensor], vs_norm: Union[numpy.ndarray, torch.Tensor]):
+        scaled = [
+            cls._scale_minimize_mse_sample(ipt_sample, vs_norm_sample)
+            for ipt_sample, vs_norm_sample in zip(ipt, vs_norm)
+        ]
+        if isinstance(ipt, numpy.ndarray):
+            stack = numpy.stack
+        elif isinstance(ipt, torch.Tensor):
+            stack = torch.stack
+        else:
+            raise TypeError(type(ipt))
+
+        return stack(scaled)
+
     @staticmethod
-    def scale_minimize_mse(ipt: Union[numpy.ndarray, torch.Tensor], vs_norm: Union[numpy.ndarray, torch.Tensor]):
+    def _scale_minimize_mse_sample(
+        ipt: Union[numpy.ndarray, torch.Tensor], vs_norm: Union[numpy.ndarray, torch.Tensor]
+    ):
         ipt_numpy = ipt if isinstance(ipt, numpy.ndarray) else ipt.numpy()
         vs_norm_numpy = vs_norm if isinstance(vs_norm, numpy.ndarray) else vs_norm.numpy()
 

@@ -626,27 +626,46 @@ def quick_check_all(meta: dict):
     # tags = ["2019-12-09_04.54.38", "2019-12-09_05.21.16", "2019-12-09_05.41.14_theGoldenOne", "plane_100/2019-12-09_05.55.26"]
     # tags = ["2019-12-02_04.12.36_10msExp"]
     tags = [
-        "plane_080/2019-12-09_04.02.24_5ms",
-        "plane_080/2019-12-09_04.05.07_irisOpenedComplete_10ms",
-        "plane_100/2019-12-09_03.44.34_5ms",
-        "plane_100/2019-12-09_03.46.56_10ms",
-        "plane_120/2019-12-09_03.41.23_5ms",
-        "plane_120/2019-12-09_03.42.18_10ms",
-        "plane_140/2019-12-09_03.55.51_5ms",
-        "plane_140/2019-12-09_03.56.44_10ms",
-        "plane_160/2019-12-09_03.58.24_5ms",
-        "plane_160/2019-12-09_03.58.24_10ms",
-        "plane_160/2019-12-09_03.59.45_5ms",
-        "plane_160/2019-12-09_03.59.45_10ms",
+        "2019-12-02_04.12.36_10msExp",  # fish4 quality 4
+        "2019-12-02_23.17.56",  # fish4 quality 3
+        "2019-12-02_23.43.24",  # fish4 quality 3
+        "2019-12-02_23.50.04",  # fish4 quality 3
+        "2019-12-03_00.00.44",  # fish4 at the moment only with 5ms exp time, 10ms coming
+        "2019-12-08_23.43.42",  # fish1 quality 1
+        "2019-12-09_04.54.38",  # fish2 test
+        "2019-12-09_05.21.16",  # fish2 test
+        "2019-12-09_05.41.14_theGoldenOne",  # fish2 test
+        "plane_100/2019-12-09_05.55.26",  # fish2 test
+        "plane_120/2019-12-09_05.53.55",
+        "2019-12-09_23.10.02",  # fish3
+        "2019-12-09_23.17.30",  # fish3
+        "2019-12-09_23.19.41",  # fish3
+        "2019-12-10_00.40.09",  # fish3
+        "2019-12-10_00.51.54",  # fish3
+        "2019-12-10_01.03.50",  # fish3
+        "2019-12-10_01.25.44",  # fish3
+        "2019-12-10_02.13.34",  # fish3
+        # "plane_080/2019-12-09_04.02.24_5ms",
+        # "plane_080/2019-12-09_04.05.07_irisOpenedComplete_10ms",
+        # "plane_100/2019-12-09_03.44.34_5ms",
+        # "plane_100/2019-12-09_03.46.56_10ms",
+        # "plane_120/2019-12-09_03.41.23_5ms",
+        # "plane_120/2019-12-09_03.42.18_10ms",
+        # "plane_140/2019-12-09_03.55.51_5ms",
+        # "plane_140/2019-12-09_03.56.44_10ms",
+        # "plane_160/2019-12-09_03.58.24_5ms",
+        # "plane_160/2019-12-09_03.58.24_10ms",
+        # "plane_160/2019-12-09_03.59.45_5ms",
+        # "plane_160/2019-12-09_03.59.45_10ms",
     ]
     for tag in tags:
         try:
-            lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=True)
+            lf = get_dataset_from_info(get_tensor_info(tag, "lf", meta=meta), cache=False)
         except Exception as e:
             print(tag, e)
             lf = []
         try:
-            ls_slice = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=True)
+            ls_slice = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=False)
         except Exception as e:
             print(tag, e)
             ls_slice = []
