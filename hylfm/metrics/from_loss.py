@@ -38,7 +38,7 @@ class MetricFromLoss(ScaleMinimizeVsMetric):
         self._n += batch_len
         with torch.no_grad():
             self.loss(tensors)
-            self._accumulated += float(tensors[self.loss.name].item())
+            self._accumulated += float(tensors[self.loss.name].item()) * batch_len
 
     def compute_impl(self):
         loss_name = self.loss.name
@@ -46,7 +46,7 @@ class MetricFromLoss(ScaleMinimizeVsMetric):
             raise NotComputableError(
                 f"{self.__class__.__name__} must have at least one example before it can be computed."
             )
-        value = self._accumulated  #  loss is already averaged / self._n
+        value = self._accumulated / self._n
         if self.loss.is_inverted_metric:
             value *= -1
 
