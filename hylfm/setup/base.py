@@ -52,6 +52,8 @@ class ModelSetup:
         precision: str = "float",
         checkpoint: Optional[Union[Path, str]] = None,
         partial_weights: bool = False,
+        # z_out_of_larger_weight: Optional[int] = None,
+        z_out_slice_from_larger_weight: Optional[Tuple[int, int]] = None,
     ):
         self.name = name
         self.kwargs = kwargs
@@ -60,6 +62,11 @@ class ModelSetup:
         self.checkpoint = None if checkpoint is None else str(checkpoint)
         self.partial_weights = partial_weights
         self.strict = True
+        # assert not ((z_out_slice_from_larger_weight is None) ^ (z_out_of_larger_weight is None))
+        assert z_out_slice_from_larger_weight is None or self.checkpoint is not None
+        # self.z_out_of_larger_weight = z_out_of_larger_weight
+        self.z_out_slice_from_larger_weight = z_out_slice_from_larger_weight
+
 
     def get_model(self, device: torch.device) -> LnetModel:
         model_module = import_module("." + self.name.lower(), "hylfm.models")
@@ -68,7 +75,9 @@ class ModelSetup:
         model = model.to(device=device, dtype=self.dtype)
         if self.checkpoint is not None:
             state = torch.load(self.checkpoint, map_location=device)["model"]
-            if self.strict:
+            if self.z_out_slice_from_larger_weight:
+                model.load_state_dict_from_larger_z_out(state, *self.z_out_slice_from_larger_weight)
+            elif self.strict:
                 model.load_state_dict(state, strict=True)
             else:
                 for attempt in range(3):
@@ -700,14 +709,17 @@ class Setup:
 
     @classmethod
     def load_subconfig_yaml(cls, part: Any, subconfig_dir: Path = settings.configs_dir / "subconfigs"):
-        if isinstance(part, list):
-            return [cls.load_subconfig_yaml(p) for p in part]
-        elif isinstance(part, dict):
-            return {k: cls.load_subconfig_yaml(v, subconfig_dir.parent / k) for k, v in part.items()}
-        elif isinstance(part, str) and part.endswith(".yml"):
-            if (subconfig_dir / part).exists():
-                return yaml.load(subconfig_dir / part)
-
+        try:
+            if isinstance(part, list):
+                return [cls.load_subconfig_yaml(p) for p in part]
+            elif isinstance(part, dict):
+                return {k: cls.load_subconfig_yaml(v, subconfig_dir.parent / k) for k, v in part.items()}
+            elif isinstance(part, str) and part.endswith(".yml"):
+                if (subconfig_dir / part).exists():
+                    return yaml.load(subconfig_dir / part)
+        except TypeError as e:
+            print(e)
+            raise e
         return part
 
     @classmethod

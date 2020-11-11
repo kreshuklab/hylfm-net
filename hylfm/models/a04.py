@@ -1,3 +1,4 @@
+import collections
 import inspect
 import logging
 import typing
@@ -137,6 +138,29 @@ class A04(LnetModel):
             bmeta[self.prediction_name] = bmeta[self.input_name]
 
         return tensors
+
+    def load_state_dict_from_larger_z_out(self, state, z_out_start: int, z_out_end: int):
+        converted = collections.OrderedDict()
+        first_3d_channels = self.n_res3d[0][0]
+        expect_diffs_in = ["conv2d.conv.weight", "conv2d.conv.bias"]
+        diff_idx = 0
+        for (sk, sv), (bk, bv) in zip(self.state_dict().items(), state.items()):
+            assert sk == bk
+            if sv.shape == bv.shape:
+                converted[sk] = bv
+            else:
+                assert sk == expect_diffs_in[diff_idx]
+                diff_idx += 1
+                z_valid_offset = (sv.shape[0] / first_3d_channels - self.z_out) / 2
+                assert z_valid_offset == int(z_valid_offset)
+                z_valid_offset = int(z_valid_offset)
+                # print(z_valid_offset)
+                converted_v = bv[z_out_start * first_3d_channels : (2 * z_valid_offset + z_out_end) * first_3d_channels]
+                # print(sk, sv.shape[0] / first_3d_channels, bv.shape[0] / first_3d_channels)
+                # print(sv.shape, converted_v.shape, bv.shape)
+                assert converted_v.shape == sv.shape
+                converted[sk] = converted_v
+        self.load_state_dict(converted)
 
     def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
         s = max(1, 2 * sum(isinstance(res2d, str) and "u" in res2d for res2d in self.n_res2d)) * max(
