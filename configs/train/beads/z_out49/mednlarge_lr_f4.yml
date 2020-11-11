@@ -90,6 +90,7 @@ stages:
             - {tensors: {lf: local.beads.b4mu_1, lr: local.beads.b4mu_1, meta: {skip_indices: [0, 24]}}, sample_transformations: *sample_trfs, indices: null}
             - {tensors: {lf: local.beads.b4mu_2, lr: local.beads.b4mu_2}, sample_transformations: *sample_trfs, indices: null}
             - {tensors: {lf: local.beads.b4mu_3, lr: local.beads.b4mu_3}, sample_transformations: *sample_trfs, indices: 0-25}
+            - {tensors: {lf: local.beads.b11mu_0, lr: local.beads.b11mu_0}, sample_transformations: *sample_trfs, indices: 0-35}
 
       validate:
         metrics: beads_z49_lr.yml
@@ -117,3 +118,14 @@ stages:
           sample_preprocessing: *eval_sample_prepr
           datasets:
             - {tensors: {lf: local.beads.b4mu_3, lr: local.beads.b4mu_3}, sample_transformations: *sample_trfs, indices: 30-40}
+  - test_on_large:
+      metrics: beads_z49.yml
+      log: *eval_log
+      batch_preprocessing: *eval_batch_prepr
+      batch_preprocessing_in_step: *batch_prepr_in_step
+      batch_postprocessing: *batch_postpr
+      data:
+        - batch_size: *eval_batch_size
+          sample_preprocessing: *eval_sample_prepr
+          datasets:
+            - {tensors: {lf: local.beads.b11mu_0, lr: local.beads.b11mu_0}, sample_transformations: *sample_trfs, indices: 35-40}
