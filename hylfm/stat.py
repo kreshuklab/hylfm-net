@@ -69,40 +69,38 @@ class DatasetStat:
             hist_npz: NpzFile = numpy.load(str(hist_path))
             hist = {name: hist_npz[name] for name in hist_npz.files}
         else:
-            n = len(self.dataset)
             sample = self.dataset[0]
 
             hist = {
-                name: numpy.zeros(nbins, numpy.uint64)
+                name: numpy.zeros(nbins, numpy.float64)
                 for name in sample.keys()
                 if isinstance(sample[name], numpy.ndarray)
             }
             logger.info("Compute histograms for %s", list(hist.keys()))
 
-            def _compute_hist(i: int):
-                ret = {}
-                for name, tensor in self.dataset[i].items():
-                    if isinstance(tensor, numpy.ndarray):
-                        ret[name] = numpy.histogram(tensor, bins=nbins, range=(hist_min, hist_max))[0]
-
-                return ret
-
             logger.info(f"compute hist with {settings.max_workers_for_hist} workers")
             if settings.max_workers_for_hist:
-                futs = []
-                with ThreadPoolExecutor(max_workers=settings.max_workers_for_hist) as executor:
-                    for i in range(n):
-                        futs.append(executor.submit(_compute_hist, i))
 
+                def _compute_hist(i: int):
+                    ret = {}
+                    for name, tensor in self.dataset[i].items():
+                        if isinstance(tensor, numpy.ndarray):
+                            ret[name] = numpy.histogram(tensor, bins=nbins, range=(hist_min, hist_max))[0]
+
+                    return ret
+
+                with ThreadPoolExecutor(max_workers=settings.max_workers_for_hist) as executor:
+                    futs = [executor.submit(_compute_hist, i) for i in range(len(self.dataset))]
                     for fut in tqdm(as_completed(futs), total=len(futs)):
                         for name, h in fut.result().items():
-                            hist[name] = hist[name] + h
+                            hist[name] += h
             else:
-                for i in tqdm(range(n), total=n):
-                    ret = _compute_hist(i)
-                    for name, h in ret.items():
-                        hist[name] = hist[name] + h
+                for sample in tqdm(self.dataset):
+                    for name, tensor in sample.items():
+                        if isinstance(tensor, numpy.ndarray):
+                            hist[name] += numpy.histogram(tensor, bins=nbins, range=(hist_min, hist_max))[0]
 
+            hist = {name: h.astype(numpy.uint64) for name, h in hist.items()}
             numpy.savez_compressed(hist_path, **hist)
 
         self.hist = hist
@@ -164,11 +162,12 @@ class DatasetStat:
                     all_new_means_vars[name][range_]["means"][i] = numpy.mean(array, dtype=numpy.float64).item()
                     all_new_means_vars[name][range_]["vars"][i] = numpy.var(array, dtype=numpy.float64).item()
 
+        logger.info(f"compute mean/var with {settings.max_workers_for_stat} workers")
         if settings.max_workers_for_stat:
             with ThreadPoolExecutor(max_workers=settings.max_workers_for_stat) as executor:
                 futs = [executor.submit(compute_clipped_means_vars, i=i) for i in range(n)]
 
-                for fut in as_completed(futs):
+                for fut in tqdm(as_completed(futs), total=len(futs)):
                     exc = fut.exception()
                     if exc is not None:
                         raise exc
