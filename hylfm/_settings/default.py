@@ -27,8 +27,8 @@ class Settings:
     max_workers_per_dataset: int = 1 if debug_mode else 4
     reserved_workers_per_dataset_for_getitem: int = 0
     max_workers_file_logger: int = 1 if debug_mode else 4
-    max_workers_for_hist: int = 1 if debug_mode else 4
-    max_workers_for_stat: int = 0  # 1 if debug_mode else 4
+    max_workers_for_hist: int = 0 if debug_mode else 0
+    max_workers_for_stat: int = 0 if debug_mode else 0
     max_workers_for_trace: int = 1 if debug_mode else 4
     multiprocessing_start_method: str = "spawn"
     OMP_NUM_THREADS: typing.Optional[int] = 1
