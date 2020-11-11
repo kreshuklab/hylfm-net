@@ -3,9 +3,9 @@ toolbox: # defines yaml placeholders
   precision: &precision float
   nnum: &nnum 19
   z_out: &z_out 49
-  meta: &meta {nnum: *nnum, z_out: *z_out, scale: &scale 4, shrink: &shrink 8, interpolation_order: 2, z_ls_rescaled: 241, pred_z_min: 241, pred_z_max: 798, crop_names: &crop_names [wholeFOV]}  # z_min full: 0, z_max full: 838; 60/209*838=241; 838-10/209*838=798
+  meta: &meta {nnum: *nnum, z_out: *z_out, scale: &scale 4, shrink: &shrink 8, interpolation_order: 2, z_ls_rescaled: 241, pred_z_min: 0, pred_z_max: 838, crop_names: &crop_names [wholeFOV]}  # z_min full: 0, z_max full: 838; 60/209*838=241; 838-10/209*838=798
   nshrink: &nshrink -8
-  eval_batch_size: &eval_batch_size 8
+  eval_batch_size: &eval_batch_size 24
   score_metric: &score_metric ms_ssim-scaled
   sample_trfs: &sample_trfs []
   eval_sample_prepr_dynamic: &eval_sample_prepr_dynamic
@@ -51,30 +51,8 @@ model:
 #    n_res3d: [[7], [7], [7]]
 
 stages:
-  - test_dynamic_00:
-      metrics: heart_dynamic.yml
-      log:
-        TqdmLogger: {}
-        TensorBoardLogger:
-          scalars_every: {value: 1, unit: epoch}
-          tensors_every: {value: 24, unit: iteration}
-        FileLogger:
-          scalars_every: {value: 1, unit: iteration}
-          tensors_every: {value: 1, unit: iteration}
-          tensor_names: {ls_slice, pred}
-      batch_preprocessing: *eval_batch_prepr
-      batch_preprocessing_in_step: *batch_prepr_in_step_dynamic
-      batch_postprocessing: *batch_postpr_dynamic
-      data:
-        - batch_size: *eval_batch_size
-          sample_transformations: *sample_trfs
-          sample_preprocessing: *eval_sample_prepr_dynamic
-          filters: *eval_filter_dynamic
-          datasets:
-            - {tensors: {lf: heart_dynamic.2019-12-02_04.12.36_10msExp, ls_slice: heart_dynamic.2019-12-02_04.12.36_10msExp, meta: *meta}, indices: 0-964}  # (0-4)*241
-
   - train_01:
-      max_epochs: 1
+      max_epochs: 20
       metrics: []
       log: &train_log
         save_n_checkpoints: 500
@@ -92,7 +70,7 @@ stages:
 
       optimizer: &optimizer
         name: Adam
-        kwargs: {lr: 1.0e-5, eps: 1.0e-8}
+        kwargs: {lr: 3.0e-4, eps: 1.0e-8}
 
       sampler: &sampler
         base: RandomSampler
@@ -108,6 +86,32 @@ stages:
           filters: *train_filter_dynamic
           datasets:
             - {tensors: {lf: heart_dynamic.2019-12-02_04.12.36_10msExp, ls_slice: heart_dynamic.2019-12-02_04.12.36_10msExp, meta: *meta}, indices: 964-9399}
+
+      validate:
+        metrics: heart_dynamic.yml
+        log:
+          TqdmLogger: {}
+          TensorBoardLogger:
+            scalars_every: {value: 1, unit: epoch}
+            tensors_every: {value: 3, unit: iteration}
+          FileLogger:
+            scalars_every: {value: 1, unit: epoch}
+            tensors_every: {value: 1, unit: iteration}
+            tensor_names: {ls_slice, pred}
+        score_metric: ms_ssim-scaled
+        period: {value: 50, unit: iteration}
+        patience: 30
+        batch_preprocessing: *eval_batch_prepr
+        batch_preprocessing_in_step: *batch_prepr_in_step_dynamic
+        batch_postprocessing: *batch_postpr_dynamic
+        data:
+          - batch_size: *eval_batch_size
+            sample_transformations: *sample_trfs
+            sample_preprocessing: *eval_sample_prepr_dynamic
+            filters: *eval_filter_dynamic
+            datasets:
+              - {tensors: {lf: heart_dynamic.2019-12-02_04.12.36_10msExp, ls_slice: heart_dynamic.2019-12-02_04.12.36_10msExp, meta: *meta}, indices: 0-964}
+
   - test_dynamic_01: &test_dynamic
       metrics: heart_dynamic.yml
       log:

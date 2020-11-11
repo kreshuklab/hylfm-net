@@ -18,7 +18,7 @@ toolbox: # defines yaml anchors
 
   eval_batch_size: &eval_batch_size 1
   sample_trfs: &sample_trfs
-    - Resize: {apply_to: ls_reg, shape: [1.0, 49, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947, ], order: 2}  # 0.42105263157894736842105263157895‬=8/19; 0.21052631578947368421052631578947=4.19
+    - Resize: {apply_to: ls_reg, shape: [1.0, 49, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947, ], order: 2}  # 0.42105263157894736842105263157895‬=8/19; 0.21052631578947368421052631578947=4/19
     - Assert: {apply_to: ls_reg, expected_tensor_shape: [1, 49, null, null]}
   eval_sample_prepr: &eval_sample_prepr
     - Crop: {apply_to: ls_reg, crop: *ls_roi}
@@ -52,16 +52,16 @@ stages:
         TensorBoardLogger:
           scalars_every: {value: 1, unit: iteration}
           tensors_every: {value: 1, unit: epoch}
-          tensor_names: [lf, pred, ls_reg]
+          tensor_names: [pred, ls_reg]
 
       criterion:
         name: WeightedSmoothL1Loss
-        kwargs: {threshold: 0.5, initial_weight: .05, apply_below_threshold: true, decay_by: .8, every_nth_epoch: 1}
+        kwargs: {threshold: 0.5, initial_weight: .05, apply_below_threshold: true, decay_by: .8, every_nth_epoch: 10}
         tensor_names: {prediction: pred, target: ls_reg}
 
       optimizer:
         name: Adam
-        kwargs: {lr: 2.0e-4, eps: 1.0e-8}
+        kwargs: {lr: 1.0e-4, eps: 1.0e-8}
 
       sampler:
         base: RandomSampler
@@ -86,14 +86,18 @@ stages:
             - RandomlyFlipAxis: {apply_to: [lf, ls_reg], axis: -2}
 
           datasets:
-            - {tensors: {lf: beads.small_2, ls_reg: beads.small_2}, indices: null, sample_transformations: [{Resize: {apply_to: ls_reg, shape: [1.0, 1.0, 0.5, 0.5], order: 2}}]}
+            - {tensors: {lf: local.beads.b4mu_0, ls_reg: local.beads.b4mu_0}, sample_transformations: *sample_trfs, indices: null}
+            - {tensors: {lf: local.beads.b4mu_1, ls_reg: local.beads.b4mu_1}, sample_transformations: *sample_trfs, indices: null}
+            - {tensors: {lf: local.beads.b4mu_2, ls_reg: local.beads.b4mu_2}, sample_transformations: *sample_trfs, indices: null}
+            - {tensors: {lf: local.beads.b4mu_3, ls_reg: local.beads.b4mu_3}, sample_transformations: *sample_trfs, indices: 0-25}
+            - {tensors: {lf: local.beads.b11mu_0, ls_reg: local.beads.b11mu_0}, sample_transformations: *sample_trfs, indices: 0-35}
 
       validate:
         metrics: beads_z49.yml
         log: *eval_log
         score_metric: smooth_l1_loss-scaled
         period: {value: 1, unit: epoch}
-        patience: 10
+        patience: 30
         batch_preprocessing: *eval_batch_prepr
         batch_preprocessing_in_step: *batch_prepr_in_step
         batch_postprocessing: *batch_postpr
@@ -101,7 +105,7 @@ stages:
           - batch_size: *eval_batch_size
             sample_preprocessing: *eval_sample_prepr
             datasets:
-              - {tensors: {lf: beads.small_0, ls_reg: beads.small_0}, sample_transformations: *sample_trfs, indices: null}
+              - {tensors: {lf: local.beads.b4mu_3, ls_reg: local.beads.b4mu_3}, sample_transformations: *sample_trfs, indices: 25-30}
 
   - test:
       metrics: beads_z49.yml
@@ -113,4 +117,15 @@ stages:
         - batch_size: *eval_batch_size
           sample_preprocessing: *eval_sample_prepr
           datasets:
-            - {tensors: {lf: beads.small_1, ls_reg: beads.small_1}, sample_transformations: *sample_trfs}
+            - {tensors: {lf: local.beads.b4mu_3, ls_reg: local.beads.b4mu_3}, sample_transformations: *sample_trfs, indices: 30-40}
+  - test_on_large:
+      metrics: beads_z49.yml
+      log: *eval_log
+      batch_preprocessing: *eval_batch_prepr
+      batch_preprocessing_in_step: *batch_prepr_in_step
+      batch_postprocessing: *batch_postpr
+      data:
+        - batch_size: *eval_batch_size
+          sample_preprocessing: *eval_sample_prepr
+          datasets:
+            - {tensors: {lf: local.beads.b11mu_0, ls_reg: local.beads.b11mu_0}, sample_transformations: *sample_trfs, indices: 35-40}

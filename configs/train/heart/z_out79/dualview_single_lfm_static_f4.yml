@@ -1,33 +1,35 @@
 toolbox: # defines yaml anchors
   precision: &precision float
   nnum: &nnum 19
-  z_out: &z_out 49
+  z_out: &z_out 79
   shrink: &shrink 8
   nshrink: &nshrink -8
-  ls_roi: &ls_roi [[0, null], [0, null], [*shrink, *nshrink], [*shrink, *nshrink]]
+  lfd_roi: &lfd_roi [[0, null], [0, null], [*shrink, *nshrink], [*shrink, *nshrink]]
   eval_log: &eval_log
     TqdmLogger: {}
     TensorBoardLogger:
       scalars_every: {value: 1, unit: epoch}
       tensors_every: {value: 1, unit: epoch}
-      tensor_names: [pred, ls_reg]
+      tensor_names: [pred, lfd]
 #    FileLogger:
 #      scalars_every: {value: 1, unit: iteration}
 #      tensors_every: {value: 1, unit: iteration}
 #      tensor_names: [pred, ls_reg]
 
-  eval_batch_size: &eval_batch_size 1
+  eval_batch_size: &eval_batch_size 8
   sample_trfs: &sample_trfs
-    - Resize: {apply_to: ls_reg, shape: [1.0, 49, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947, ], order: 2}  # 0.42105263157894736842105263157895‬=8/19; 0.21052631578947368421052631578947=4.19
-    - Assert: {apply_to: ls_reg, expected_tensor_shape: [1, 49, null, null]}
+    - Crop: {apply_to: lf, crop: [[0, null], [0, null], [38, -38], [38, -38]]}
+    - Crop: {apply_to: lfd, crop: [[0, null], [0, null], [38, -38], [38, -38]]}
+    - Resize: {apply_to: lfd, shape: [1.0, 1.0, 0.21052631578947368421052631578947, 0.21052631578947368421052631578947, ], order: 2}  # 0.42105263157894736842105263157895‬=8/19; 0.21052631578947368421052631578947=4.19
+    - Assert: {apply_to: lfd, expected_tensor_shape: [1, 79, null, null]}
   eval_sample_prepr: &eval_sample_prepr
-    - Crop: {apply_to: ls_reg, crop: *ls_roi}
+    - Crop: {apply_to: lfd, crop: *lfd_roi}
     - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
-    - Normalize01: {apply_to: ls_reg, min_percentile: 5.0, max_percentile: 99.99}
+    - Normalize01: {apply_to: lfd, min_percentile: 5.0, max_percentile: 99.99}
     - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
   eval_batch_prepr: &eval_batch_prepr []
   batch_prepr_in_step: &batch_prepr_in_step
-    - Cast: {apply_to: [lfc, ls_reg], dtype: *precision, device: cuda, non_blocking: true}
+    - Cast: {apply_to: [lfc, lfd], dtype: *precision, device: cuda, non_blocking: true}
   batch_postpr: &batch_postpr []
 
 model:
@@ -52,23 +54,23 @@ stages:
         TensorBoardLogger:
           scalars_every: {value: 1, unit: iteration}
           tensors_every: {value: 1, unit: epoch}
-          tensor_names: [lf, pred, ls_reg]
+          tensor_names: [pred, lfd]
 
       criterion:
         name: WeightedSmoothL1Loss
         kwargs: {threshold: 0.5, initial_weight: .05, apply_below_threshold: true, decay_by: .8, every_nth_epoch: 1}
-        tensor_names: {prediction: pred, target: ls_reg}
+        tensor_names: {prediction: pred, target: lfd}
 
       optimizer:
         name: Adam
-        kwargs: {lr: 2.0e-4, eps: 1.0e-8}
+        kwargs: {lr: 3.0e-4, eps: 1.0e-8}
 
       sampler:
         base: RandomSampler
         drop_last: false
 
       batch_preprocessing:
-        - RandomRotate90: {apply_to: [lf, ls_reg]}
+        - RandomRotate90: {apply_to: [lf, lfd]}
         - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
       batch_preprocessing_in_step: *batch_prepr_in_step
       batch_postprocessing: *batch_postpr
@@ -76,20 +78,20 @@ stages:
       data:
         - batch_size: 2
           sample_preprocessing:
-            - Crop: {apply_to: ls_reg, crop: *ls_roi}
+            - Crop: {apply_to: lfd, crop: *lfd_roi}
             - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
-            - Normalize01: {apply_to: ls_reg, min_percentile: 5.0, max_percentile: 99.99}
+            - Normalize01: {apply_to: lfd, min_percentile: 5.0, max_percentile: 99.99}
             - AdditiveGaussianNoise: {apply_to: lf, sigma: 0.1}
-            - AdditiveGaussianNoise: {apply_to: ls_reg, sigma: 0.05}
-            - RandomIntensityScale: {apply_to: [lf, ls_reg], factor_min: .8, factor_max: 1.2}
-            - RandomlyFlipAxis: {apply_to: [lf, ls_reg], axis: -1}
-            - RandomlyFlipAxis: {apply_to: [lf, ls_reg], axis: -2}
+            - AdditiveGaussianNoise: {apply_to: lfd, sigma: 0.05}
+            - RandomIntensityScale: {apply_to: [lf, lfd], factor_min: .8, factor_max: 1.2}
+            - RandomlyFlipAxis: {apply_to: [lf, lfd], axis: -1}
+            - RandomlyFlipAxis: {apply_to: [lf, lfd], axis: -2}
 
           datasets:
-            - {tensors: {lf: beads.small_2, ls_reg: beads.small_2}, indices: null, sample_transformations: [{Resize: {apply_to: ls_reg, shape: [1.0, 1.0, 0.5, 0.5], order: 2}}]}
+            - {tensors: {lf: dualview.RC_LFD_n156to156_steps4, lfd: dualview.RC_LFD_n156to156_steps4}, sample_transformations: *sample_trfs, indices: 0-271}
 
       validate:
-        metrics: beads_z49.yml
+        metrics: z79_heart_static_for_lfd.yml
         log: *eval_log
         score_metric: smooth_l1_loss-scaled
         period: {value: 1, unit: epoch}
@@ -101,10 +103,10 @@ stages:
           - batch_size: *eval_batch_size
             sample_preprocessing: *eval_sample_prepr
             datasets:
-              - {tensors: {lf: beads.small_0, ls_reg: beads.small_0}, sample_transformations: *sample_trfs, indices: null}
+              - {tensors: {lf: dualview.RC_LFD_n156to156_steps4, lfd: dualview.RC_LFD_n156to156_steps4}, sample_transformations: *sample_trfs, indices: 271-276}
 
   - test:
-      metrics: beads_z49.yml
+      metrics: z79_heart_static_for_lfd.yml
       log: *eval_log
       batch_preprocessing: *eval_batch_prepr
       batch_preprocessing_in_step: *batch_prepr_in_step
@@ -113,4 +115,4 @@ stages:
         - batch_size: *eval_batch_size
           sample_preprocessing: *eval_sample_prepr
           datasets:
-            - {tensors: {lf: beads.small_1, ls_reg: beads.small_1}, sample_transformations: *sample_trfs}
+            - {tensors: {lf: dualview.RC_LFD_n156to156_steps4, lfd: dualview.RC_LFD_n156to156_steps4}, sample_transformations: *sample_trfs, indices: 276-286 }

@@ -119,7 +119,7 @@ class AffineTransformation(torch.nn.Module):
             raise NotImplementedError
 
         if isinstance(ref_output_shape, str):
-            ref_output_shape = get_ref_ls_shape(ref_output_shape)
+            ref_output_shape = get_ls_ref_shape(ref_output_shape)
         if len(ref_output_shape) not in (2, 3):
             raise NotImplementedError
 
@@ -543,9 +543,11 @@ def static():
         get_collate_fn,
         N5CachedDatasetFromInfoSubset,
     )
-    from hylfm.datasets.gcamp import ref0_lr, ref0_ls
+    from hylfm.datasets import get_tensor_info
     from hylfm.transformations import ComposedTransformation, Cast, Crop
 
+    ref0 = get_tensor_info("heart_static.beads_ref_wholeFOV", "ls")
+    ref0 = get_tensor_info("heart_static.beads_ref_wholeFOV", "ls")
     ref0_lr.transformations += [
         {
             "Resize": {
