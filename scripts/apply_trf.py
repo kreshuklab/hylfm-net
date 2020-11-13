@@ -14,10 +14,6 @@ from hylfm.transformations.utils import get_composed_transformation_from_config
 yaml = YAML(typ="safe")
 
 
-def idx2z_slice_209(idx: int) -> int:
-    return 13 + 208 - (idx % 209)
-
-
 if __name__ == "__main__":
     os.nice(10)
     parser = ArgumentParser(description="care inference")

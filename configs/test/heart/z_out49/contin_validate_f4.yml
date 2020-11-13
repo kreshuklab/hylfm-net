@@ -35,7 +35,7 @@ toolbox: # defines yaml placeholders
     - Assert: {apply_to: pred, expected_tensor_shape: [1, *z_out, null, null]}
     - AffineTransformationDynamicTraining: {apply_to: pred, target_to_compare_to: ls_slice, meta: *meta}
 
-  eval_filter_dynamic: &eval_filter_dynamic [[z_range, {z_min: 79, z_max: 218}]]  # 19 + 60, 241-13-10
+  eval_filter_dynamic: &eval_filter_dynamic [[z_range, {z_min: 29, z_max: 218}]]  # 19+10, 241-13-10
   eval_metrics: &eval_metrics heart_dynamic.yml
   eval_log: &eval_log
     TqdmLogger: {}

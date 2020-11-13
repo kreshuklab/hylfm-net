@@ -3,10 +3,8 @@ toolbox: # defines yaml placeholders
   precision: &precision float
   nnum: &nnum 19
   z_out: &z_out 49
-  meta: &meta {nnum: *nnum, z_out: *z_out, scale: &scale 4, shrink: &shrink 8, interpolation_order: 2, z_ls_rescaled: 241, pred_z_min: 83.8, pred_z_max: 754.2, crop_names: &crop_names [wholeFOV]}  # z_min full: 0, z_max full: 838; 60/209*838=241; 838-10/209*838=798
-  nshrink: &nshrink -8
-  eval_batch_size: &eval_batch_size 24
-  score_metric: &score_metric ms_ssim-scaled
+  meta: &meta {nnum: *nnum, z_out: *z_out, scale: &scale 4, shrink: &shrink 8, interpolation_order: 2, z_ls_rescaled: 241, pred_z_min: 83.8, pred_z_max: 754.2, crop_names: &crop_names [Heart_tightCrop]}  # z_min full: 0, z_max full: 838; 60/209*838=241; 838-10/209*838=798
+  eval_batch_size: &eval_batch_size 1
   sample_trfs: &sample_trfs []
   eval_sample_prepr_dynamic: &eval_sample_prepr_dynamic
     - CropWhatShrinkDoesNot: {apply_to: lf, meta: *meta, wrt_ref: true}
@@ -36,7 +34,7 @@ toolbox: # defines yaml placeholders
     - AffineTransformationDynamicTraining: {apply_to: pred, target_to_compare_to: ls_slice, meta: *meta}
 
   train_filter_dynamic: &train_filter_dynamic [[z_range, {z_min: 29, z_max: 218}], [signal2noise, {apply_to: ls_slice, signal_percentile: 99.9, noise_percentile: 5.0, ratio: 1.3}]]
-  eval_filter_dynamic: &eval_filter_dynamic [[z_range, {z_min: 29, z_max: 218}]]  # 19 + 10, 241-13-10
+  eval_filter_dynamic: &eval_filter_dynamic [[z_range, {z_min: 29, z_max: 218}]]  # 19 + 60, 241-13-10
 
 model:
   name: A04
@@ -53,11 +51,30 @@ model:
   checkpoint: "/g/kreshuk/beuttenm/pycharm_tmp/repos/hylfm-net/logs/train/heart/z_out79/dualview_single_lfm_static_f4/20-11-06_16-45-29/train/run000/checkpoints/v1_checkpoint_80_smooth_l1_loss-scaled=-4.366243229014799e-06.pth"
 
 stages:
+  - test_dynamic_00: &test_dynamic
+      metrics: heart_dynamic.yml
+      log:
+        TqdmLogger: {}
+        FileLogger:
+          scalars_every: {value: 1, unit: iteration}
+          tensors_every: {value: 1, unit: iteration}
+          tensor_names: {ls_slice, pred}
+      batch_preprocessing: *eval_batch_prepr
+      batch_preprocessing_in_step: *batch_prepr_in_step_dynamic
+      batch_postprocessing: *batch_postpr_dynamic
+      data:
+        - batch_size: *eval_batch_size
+          sample_transformations: *sample_trfs
+          sample_preprocessing: *eval_sample_prepr_dynamic
+          filters: *eval_filter_dynamic
+          datasets:
+            - {tensors: {lf: heart_dynamic.2019-12-09_04.54.38, ls_slice: heart_dynamic.2019-12-09_04.54.38, meta: *meta}, indices: 0-964}  # (0-4)*241
+
   - train_01:
       max_epochs: 20
       metrics: []
       log: &train_log
-        save_n_checkpoints: 500
+        save_n_checkpoints: 1
         TqdmLogger: {}
         TensorBoardLogger:
           scalars_every: {value: 1, unit: iteration}
@@ -66,8 +83,6 @@ stages:
       criterion: &criterion
         name: SmoothL1Loss
         kwargs: {}
-#        name: WeightedSmoothL1Loss
-#        kwargs: {threshold: 1.0, initial_weight: .05, apply_below_threshold: true, decay_by: .3, every_nth_epoch: 1}
         tensor_names: {prediction: pred, target: ls_slice}
 
       optimizer: &optimizer
@@ -82,26 +97,26 @@ stages:
       batch_preprocessing_in_step: *batch_prepr_in_step_dynamic
       batch_postprocessing: *batch_postpr_dynamic
       data:
-        - batch_size: &train_batch_size 8
+        - batch_size: &train_batch_size 5
           sample_transformations: *sample_trfs
           sample_preprocessing: *train_sample_prepr_dynamic
           filters: *train_filter_dynamic
           datasets:
-            - {tensors: {lf: heart_dynamic.2019-12-02_04.12.36_10msExp, ls_slice: heart_dynamic.2019-12-02_04.12.36_10msExp, meta: *meta}, indices: 964-9399}
+            - {tensors: {lf: heart_dynamic.2019-12-09_04.54.38, ls_slice: heart_dynamic.2019-12-09_04.54.38, meta: *meta}, indices: 964-12291}
 
       validate:
-        metrics: heart_dynamic.yml
+        metrics: heart_dynamic_light.yml
         log:
           TqdmLogger: {}
           TensorBoardLogger:
             scalars_every: {value: 1, unit: epoch}
-            tensors_every: {value: 3, unit: iteration}
+            tensors_every: {value: 8, unit: iteration}
           FileLogger:
             scalars_every: {value: 1, unit: epoch}
             tensors_every: {value: 1, unit: iteration}
-            tensor_names: {ls_slice, pred}
+            tensor_names: {pred}
         score_metric: ms_ssim-scaled
-        period: {value: 50, unit: iteration}
+        period: {value: 25, unit: iteration}
         patience: 30
         batch_preprocessing: *eval_batch_prepr
         batch_preprocessing_in_step: *batch_prepr_in_step_dynamic
@@ -112,26 +127,4 @@ stages:
             sample_preprocessing: *eval_sample_prepr_dynamic
             filters: *eval_filter_dynamic
             datasets:
-              - {tensors: {lf: heart_dynamic.2019-12-02_04.12.36_10msExp, ls_slice: heart_dynamic.2019-12-02_04.12.36_10msExp, meta: *meta}, indices: 0-964}
-
-  - test_dynamic_01: &test_dynamic
-      metrics: heart_dynamic.yml
-      log:
-        TqdmLogger: {}
-        TensorBoardLogger:
-          scalars_every: {value: 1, unit: epoch}
-          tensors_every: {value: 24, unit: iteration}
-        FileLogger:
-          scalars_every: {value: 1, unit: iteration}
-          tensors_every: {value: 1, unit: iteration}
-          tensor_names: {pred}
-      batch_preprocessing: *eval_batch_prepr
-      batch_preprocessing_in_step: *batch_prepr_in_step_dynamic
-      batch_postprocessing: *batch_postpr_dynamic
-      data:
-        - batch_size: *eval_batch_size
-          sample_transformations: *sample_trfs
-          sample_preprocessing: *eval_sample_prepr_dynamic
-          filters: *eval_filter_dynamic
-          datasets:
-            - {tensors: {lf: heart_dynamic.2019-12-02_04.12.36_10msExp, ls_slice: heart_dynamic.2019-12-02_04.12.36_10msExp, meta: *meta}, indices: 0-964}  # (0-4)*241
+              - {tensors: {lf: heart_dynamic.2019-12-09_04.54.38, ls_slice: heart_dynamic.2019-12-09_04.54.38, meta: *meta}, indices: 0-964}
