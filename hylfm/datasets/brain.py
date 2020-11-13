@@ -1,19 +1,15 @@
-import argparse
 import re
-import warnings
 from pathlib import Path
 
 import yaml
 
+from hylfm import settings
 from hylfm.datasets.base import TensorInfo, get_dataset_from_info
-from hylfm.settings import settings
 from hylfm.transformations.affine_utils import (
-    get_lf_shape,
+    get_ls_ref_shape,
     get_precropped_ls_roi_in_raw_ls,
     get_precropped_ls_shape,
     get_raw_lf_shape,
-    get_pred_shape,
-    get_ls_ref_shape,
 )
 
 
@@ -347,7 +343,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         raise NotImplementedError(tag)
 
     # resolve stack_*_channel_* with tag2
-    root_path = getattr(settings.data_roots, root)
+    root_path = settings.data_roots[root]
     location_paths = list((root_path / location).glob(f"stack_*_channel_*/{tag2}/"))
     assert len(location_paths) == 1, (location_paths, tag)
     location_path = location_paths[0]
@@ -356,14 +352,14 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     crop_name = "gcamp"
     if name == "lf":
         transformations = [
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1] + get_raw_lf_shape(crop_name, wrt_ref=True)}}
+            {"Assert": {"apply_to": name, "expected_tensor_shape": [1] + get_raw_lf_shape(crop_name, wrt_ref=True)}}
         ]
         location += f"{tag2}/TP_{TP or '*'}/RC_rectified/Cam_Right_*_rectified.tif"
         samples_per_dataset = 1
     elif name == "ls_slice":
         location = location.replace("TestOutputGcamp/", "")
         transformations = [
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 1, 2048, 2060]}},  # raw ls shape
+            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 2048, 2060]}},  # raw ls shape
             {"FlipAxis": {"apply_to": name, "axis": 2}},
             {
                 "Crop": {
@@ -374,7 +370,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1, 1]
+                    "expected_tensor_shape": [1]
                     + get_precropped_ls_shape(
                         crop_name,
                         for_slice=True,
@@ -400,7 +396,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1, 1]
+                    "expected_tensor_shape": [1]
                     + get_precropped_ls_shape(
                         crop_name,
                         for_slice=True,
@@ -420,7 +416,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1, 1, meta["z_out"]] + get_raw_lf_shape(crop_name, wrt_ref=True),
+                    "expected_tensor_shape": [1, meta["z_out"]] + get_raw_lf_shape(crop_name, wrt_ref=True),
                 }
             },
             {
@@ -433,7 +429,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1, 1, meta["z_out"]]
+                    "expected_tensor_shape": [1, meta["z_out"]]
                     + get_raw_lf_shape(crop_name, nnum=meta["nnum"], scale=meta["scale"], wrt_ref=False),
                 }
             },
@@ -441,7 +437,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         ]
     elif name == "ls_trf":
         transformations = [
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 1, 241, 2048, 2060]}},  # raw ls shape
+            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 241, 2048, 2060]}},  # raw ls shape
             {"FlipAxis": {"apply_to": name, "axis": 2}},
             {"FlipAxis": {"apply_to": name, "axis": 1}},
             {
@@ -453,7 +449,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1, 1]
+                    "expected_tensor_shape": [1]
                     + get_precropped_ls_shape(crop_name, for_slice=False, nnum=meta["nnum"], wrt_ref=True),
                 }
             },

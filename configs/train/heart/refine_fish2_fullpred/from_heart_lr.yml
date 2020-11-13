@@ -34,7 +34,7 @@ toolbox: # defines yaml placeholders
     - AffineTransformationDynamicTraining: {apply_to: pred, target_to_compare_to: ls_slice, meta: *meta}
 
   train_filter_dynamic: &train_filter_dynamic [[z_range, {z_min: 29, z_max: 218}], [signal2noise, {apply_to: ls_slice, signal_percentile: 99.9, noise_percentile: 5.0, ratio: 1.3}]]
-  eval_filter_dynamic: &eval_filter_dynamic [[z_range, {}]]  # 19 , 241-13
+  eval_filter_dynamic: &eval_filter_dynamic [[z_range, {z_min: 29, z_max: 218}]]  # 19 + 60, 241-13-10
 
 model:
   name: A04
@@ -47,7 +47,8 @@ model:
     z_out: *z_out
     n_res2d: [488, 488, u, 244, 244]
 
-  checkpoint: "/g/kreshuk/LF_computed/lnet/logs/heart2/z_out49/static_f4_b2_with5_pois/20-06-13_20-26-33/train2/run000/checkpoints/v1_checkpoint_498_MS_SSIM=0.9710696664723483.pth"
+  z_out_slice_from_larger_weight: [15, 64]
+  checkpoint: "/g/kreshuk/beuttenm/pycharm_tmp/repos/hylfm-net/logs/train/heart/z_out79/dualview_single_lfm_static_f4/20-11-06_16-45-29/train/run000/checkpoints/v1_checkpoint_80_smooth_l1_loss-scaled=-4.366243229014799e-06.pth"
 
 stages:
   - test_dynamic_00: &test_dynamic
@@ -67,4 +68,63 @@ stages:
           sample_preprocessing: *eval_sample_prepr_dynamic
           filters: *eval_filter_dynamic
           datasets:
-            - {tensors: {lf: heart_dynamic.2019-12-09_04.54.38, ls_slice: heart_dynamic.2019-12-09_04.54.38, meta: *meta}, indices: null}  # or first 4 only 0-964 (0-4)*241
+            - {tensors: {lf: heart_dynamic.2019-12-09_04.54.38, ls_slice: heart_dynamic.2019-12-09_04.54.38, meta: *meta}, indices: 0-964}  # (0-4)*241
+
+  - train_01:
+      max_epochs: 20
+      metrics: []
+      log: &train_log
+        save_n_checkpoints: 1
+        TqdmLogger: {}
+        TensorBoardLogger:
+          scalars_every: {value: 1, unit: iteration}
+#          tensors_every: {value: 1, unit: iteration}
+#          tensor_names: [lf, pred, ls_slice]
+      criterion: &criterion
+        name: SmoothL1Loss
+        kwargs: {}
+        tensor_names: {prediction: pred, target: ls_slice}
+
+      optimizer: &optimizer
+        name: Adam
+        kwargs: {lr: 3.0e-4, eps: 1.0e-8}
+
+      sampler: &sampler
+        base: RandomSampler
+        drop_last: true
+
+      batch_preprocessing: *train_batch_prepr
+      batch_preprocessing_in_step: *batch_prepr_in_step_dynamic
+      batch_postprocessing: *batch_postpr_dynamic
+      data:
+        - batch_size: &train_batch_size 5
+          sample_transformations: *sample_trfs
+          sample_preprocessing: *train_sample_prepr_dynamic
+          filters: *train_filter_dynamic
+          datasets:
+            - {tensors: {lf: heart_dynamic.2019-12-09_04.54.38, ls_slice: heart_dynamic.2019-12-09_04.54.38, meta: *meta}, indices: 964-12291}
+
+      validate:
+        metrics: heart_dynamic_light.yml
+        log:
+          TqdmLogger: {}
+          TensorBoardLogger:
+            scalars_every: {value: 1, unit: epoch}
+            tensors_every: {value: 8, unit: iteration}
+          FileLogger:
+            scalars_every: {value: 1, unit: epoch}
+            tensors_every: {value: 1, unit: iteration}
+            tensor_names: {pred}
+        score_metric: ms_ssim-scaled
+        period: {value: 25, unit: iteration}
+        patience: 30
+        batch_preprocessing: *eval_batch_prepr
+        batch_preprocessing_in_step: *batch_prepr_in_step_dynamic
+        batch_postprocessing: *batch_postpr_dynamic
+        data:
+          - batch_size: *eval_batch_size
+            sample_transformations: *sample_trfs
+            sample_preprocessing: *eval_sample_prepr_dynamic
+            filters: *eval_filter_dynamic
+            datasets:
+              - {tensors: {lf: heart_dynamic.2019-12-09_04.54.38, ls_slice: heart_dynamic.2019-12-09_04.54.38, meta: *meta}, indices: 0-964}
