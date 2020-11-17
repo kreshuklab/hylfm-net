@@ -1,0 +1,126 @@
+
+toolbox: # defines yaml placeholders
+  brain_dataset: &brain_dataset brain.11_2__2020-03-11_10.13.20__SinglePlane_-315
+  precision: &precision float
+  nnum: &nnum 19
+  z_out: &z_out 49
+  meta: &meta {nnum: *nnum, z_out: *z_out, scale: &scale 4, shrink: &shrink 8, interpolation_order: 2, z_ls_rescaled: 241, pred_z_min: 142, pred_z_max: 620, crop_names: &crop_names [gcamp]}  # z_min full: 0, z_max full: 838; 60/209*838=241; 838-10/209*838=798
+  eval_batch_size: &eval_batch_size 4
+  sample_trfs: &sample_trfs []
+  eval_sample_prepr_dynamic: &eval_sample_prepr_dynamic
+    - CropWhatShrinkDoesNot: {apply_to: lf, meta: *meta, wrt_ref: true}
+    - CropLSforDynamicTraining: {apply_to: ls_slice, meta: *meta}
+    - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+    - Normalize01: {apply_to: ls_slice, min_percentile: 5.0, max_percentile: 99.99}
+    - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
+  train_sample_prepr_dynamic: &train_sample_prepr_dynamic
+    - CropWhatShrinkDoesNot: {apply_to: lf, meta: *meta, wrt_ref: true}
+    - CropLSforDynamicTraining: {apply_to: ls_slice, meta: *meta}
+    - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+    - Normalize01: {apply_to: ls_slice, min_percentile: 5.0, max_percentile: 99.99}
+    - AdditiveGaussianNoise: {apply_to: lf, sigma: 0.1}
+    - AdditiveGaussianNoise: {apply_to: ls_slice, sigma: 0.05}
+    - RandomIntensityScale: {apply_to: [lf, ls_slice], factor_min: .8, factor_max: 1.2}
+    - RandomlyFlipAxis: {apply_to: [lf, ls_slice], axis: -1}
+    - RandomlyFlipAxis: {apply_to: [lf, ls_slice], axis: -2}
+  eval_batch_prepr: &eval_batch_prepr []
+  train_batch_prepr: &train_batch_prepr
+    - RandomRotate90: {apply_to: [lf, ls_slice]}
+    - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
+  batch_prepr_in_step_dynamic: &batch_prepr_in_step_dynamic
+    - Cast: {apply_to: [lfc, ls_slice], dtype: *precision, device: cuda, non_blocking: true}
+  batch_postpr_dynamic: &batch_postpr_dynamic
+    - Cast: {apply_to: lfc, dtype: *precision, device: cpu, non_blocking: true}
+    - Assert: {apply_to: pred, expected_tensor_shape: [1, *z_out, null, null]}
+    - AffineTransformationDynamicTraining: {apply_to: pred, target_to_compare_to: ls_slice, meta: *meta}
+
+  train_filter_dynamic: &train_filter_dynamic []
+  eval_filter_dynamic: &eval_filter_dynamic []
+
+model:
+  name: A04
+  kwargs:
+    scale: *scale
+    shrink: *shrink
+    input_name: lfc
+    prediction_name: pred
+    nnum: *nnum
+    z_out: *z_out
+    n_res2d: [488, 488, u, 244, 244]
+
+  checkpoint: "/g/kreshuk/LF_computed/lnet/logs/brain1/z_out49/f4_b2_only11_2/20-06-06_17-59-42/train/run000/checkpoints/v1_checkpoint_37500_MS_SSIM=0.8822072593371073.pth"
+
+stages:
+  - train_01:
+      max_epochs: 30
+      metrics: []
+      log: &train_log
+        save_n_checkpoints: 1
+        TqdmLogger: {}
+        TensorBoardLogger:
+          scalars_every: {value: 1, unit: iteration}
+#          tensors_every: {value: 1, unit: iteration}
+#          tensor_names: [lf, pred, ls_slice]
+      criterion: &criterion
+        name: SmoothL1Loss
+        kwargs: {}
+        tensor_names: {prediction: pred, target: ls_slice}
+
+      optimizer: &optimizer
+        name: Adam
+        kwargs: {lr: 3.0e-4, eps: 1.0e-8}
+
+      sampler: &sampler
+        base: RandomSampler
+        drop_last: true
+
+      batch_preprocessing: *train_batch_prepr
+      batch_preprocessing_in_step: *batch_prepr_in_step_dynamic
+      batch_postprocessing: *batch_postpr_dynamic
+      data:
+        - batch_size: &train_batch_size 5
+          sample_transformations: *sample_trfs
+          sample_preprocessing: *train_sample_prepr_dynamic
+          filters: *train_filter_dynamic
+          datasets:
+            - {tensors: {lf: *brain_dataset, ls_slice: *brain_dataset, meta: *meta}, indices: 0-100}
+
+      validate:
+        metrics: brain.yml
+        log:
+          TqdmLogger: {}
+          TensorBoardLogger:
+            scalars_every: {value: 1, unit: epoch}
+            tensors_every: {value: 1, unit: epoch}
+        score_metric: ms_ssim-scaled
+        period: {value: 25, unit: iteration}
+        patience: 20
+        batch_preprocessing: *eval_batch_prepr
+        batch_preprocessing_in_step: *batch_prepr_in_step_dynamic
+        batch_postprocessing: *batch_postpr_dynamic
+        data:
+          - batch_size: *eval_batch_size
+            sample_transformations: *sample_trfs
+            sample_preprocessing: *eval_sample_prepr_dynamic
+            filters: *eval_filter_dynamic
+            datasets:
+              - {tensors: {lf: *brain_dataset, ls_slice: *brain_dataset, meta: *meta}, indices: 100-110}
+
+  - test_dynamic_01:
+      metrics: brain.yml
+      log:
+        TqdmLogger: {}
+        FileLogger:
+          scalars_every: {value: 1, unit: iteration}
+          tensors_every: {value: 1, unit: iteration}
+          tensor_names: {ls_slice, pred}
+      batch_preprocessing: *eval_batch_prepr
+      batch_preprocessing_in_step: *batch_prepr_in_step_dynamic
+      batch_postprocessing: *batch_postpr_dynamic
+      data:
+        - batch_size: *eval_batch_size
+          sample_transformations: *sample_trfs
+          sample_preprocessing: *eval_sample_prepr_dynamic
+          filters: *eval_filter_dynamic
+          datasets:
+            - {tensors: {lf: *brain_dataset, ls_slice: *brain_dataset, meta: *meta}, indices: 100-600}

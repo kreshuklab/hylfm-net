@@ -15,7 +15,7 @@ toolbox: # defines yaml placeholders
   batch_prepr_in_step: &batch_prepr_in_step
     - Cast: {apply_to: [lfc, ls_slice], dtype: float32, device: cuda, non_blocking: true}
   batch_postpr: &batch_postpr
-    - Assert: {apply_to: {pred: pred_vol}, expected_tensor_shape: [null, 1, *z_out, null, null]}
+    - Assert: {apply_to: {pred: pred_vol}, expected_tensor_shape: [1, *z_out, null, null]}
     - AffineTransformationDynamicTraining: {apply_to: pred, target_to_compare_to: ls_slice, meta: *meta}
 
 model:
