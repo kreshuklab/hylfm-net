@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 import typing
+import warnings
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -66,7 +67,6 @@ class ModelSetup:
         assert z_out_slice_from_larger_weight is None or self.checkpoint is not None
         # self.z_out_of_larger_weight = z_out_of_larger_weight
         self.z_out_slice_from_larger_weight = z_out_slice_from_larger_weight
-
 
     def get_model(self, device: torch.device) -> LnetModel:
         model_module = import_module("." + self.name.lower(), "hylfm.models")
@@ -749,7 +749,7 @@ class Setup:
         if isinstance(self.config["device"], int) or "cuda" in self.config["device"]:
             cuda_device_count = torch.cuda.device_count()
             if cuda_device_count == 0:
-                raise RuntimeError("no CUDA devices available!")
+                warnings.warn("no CUDA devices available")
             elif cuda_device_count > 1:
                 raise RuntimeError("too many CUDA devices available! (limit to one)")
 

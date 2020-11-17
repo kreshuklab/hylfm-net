@@ -3,6 +3,7 @@ import logging.config
 import os
 import shutil
 import sys
+import warnings
 from pathlib import Path
 
 from hylfm import settings
@@ -63,12 +64,14 @@ def main(args=None):
     logger.info("cuda env: %s, cuda arg: %s", cuda_env, cuda_arg)
     if cuda_env is None:
         if cuda_arg is None:
-            import torch
+            # import torch
+            #
+            # if torch.cuda.device_count() != 1:
+            #     raise ValueError("'CUDA_VISIBLE_DEVICES' not specified")
+            warnings.warn("'CUDA_VISIBLE_DEVICES' not specified")
+            cuda_arg = ""
 
-            if torch.cuda.device_count() != 1:
-                raise ValueError("'CUDA_VISIBLE_DEVICES' not specified")
-        else:
-            os.environ["CUDA_VISIBLE_DEVICES"] = cuda_arg
+        os.environ["CUDA_VISIBLE_DEVICES"] = cuda_arg
     elif cuda_arg is not None:
         if cuda_env != cuda_arg:
             raise ValueError("env and arg values for 'CUDA_VISIBLE_DEVICES' unequal!")
