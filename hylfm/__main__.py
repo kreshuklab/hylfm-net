@@ -76,9 +76,11 @@ def main(args=None):
         if cuda_env != cuda_arg:
             raise ValueError("env and arg values for 'CUDA_VISIBLE_DEVICES' unequal!")
 
+    device = "cpu" if not cuda_arg else 0
+
     from hylfm.setup import Setup
 
-    setup = Setup.from_yaml(experiment_config, checkpoint=checkpoint)
+    setup = Setup.from_yaml(experiment_config, checkpoint=checkpoint, device=device)
 
     if args.setup:
         log_path = setup.setup()
