@@ -1,0 +1,218 @@
+precision: &precision float
+nnum: &nnum 19
+z_out: &z_out 49
+
+toolbox: # defines yaml placeholders
+  meta: &meta {nnum: *nnum, z_out: *z_out, scale: &scale 4, shrink: &shrink 8, interpolation_order: 2, z_ls_rescaled: 241, pred_z_min: 0, pred_z_max: 838, crop_names: &crop_names [Heart_tightCrop, wholeFOV]}
+  nshrink: &nshrink -8
+  metrics_static: &metrics_static
+    MSSSIM: {tensor_names: {y_pred: pred, y: ls_trf}, window_size: 11, size_average: true, val_range: null, normalize: false}
+    SSIM: {tensor_names: {y_pred: pred, y: ls_trf}, window_size: 11, window: null, size_average: true, full: false, val_range: null}
+    NRMSE: {tensor_names: {y_pred: pred, y: ls_trf}}
+    PSNR: {tensor_names: {y_pred: pred, y: ls_trf}, data_range: null}
+    SmoothL1Loss: {tensor_names: {y_pred: pred, y: ls_trf}}
+    MSELoss: {tensor_names: {y_pred: pred, y: ls_trf}}
+  metrics_dynamic: &metrics_dynamic
+    MSSSIM: {tensor_names: {y_pred: pred, y: ls_slice}, window_size: 11, size_average: true, val_range: null, normalize: false}
+    SSIM: {tensor_names: {y_pred: pred, y: ls_slice}, window_size: 11, window: null, size_average: true, full: false, val_range: null}
+    NRMSE: {tensor_names: {y_pred: pred, y: ls_slice}}
+    PSNR: {tensor_names: {y_pred: pred, y: ls_slice}, data_range: null}
+    SmoothL1Loss: {tensor_names: {y_pred: pred, y: ls_slice}}
+    MSELoss: {tensor_names: {y_pred: pred, y: ls_slice}}
+  eval_batch_size: &eval_batch_size 2
+  sample_trfs: &sample_trfs []
+  eval_sample_prepr_static: &eval_sample_prepr_static
+    - CropWhatShrinkDoesNot: {apply_to: lf, meta: *meta, wrt_ref: true}
+    - CropWhatShrinkDoesNot: {apply_to: ls_trf, meta: *meta, wrt_ref: false}
+    - Crop: {apply_to: ls_trf, crop: [[0, null], [0, null], [*shrink, *nshrink], [*shrink, *nshrink]]}
+    - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+    - Normalize01: {apply_to: ls_trf, min_percentile: 5.0, max_percentile: 99.99}
+    - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
+  eval_sample_prepr_dynamic: &eval_sample_prepr_dynamic
+    - CropWhatShrinkDoesNot: {apply_to: lf, meta: *meta, wrt_ref: true}
+    - CropLSforDynamicTraining: {apply_to: ls_slice, meta: *meta}
+    - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+    - Normalize01: {apply_to: ls_slice, min_percentile: 5.0, max_percentile: 99.99}
+    - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
+  eval_batch_prepr: &eval_batch_prepr []
+  batch_prepr_in_step_static: &batch_prepr_in_step_static
+    - Cast: {apply_to: [lfc, ls_trf], dtype: *precision, device: cuda, non_blocking: true}
+  batch_prepr_in_step_dynamic: &batch_prepr_in_step_dynamic
+    - Cast: {apply_to: [lfc, ls_slice], dtype: *precision, device: cuda, non_blocking: true}
+  batch_postpr_static: &batch_postpr_static
+    - Assert: {apply_to: pred, expected_tensor_shape: [null, 1, *z_out, null, null]}
+  batch_postpr_dynamic: &batch_postpr_dynamic
+    - Cast: {apply_to: lfc, dtype: *precision, device: cpu, non_blocking: true}
+    - Assert: {apply_to: pred, expected_tensor_shape: [null, 1, *z_out, null, null]}
+    - AffineTransformationDynamicTraining: {apply_to: pred, target_to_compare_to: ls_slice, meta: *meta}
+
+model:
+  name: A04
+  kwargs:
+    scale: *scale
+    shrink: *shrink
+    input_name: lfc
+    prediction_name: pred
+    nnum: *nnum
+    z_out: *z_out
+    n_res2d: [488, 488, u, 244, 244]
+#    n_res3d: [[7], [7], [7]]
+  checkpoint: #[logs, heart0/z_out49/dyn_f4/20-05-11_02-28-21/train/run000/checkpoints/v1_checkpoint_MSSSIM=0.5921046029437672.pth]
+
+stages:
+  - train:
+      max_epochs: 500
+      metrics: {}
+      log:
+        save_n_checkpoints: 2
+        TqdmLogger: {}
+        TensorBoardLogger:
+          scalars_every: {value: 10, unit: iteration}
+          tensors_every: {value: 100, unit: iteration}
+          tensor_names: [lf, pred, ls_slice]
+        FileLogger:
+          scalars_every: {value: 1, unit: epoch}
+      criterion:
+#        name: MSELoss
+#        kwargs: {}
+        name: WeightedSmoothL1Loss
+        kwargs: {threshold: 1.0, initial_weight: .05, apply_below_threshold: true, decay_by: .3, every_nth_epoch: 1}
+        tensor_names: {input: pred, target: ls_slice}
+
+      optimizer:
+        name: Adam
+        kwargs: {lr: 1.0e-4, eps: 1.0e-8}
+
+      sampler:
+        base: RandomSampler
+        drop_last: false
+
+      batch_preprocessing:
+        - RandomRotate90: {apply_to: [lf, ls_slice]}
+        - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
+      batch_preprocessing_in_step: *batch_prepr_in_step_dynamic
+      batch_postprocessing: *batch_postpr_dynamic
+      data:
+        - batch_size: 2
+          sample_transformations: *sample_trfs
+          sample_preprocessing:
+            - CropWhatShrinkDoesNot: {apply_to: lf, meta: *meta, wrt_ref: true}
+            - CropLSforDynamicTraining: {apply_to: ls_slice, meta: *meta}
+            - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+            - Normalize01: {apply_to: ls_slice, min_percentile: 5.0, max_percentile: 99.99}
+            - AdditiveGaussianNoise: {apply_to: lf, sigma: 0.1}
+            - AdditiveGaussianNoise: {apply_to: ls_slice, sigma: 0.05}
+            - RandomIntensityScale: {apply_to: [lf, ls_slice], factor_min: .8, factor_max: 1.2}
+            - RandomlyFlipAxis: {apply_to: [lf, ls_slice], axis: -1}
+            - RandomlyFlipAxis: {apply_to: [lf, ls_slice], axis: -2}
+          filters: [[z_range, {}], [signal2noise, {apply_to: ls_slice, signal_percentile: 99.9, noise_percentile: 5.0, ratio: 1.3}]]
+          datasets:
+            - {tensors: {lf: heart_dynamic.2019-12-02_04.12.36_10msExp, ls_slice: heart_dynamic.2019-12-02_04.12.36_10msExp, meta: *meta}}
+        - batch_size: 2
+          sample_transformations: *sample_trfs
+          sample_preprocessing:
+            - CropWhatShrinkDoesNot: {apply_to: lf, meta: *meta, wrt_ref: true}
+            - CropLSforDynamicTraining: {apply_to: ls_slice, meta: *meta}
+            - Normalize01: {apply_to: lf, min_percentile: 5.0, max_percentile: 99.8}
+            - Normalize01: {apply_to: ls_slice, min_percentile: 5.0, max_percentile: 99.99}
+            - AdditiveGaussianNoise: {apply_to: lf, sigma: 0.1}
+            - AdditiveGaussianNoise: {apply_to: ls_slice, sigma: 0.05}
+            - RandomIntensityScale: {apply_to: [lf, ls_slice], factor_min: .8, factor_max: 1.2}
+            - RandomlyFlipAxis: {apply_to: [lf, ls_slice], axis: -1}
+            - RandomlyFlipAxis: {apply_to: [lf, ls_slice], axis: -2}
+          filters: [[z_range, {}], [signal2noise, {apply_to: ls_slice, signal_percentile: 99.9, noise_percentile: 5.0, ratio: 1.3}]]
+          datasets:
+            - {tensors: {lf: heart_dynamic.2019-12-02_23.17.56, ls_slice: heart_dynamic.2019-12-02_23.17.56, meta: *meta}}
+            - {tensors: {lf: heart_dynamic.2019-12-02_23.43.24, ls_slice: heart_dynamic.2019-12-02_23.43.24, meta: *meta}}
+            - {tensors: {lf: heart_dynamic.2019-12-02_23.50.04, ls_slice: heart_dynamic.2019-12-02_23.50.04, meta: *meta}}
+            - {tensors: {lf: heart_dynamic.2019-12-08_23.43.42, ls_slice: heart_dynamic.2019-12-08_23.43.42, meta: *meta}, indices: 0-20244-20}
+            - {tensors: {lf: heart_dynamic.2019-12-09_23.10.02, ls_slice: heart_dynamic.2019-12-09_23.10.02, meta: *meta}}
+            - {tensors: {lf: heart_dynamic.2019-12-09_23.17.30, ls_slice: heart_dynamic.2019-12-09_23.17.30, meta: *meta}}
+            - {tensors: {lf: heart_dynamic.2019-12-09_23.19.41, ls_slice: heart_dynamic.2019-12-09_23.19.41, meta: *meta}, indices: 0-8194-3}
+            - {tensors: {lf: heart_dynamic.2019-12-10_00.40.09, ls_slice: heart_dynamic.2019-12-10_00.40.09, meta: *meta}}
+            - {tensors: {lf: heart_dynamic.2019-12-10_00.51.54, ls_slice: heart_dynamic.2019-12-10_00.51.54, meta: *meta}}
+            - {tensors: {lf: heart_dynamic.2019-12-10_01.03.50, ls_slice: heart_dynamic.2019-12-10_01.03.50, meta: *meta}, indices: 0-4820-2}
+            - {tensors: {lf: heart_dynamic.2019-12-10_01.25.44, ls_slice: heart_dynamic.2019-12-10_01.25.44, meta: *meta}}
+            - {tensors: {lf: heart_dynamic.2019-12-10_02.13.34, ls_slice: heart_dynamic.2019-12-10_02.13.34, meta: *meta}, indices: 0-11086-4}
+
+      validate:
+        metrics: *metrics_static
+        log:
+          TqdmLogger: {}
+          TensorBoardLogger:
+            scalars_every: {value: 1, unit: epoch}
+            tensors_every: {value: 1, unit: epoch}
+            tensor_names: [lf, pred, ls_trf]
+          FileLogger:
+            scalars_every: {value: 1, unit: epoch}
+            tensors_every: {value: 1, unit: iteration}
+            tensor_names: {lf, ls_trf, pred}
+        score_metric: MSSSIM
+        period: {value: 500, unit: iteration}
+        patience: 30
+        batch_preprocessing: *eval_batch_prepr
+        batch_preprocessing_in_step: *batch_prepr_in_step_static
+        batch_postprocessing: *batch_postpr_static
+        data:
+          - batch_size: *eval_batch_size
+            sample_preprocessing: *eval_sample_prepr_static
+            filters: []
+            datasets:
+              - {tensors: {lf: heart_static.2019-12-08_06.35.52, ls_trf: heart_static.2019-12-08_06.35.52, meta: *meta}, indices: 0}
+              - {tensors: {lf: heart_static.2019-12-08_06.38.47, ls_trf: heart_static.2019-12-08_06.38.47, meta: *meta}, indices: 0}
+              - {tensors: {lf: heart_static.2019-12-08_06.10.34, ls_trf: heart_static.2019-12-08_06.10.34, meta: *meta}, indices: 0}
+              - {tensors: {lf: heart_static.2019-12-08_06.41.39, ls_trf: heart_static.2019-12-08_06.41.39, meta: *meta}, indices: 0}
+              - {tensors: {lf: heart_static.2019-12-08_06.18.09, ls_trf: heart_static.2019-12-08_06.18.09, meta: *meta}, indices: 0}
+              - {tensors: {lf: heart_static.2019-12-08_06.46.09, ls_trf: heart_static.2019-12-08_06.46.09, meta: *meta}, indices: 0}
+              - {tensors: {lf: heart_static.2019-12-08_06.23.13, ls_trf: heart_static.2019-12-08_06.23.13, meta: *meta}, indices: 0}
+              - {tensors: {lf: heart_static.2019-12-08_06.49.08, ls_trf: heart_static.2019-12-08_06.49.08, meta: *meta}, indices: 0}
+              - {tensors: {lf: heart_static.2019-12-08_06.25.02, ls_trf: heart_static.2019-12-08_06.25.02, meta: *meta}, indices: 0}
+              - {tensors: {lf: heart_static.2019-12-08_06.51.57, ls_trf: heart_static.2019-12-08_06.51.57, meta: *meta}, indices: 0}
+              - {tensors: {lf: heart_static.2019-12-08_06.30.40, ls_trf: heart_static.2019-12-08_06.30.40, meta: *meta}, indices: 0}
+
+  - test_static:
+      metrics: *metrics_static
+      log:
+        TqdmLogger: {}
+        TensorBoardLogger:
+          scalars_every: {value: 1, unit: epoch}
+          tensors_every: {value: 1, unit: epoch}
+        FileLogger:
+          scalars_every: {value: 1, unit: epoch}
+          tensors_every: {value: 1, unit: iteration}
+          tensor_names: {lf, ls_trf, pred}
+      batch_preprocessing: *eval_batch_prepr
+      batch_preprocessing_in_step: *batch_prepr_in_step_static
+      batch_postprocessing: *batch_postpr_static
+      data:
+        - batch_size: *eval_batch_size
+          sample_transformations: *sample_trfs
+          sample_preprocessing: *eval_sample_prepr_static
+          filters: []
+          datasets:
+            - {tensors: {lf: heart_static.2019-12-09_08.41.41, ls_trf: heart_static.2019-12-09_08.41.41, meta: *meta}}
+
+  - test_dynamic:
+      metrics: *metrics_dynamic
+      log:
+        TqdmLogger: {}
+        TensorBoardLogger:
+          scalars_every: {value: 1, unit: epoch}
+          tensors_every: {value: 1, unit: epoch}
+        FileLogger:
+          scalars_every: {value: 1, unit: epoch}
+          tensors_every: {value: 1, unit: iteration}
+          tensor_names: {lf, ls_slice, pred}
+      batch_preprocessing: *eval_batch_prepr
+      batch_preprocessing_in_step: *batch_prepr_in_step_dynamic
+      batch_postprocessing: *batch_postpr_dynamic
+      data:
+        - batch_size: *eval_batch_size
+          sample_transformations: *sample_trfs
+          sample_preprocessing: *eval_sample_prepr_dynamic
+          filters: [[z_range, {}]]
+          datasets:
+            - {tensors: {lf: heart_dynamic.2019-12-09_04.54.38, ls_slice: heart_dynamic.2019-12-09_04.54.38, meta: *meta}, indices: 0-241}
+#            - {tensors: {lf: heart_dynamic.2019-12-09_05.21.16, ls_slice: heart_dynamic.2019-12-09_05.21.16, meta: *meta}}
+#            - {tensors: {lf: heart_dynamic.2019-12-09_05.41.14_theGoldenOne, ls_slice: heart_dynamic.2019-12-09_05.41.14_theGoldenOne, meta: *meta}}
+#            - {tensors: {lf: heart_dynamic.2019-12-09_05.55.26, ls_slice: heart_dynamic.2019-12-09_05.55.26, meta: *meta}}

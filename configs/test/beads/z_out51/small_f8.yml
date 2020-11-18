@@ -8,6 +8,8 @@ model:
     nnum: &nnum 19
     z_out:  51
   precision: &precision float
+  checkpoint: "/g/kreshuk/LF_computed/lnet/logs/beads/z_out51/4mu_f4/20-04-28_10-23-55/train/checkpoints/v1_checkpoint_SmoothL1Loss=-5.5897066583080836e-05.pth"
+
 
 stages:
   - test:

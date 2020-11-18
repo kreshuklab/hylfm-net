@@ -2,8 +2,8 @@
 toolbox: # defines yaml placeholders
   precision: &precision float
   nnum: &nnum 19
-  z_out: &z_out 49
-  meta: &meta {nnum: *nnum, z_out: *z_out, scale: &scale 4, shrink: &shrink 8, interpolation_order: 2, z_ls_rescaled: 241, pred_z_min: 0, pred_z_max: 838, crop_names: &crop_names [Heart_tightCrop]}  # z_min full: 0, z_max full: 838; 60/209*838=241; 838-10/209*838=798
+  z_out: &z_out 51
+  meta: &meta {nnum: *nnum, z_out: *z_out, scale: &scale 8, shrink: &shrink 8, interpolation_order: 2, z_ls_rescaled: 241, pred_z_min: 0, pred_z_max: 838, crop_names: &crop_names [Heart_tightCrop]}  # z_min full: 0, z_max full: 838; 60/209*838=241; 838-10/209*838=798
   eval_batch_size: &eval_batch_size 1
   sample_trfs: &sample_trfs []
   eval_sample_prepr_dynamic: &eval_sample_prepr_dynamic
@@ -45,9 +45,9 @@ model:
     prediction_name: pred
     nnum: *nnum
     z_out: *z_out
-    n_res2d: [488, 488, u, 244, 244]
+#    n_res2d: [488, 488, u, 244, 244]
 
-  checkpoint: "/g/kreshuk/LF_computed/lnet/logs/heart2/z_out49/static_f4_b2_with5_pois/20-06-13_20-26-33/train2/run000/checkpoints/v1_checkpoint_498_MS_SSIM=0.9710696664723483.pth"
+  checkpoint: "/g/kreshuk/beuttenm/pycharm_tmp/repos/hylfm-net/logs/train/heart/z_out51/static_f8/20-10-28_15-57-34/train/run000/checkpoints/v1_checkpoint_407_ms_ssim-scaled=0.9690031842751936.pth"
 
 stages:
   - test_dynamic_00: &test_dynamic
@@ -67,4 +67,4 @@ stages:
           sample_preprocessing: *eval_sample_prepr_dynamic
           filters: *eval_filter_dynamic
           datasets:
-            - {tensors: {lf: heart_dynamic.2019-12-09_04.54.38, ls_slice: heart_dynamic.2019-12-09_04.54.38, meta: *meta}, indices: null}  # or first 4 only 0-964 (0-4)*241
+            - {tensors: {lf: heart_dynamic.2019-12-09_04.54.38, ls_slice: heart_dynamic.2019-12-09_04.54.38, meta: *meta}, indices: 0-964}  # or first 4 only 0-964 (0-4)*241
