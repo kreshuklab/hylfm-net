@@ -12,7 +12,7 @@ model:
 
 
 stages:
-  - test:
+  - test_medium:
       metrics: beads.yml
       log:
         TqdmLogger: {}
@@ -38,7 +38,8 @@ stages:
             - ChannelFromLightField: {apply_to: {lf: lfc}, nnum: *nnum}
 
           datasets:
-            - tensors: {lf: beads.small_1, ls_reg: beads.small_1}
+            - tensors: {lf: local.beads.b4mu_3, ls_reg: local.beads.b4mu_3}
+              indices: 0-35
               sample_transformations:
                 - Resize: {apply_to: ls_reg, shape: [1.0, 121, 0.42105263157894736842105263157895, 0.42105263157894736842105263157895, ], order: 2}  # 0.42105263157894736842105263157895‬=8/19
                 - Assert: {apply_to: ls_reg, expected_tensor_shape: [1, 121, null, null]}

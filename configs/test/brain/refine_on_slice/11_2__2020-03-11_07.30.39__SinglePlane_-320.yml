@@ -47,7 +47,9 @@ model:
     z_out: *z_out
     n_res2d: [488, 488, u, 244, 244]
 
-  checkpoint: "/g/kreshuk/LF_computed/lnet/logs/brain1/z_out49/f4_b2_only11_2/20-06-06_17-59-42/train/run000/checkpoints/v1_checkpoint_37500_MS_SSIM=0.8822072593371073.pth"
+#  checkpoint: "/g/kreshuk/LF_computed/lnet/logs/brain1/z_out49/f4_b2_only11_2/20-06-06_17-59-42/train/run000/checkpoints/v1_checkpoint_37500_MS_SSIM=0.8822072593371073.pth"
+#  checkpoint: "/g/kreshuk/beuttenm/pycharm_tmp/repos/hylfm-net/logs/train/brain/refine_on_slice/11_2__2020-03-11_07.30.39__SinglePlane_-310/20-11-13_23-03-42/train_01/run000/checkpoints/v1_checkpoint_600_ms_ssim-scaled=0.9476699113845826.pth"
+  checkpoint: "/g/kreshuk/beuttenm/pycharm_tmp/repos/hylfm-net/logs/train/brain/refine_on_slice/11_2__2020-03-11_07.30.39__SinglePlane_-320/20-11-13_23-01-39/train_01/run000/checkpoints/v1_checkpoint_600_ms_ssim-scaled=0.9680954575538635.pth"
 
 stages:
   - training_scores:
