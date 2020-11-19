@@ -72,7 +72,9 @@ def main(args=None):
             cuda_arg = ""
 
         os.environ["CUDA_VISIBLE_DEVICES"] = cuda_arg
-    elif cuda_arg is not None:
+    elif cuda_arg is None:
+        cuda_arg = cuda_env
+    else:
         if cuda_env != cuda_arg:
             raise ValueError("env and arg values for 'CUDA_VISIBLE_DEVICES' unequal!")
 

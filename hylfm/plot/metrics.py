@@ -1,4 +1,5 @@
 import typing
+import warnings
 from argparse import ArgumentParser
 from collections import OrderedDict, defaultdict
 from pathlib import Path
@@ -14,6 +15,8 @@ yaml = YAML(typ="safe")
 
 
 def get_datasets(all_paths, scalar_data, metric_name, z_slice_mod):
+    # pprint(all_paths)
+    # pprint({k: {kk: {kkk: p  for kkk, p in vv.items() if not p.exists()} for kk, vv in v.items()} for k, v in all_paths.items()})
     length = None
     lengths = None
     datasets = []
@@ -236,7 +239,8 @@ def add_plot(plot_name, axes):
     #     # "Smooth L1",
     # ]  # , "PSNR", "MSE", "NRMSE", "SSIM", "MS-SSIM", None]
     # metrics = ["PSNR"]
-    metrics = ["Precision", "Recall"]
+    # metrics = ["Precision", "Recall"]
+    metrics = ["MS-SSIM", "PSNR"]
     # legends = [None, {}, None, None, None, None]
 
     avg_values = {}
@@ -249,40 +253,41 @@ def add_plot(plot_name, axes):
             sd.append(k)  # key
 
         # ax = axes[i]
-        if plot_name.startswith("heart_static_1"):
-            if metric_name == "MSE":
-                ax.set_ylim(0, 0.006)
-            elif metric_name == "NRMSE":
-                ax.set_ylim(0.2645, 1.6)
-            elif metric_name == "PSNR":
-                ax.set_ylim(19.8, 48)
-            elif metric_name == "SSIM":
-                ax.set_ylim(0.255, 1.0)
-            elif metric_name == "MS-SSIM":
-                ax.set_ylim(-0.1, 1.1)
-            elif metric_name == "Smooth L1":
-                ax.set_ylim(0, 0.006)
-            else:
-                raise NotImplementedError
-        elif plot_name.startswith("heart_dynamic_1"):
-            if metric_name == "MSE":
-                ax.set_ylim(0, 0.006)
-            elif metric_name == "NRMSE":
-                ax.set_ylim(0.56, 1.01)
-            elif metric_name == "PSNR":
-                ax.set_ylim(23, 48)
-            elif metric_name == "SSIM":
-                ax.set_ylim(0.61, 1)
-            elif metric_name == "MS-SSIM":
-                ax.set_ylim(0.74, 1)
-            elif metric_name == "Smooth L1":
-                ax.set_ylim(0, 0.006)
-            else:
-                raise NotImplementedError
+        # if plot_name.startswith("heart_static_1"):
+        #     if metric_name == "MSE":
+        #         ax.set_ylim(0, 0.006)
+        #     elif metric_name == "NRMSE":
+        #         ax.set_ylim(0.2645, 1.6)
+        #     elif metric_name == "PSNR":
+        #         ax.set_ylim(19.8, 48)
+        #     elif metric_name == "SSIM":
+        #         ax.set_ylim(0.255, 1.0)
+        #     elif metric_name == "MS-SSIM":
+        #         ax.set_ylim(-0.1, 1.1)
+        #     elif metric_name == "Smooth L1":
+        #         ax.set_ylim(0, 0.006)
+        #     else:
+        #         # warnings.warn(f"default limits for {metric_name}")
+        #         raise NotImplementedError(metric_name)
+        # elif plot_name.startswith("heart_dynamic_1"):
+        #     if metric_name == "MSE":
+        #         ax.set_ylim(0, 0.006)
+        #     elif metric_name == "NRMSE":
+        #         ax.set_ylim(0.56, 1.01)
+        #     elif metric_name == "PSNR":
+        #         ax.set_ylim(23, 48)
+        #     elif metric_name == "SSIM":
+        #         ax.set_ylim(0.61, 1)
+        #     elif metric_name == "MS-SSIM":
+        #         ax.set_ylim(0.74, 1)
+        #     elif metric_name == "Smooth L1":
+        #         ax.set_ylim(0, 0.006)
+        #     else:
+        #         raise NotImplementedError
 
-        if metric_name is None:
-            ax.axis("off")
-            continue
+        # if metric_name is None:
+        #     ax.axis("off")
+        #     continue
 
         # print(scalar_df)
         datasets, z_slice, z = get_datasets(all_paths, scalar_data_here, metric_name, z_slice_mod)
@@ -423,10 +428,11 @@ def add_plot(plot_name, axes):
         y="metric_value",
         hue="network",
         # size="threshold",
-        col="threshold",
+        # col="threshold",  # for beads?!
         row="metric_name",
         palette=palette,
         height=5,
+        ci="sd",
         # aspect=0.75,
         # facet_kws=dict(sharex=False),
         kind="line",
@@ -434,8 +440,40 @@ def add_plot(plot_name, axes):
         # legend="out",
         data=df,
     )
-    # for ax in g.axes:
-    #     print(ax)
+    for metric_name, ax in zip(metrics, g.axes[0]):
+        # print(axes)
+        # ax = axes[0]
+        if plot_name.startswith("heart_static_1"):
+            if metric_name == "MSE":
+                ax.set_ylim(0, 0.006)
+            elif metric_name == "NRMSE":
+                ax.set_ylim(0.2645, 1.6)
+            elif metric_name == "PSNR":
+                ax.set_ylim(19.8, 48)
+            elif metric_name == "SSIM":
+                ax.set_ylim(0.255, 1.0)
+            elif metric_name == "MS-SSIM":
+                ax.set_ylim(-0.1, 1.1)
+            elif metric_name == "Smooth L1":
+                ax.set_ylim(0, 0.006)
+            else:
+                # warnings.warn(f"default limits for {metric_name}")
+                raise NotImplementedError(metric_name)
+        elif plot_name.startswith("heart_dynamic_1"):
+            if metric_name == "MSE":
+                ax.set_ylim(0, 0.006)
+            elif metric_name == "NRMSE":
+                ax.set_ylim(0.56, 1.01)
+            elif metric_name == "PSNR":
+                ax.set_ylim(23, 48)
+            elif metric_name == "SSIM":
+                ax.set_ylim(0.61, 1)
+            elif metric_name == "MS-SSIM":
+                ax.set_ylim(0.74, 1)
+            elif metric_name == "Smooth L1":
+                ax.set_ylim(0, 0.006)
+            else:
+                raise NotImplementedError
     #
     # g.set_titles("{col_name}")
 
@@ -453,21 +491,21 @@ if __name__ == "__main__":
     # fig, axes = plt.subplots(2, 2, figsize=(6, 5))
     # fig, axes = plt.subplots(4, 1, figsize=(3, 10))
     # fig, axes = plt.subplots(1, 2, figsize=(6, 3))
-    # fig, axes = plt.subplots(2, 1, figsize=(12, 6))
-    # if isinstance(axes, numpy.ndarray):
-    #     axes = axes.flatten()
-    # else:
-    #     axes = [axes]
+    fig, axes = plt.subplots(2, 1, figsize=(12, 6))
+    if isinstance(axes, numpy.ndarray):
+        axes = axes.flatten()
+    else:
+        axes = [axes]
 
     plot_name = ""
-    # axes = add_plot("heart_static_1", axes)
-    # plot_name += "heart_static_1"
+    axes = add_plot("heart_static_1", axes)
+    plot_name += "heart_static_1"
     # axes = add_plot("heart_dynamic_1", axes)
     # plot_name += "heart_dynamic_1"
     # axes = add_plot("beads", axes)
     # plot_name += "beads"
-    axes = add_plot("beads_pr", [])
-    plot_name += "beads_pr"
+    # axes = add_plot("beads_pr", [])
+    # plot_name += "beads_pr"
 
     # plt.tight_layout()
     out_dir = Path("/Users/fbeut/Desktop/lnet_stuff/plots/figs")

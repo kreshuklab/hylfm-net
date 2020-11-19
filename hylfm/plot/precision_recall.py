@@ -16,6 +16,9 @@ yaml = YAML(typ="safe")
 
 
 def add_plot(plot_name, axes, out_dir):
+    plt.rcParams['svg.fonttype'] = 'none'
+    seaborn.set_context("talk")
+
     metric_postfix = ""
     use_local_data = False
 
@@ -65,13 +68,13 @@ def add_plot(plot_name, axes, out_dir):
                 "0.75",
                 "0.5",
                 "0.25",
-                "0.1",
+                "0.1",  # a
                 "0.075",
-                "0.05",
+                "0.05",  # b
                 "0.025",
-                "0.01",
+                "0.01",  # c
                 "0.0075",
-                "0.005",
+                "0.005",  # d
                 "0.0025",
                 "0.001",
                 "0.0005",
@@ -418,7 +421,7 @@ def add_plot(plot_name, axes, out_dir):
     #     data=df,
     # )
     df["abs(z)"] = numpy.abs(df["z"])
-    df = df[numpy.logical_and(df["threshold"] > 0.001, df["threshold"] < 0.5)]
+    # df = df[numpy.logical_and(df["threshold"] > 0.001, df["threshold"] < 0.5)]  # changed here
     # df = df["abs(z)"] < 40]
 
     z_mean_df = df.groupby(["network", "hyperparameter_name"], as_index=False).mean()
@@ -442,11 +445,13 @@ def add_plot(plot_name, axes, out_dir):
         # legend="out",
         data=z_mean_df,
     )
+    g.fig.axes[0].set_xlim(0, 1)
+    g.fig.axes[0].set_ylim(0, 1)
 
     plt.savefig(out_dir / f"{plot_name}z_mean.png")
     plt.savefig(out_dir / "svgs" / f"{plot_name}z_mean.svg")
 
-    for selected_threshold in [0.1, 0.05, 0.01]:
+    for selected_threshold in [0.1, 0.05, 0.01, 0.005]:
         z_rolling_df = (
             df[df["threshold"] == selected_threshold]
             .groupby(["network", "hyperparameter_name"])
@@ -474,6 +479,9 @@ def add_plot(plot_name, axes, out_dir):
             data=z_rolling_df,
         )
         g.axes[0, 0].set_title(f"threshold={selected_threshold}")
+        g.fig.axes[0].set_xlim(0, 1)
+        g.fig.axes[0].set_ylim(0, 1)
+
         plt.tight_layout()
         plt.savefig(out_dir / f"{plot_name}_threshold={selected_threshold}.png")
         plt.savefig(out_dir / "svgs" / f"{plot_name}_threshold={selected_threshold}.svg")

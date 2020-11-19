@@ -61,7 +61,8 @@ class Settings:
 
         self.data_roots = {k: Path(v) for k, v in self.data_roots.items()}
 
-        os.nice(self.nice)
+        if hasattr(os, "nice"):
+            os.nice(self.nice)
 
         for numpy_env_var in [
             "OMP_NUM_THREADS",
