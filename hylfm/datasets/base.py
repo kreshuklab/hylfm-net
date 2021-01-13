@@ -11,6 +11,7 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from functools import partial
 from hashlib import sha224 as hash_algorithm
 from pathlib import Path
+from time import sleep
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import h5py
@@ -121,6 +122,7 @@ class TensorInfo:
             "z_slice": self.z_slice.__name__ if callable(self.z_slice) else self.z_slice,
             "skip_indices": list(self.skip_indices),
             "kwargs": self.kwargs,
+            "repeat": self.repeat,
         }
 
         return yaml.safe_dump(descr)
@@ -377,14 +379,24 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
 
     def __getitem__(self, idx) -> typing.OrderedDict[str, numpy.ndarray]:
         idx = int(idx)
-        idx //= self.repeat
+        phys_idx = idx // self.repeat
         if self.from_source:
-            tensor = self.dataset[idx][self.dataset.tensor_name]
+            tensor = self.dataset[phys_idx][self.dataset.tensor_name]
         else:
-            self.submit(idx)  # .result()
+            if idx % self.repeat == 0:
+                self.submit(phys_idx)  # .result()
+            else:
+                for patience in range(50):
+                    if self.ready(phys_idx):
+                        break
+                    else:
+                        sleep(0.5)
+                else:
+                    raise RuntimeError(f"idx {phys_idx} not ready, but requested as idx//repeat {idx}//{self.repeat}")
+
             z5dataset = self.data_file[self.dataset.tensor_name]
-            assert idx < z5dataset.shape[0], z5dataset.shape
-            tensor = z5dataset[idx : idx + 1]
+            assert phys_idx < z5dataset.shape[0], z5dataset.shape
+            tensor = z5dataset[phys_idx : phys_idx + 1]
 
         return OrderedDict([(self.dataset.tensor_name, tensor)])
 
@@ -400,7 +412,6 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
         if self.ready(idx):
             return idx
         else:
-            assert self.repeat == 1, "could write same idx in parallel"
             return self.process(idx)
 
     def process(self, idx: int) -> int:
@@ -437,11 +448,14 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
         if not mask_description_file_path.exists():
             mask_description_file_path.write_text(description)
 
-        logger.debug("using dataset mask %s", mask_description_file_path)
+        logger.warning("using dataset mask %s", mask_description_file_path)
         if mask_file_path.exists():
-            mask: numpy.ndarray = numpy.repeat(numpy.load(str(mask_file_path)), dataset.repeat)
+            # mask: numpy.ndarray = numpy.repeat(numpy.load(str(mask_file_path)), dataset.repeat)
+            mask: numpy.ndarray = numpy.load(str(mask_file_path))
         else:
-            assert dataset.repeat == 1, "don't compute anything on the repeated dataset!"
+            if dataset.repeat == 1:
+                warnings.warn("computing stat on a repeated dataset!")
+
             mask = numpy.zeros(len(dataset), dtype=bool)
             mask[numpy.asarray(indices)] = True
             for name, kwargs in filters:
@@ -640,3 +654,5 @@ class ConcatDataset(torch.utils.data.ConcatDataset):
         for ds in self.datasets:
             if hasattr(ds, "shutdown"):
                 ds.shutdown()
+
+

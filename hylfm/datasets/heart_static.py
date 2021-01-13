@@ -528,6 +528,16 @@ def debug():
     #     plt.show()
 
 
+def check_fake_dyn(tag: str, meta: dict, cache=True):
+    print("get lf")
+    lf = get_dataset_from_info(get_tensor_info(tag, "lf_repeat241", meta=meta), cache=cache)
+    print("len lf", len(lf))
+
+    print("get ls_slice (fake)")
+    ls_slice = get_dataset_from_info(get_tensor_info(tag, "ls_slice", meta=meta), cache=cache)
+    assert len(ls_slice) == len(lf), (len(ls_slice), len(lf))
+
+
 def check_data(tag: str, meta: dict):
     # print("get lr")
     # lr = get_dataset_from_info(get_tensor_info(tag, "lr", meta=meta))
@@ -575,5 +585,8 @@ if __name__ == "__main__":
         "pred_z_max": 838,
     }
 
-    tag = "2019-12-09_08.41.41"  # "2019-12-08_06.57.57", "2019-12-08_06.59.59", "2019-12-08_10.32.03"
-    check_data(tag, meta=meta)
+    tag = (
+        "2019-12-08_06.10.34"
+    )  # "2019-12-08_06.10.34", "2019-12-08_06.57.57", "2019-12-08_06.59.59", "2019-12-08_10.32.03"
+    # check_data(tag, meta=meta)
+    check_fake_dyn(tag, meta=meta)
