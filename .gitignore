@@ -1,3 +1,18 @@
+cache/
+download/
+logs/
+
+hylfm/_settings/local.py
+hylfm/datasets/local/**
+!hylfm/datasets/local/example.py
+
+notebooks/**/*.svg
+notebooks/**/*.npy
+notebooks/**/*.tif
+notebooks/**/*.pgf
+notebooks/**/*.ps
+notebooks/**/*.png
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -43,10 +43,13 @@ class HyLFM_Net(nn.Module):
         kernel3d: int = 3,
         conv_per_block3d: int = 2,
         c_res3d: Sequence[str] = (7, "u7", 7, 7),
-        init_fn: InitName = InitName.xavier_uniform,
+        init_fn: Union[InitName, str] = InitName.xavier_uniform,
         final_activation: Optional[Literal["sigmoid"]] = None,
     ):
         super().__init__()
+        if isinstance(init_fn, str):
+            init_fn = getattr(self.InitName, init_fn)
+
         init_fn = getattr(nn.init, init_fn.value)
         self.c_res2d = list(c_res2d)
         self.c_res3d = list(c_res3d)
@@ -62,8 +65,6 @@ class HyLFM_Net(nn.Module):
 
         # z_out += 4 * (len(c_res3d) - 2 * sum([layer == "u" for layer in c_res3d]))  # add z_out for valid 3d convs
 
-        print("z_out", z_out)
-
         assert c_res2d[-1] != "u", "missing # output channels for upsampling in 'c_res2d'"
         assert c_res3d[-1] != "u", "missing # output channels for upsampling in 'c_res3d'"
 
@@ -73,7 +74,6 @@ class HyLFM_Net(nn.Module):
         for i in range(len(c_res2d)):
             if not isinstance(c_res2d[i], int) and c_res2d[i].startswith("u"):
                 c_out = int(c_res2d[i][1:])
-                print("2d up: in", c_in, "out", c_out)
                 res2d.append(
                     nn.ConvTranspose2d(
                         in_channels=c_in, out_channels=c_out, kernel_size=2, stride=2, padding=0, output_padding=0
@@ -81,7 +81,6 @@ class HyLFM_Net(nn.Module):
                 )
             else:
                 c_out = int(c_res2d[i])
-                print("2d: in", c_in, "out", c_out)
                 res2d.append(
                     ResnetBlock(
                         in_n_filters=c_in,
@@ -112,7 +111,6 @@ class HyLFM_Net(nn.Module):
         for i in range(len(c_res3d)):
             if not isinstance(c_res3d[i], int) and c_res3d[i].startswith("u"):
                 c_out = int(c_res3d[i][1:])
-                print("3d up: in", c_in, "out", c_out)
                 res3d.append(
                     nn.ConvTranspose3d(
                         in_channels=c_in,
@@ -125,7 +123,6 @@ class HyLFM_Net(nn.Module):
                 )
             else:
                 c_out = int(c_res3d[i])
-                print("3d: in", c_in, "out", c_out)
                 res3d.append(
                     ResnetBlock(
                         in_n_filters=c_in,
