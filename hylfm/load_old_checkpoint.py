@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 def get_config_for_old_checkpoint(checkpoint: Path) -> Dict[str, Any]:
     if checkpoint.name == "v1_checkpoint_498_MS_SSIM=0.9710696664723483.pth":  # heart stat
-        return {"model_kwargs": {
+        return {"model": {
             "nnum": 19,
             "z_out": 49,
             "kernel2d": 3,
@@ -61,7 +61,7 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> Dict[str, Any]:
             "final_activation": None,
         }}
     elif checkpoint.name == "v1_checkpoint_SmoothL1Loss=-0.00016112386947497725.pth":  # beads f4
-        return {"model_kwargs": {
+        return {"model": {
             "nnum": 19,
             "z_out": 51,
             "kernel2d": 3,

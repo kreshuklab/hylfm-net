@@ -1,13 +1,14 @@
 import collections
 from enum import Enum
-from typing import Any, Dict, List, Optional, OrderedDict, Sequence, Tuple, Union
+from typing import Any, Dict, List, NamedTuple, Optional, OrderedDict, Sequence, Tuple, Union
 
+import numpy
 import torch.utils.data
 
 from hylfm.datasets import ConcatDataset, TensorInfo, ZipDataset, get_dataset_from_info, get_tensor_info
-from hylfm.datasets.utils import indice_string_to_list
 from hylfm.transformations import (
     AdditiveGaussianNoise,
+    Cast,
     ChannelFromLightField,
     ComposedTransformation,
     Crop,
@@ -27,7 +28,7 @@ def identity(tensors: OrderedDict) -> OrderedDict:
 
 def get_dataset_subsection(
     tensors: Dict[str, Union[str, dict]],
-    indices: Optional[Union[str, int, List[int]]] = None,
+    indices: Optional[Union[int, slice, List[int], numpy.ndarray]] = None,
     filters: Sequence[Tuple[str, Dict[str, Any]]] = tuple(),
     preprocess_sample: Sequence[Dict[str, Dict[str, Any]]] = tuple(),
     augment_sample: TransformLike = Identity(),
@@ -54,13 +55,10 @@ def get_dataset_subsection(
 
     if isinstance(indices, list):
         assert all(isinstance(i, int) for i in indices)
-        indices = indices
     elif isinstance(indices, int):
         indices = [indices]
-    elif isinstance(indices, str):
-        indices = indice_string_to_list(indices)
     elif indices is None:
-        pass
+        indices = slice(None)
     else:
         raise NotImplementedError(indices)
 
@@ -88,6 +86,13 @@ class DatasetPart(str, Enum):
     whole = "whole"
 
 
+class DatasetAndTransforms(NamedTuple):
+    dataset: ConcatDataset
+    batch_preprocessing: TransformLike
+    batch_preprocessing_in_step: TransformLike
+    batch_postprocessing: TransformLike
+
+
 def get_dataset(
     name: DatasetName, part: DatasetPart, nnum: int, z_out: int, scale: int, shrink: int, interpolation_order: int = 2
 ):
@@ -98,6 +103,10 @@ def get_dataset(
         "interpolation_order": interpolation_order,
         "crop_names": set(),
     }
+    batch_preprocessing = Identity()
+    batch_preprocessing_in_step = Identity()
+    batch_postprocessing = Identity()
+
     sections = []
     if name == DatasetName.beads_sample0:
         indices = {
@@ -106,6 +115,7 @@ def get_dataset(
             DatasetPart.validate: [1],
             DatasetPart.test: [2],
         }[part]
+        batch_preprocessing_in_step = Cast(apply_to=["lfc", "ls_reg"], dtype="float32", device="cuda", non_blocking=True)
         preprocess_sample = [
             {"Resize": {"apply_to": "ls_reg", "shape": [1.0, 121, scale / 19, scale / 19], "order": 2}},
             {"Assert": {"apply_to": "ls_reg", "expected_tensor_shape": [1, 121, None, None]}},
@@ -141,6 +151,7 @@ def get_dataset(
             ]
         )
     elif name == DatasetName.beads_small0:
+        batch_preprocessing_in_step = Cast(apply_to=["lfc", "ls_reg"], dtype="float32", device="cuda", non_blocking=True)
         if part in [DatasetPart.whole, DatasetPart.train]:
             if meta["scale"] != 8:
                 # due to size zenodo upload is resized to scale 8
@@ -222,6 +233,7 @@ def get_dataset(
                 )
 
     elif name == DatasetName.heart_static0:
+        batch_preprocessing_in_step = Cast(apply_to=["lfc", "ls_trf"], dtype="float32", device="cuda", non_blocking=True)
         preprocess_sample = []
         if part == DatasetPart.train:
             augment_sample = ComposedTransformation(
@@ -313,7 +325,7 @@ def get_dataset(
                     get_dataset_subsection(
                         tensors=tensors,
                         filters=[],
-                        indices="1-",
+                        indices=slice(1, None, None),
                         preprocess_sample=preprocess_sample,
                         augment_sample=augment_sample,
                     )
@@ -324,4 +336,9 @@ def get_dataset(
     else:
         raise NotImplementedError(name)
 
-    return ConcatDataset(sections)
+    return DatasetAndTransforms(
+        ConcatDataset([torch.utils.data.ConcatDataset(subsections) for subsections in sections]),
+        batch_preprocessing,
+        batch_preprocessing_in_step,
+        batch_postprocessing,
+    )

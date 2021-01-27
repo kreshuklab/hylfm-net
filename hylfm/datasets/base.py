@@ -425,7 +425,7 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
     def __init__(
         self,
         dataset: N5CachedDatasetFromInfo,
-        indices: Optional[Sequence[int]] = None,
+        indices: Optional[Union[slice, Sequence[int]]] = None,
         filters: Sequence[Tuple[str, Dict[str, Any]]] = tuple(),
     ):
         super().__init__(dataset=dataset)
@@ -434,11 +434,19 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
             dataset.dataset.description
             + "\n"
             + yaml.safe_dump(
-                {"indices": None if indices is None else list(indices), "filters": [list(fil) for fil in filters]}
+                {
+                    "indices": None
+                    if indices is None
+                    else str(indices)
+                    if isinstance(indices, slice)
+                    else list(indices),
+                    "filters": [list(fil) for fil in filters],
+                }
             )
         )
         self.description = description
-        indices = numpy.arange(len(dataset)) if indices is None else indices
+        indices = slice(None) if indices is None else indices
+        indices = numpy.arange(len(dataset))[indices] if isinstance(indices, slice) else indices
         mask_file_path = (
             settings.cache_dir
             / f"{dataset.dataset.info.tag}_{hash_algorithm(description.encode()).hexdigest()}.index_mask.npy"

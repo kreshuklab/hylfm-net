@@ -189,17 +189,18 @@ class HyLFM_Net(nn.Module):
         self.load_state_dict(converted)
 
     def get_scale(self, ipt_shape: Optional[Tuple[int, int]] = None) -> float:
-        s = max(1, 2 * sum(isinstance(res2d, str) and "u" in res2d for res2d in self.c_res2d)) * max(
-            1, 2 * len([up3d for up3d in self.c_res3d if len(up3d) == 2])
+        s = max(1, 2 * sum(isinstance(res2d, str) and res2d.startswith("u") for res2d in self.c_res2d)) * max(
+            1, 2 * sum(isinstance(res3d, str) and res3d.startswith("u") for res3d in self.c_res3d)
         )
         return s
 
     def get_shrink(self, ipt_shape: Optional[Tuple[int, int]] = None) -> int:
         s = 0
-        for up3d in self.c_res3d:
-            s += 2
-            if len(up3d) > 1:
+        for res in self.c_res3d:
+            if isinstance(res, str) and res.startswith("u"):
                 s *= 2
+            else:
+                s += 2
 
         return s
 
