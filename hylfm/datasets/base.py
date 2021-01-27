@@ -652,8 +652,3 @@ class ConcatDataset(torch.utils.data.ConcatDataset):
             sample = self.transform(sample)
 
         return sample
-
-    def shutdown(self):
-        for ds in self.datasets:
-            if hasattr(ds, "shutdown"):
-                ds.shutdown()

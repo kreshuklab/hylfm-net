@@ -1,24 +1,36 @@
 import collections
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, OrderedDict
+from typing import Any, Dict, List, Optional, OrderedDict, Sequence, Tuple, Union
 
 import torch.utils.data
 
 from hylfm.datasets import ConcatDataset, TensorInfo, ZipDataset, get_dataset_from_info, get_tensor_info
 from hylfm.datasets.utils import indice_string_to_list
-from hylfm.transformations.utils import get_composed_transformation_from_config
+from hylfm.transformations import (
+    AdditiveGaussianNoise,
+    ChannelFromLightField,
+    ComposedTransformation,
+    Crop,
+    CropWhatShrinkDoesNot,
+    Identity,
+    Normalize01,
+    PoissonNoise,
+    RandomIntensityScale,
+    RandomlyFlipAxis,
+    TransformLike,
+)
 
 
 def identity(tensors: OrderedDict) -> OrderedDict:
     return tensors
 
 
-def get_dataset_section(
+def get_dataset_subsection(
     tensors: Dict[str, Union[str, dict]],
     indices: Optional[Union[str, int, List[int]]] = None,
     filters: Sequence[Tuple[str, Dict[str, Any]]] = tuple(),
     preprocess_sample: Sequence[Dict[str, Dict[str, Any]]] = tuple(),
-    augment_sample: Sequence[Dict[str, Dict[str, Any]]] = tuple(),
+    augment_sample: TransformLike = Identity(),
 ) -> torch.utils.data.Dataset:
     filters = list(filters)
     infos = collections.OrderedDict()
@@ -59,7 +71,7 @@ def get_dataset_section(
                 for name, dsinfo in infos.items()
             ]
         ),
-        transformation=get_composed_transformation_from_config(list(augment_sample)),
+        transformation=augment_sample,
     )
 
 
@@ -77,25 +89,17 @@ class DatasetPart(str, Enum):
 
 
 def get_dataset(
-    name: DatasetName,
-    part: DatasetPart,
-    meta: Dict[str, Any],
-    augment_sample: Sequence[Dict[str, Dict[str, Any]]] = tuple(),
+    name: DatasetName, part: DatasetPart, nnum: int, z_out: int, scale: int, shrink: int, interpolation_order: int = 2
 ):
-    assert "nnum" in meta
-    assert "z_out" in meta
-    assert "scale" in meta
-
-    if "interpolation_order" not in meta:
-        meta["interpolation_order"] = 2
-
-    assert "crop_names" not in meta
-
-    meta["crop_names"] = set()  # [Heart_tightCrop, wholeFOV, staticHeartFOV]
-
+    meta = {
+        "nnum": nnum,
+        "z_out": z_out,
+        "scale": scale,
+        "interpolation_order": interpolation_order,
+        "crop_names": set(),
+    }
     sections = []
     if name == DatasetName.beads_sample0:
-        filters = []
         indices = {
             DatasetPart.whole: [0, 1, 2],
             DatasetPart.train: [0],
@@ -103,126 +107,220 @@ def get_dataset(
             DatasetPart.test: [2],
         }[part]
         preprocess_sample = [
-            {"Resize": {"apply_to": "ls_reg", "shape": [1.0, 121, meta["scale"] / 19, meta["scale"] / 19], "order": 2}},
+            {"Resize": {"apply_to": "ls_reg", "shape": [1.0, 121, scale / 19, scale / 19], "order": 2}},
             {"Assert": {"apply_to": "ls_reg", "expected_tensor_shape": [1, 121, None, None]}},
         ]
-        sections.append(
-            get_dataset_section(
-                tensors={"lf": "local.beads.b01highc_0", "ls_reg": "local.beads.b01highc_0", "meta": meta},
-                filters=filters,
-                indices=indices,
-                preprocess_sample=preprocess_sample,
-                augment_sample=augment_sample,
+        augment_sample = (
+            ComposedTransformation(
+                Crop(apply_to="ls_reg", crop=((0, None), (35, -35), (shrink, -shrink), (shrink, -shrink))),
+                Normalize01(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
+                Normalize01(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
+                AdditiveGaussianNoise(apply_to="lf", sigma=0.1),
+                AdditiveGaussianNoise(apply_to="ls_reg", sigma=0.05),
+                RandomIntensityScale(apply_to=["lf", "ls_reg"], factor_min=0.8, factor_max=1.2),
+                RandomlyFlipAxis(apply_to=["lf", "ls_reg"], axis=-1),
+                RandomlyFlipAxis(apply_to=["lf", "ls_reg"], axis=-2),
+            )
+            if part == DatasetPart.train
+            else ComposedTransformation(
+                Crop(apply_to="ls_reg", crop=((0, None), (35, -35), (shrink, -shrink), (shrink, -shrink))),
+                Normalize01(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
+                Normalize01(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
+                ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum),
             )
         )
-    elif name == DatasetName.beads_small0:
-        filters = []
-        indices = None
-        if part in [DatasetPart.whole, DatasetPart.train]:
-            if meta["scale"] != 8:
-                # due to size zenodo upload is resized to scale 8
-                preprocess_sample = [{"Resize": {"apply_to": "ls_reg", "shape": [1.0, 1.0, meta["scale"] / 8, meta["scale"] / 8], "order": 2}}]
-            else:
-                preprocess_sample = []
-
-            sections.append(
-                get_dataset_section(
-                    tensors={"lf": f"beads.small_2", "ls_reg": f"beads.small_2", "meta": meta},
-                    filters=filters,
+        sections.append(
+            [
+                get_dataset_subsection(
+                    tensors={"lf": "local.beads.b01highc_0", "ls_reg": "local.beads.b01highc_0", "meta": meta},
+                    filters=[],
                     indices=indices,
                     preprocess_sample=preprocess_sample,
                     augment_sample=augment_sample,
                 )
+            ]
+        )
+    elif name == DatasetName.beads_small0:
+        if part in [DatasetPart.whole, DatasetPart.train]:
+            if meta["scale"] != 8:
+                # due to size zenodo upload is resized to scale 8
+                preprocess_sample = [
+                    {
+                        "Resize": {
+                            "apply_to": "ls_reg",
+                            "shape": [1.0, 1.0, meta["scale"] / 8, meta["scale"] / 8],
+                            "order": 2,
+                        }
+                    }
+                ]
+            else:
+                preprocess_sample = []
+
+            sections.append(
+                [
+                    get_dataset_subsection(
+                        tensors={"lf": f"beads.small_2", "ls_reg": f"beads.small_2", "meta": meta},
+                        filters=[],
+                        indices=None,
+                        preprocess_sample=preprocess_sample,
+                        augment_sample=ComposedTransformation(
+                            Crop(apply_to="ls_reg", crop=((0, None), (35, -35), (shrink, -shrink), (shrink, -shrink))),
+                            Normalize01(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
+                            Normalize01(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
+                            AdditiveGaussianNoise(apply_to="lf", sigma=0.1),
+                            AdditiveGaussianNoise(apply_to="ls_reg", sigma=0.05),
+                            RandomIntensityScale(apply_to=["lf", "ls_reg"], factor_min=0.8, factor_max=1.2),
+                            RandomlyFlipAxis(apply_to=["lf", "ls_reg"], axis=-1),
+                            RandomlyFlipAxis(apply_to=["lf", "ls_reg"], axis=-2),
+                        ),
+                    )
+                ]
             )
 
         if part in [DatasetPart.whole, DatasetPart.validate, DatasetPart.test]:
             preprocess_sample = [
-                {"Resize": {"apply_to": "ls_reg", "shape": [1.0, 121, meta["scale"] / 19, meta["scale"] / 19], "order": 2}},
+                {
+                    "Resize": {
+                        "apply_to": "ls_reg",
+                        "shape": [1.0, 121, meta["scale"] / 19, meta["scale"] / 19],
+                        "order": 2,
+                    }
+                },
                 {"Assert": {"apply_to": "ls_reg", "expected_tensor_shape": [1, 121, None, None]}},
             ]
+            augment_sample = ComposedTransformation(
+                Crop(apply_to="ls_reg", crop=((0, None), (35, -35), (shrink, -shrink), (shrink, -shrink))),
+                Normalize01(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
+                Normalize01(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
+                ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum),
+            )
+
             if part in [DatasetPart.whole, DatasetPart.validate]:
                 sections.append(
-                    get_dataset_section(
-                        tensors={"lf": f"beads.small_0", "ls_reg": f"beads.small_0", "meta": meta},
-                        filters=filters,
-                        indices=indices,
-                        preprocess_sample=preprocess_sample,
-                        augment_sample=augment_sample,
-                    )
+                    [
+                        get_dataset_subsection(
+                            tensors={"lf": f"beads.small_0", "ls_reg": f"beads.small_0", "meta": meta},
+                            filters=[],
+                            indices=None,
+                            preprocess_sample=preprocess_sample,
+                            augment_sample=augment_sample,
+                        )
+                    ]
                 )
 
             if part in [DatasetPart.whole, DatasetPart.test]:
                 sections.append(
-                    get_dataset_section(
-                        tensors={"lf": f"beads.small_1", "ls_reg": f"beads.small_1", "meta": meta},
-                        filters=filters,
-                        indices=indices,
-                        preprocess_sample=preprocess_sample,
-                        augment_sample=augment_sample,
-                    )
+                    [
+                        get_dataset_subsection(
+                            tensors={"lf": f"beads.small_1", "ls_reg": f"beads.small_1", "meta": meta},
+                            filters=[],
+                            indices=None,
+                            preprocess_sample=preprocess_sample,
+                            augment_sample=augment_sample,
+                        )
+                    ]
                 )
 
     elif name == DatasetName.heart_static0:
-        filters = []
-        indices = None
         preprocess_sample = []
+        if part == DatasetPart.train:
+            augment_sample = ComposedTransformation(
+                CropWhatShrinkDoesNot(apply_to="lf", meta=meta, wrt_ref=True),
+                CropWhatShrinkDoesNot(apply_to="ls_trf", meta=meta, wrt_ref=False),
+                Crop(apply_to="ls_trf", crop=((0, None), (0, None), (shrink, -shrink), (shrink, -shrink))),
+                Normalize01(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
+                Normalize01(apply_to="ls_trf", min_percentile=5.0, max_percentile=99.99),
+                RandomIntensityScale(apply_to=["lf", "ls_trf"], factor_min=0.8, factor_max=1.2),
+                PoissonNoise(apply_to="lf", peak=10),
+                PoissonNoise(apply_to="ls_trf", peak=10),
+                RandomlyFlipAxis(apply_to=["lf", "ls_trf"], axis=-1),
+                RandomlyFlipAxis(apply_to=["lf", "ls_trf"], axis=-2),
+            )
+        else:
+            augment_sample = ComposedTransformation(
+                CropWhatShrinkDoesNot(apply_to="lf", meta=meta, wrt_ref=True),
+                CropWhatShrinkDoesNot(apply_to="ls_trf", meta=meta, wrt_ref=False),
+                Crop(apply_to="ls_trf", crop=((0, None), (0, None), (shrink, -shrink), (shrink, -shrink))),
+                Normalize01(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
+                Normalize01(apply_to="ls_trf", min_percentile=5.0, max_percentile=99.99),
+                ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum),
+            )
 
         if part in [DatasetPart.whole, DatasetPart.train]:
+            subsections = []
             for tag in [  # fish3
                 "2019-12-10_04.24.29",
-                # "2019-12-10_05.14.57",
-                # "2019-12-10_05.41.48",
-                # "2019-12-10_06.03.37",
-                # "2019-12-10_06.25.14",
+                "2019-12-10_05.14.57",
+                "2019-12-10_05.41.48",
+                "2019-12-10_06.03.37",
+                "2019-12-10_06.25.14",
             ]:
                 meta["crop_names"].add("staticHeartFOV")
                 tensors = {"lf": f"heart_static.{tag}", "ls_trf": f"heart_static.{tag}", "meta": meta}
-                sections.append(
-                    get_dataset_section(
+                subsections.append(
+                    get_dataset_subsection(
                         tensors=tensors,
-                        filters=filters,
-                        indices=indices,
+                        filters=[],
+                        indices=None,
                         preprocess_sample=preprocess_sample,
                         augment_sample=augment_sample,
                     )
                 )
-        """
-            - 
-              augment_sample: *train_sample_prep
-              filters: []
-              datasets:
-                - {tensors: {lf: heart_static.2019-12-10_04.24.29, ls_trf: heart_static.2019-12-10_04.24.29, meta: *meta}} # fish3
-                - {tensors: {lf: heart_static.2019-12-10_05.14.57, ls_trf: heart_static.2019-12-10_05.14.57, meta: *meta}} # fish3
-                - {tensors: {lf: heart_static.2019-12-10_05.41.48, ls_trf: heart_static.2019-12-10_05.41.48, meta: *meta}} # fish3
-                - {tensors: {lf: heart_static.2019-12-10_06.03.37, ls_trf: heart_static.2019-12-10_06.03.37, meta: *meta}} # fish3
-                - {tensors: {lf: heart_static.2019-12-10_06.25.14, ls_trf: heart_static.2019-12-10_06.25.14, meta: *meta}} # fish3
-            - transform_sample: *sample_trfs
-              augment_sample: *train_sample_prep
-              filters: []
-              datasets:
-                - {tensors: {lf: heart_static.2019-12-09_02.16.30, ls_trf: heart_static.2019-12-09_02.16.30, meta: *meta}} # fish1
-                - {tensors: {lf: heart_static.2019-12-09_02.23.01, ls_trf: heart_static.2019-12-09_02.23.01, meta: *meta}} # fish1
-                - {tensors: {lf: heart_static.2019-12-09_02.29.34, ls_trf: heart_static.2019-12-09_02.29.34, meta: *meta}} # fish1
-                - {tensors: {lf: heart_static.2019-12-09_02.35.49, ls_trf: heart_static.2019-12-09_02.35.49, meta: *meta}} # fish1
-                - {tensors: {lf: heart_static.2019-12-09_02.42.03, ls_trf: heart_static.2019-12-09_02.42.03, meta: *meta}} # fish1
-                - {tensors: {lf: heart_static.2019-12-09_02.48.24, ls_trf: heart_static.2019-12-09_02.48.24, meta: *meta}} # fish1
-                - {tensors: {lf: heart_static.2019-12-09_02.54.46, ls_trf: heart_static.2019-12-09_02.54.46, meta: *meta}} # fish1
-            - transform_sample: *sample_trfs
-              augment_sample: *train_sample_prep
-              filters: []
-              datasets:
-                - {tensors: {lf: heart_static.2019-12-08_06.35.52, ls_trf: heart_static.2019-12-08_06.35.52, meta: *meta}, indices: 1-} # fish5 val selected
-                - {tensors: {lf: heart_static.2019-12-08_06.38.47, ls_trf: heart_static.2019-12-08_06.38.47, meta: *meta}, indices: 1-} # fish5 val selected
-                - {tensors: {lf: heart_static.2019-12-08_06.10.34, ls_trf: heart_static.2019-12-08_06.10.34, meta: *meta}, indices: 1-} # fish5 val selected
-                - {tensors: {lf: heart_static.2019-12-08_06.41.39, ls_trf: heart_static.2019-12-08_06.41.39, meta: *meta}, indices: 1-} # fish5 val selected
-                - {tensors: {lf: heart_static.2019-12-08_06.18.09, ls_trf: heart_static.2019-12-08_06.18.09, meta: *meta}, indices: 1-} # fish5 val selected
-                - {tensors: {lf: heart_static.2019-12-08_06.46.09, ls_trf: heart_static.2019-12-08_06.46.09, meta: *meta}, indices: 1-} # fish5 val selected
-                - {tensors: {lf: heart_static.2019-12-08_06.23.13, ls_trf: heart_static.2019-12-08_06.23.13, meta: *meta}, indices: 1-} # fish5 val selected
-                - {tensors: {lf: heart_static.2019-12-08_06.49.08, ls_trf: heart_static.2019-12-08_06.49.08, meta: *meta}, indices: 1-} # fish5 val selected
-                - {tensors: {lf: heart_static.2019-12-08_06.25.02, ls_trf: heart_static.2019-12-08_06.25.02, meta: *meta}, indices: 1-} # fish5 val selected
-                - {tensors: {lf: heart_static.2019-12-08_06.51.57, ls_trf: heart_static.2019-12-08_06.51.57, meta: *meta}, indices: 1-} # fish5 val selected
-                - {tensors: {lf: heart_static.2019-12-08_06.30.40, ls_trf: heart_static.2019-12-08_06.30.40, meta: *meta}, indices: 1-} # fish5 val selected
-        """
+
+            sections.append(subsections)
+
+            subsections = []
+            for tag in [  # fish1
+                "2019-12-09_02.16.30",
+                "2019-12-09_02.23.01",
+                "2019-12-09_02.29.34",
+                "2019-12-09_02.35.49",
+                "2019-12-09_02.42.03",
+                "2019-12-09_02.48.24",
+                "2019-12-09_02.54.46",
+            ]:
+                meta["crop_names"].add("Heart_tightCrop")
+                tensors = {"lf": f"heart_static.{tag}", "ls_trf": f"heart_static.{tag}", "meta": meta}
+                subsections.append(
+                    get_dataset_subsection(
+                        tensors=tensors,
+                        filters=[],
+                        indices=None,
+                        preprocess_sample=preprocess_sample,
+                        augment_sample=augment_sample,
+                    )
+                )
+
+            sections.append(subsections)
+
+            subsections = []
+            for tag in [  # fish5
+                "2019-12-08_06.35.52",
+                "2019-12-08_06.38.47",
+                "2019-12-08_06.10.34",
+                "2019-12-08_06.41.39",
+                "2019-12-08_06.18.09",
+                "2019-12-08_06.46.09",
+                "2019-12-08_06.23.13",
+                "2019-12-08_06.49.08",
+                "2019-12-08_06.25.02",
+                "2019-12-08_06.51.57",
+                "2019-12-08_06.30.40",
+            ]:
+                meta["crop_names"].add("Heart_tightCrop")
+                tensors = {"lf": f"heart_static.{tag}", "ls_trf": f"heart_static.{tag}", "meta": meta}
+                subsections.append(
+                    get_dataset_subsection(
+                        tensors=tensors,
+                        filters=[],
+                        indices="1-",
+                        preprocess_sample=preprocess_sample,
+                        augment_sample=augment_sample,
+                    )
+                )
+
+            sections.append(subsections)
+
     else:
         raise NotImplementedError(name)
 

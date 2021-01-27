@@ -13,13 +13,13 @@ def load_state_from_checkpoint(checkpoint: Path) -> dict:
 
 
 def load_model_from_state(checkpoint: Path, state: dict):
-    model_kwargs = state.get("model_kwargs", None)
-    if model_kwargs is None:
+    config = state.get("config", None)
+    if config is None:
         config = get_config_for_old_checkpoint(checkpoint)
-        model_kwargs = config["model_kwargs"]
 
-    model = get_model(**model_kwargs)
+    model = get_model(**config["model"])
     model.load_state_dict(state["model"], strict=True)
+    return model, config
 
 
 def load_model_from_checkpoint(checkpoint: Path):

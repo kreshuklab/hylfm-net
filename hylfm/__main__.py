@@ -2,10 +2,15 @@ import logging.config
 from pathlib import Path
 
 from merge_args import merge_args
+from torch.utils.data import DataLoader, SequentialSampler
 
+from hylfm import settings
+from hylfm.datasets import get_collate_fn
 from hylfm.get_model import app as app_get_model, get_model
 from hylfm.datasets.named import DatasetName, DatasetPart, get_dataset
 from hylfm.load_checkpoint import load_model_from_checkpoint
+from hylfm.sampler import NoCrossBatchSampler
+from hylfm import transformations
 
 try:
     from typing import Literal
@@ -49,7 +54,7 @@ app.add_typer(app_get_model, name="model")
 def preprocess(
     dataset: DatasetName, part: DatasetPart = DatasetPart.whole, scale: int = 4, z_out: int = 49, nnum: int = 19
 ):
-    data = get_dataset(dataset, part, meta={"scale": scale, "z_out": z_out, "nnum": nnum})
+    get_dataset(dataset, part, meta={"scale": scale, "z_out": z_out, "nnum": nnum})
 
 
 @app.command()
@@ -87,6 +92,38 @@ def train(**model_kwargs,):
 @app.command()
 def test(checkpoint: Path, dataset: DatasetName):
     model = load_model_from_checkpoint(checkpoint)
+
+
+@app.command()
+def predict(checkpoint: Path, dataset_name: DatasetName, part: DatasetPart, batch_size: int = 1):
+    model, config = load_model_from_checkpoint(checkpoint)
+    nnum = model.nnum()
+    z_out = model.z_out
+    scale = model.get_scale()
+    assert nnum == config["nnum"]
+    assert z_out == config["z_out"]
+    assert scale == config["scale"]
+
+    dataset = get_dataset(dataset_name, part, meta={"scale": scale, "z_out": z_out, "nnum": nnum})
+
+    sample_augmentation =
+    batch_preprocessing = transformations.Identity()
+    batch_preprocessing_in_step = transformations.Cast(apply_to=["lfc", "ls_trf"], dtype="float32", device="cuda", non_blocking=True)
+
+    dataloader = DataLoader(
+        dataset=dataset,
+        batch_sampler=NoCrossBatchSampler(dataset, sampler_class=SequentialSampler, batch_sizes=[batch_size] * len(dataset.cumulative_sizes), drop_last=False),
+        collate_fn=get_collate_fn(batch_transformation=batch_preprocessing),
+        num_workers=settings.num_workers_train_data_loader,
+        pin_memory=settings.pin_memory,
+
+        dataset=dataset,
+        batch_size=batch_size,
+        collate_fn=partial(collate_and_batch_trf, trf=batch_preprocessing),
+        pin_memory=settings.PIN_MEMORY,
+        num_workers=settings.NUM_WORKERS_TEST_DATA_LOADER,
+    )
+
 
 
 if __name__ == "__main__":
