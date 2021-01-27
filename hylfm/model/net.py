@@ -54,6 +54,7 @@ class HyLFM_Net(nn.Module):
         self.c_res2d = list(c_res2d)
         self.c_res3d = list(c_res3d)
         c_res3d = c_res3d
+        self.nnum = nnum
         self.z_out = z_out
         if kernel3d != 3:
             raise NotImplementedError("z_out expansion for other res3d kernel")
@@ -187,22 +188,22 @@ class HyLFM_Net(nn.Module):
                 converted[sk] = converted_v
         self.load_state_dict(converted)
 
-    def get_scaling(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[float, float]:
+    def get_scale(self, ipt_shape: Optional[Tuple[int, int]] = None) -> float:
         s = max(1, 2 * sum(isinstance(res2d, str) and "u" in res2d for res2d in self.c_res2d)) * max(
             1, 2 * len([up3d for up3d in self.c_res3d if len(up3d) == 2])
         )
-        return s, s
+        return s
 
-    def get_shrinkage(self, ipt_shape: Optional[Tuple[int, int]] = None) -> Tuple[int, int]:
+    def get_shrink(self, ipt_shape: Optional[Tuple[int, int]] = None) -> int:
         s = 0
         for up3d in self.c_res3d:
             s += 2
             if len(up3d) > 1:
                 s *= 2
 
-        return s, s
+        return s
 
     def get_output_shape(self, ipt_shape: Tuple[int, int]) -> Tuple[int, int, int]:
-        return (self.z_out,) + tuple(
-            i * sc - 2 * sr for i, sc, sr in zip(ipt_shape, self.get_scaling(), self.get_shrinkage())
-        )
+        scale = self.get_scaling(ipt_shape)
+        shrink = self.get_shrink(ipt_shape)
+        return (self.z_out,) + tuple(i * scale - 2 * shrink for i in ipt_shape)
