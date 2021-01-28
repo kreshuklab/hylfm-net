@@ -1,7 +1,7 @@
 import logging
 import re
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,23 @@ def get_paths(location: Path):
 
     return sorted(found_paths)
 
+
+def merge_nested_dicts(
+    a: Dict[str, List[Dict[str, Any]]], b: Dict[str, List[Dict[str, Any]]]
+) -> Dict[str, List[Dict[str, Any]]]:
+    for key, value in b.items():
+        if key not in a:
+            a[key] = value
+        elif a[key] == value:
+            continue
+        elif isinstance(a[key], list) and isinstance(value, list):
+            a[key] = [merge_nested_dicts(av, bv) for av, bv in zip(a[key], value)]
+        elif isinstance(a[key], dict) and isinstance(value, dict):
+            a[key] = merge_nested_dicts(a[key], value)
+        else:
+            raise ValueError(f"key: {key}, a={a[key]}, b={value}")
+
+    return a
 
 
 # regular_exp_h5 = "TestOutputGcamp(.*)SinglePlane_-[0-9]{3}"

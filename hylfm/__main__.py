@@ -1,11 +1,12 @@
 import logging.config
 from pathlib import Path
 
+import wandb
 from merge_args import merge_args
 from torch.utils.data import DataLoader, SequentialSampler
 
 from hylfm import settings
-from hylfm.datasets import get_collate_fn
+from hylfm.datasets import get_collate
 from hylfm.datasets.named import DatasetName, DatasetPart, get_dataset
 from hylfm.get_model import app as app_get_model, get_model
 from hylfm.load_checkpoint import load_model_from_checkpoint
@@ -90,18 +91,20 @@ def train(**model_kwargs,):
 
 
 @app.command()
-def test(checkpoint: Path, dataset: DatasetName):
+def test(checkpoint: Path, dataset: DatasetName, part: DatasetPart = DatasetPart.test):
     model, config = load_model_from_checkpoint(checkpoint)
 
 
 @app.command()
 def predict(checkpoint: Path, dataset_name: DatasetName, part: DatasetPart, batch_size: int = 1):
+    wandb.init(project=f"predict-{dataset_name}-{part}")
     model, config = load_model_from_checkpoint(checkpoint)
     nnum = model.nnum
     z_out = model.z_out
     scale = model.get_scale()
     shrink = model.get_shrink()
 
+    print(scale, z_out, nnum, shrink)
     dataset, batch_preprocessing, batch_preprocessing_in_step, batch_postprocessing = get_dataset(
         dataset_name, part, scale=scale, z_out=z_out, nnum=nnum, shrink=shrink
     )
@@ -114,7 +117,7 @@ def predict(checkpoint: Path, dataset_name: DatasetName, part: DatasetPart, batc
             batch_sizes=[batch_size] * len(dataset.cumulative_sizes),
             drop_last=False,
         ),
-        collate_fn=get_collate_fn(batch_transformation=batch_preprocessing),
+        collate_fn=get_collate(batch_transformation=batch_preprocessing),
         num_workers=settings.num_workers_train_data_loader,
         pin_memory=settings.pin_memory,
     )
@@ -128,7 +131,6 @@ def predict(checkpoint: Path, dataset_name: DatasetName, part: DatasetPart, batc
 
     for batch in run:
         print(batch)
-
 
 if __name__ == "__main__":
     app()

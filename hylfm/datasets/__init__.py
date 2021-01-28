@@ -7,9 +7,9 @@ from .base import (
     N5CachedDatasetFromInfoSubset,
     TensorInfo,
     ZipDataset,
-    get_collate_fn,
     get_dataset_from_info,
 )
+from .collate import collate, get_collate, separate
 from .online import OnlineTensorInfo
 
 

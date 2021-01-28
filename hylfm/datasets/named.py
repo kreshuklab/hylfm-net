@@ -6,24 +6,20 @@ import numpy
 import torch.utils.data
 
 from hylfm.datasets import ConcatDataset, TensorInfo, ZipDataset, get_dataset_from_info, get_tensor_info
-from hylfm.transformations import (
+from hylfm.hylfm_types import TransformLike
+from hylfm.transforms import (
     AdditiveGaussianNoise,
     Cast,
     ChannelFromLightField,
-    ComposedTransformation,
+    ComposedTransform,
     Crop,
     CropWhatShrinkDoesNot,
     Identity,
-    Normalize01,
+    Normalize01Dataset,
     PoissonNoise,
     RandomIntensityScale,
     RandomlyFlipAxis,
-    TransformLike,
 )
-
-
-def identity(tensors: OrderedDict) -> OrderedDict:
-    return tensors
 
 
 def get_dataset_subsection(
@@ -47,7 +43,7 @@ def get_dataset_subsection(
         trfs_for_name = [
             trf for trf in preprocess_sample if any([kwargs["apply_to"] == name for kwargs in trf.values()])
         ]
-        info.transformations += trfs_for_name
+        info.transforms += trfs_for_name
         if "_repeat" in name:
             name, _ = name.split("_repeat")
 
@@ -69,7 +65,7 @@ def get_dataset_subsection(
                 for name, dsinfo in infos.items()
             ]
         ),
-        transformation=augment_sample,
+        transform=augment_sample,
     )
 
 
@@ -115,16 +111,18 @@ def get_dataset(
             DatasetPart.validate: [1],
             DatasetPart.test: [2],
         }[part]
-        batch_preprocessing_in_step = Cast(apply_to=["lfc", "ls_reg"], dtype="float32", device="cuda", non_blocking=True)
+        batch_preprocessing_in_step = Cast(
+            apply_to=["lfc", "ls_reg"], dtype="float32", device="cuda", non_blocking=True
+        )
         preprocess_sample = [
             {"Resize": {"apply_to": "ls_reg", "shape": [1.0, 121, scale / 19, scale / 19], "order": 2}},
             {"Assert": {"apply_to": "ls_reg", "expected_tensor_shape": [1, 121, None, None]}},
         ]
         augment_sample = (
-            ComposedTransformation(
+            ComposedTransform(
                 Crop(apply_to="ls_reg", crop=((0, None), (35, -35), (shrink, -shrink), (shrink, -shrink))),
-                Normalize01(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
-                Normalize01(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
+                Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
+                Normalize01Dataset(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
                 AdditiveGaussianNoise(apply_to="lf", sigma=0.1),
                 AdditiveGaussianNoise(apply_to="ls_reg", sigma=0.05),
                 RandomIntensityScale(apply_to=["lf", "ls_reg"], factor_min=0.8, factor_max=1.2),
@@ -132,10 +130,10 @@ def get_dataset(
                 RandomlyFlipAxis(apply_to=["lf", "ls_reg"], axis=-2),
             )
             if part == DatasetPart.train
-            else ComposedTransformation(
+            else ComposedTransform(
                 Crop(apply_to="ls_reg", crop=((0, None), (35, -35), (shrink, -shrink), (shrink, -shrink))),
-                Normalize01(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
-                Normalize01(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
+                Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
+                Normalize01Dataset(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
                 ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum),
             )
         )
@@ -151,7 +149,9 @@ def get_dataset(
             ]
         )
     elif name == DatasetName.beads_small0:
-        batch_preprocessing_in_step = Cast(apply_to=["lfc", "ls_reg"], dtype="float32", device="cuda", non_blocking=True)
+        batch_preprocessing_in_step = Cast(
+            apply_to=["lfc", "ls_reg"], dtype="float32", device="cuda", non_blocking=True
+        )
         if part in [DatasetPart.whole, DatasetPart.train]:
             if meta["scale"] != 8:
                 # due to size zenodo upload is resized to scale 8
@@ -174,10 +174,10 @@ def get_dataset(
                         filters=[],
                         indices=None,
                         preprocess_sample=preprocess_sample,
-                        augment_sample=ComposedTransformation(
+                        augment_sample=ComposedTransform(
                             Crop(apply_to="ls_reg", crop=((0, None), (35, -35), (shrink, -shrink), (shrink, -shrink))),
-                            Normalize01(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
-                            Normalize01(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
+                            Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
+                            Normalize01Dataset(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
                             AdditiveGaussianNoise(apply_to="lf", sigma=0.1),
                             AdditiveGaussianNoise(apply_to="ls_reg", sigma=0.05),
                             RandomIntensityScale(apply_to=["lf", "ls_reg"], factor_min=0.8, factor_max=1.2),
@@ -199,10 +199,10 @@ def get_dataset(
                 },
                 {"Assert": {"apply_to": "ls_reg", "expected_tensor_shape": [1, 121, None, None]}},
             ]
-            augment_sample = ComposedTransformation(
+            augment_sample = ComposedTransform(
                 Crop(apply_to="ls_reg", crop=((0, None), (35, -35), (shrink, -shrink), (shrink, -shrink))),
-                Normalize01(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
-                Normalize01(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
+                Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
+                Normalize01Dataset(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
                 ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum),
             )
 
@@ -233,15 +233,23 @@ def get_dataset(
                 )
 
     elif name == DatasetName.heart_static0:
-        batch_preprocessing_in_step = Cast(apply_to=["lfc", "ls_trf"], dtype="float32", device="cuda", non_blocking=True)
+        batch_preprocessing_in_step = Cast(
+            apply_to=["lfc", "ls_trf"], dtype="float32", device="cuda", non_blocking=True
+        )
         preprocess_sample = []
+        crop_names = ["staticHeartFOV"]
+        meta["crop_names"] = set(crop_names)
         if part == DatasetPart.train:
-            augment_sample = ComposedTransformation(
-                CropWhatShrinkDoesNot(apply_to="lf", meta=meta, wrt_ref=True),
-                CropWhatShrinkDoesNot(apply_to="ls_trf", meta=meta, wrt_ref=False),
+            augment_sample = ComposedTransform(
+                CropWhatShrinkDoesNot(
+                    apply_to="lf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=True, crop_names=crop_names
+                ),
+                CropWhatShrinkDoesNot(
+                    apply_to="ls_trf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=False, crop_names=crop_names
+                ),
                 Crop(apply_to="ls_trf", crop=((0, None), (0, None), (shrink, -shrink), (shrink, -shrink))),
-                Normalize01(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
-                Normalize01(apply_to="ls_trf", min_percentile=5.0, max_percentile=99.99),
+                Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
+                Normalize01Dataset(apply_to="ls_trf", min_percentile=5.0, max_percentile=99.99),
                 RandomIntensityScale(apply_to=["lf", "ls_trf"], factor_min=0.8, factor_max=1.2),
                 PoissonNoise(apply_to="lf", peak=10),
                 PoissonNoise(apply_to="ls_trf", peak=10),
@@ -249,12 +257,16 @@ def get_dataset(
                 RandomlyFlipAxis(apply_to=["lf", "ls_trf"], axis=-2),
             )
         else:
-            augment_sample = ComposedTransformation(
-                CropWhatShrinkDoesNot(apply_to="lf", meta=meta, wrt_ref=True),
-                CropWhatShrinkDoesNot(apply_to="ls_trf", meta=meta, wrt_ref=False),
+            augment_sample = ComposedTransform(
+                CropWhatShrinkDoesNot(
+                    apply_to="lf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=True, crop_names=crop_names
+                ),
+                CropWhatShrinkDoesNot(
+                    apply_to="ls_trf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=False, crop_names=crop_names
+                ),
                 Crop(apply_to="ls_trf", crop=((0, None), (0, None), (shrink, -shrink), (shrink, -shrink))),
-                Normalize01(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
-                Normalize01(apply_to="ls_trf", min_percentile=5.0, max_percentile=99.99),
+                Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
+                Normalize01Dataset(apply_to="ls_trf", min_percentile=5.0, max_percentile=99.99),
                 ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum),
             )
 
@@ -267,7 +279,6 @@ def get_dataset(
                 "2019-12-10_06.03.37",
                 "2019-12-10_06.25.14",
             ]:
-                meta["crop_names"].add("staticHeartFOV")
                 tensors = {"lf": f"heart_static.{tag}", "ls_trf": f"heart_static.{tag}", "meta": meta}
                 subsections.append(
                     get_dataset_subsection(
@@ -291,7 +302,6 @@ def get_dataset(
                 "2019-12-09_02.48.24",
                 "2019-12-09_02.54.46",
             ]:
-                meta["crop_names"].add("Heart_tightCrop")
                 tensors = {"lf": f"heart_static.{tag}", "ls_trf": f"heart_static.{tag}", "meta": meta}
                 subsections.append(
                     get_dataset_subsection(
@@ -319,7 +329,6 @@ def get_dataset(
                 "2019-12-08_06.51.57",
                 "2019-12-08_06.30.40",
             ]:
-                meta["crop_names"].add("Heart_tightCrop")
                 tensors = {"lf": f"heart_static.{tag}", "ls_trf": f"heart_static.{tag}", "meta": meta}
                 subsections.append(
                     get_dataset_subsection(
