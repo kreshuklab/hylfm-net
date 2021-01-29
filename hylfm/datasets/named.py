@@ -69,7 +69,6 @@ def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: Trans
                     },
                     filters=[],
                     indices={
-                        DatasetPart.whole: [0, 1, 2],
                         DatasetPart.train: [0],
                         DatasetPart.validate: [1],
                         DatasetPart.test: [2],
@@ -81,11 +80,23 @@ def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: Trans
         )
     elif name == DatasetName.beads_small0:
         if part == DatasetPart.train:
-            tensors = {"lf": f"beads.small_2", "ls_reg": f"beads.small_2", "meta": transforms_pipeline.meta}
+            tensors = {
+                "lf": f"local.beads.b01highc_2",
+                "ls_reg": f"local.beads.b01highc_2",
+                "meta": transforms_pipeline.meta,
+            }
         elif part == DatasetPart.validate:
-            tensors = {"lf": f"beads.small_0", "ls_reg": f"beads.small_0", "meta": transforms_pipeline.meta}
+            tensors = {
+                "lf": f"local.beads.b01highc_0",
+                "ls_reg": f"local.beads.b01highc_0",
+                "meta": transforms_pipeline.meta,
+            }
         elif part == DatasetPart.test:
-            tensors = {"lf": f"beads.small_1", "ls_reg": f"beads.small_1", "meta": transforms_pipeline.meta}
+            tensors = {
+                "lf": f"local.beads.b01highc_1",
+                "ls_reg": f"local.beads.b01highc_1",
+                "meta": transforms_pipeline.meta,
+            }
         else:
             raise NotImplementedError(part)
 

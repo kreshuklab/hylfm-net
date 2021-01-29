@@ -1,0 +1,41 @@
+name: hylfm
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+  - fynnbe
+dependencies:
+  - cudatoolkit
+  - dill
+  - h5py>=2.9.0
+  - imagecodecs
+  - inferno
+  - jupyter
+  - matplotlib>=3.3.2
+  - merge_args
+  - numpy>=1.16.3
+  - pip>=19.1
+  - pytest
+  - python>=3.7.3
+  - pytorch-msssim
+  - pytorch>=1.4.0
+  - pyyaml>=5.1
+  - requests
+  - ruamel.yaml
+  - scikit-image 0.15.*
+  - scikit-learn>=0.20.3
+  - scipy>=1.2.1
+  - seaborn
+  - six
+  - tensorboard #? 1.15
+  - tensorflow-gpu 1.*
+  - tifffile>=0.15.1
+  - torchvision>=0.2.1
+  - tqdm
+  - typer
+  - typing_extensions
+  - versioneer
+  - z5py>=1.4.1
+  - pip:
+      - csbdeep
+      - wandb  # todo: install from conda first, then uninstall --force and install with pip to make cli working
