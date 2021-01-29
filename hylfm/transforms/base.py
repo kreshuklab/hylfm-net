@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Dict, List, Tuple, Union
 from hylfm.datasets.collate import collate, separate
 from hylfm.hylfm_types import TransformLike
@@ -6,6 +7,8 @@ try:
     from typing import Protocol
 except ImportError:
     from typing_extensions import Protocol
+
+logger = logging.getLogger(__name__)
 
 
 class Transform:
@@ -42,7 +45,12 @@ class Transform:
             raise ValueError(f"required batch keys {missing_inputs} not found in batch {list(batch.keys())}")
 
         input_batch = {self.input_mapping[k]: v for k, v in batch.items() if k in self.input_mapping}
-        transformed = self.apply_to_batch(**input_batch)
+        try:
+            transformed = self.apply_to_batch(**input_batch)
+        except Exception:
+            logger.error("transform %s failed", self)
+            raise
+
         if isinstance(transformed, dict):
             for k, v in transformed.items():
                 batch[self.output_mapping.get(k, k)] = v

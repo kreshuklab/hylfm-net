@@ -169,6 +169,7 @@ class Assert(Transform):
     def __init__(
         self,
         apply_to: str,
+        *,
         expected_tensor_shape: Optional[Sequence[Optional[int]]] = None,
         expected_shape_like_tensor: Optional[str] = None,
     ):
@@ -179,7 +180,8 @@ class Assert(Transform):
             raise ValueError("either expected_tensor_shape or expected_shape_like_tensor is required")
 
         if expected_tensor_shape is None:
-            input_mapping = {expected_shape_like_tensor: "other"}
+            assert expected_shape_like_tensor not in input_mapping
+            input_mapping[expected_shape_like_tensor] = "other"
 
         super().__init__(input_mapping=input_mapping)
         self.expected_shape = expected_tensor_shape

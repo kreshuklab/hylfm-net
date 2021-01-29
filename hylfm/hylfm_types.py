@@ -24,8 +24,8 @@ Array = Union[numpy.ndarray, torch.Tensor]
 
 class DatasetName(str, Enum):
     beads_sample0 = "beads_sample0"
-    beads_small0 = "beads_small0"
-    heart_static0 = "heart_static0"
+    beads_highc_a = "beads_highc_a"
+    heart_static_a = "heart_static_a"
 
 
 class DatasetPart(str, Enum):

@@ -78,23 +78,23 @@ def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: Trans
                 )
             ]
         )
-    elif name == DatasetName.beads_small0:
+    elif name == DatasetName.beads_highc_a:
         if part == DatasetPart.train:
             tensors = {
-                "lf": f"local.beads.b01highc_2",
-                "ls_reg": f"local.beads.b01highc_2",
+                "lf": f"beads.small_2",
+                "ls_reg": f"beads.small_2",
                 "meta": transforms_pipeline.meta,
             }
         elif part == DatasetPart.validate:
             tensors = {
-                "lf": f"local.beads.b01highc_0",
-                "ls_reg": f"local.beads.b01highc_0",
+                "lf": f"beads.small_0",
+                "ls_reg": f"beads.small_0",
                 "meta": transforms_pipeline.meta,
             }
         elif part == DatasetPart.test:
             tensors = {
-                "lf": f"local.beads.b01highc_1",
-                "ls_reg": f"local.beads.b01highc_1",
+                "lf": f"beads.small_1",
+                "ls_reg": f"beads.small_1",
                 "meta": transforms_pipeline.meta,
             }
         else:
@@ -112,7 +112,7 @@ def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: Trans
             ]
         )
 
-    elif name == DatasetName.heart_static0:
+    elif name == DatasetName.heart_static_a:
 
         def get_tensors(tag_: str):
             return {"lf": f"heart_static.{tag_}", "ls_trf": f"heart_static.{tag_}", "meta": transforms_pipeline.meta}
