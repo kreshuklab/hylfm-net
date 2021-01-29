@@ -1,25 +1,12 @@
 import collections
-from enum import Enum
-from typing import Any, Dict, List, NamedTuple, Optional, OrderedDict, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy
 import torch.utils.data
 
 from hylfm.datasets import ConcatDataset, TensorInfo, ZipDataset, get_dataset_from_info, get_tensor_info
-from hylfm.hylfm_types import TransformLike
-from hylfm.transforms import (
-    AdditiveGaussianNoise,
-    Cast,
-    ChannelFromLightField,
-    ComposedTransform,
-    Crop,
-    CropWhatShrinkDoesNot,
-    Identity,
-    Normalize01Dataset,
-    PoissonNoise,
-    RandomIntensityScale,
-    RandomlyFlipAxis,
-)
+from hylfm.hylfm_types import DatasetName, DatasetPart, TransformLike, TransformsPipeline
+from hylfm.transforms import Identity
 
 
 def get_dataset_subsection(
@@ -69,209 +56,58 @@ def get_dataset_subsection(
     )
 
 
-class DatasetName(str, Enum):
-    beads_sample0 = "beads_sample0"
-    beads_small0 = "beads_small0"
-    heart_static0 = "heart_static0"
-
-
-class DatasetPart(str, Enum):
-    train = "train"
-    validate = "validate"
-    test = "test"
-    whole = "whole"
-
-
-class DatasetAndTransforms(NamedTuple):
-    dataset: ConcatDataset
-    batch_preprocessing: TransformLike
-    batch_preprocessing_in_step: TransformLike
-    batch_postprocessing: TransformLike
-
-
-def get_dataset(
-    name: DatasetName, part: DatasetPart, nnum: int, z_out: int, scale: int, shrink: int, interpolation_order: int = 2
-):
-    meta = {
-        "nnum": nnum,
-        "z_out": z_out,
-        "scale": scale,
-        "interpolation_order": interpolation_order,
-        "crop_names": set(),
-    }
-    batch_preprocessing = Identity()
-    batch_preprocessing_in_step = Identity()
-    batch_postprocessing = Identity()
-
+def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: TransformsPipeline):
     sections = []
     if name == DatasetName.beads_sample0:
-        indices = {
-            DatasetPart.whole: [0, 1, 2],
-            DatasetPart.train: [0],
-            DatasetPart.validate: [1],
-            DatasetPart.test: [2],
-        }[part]
-        batch_preprocessing_in_step = Cast(
-            apply_to=["lfc", "ls_reg"], dtype="float32", device="cuda", non_blocking=True
-        )
-        preprocess_sample = [
-            {"Resize": {"apply_to": "ls_reg", "shape": [1.0, 121, scale / 19, scale / 19], "order": 2}},
-            {"Assert": {"apply_to": "ls_reg", "expected_tensor_shape": [1, 121, None, None]}},
-        ]
-        augment_sample = (
-            ComposedTransform(
-                Crop(apply_to="ls_reg", crop=((0, None), (35, -35), (shrink, -shrink), (shrink, -shrink))),
-                Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
-                Normalize01Dataset(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
-                AdditiveGaussianNoise(apply_to="lf", sigma=0.1),
-                AdditiveGaussianNoise(apply_to="ls_reg", sigma=0.05),
-                RandomIntensityScale(apply_to=["lf", "ls_reg"], factor_min=0.8, factor_max=1.2),
-                RandomlyFlipAxis(apply_to=["lf", "ls_reg"], axis=-1),
-                RandomlyFlipAxis(apply_to=["lf", "ls_reg"], axis=-2),
-            )
-            if part == DatasetPart.train
-            else ComposedTransform(
-                Crop(apply_to="ls_reg", crop=((0, None), (35, -35), (shrink, -shrink), (shrink, -shrink))),
-                Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
-                Normalize01Dataset(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
-                ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum),
-            )
-        )
         sections.append(
             [
                 get_dataset_subsection(
-                    tensors={"lf": "local.beads.b01highc_0", "ls_reg": "local.beads.b01highc_0", "meta": meta},
+                    tensors={
+                        "lf": "local.beads.b01highc_0",
+                        "ls_reg": "local.beads.b01highc_0",
+                        "meta": transforms_pipeline.meta,
+                    },
                     filters=[],
-                    indices=indices,
-                    preprocess_sample=preprocess_sample,
-                    augment_sample=augment_sample,
+                    indices={
+                        DatasetPart.whole: [0, 1, 2],
+                        DatasetPart.train: [0],
+                        DatasetPart.validate: [1],
+                        DatasetPart.test: [2],
+                    }[part],
+                    preprocess_sample=transforms_pipeline.sample_precache_trf,
+                    augment_sample=transforms_pipeline.sample_preprocessing,
                 )
             ]
         )
     elif name == DatasetName.beads_small0:
-        batch_preprocessing_in_step = Cast(
-            apply_to=["lfc", "ls_reg"], dtype="float32", device="cuda", non_blocking=True
-        )
-        if part in [DatasetPart.whole, DatasetPart.train]:
-            if meta["scale"] != 8:
-                # due to size zenodo upload is resized to scale 8
-                preprocess_sample = [
-                    {
-                        "Resize": {
-                            "apply_to": "ls_reg",
-                            "shape": [1.0, 1.0, meta["scale"] / 8, meta["scale"] / 8],
-                            "order": 2,
-                        }
-                    }
-                ]
-            else:
-                preprocess_sample = []
+        if part == DatasetPart.train:
+            tensors = {"lf": f"beads.small_2", "ls_reg": f"beads.small_2", "meta": transforms_pipeline.meta}
+        elif part == DatasetPart.validate:
+            tensors = {"lf": f"beads.small_0", "ls_reg": f"beads.small_0", "meta": transforms_pipeline.meta}
+        elif part == DatasetPart.test:
+            tensors = {"lf": f"beads.small_1", "ls_reg": f"beads.small_1", "meta": transforms_pipeline.meta}
+        else:
+            raise NotImplementedError(part)
 
-            sections.append(
-                [
-                    get_dataset_subsection(
-                        tensors={"lf": f"beads.small_2", "ls_reg": f"beads.small_2", "meta": meta},
-                        filters=[],
-                        indices=None,
-                        preprocess_sample=preprocess_sample,
-                        augment_sample=ComposedTransform(
-                            Crop(apply_to="ls_reg", crop=((0, None), (35, -35), (shrink, -shrink), (shrink, -shrink))),
-                            Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
-                            Normalize01Dataset(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
-                            AdditiveGaussianNoise(apply_to="lf", sigma=0.1),
-                            AdditiveGaussianNoise(apply_to="ls_reg", sigma=0.05),
-                            RandomIntensityScale(apply_to=["lf", "ls_reg"], factor_min=0.8, factor_max=1.2),
-                            RandomlyFlipAxis(apply_to=["lf", "ls_reg"], axis=-1),
-                            RandomlyFlipAxis(apply_to=["lf", "ls_reg"], axis=-2),
-                        ),
-                    )
-                ]
-            )
-
-        if part in [DatasetPart.whole, DatasetPart.validate, DatasetPart.test]:
-            preprocess_sample = [
-                {
-                    "Resize": {
-                        "apply_to": "ls_reg",
-                        "shape": [1.0, 121, meta["scale"] / 19, meta["scale"] / 19],
-                        "order": 2,
-                    }
-                },
-                {"Assert": {"apply_to": "ls_reg", "expected_tensor_shape": [1, 121, None, None]}},
+        sections.append(
+            [
+                get_dataset_subsection(
+                    tensors=tensors,
+                    filters=[],
+                    indices=None,
+                    preprocess_sample=transforms_pipeline.sample_precache_trf,
+                    augment_sample=transforms_pipeline.sample_preprocessing,
+                )
             ]
-            augment_sample = ComposedTransform(
-                Crop(apply_to="ls_reg", crop=((0, None), (35, -35), (shrink, -shrink), (shrink, -shrink))),
-                Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
-                Normalize01Dataset(apply_to="ls_reg", min_percentile=5.0, max_percentile=99.99),
-                ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum),
-            )
-
-            if part in [DatasetPart.whole, DatasetPart.validate]:
-                sections.append(
-                    [
-                        get_dataset_subsection(
-                            tensors={"lf": f"beads.small_0", "ls_reg": f"beads.small_0", "meta": meta},
-                            filters=[],
-                            indices=None,
-                            preprocess_sample=preprocess_sample,
-                            augment_sample=augment_sample,
-                        )
-                    ]
-                )
-
-            if part in [DatasetPart.whole, DatasetPart.test]:
-                sections.append(
-                    [
-                        get_dataset_subsection(
-                            tensors={"lf": f"beads.small_1", "ls_reg": f"beads.small_1", "meta": meta},
-                            filters=[],
-                            indices=None,
-                            preprocess_sample=preprocess_sample,
-                            augment_sample=augment_sample,
-                        )
-                    ]
-                )
+        )
 
     elif name == DatasetName.heart_static0:
-        batch_preprocessing_in_step = Cast(
-            apply_to=["lfc", "ls_trf"], dtype="float32", device="cuda", non_blocking=True
-        )
-        preprocess_sample = []
-        crop_names = ["staticHeartFOV"]
-        meta["crop_names"] = set(crop_names)
-        if part == DatasetPart.train:
-            augment_sample = ComposedTransform(
-                CropWhatShrinkDoesNot(
-                    apply_to="lf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=True, crop_names=crop_names
-                ),
-                CropWhatShrinkDoesNot(
-                    apply_to="ls_trf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=False, crop_names=crop_names
-                ),
-                Crop(apply_to="ls_trf", crop=((0, None), (0, None), (shrink, -shrink), (shrink, -shrink))),
-                Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
-                Normalize01Dataset(apply_to="ls_trf", min_percentile=5.0, max_percentile=99.99),
-                RandomIntensityScale(apply_to=["lf", "ls_trf"], factor_min=0.8, factor_max=1.2),
-                PoissonNoise(apply_to="lf", peak=10),
-                PoissonNoise(apply_to="ls_trf", peak=10),
-                RandomlyFlipAxis(apply_to=["lf", "ls_trf"], axis=-1),
-                RandomlyFlipAxis(apply_to=["lf", "ls_trf"], axis=-2),
-            )
-        else:
-            augment_sample = ComposedTransform(
-                CropWhatShrinkDoesNot(
-                    apply_to="lf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=True, crop_names=crop_names
-                ),
-                CropWhatShrinkDoesNot(
-                    apply_to="ls_trf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=False, crop_names=crop_names
-                ),
-                Crop(apply_to="ls_trf", crop=((0, None), (0, None), (shrink, -shrink), (shrink, -shrink))),
-                Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
-                Normalize01Dataset(apply_to="ls_trf", min_percentile=5.0, max_percentile=99.99),
-                ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum),
-            )
 
-        if part in [DatasetPart.whole, DatasetPart.train]:
-            subsections = []
+        def get_tensors(tag_: str):
+            return {"lf": f"heart_static.{tag_}", "ls_trf": f"heart_static.{tag_}", "meta": transforms_pipeline.meta}
+
+        if part == DatasetPart.train:
+            sections.append([])
             for tag in [  # fish3
                 "2019-12-10_04.24.29",
                 "2019-12-10_05.14.57",
@@ -279,20 +115,17 @@ def get_dataset(
                 "2019-12-10_06.03.37",
                 "2019-12-10_06.25.14",
             ]:
-                tensors = {"lf": f"heart_static.{tag}", "ls_trf": f"heart_static.{tag}", "meta": meta}
-                subsections.append(
+                sections[-1].append(
                     get_dataset_subsection(
-                        tensors=tensors,
+                        tensors=get_tensors(tag),
                         filters=[],
                         indices=None,
-                        preprocess_sample=preprocess_sample,
-                        augment_sample=augment_sample,
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
                     )
                 )
 
-            sections.append(subsections)
-
-            subsections = []
+            sections.append([])
             for tag in [  # fish1
                 "2019-12-09_02.16.30",
                 "2019-12-09_02.23.01",
@@ -302,20 +135,17 @@ def get_dataset(
                 "2019-12-09_02.48.24",
                 "2019-12-09_02.54.46",
             ]:
-                tensors = {"lf": f"heart_static.{tag}", "ls_trf": f"heart_static.{tag}", "meta": meta}
-                subsections.append(
+                sections[-1].append(
                     get_dataset_subsection(
-                        tensors=tensors,
+                        tensors=get_tensors(tag),
                         filters=[],
                         indices=None,
-                        preprocess_sample=preprocess_sample,
-                        augment_sample=augment_sample,
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
                     )
                 )
 
-            sections.append(subsections)
-
-            subsections = []
+            sections.append([])
             for tag in [  # fish5
                 "2019-12-08_06.35.52",
                 "2019-12-08_06.38.47",
@@ -323,31 +153,76 @@ def get_dataset(
                 "2019-12-08_06.41.39",
                 "2019-12-08_06.18.09",
                 "2019-12-08_06.46.09",
-                "2019-12-08_06.23.13",
+                # "2019-12-08_06.23.13", len=1
                 "2019-12-08_06.49.08",
                 "2019-12-08_06.25.02",
                 "2019-12-08_06.51.57",
                 "2019-12-08_06.30.40",
             ]:
-                tensors = {"lf": f"heart_static.{tag}", "ls_trf": f"heart_static.{tag}", "meta": meta}
-                subsections.append(
+                sections[-1].append(
                     get_dataset_subsection(
-                        tensors=tensors,
+                        tensors=get_tensors(tag),
                         filters=[],
                         indices=slice(1, None, None),
-                        preprocess_sample=preprocess_sample,
-                        augment_sample=augment_sample,
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
                     )
                 )
 
-            sections.append(subsections)
+        elif part == DatasetPart.validate:
+            sections.append([])
+            for tag in [  # fish5
+                "2019-12-08_06.35.52",
+                "2019-12-08_06.38.47",
+                "2019-12-08_06.10.34",
+                "2019-12-08_06.41.39",
+                "2019-12-08_06.18.09",
+                "2019-12-08_06.46.09",
+                # "2019-12-08_06.23.13", len=1
+                "2019-12-08_06.49.08",
+                "2019-12-08_06.25.02",
+                "2019-12-08_06.51.57",
+                "2019-12-08_06.30.40",
+            ]:
+                sections[-1].append(
+                    get_dataset_subsection(
+                        tensors=get_tensors(tag),
+                        filters=[],
+                        indices=[0],
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
+                    )
+                )
 
+        elif part == DatasetPart.test:
+            sections.append([])
+            for tag in [  # fish2
+                "2019-12-09_09.52.38",
+                "2019-12-09_08.34.44",
+                "2019-12-09_08.41.41",
+                "2019-12-09_08.51.01",
+                "2019-12-09_09.01.28",
+                "2019-12-09_09.11.59",
+                "2019-12-09_09.18.01",
+                "2019-12-09_08.15.07",
+                "2019-12-09_08.19.40",
+                "2019-12-09_08.27.14",
+                "2019-12-09_07.42.47",
+                "2019-12-09_07.50.24",
+            ]:
+                sections[-1].append(
+                    get_dataset_subsection(
+                        tensors=get_tensors(tag),
+                        filters=[],
+                        indices=None,
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
+                    )
+                )
+
+        else:
+            raise NotImplementedError(part)
     else:
         raise NotImplementedError(name)
 
-    return DatasetAndTransforms(
-        ConcatDataset([torch.utils.data.ConcatDataset(subsections) for subsections in sections]),
-        batch_preprocessing,
-        batch_preprocessing_in_step,
-        batch_postprocessing,
-    )
+    return ConcatDataset([torch.utils.data.ConcatDataset(subsections) for subsections in sections])
