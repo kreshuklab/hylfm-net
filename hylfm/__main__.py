@@ -1,20 +1,21 @@
-from inspect import signature
 import logging.config
 from pathlib import Path
 
-from merge_args import merge_args
 from torch.utils.data import DataLoader, SequentialSampler
+
 
 from hylfm import settings
 from hylfm.datasets import get_collate
 from hylfm.datasets.named import DatasetName, DatasetPart, get_dataset
-from hylfm.get_model import app as app_get_model, get_model
-from hylfm.hylfm_types import TransformsPipeline
+from hylfm.get_model import app as app_get_model
 from hylfm.load_checkpoint import load_model_from_checkpoint
-from hylfm.run.predict import PredictRun
+from hylfm.metrics import BeadPrecisionRecall
+from hylfm.metrics.base import MetricGroup
+from hylfm.run.eval import EvalRun
+from hylfm.run.logger import WandbSummaryLogger
 from hylfm.sampler import NoCrossBatchSampler
+from hylfm.train import app as app_train
 from hylfm.transform_pipelines import get_transforms_pipeline
-from hylfm.utils.general import return_unused_kwargs_to
 
 try:
     from typing import Literal
@@ -23,35 +24,12 @@ except ImportError:
 
 import typer
 
-CONFIG = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "default": {
-            "format": "%(asctime)s %(name)s %(levelname)s %(message)s",  # .%(msecs)03d [%(processName)s/%(threadName)s]
-            "datefmt": "%H:%M:%S",
-        }
-    },
-    "handlers": {
-        "default": {
-            "level": "DEBUG",
-            "class": "logging.StreamHandler",
-            "stream": "ext://sys.stdout",
-            "formatter": "default",
-        }
-    },
-    "loggers": {
-        "": {"handlers": ["default"], "level": "INFO", "propagate": True},
-        "lensletnet.datasets": {"handlers": ["default"], "level": "INFO", "propagate": False},
-        "lensletnet": {"handlers": ["default"], "level": "INFO", "propagate": False},
-    },
-}
-logging.config.dictConfig(CONFIG)
 logger = logging.getLogger(__name__)
 
 app = typer.Typer()
 
 app.add_typer(app_get_model, name="model")
+app.add_typer(app_train, name="train")
 
 
 @app.command()
@@ -77,54 +55,19 @@ def preprocess(
 
 
 @app.command()
-@merge_args(get_model)
-def train(**model_kwargs):
-    print(model_kwargs)
-    config = {"model": model_kwargs}
-
-    print(config)
-    # model = get_model(**model_kwargs)
-    # if checkpoint == "small_beads_demo":
-    #     small_beads_demo_doi = "10.5281/zenodo.4036556"
-    #     small_beads_demo_file_name = "small_beads_v1_weights_SmoothL1Loss%3D-0.00012947025970788673.pth"
-    #     checkpoint = settings.download_dir / small_beads_demo_doi / small_beads_demo_file_name
-    #     download_file_from_zenodo(small_beads_demo_doi, small_beads_demo_file_name, checkpoint)
-    # elif checkpoint is not None:
-    #     checkpoint = Path(checkpoint)
-
-    # from hylfm.setup import Setup
-    #
-    # setup = Setup.from_yaml(experiment_config)
-    #
-    # if args.setup:
-    #     log_path = setup.setup()
-    #     shutil.rmtree(log_path)
-    # else:
-    #     logger.info(
-    #         "run tensorboard with:\ntensorboard --logdir=%s\nor:\ntensorboard --logdir=%s",
-    #         settings.log_dir,
-    #         setup.log_path.parent,
-    #     )
-    #     log_path = setup.run()
-    #     logger.info("done logging to %s", log_path)
-
-
-@app.command()
-def test(checkpoint: Path, dataset: DatasetName, part: DatasetPart = DatasetPart.test):
-    model, config = load_model_from_checkpoint(checkpoint)
-
-
-@app.command()
-def predict(
+def test(
     checkpoint: Path,
     dataset_name: DatasetName,
-    dataset_part: DatasetPart,
+    dataset_part: DatasetPart = typer.Option(DatasetPart.test, "--dataset_part"),
     batch_size: int = 1,
     interpolation_order: int = 2,
 ):
     import wandb
 
-    wandb.init(project=f"predict-{dataset_name}-{dataset_part}")
+    wandb.init(project=f"HyLFM-test")
+    wandb.summary["dataset"] = dataset_name
+    wandb.summary["dataset_part"] = dataset_part
+
     model, config = load_model_from_checkpoint(checkpoint)
     nnum = model.nnum
     z_out = model.z_out
@@ -155,16 +98,60 @@ def predict(
         pin_memory=settings.pin_memory,
     )
 
-    run = PredictRun(
+    metrics = MetricGroup(
+        BeadPrecisionRecall(
+            dist_threshold=3.0,
+            exclude_border=False,
+            max_sigma=6.0,
+            min_sigma=1.0,
+            overlap=0.5,
+            sigma_ratio=3.0,
+            threshold=0.05,
+            tgt_threshold=0.05,
+            scaling=(2.0, 0.7 * 8 / scale, 0.7 * 8 / scale),
+        )
+    )
+    run = EvalRun(
         model=model,
         dataloader=dataloader,
         batch_preprocessing_in_step=transforms_pipeline.batch_preprocessing_in_step,
         batch_postprocessing=transforms_pipeline.batch_postprocessing,
+        batch_premetric_trf=transforms_pipeline.batch_premetric_trf,
+        metrics=metrics,
+        pred_name="pred",
+        tgt_name="ls_reg" if "beads" in dataset_name.value else "ls_trf",
+        log_run=WandbSummaryLogger(metrics=metrics),
     )
 
     for batch in run:
-        print(batch)
+        pass
 
 
 if __name__ == "__main__":
+    logging.config.dictConfig(
+        {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "default": {
+                    "format": "%(asctime)s %(name)s %(levelname)s %(message)s",  # .%(msecs)03d [%(processName)s/%(threadName)s]
+                    "datefmt": "%H:%M:%S",
+                }
+            },
+            "handlers": {
+                "default": {
+                    "level": "DEBUG",
+                    "class": "logging.StreamHandler",
+                    "stream": "ext://sys.stdout",
+                    "formatter": "default",
+                }
+            },
+            "loggers": {
+                "": {"handlers": ["default"], "level": "INFO", "propagate": True},
+                "lensletnet.datasets": {"handlers": ["default"], "level": "INFO", "propagate": False},
+                "lensletnet": {"handlers": ["default"], "level": "INFO", "propagate": False},
+            },
+        }
+    )
+
     app()

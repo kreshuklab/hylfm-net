@@ -48,4 +48,5 @@ class TransformsPipeline:
     batch_preprocessing: TransformLike
     batch_preprocessing_in_step: TransformLike
     batch_postprocessing: TransformLike
+    batch_premetric_trf: TransformLike
     meta: Dict[str, Any]

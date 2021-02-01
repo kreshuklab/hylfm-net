@@ -341,6 +341,7 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
                 shape = (_len,) + tensor_shape[1:]
                 data_file.create_dataset(tensor_name, shape=shape, chunks=tensor_shape, dtype=tensor.dtype)
 
+        self.stat = None
         self.stat = DatasetStat(path=data_file_path.with_suffix(".stat_v1.yml"), dataset=self)
 
     def __getitem__(self, idx) -> Dict[str, Union[List[Dict[str, DatasetStat]], numpy.ndarray]]:

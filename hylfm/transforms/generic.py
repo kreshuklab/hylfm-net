@@ -147,22 +147,22 @@ class RemoveSingletonDimension(Transform, DTypeMapping):
             raise e
 
 
-class Squeeze(Transform, DTypeMapping):
-    def apply_to_sample(
-        self,
-        sample: Union[numpy.ndarray, torch.Tensor],
-        *,
-        tensor_name: str,
-        tensor_idx: int,
-        batch_idx: int,
-        meta: dict,
-    ) -> Union[numpy.ndarray, torch.Tensor]:
-        if isinstance(sample, torch.Tensor):
-            return torch.squeeze(sample)
-        elif isinstance(sample, numpy.ndarray):
-            return numpy.squeeze(sample)
-        else:
-            raise NotImplementedError(type(sample))
+# class Squeeze(Transform, DTypeMapping):
+#     def apply_to_sample(
+#         self,
+#         sample: Union[numpy.ndarray, torch.Tensor],
+#         *,
+#         tensor_name: str,
+#         tensor_idx: int,
+#         batch_idx: int,
+#         meta: dict,
+#     ) -> Union[numpy.ndarray, torch.Tensor]:
+#         if isinstance(sample, torch.Tensor):
+#             return torch.squeeze(sample)
+#         elif isinstance(sample, numpy.ndarray):
+#             return numpy.squeeze(sample)
+#         else:
+#             raise NotImplementedError(type(sample))
 
 
 class Assert(Transform):

@@ -256,21 +256,26 @@ class NormalizeMeanStdSample(Transform):
 class NormalizeMSE(Transform):
     def __init__(self, *, apply_to: str, target_name: str, return_alpha_beta: bool = True):
         assert isinstance(apply_to, str)
-        super().__init__(input_mapping={apply_to: "ipt", "tgt": target_name}, output_mapping={"ipt": apply_to})
+        super().__init__(input_mapping={apply_to: "ipt", target_name: "tgt"}, output_mapping={"ipt": apply_to})
         self.apply_to = apply_to
         self.target_name = target_name
         self.return_alpha_beta = return_alpha_beta
 
     def apply_to_sample(self, ipt: Array, tgt: Array):
         if isinstance(ipt, torch.Tensor):
-            ipt = ipt.cpu().numpy()
+            ipt_numpy = ipt.cpu().numpy()  # todo: compute with pytorch
+        else:
+            ipt_numpy = ipt
 
-        ipt = ipt.astype(numpy.float32, copy=False)
+        if isinstance(tgt, torch.Tensor):
+            tgt = tgt.cpu().numpy()
+
+        ipt_numpy = ipt_numpy.astype(numpy.float32, copy=False)
         tgt = tgt.astype(numpy.float32, copy=False)
 
-        cov = numpy.cov(ipt.flatten(), tgt.flatten())
+        cov = numpy.cov(ipt_numpy.flatten(), tgt.flatten())
         alpha = cov[0, 1] / (cov[0, 0] + 1e-10)
-        beta = tgt.mean() - alpha * ipt.mean()
+        beta = tgt.mean() - alpha * ipt_numpy.mean()
 
         ret = {"ipt": alpha * ipt + beta}
         if self.return_alpha_beta:

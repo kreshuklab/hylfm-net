@@ -42,7 +42,7 @@ class Transform:
     def __call__(self, batch: Dict[str, Any]) -> Dict[str, Any]:
         missing_inputs = [k for k in self.input_mapping if k not in batch]
         if missing_inputs:
-            raise ValueError(f"required batch keys {missing_inputs} not found in batch {list(batch.keys())}")
+            raise ValueError(f"required batch keys {missing_inputs} for {self} not found in batch {list(batch.keys())}")
 
         input_batch = {self.input_mapping[k]: v for k, v in batch.items() if k in self.input_mapping}
         try:

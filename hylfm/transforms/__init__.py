@@ -10,7 +10,7 @@ from .generic import (
     InsertSingletonDimension,
     RemoveSingletonDimension,
     Softmax,
-    Squeeze,
+    # Squeeze,
     # ToSimpleType,
 )
 from .image import (

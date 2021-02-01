@@ -1,10 +1,16 @@
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy
+import skimage.util
 
+from hylfm.hylfm_types import Array
+from hylfm.stat_ import DatasetStat
 from .base import Transform
-from ..hylfm_types import Array
-from ..stat_ import DatasetStat
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 
 class AdditiveGaussianNoise(Transform):
@@ -34,7 +40,7 @@ class AdditiveGaussianNoise(Transform):
 
         assert isinstance(stat, DatasetStat)
         if self.sigma is None:
-            mean, sigma = stat[self.apply_to].get_mean_std(name=self.apply_to, percentile_range=self.percentile_range_to_compute_sigma)
+            mean, sigma = stat.get_mean_std(name=self.apply_to, percentile_range=self.percentile_range_to_compute_sigma)
         else:
             sigma = self.sigma
 
@@ -76,3 +82,43 @@ class PoissonNoise(Transform):
 
         offset = min(0, tensor.min())
         return self.generator.poisson((tensor - offset) * peak) / peak + offset
+
+
+class RandomNoise(Transform):
+    def __init__(
+        self,
+        *,
+        mode: Literal["gaussian", "localvar", "poisson", "salt", "pepper", "s&p", "speckle"],
+        seed: Optional[int] = None,
+        clip: bool,
+        mean: Optional[float],
+        var: Optional[float],
+        local_vars: Optional[numpy.ndarray],
+        amount: Optional[float],
+        salt_vs_pepper: Optional[float],
+        **super_kwargs,
+    ):
+        self.mode = mode
+        self.seed = seed
+        self.clip = clip
+        self.mean = mean
+        self.var = var
+        self.local_vars = local_vars
+        self.amount = amount
+        self.salt_vs_pepper = salt_vs_pepper
+        super().__init__(**super_kwargs)
+
+    def apply_to_batch(self, image: Array) -> Dict[str, Any]:
+        return skimage.util.random_noise(
+            image,
+            mode=self.mode,
+            seed=self.seed,
+            clip=self.clip,
+            mean=self.mean,
+            var=self.var,
+            local_vars=self.local_vars,
+            amount=self.amount,
+            salt_vs_pepper=self.salt_vs_pepper,
+        )
+
+    apply_to_sample = apply_to_batch
