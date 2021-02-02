@@ -3,16 +3,14 @@ from pathlib import Path
 
 from torch.utils.data import DataLoader, SequentialSampler
 
-
-from hylfm import settings
+from hylfm import metrics, settings
 from hylfm.datasets import get_collate
 from hylfm.datasets.named import DatasetName, DatasetPart, get_dataset
 from hylfm.get_model import app as app_get_model
 from hylfm.load_checkpoint import load_model_from_checkpoint
-from hylfm.metrics import BeadPrecisionRecall
-from hylfm.metrics.base import MetricGroup
+from hylfm.metrics import MetricGroup
 from hylfm.run.eval import EvalRun
-from hylfm.run.logger import WandbSummaryLogger
+from hylfm.run.logger import WandbEvalLogger
 from hylfm.sampler import NoCrossBatchSampler
 from hylfm.train import app as app_train
 from hylfm.transform_pipelines import get_transforms_pipeline
@@ -97,9 +95,13 @@ def test(
         num_workers=settings.num_workers_train_data_loader,
         pin_memory=settings.pin_memory,
     )
+    data_range = 1
+    win_sigma = 1.5
+    win_size = 11
 
-    metrics = MetricGroup(
-        BeadPrecisionRecall(
+    metric_group = MetricGroup(
+        # on volume
+        metrics.BeadPrecisionRecall(
             dist_threshold=3.0,
             exclude_border=False,
             max_sigma=6.0,
@@ -109,7 +111,40 @@ def test(
             threshold=0.05,
             tgt_threshold=0.05,
             scaling=(2.0, 0.7 * 8 / scale, 0.7 * 8 / scale),
-        )
+        ),
+        metrics.MSE(),
+        metrics.MS_SSIM(
+            channel=1, data_range=data_range, size_average=True, spatial_dims=3, win_size=win_size, win_sigma=win_sigma
+        ),
+        metrics.NRMSE(),
+        metrics.PSNR(data_range=data_range),
+        metrics.SSIM(
+            data_range=data_range, size_average=True, win_size=win_size, win_sigma=win_sigma, channel=1, spatial_dims=3
+        ),
+        metrics.SmoothL1(),
+        # along z
+        metrics.MSE(along_dim=1),
+        metrics.MS_SSIM(
+            along_dim=1,
+            data_range=data_range,
+            size_average=True,
+            win_size=win_size,
+            win_sigma=win_sigma,
+            channel=1,
+            spatial_dims=2,
+        ),
+        metrics.NRMSE(along_dim=1),
+        metrics.PSNR(along_dim=1, data_range=data_range),
+        metrics.SSIM(
+            along_dim=1,
+            data_range=data_range,
+            size_average=True,
+            win_size=win_size,
+            win_sigma=win_sigma,
+            channel=1,
+            spatial_dims=2,
+        ),
+        metrics.SmoothL1(along_dim=1),
     )
     run = EvalRun(
         model=model,
@@ -117,10 +152,10 @@ def test(
         batch_preprocessing_in_step=transforms_pipeline.batch_preprocessing_in_step,
         batch_postprocessing=transforms_pipeline.batch_postprocessing,
         batch_premetric_trf=transforms_pipeline.batch_premetric_trf,
-        metrics=metrics,
+        metrics=metric_group,
         pred_name="pred",
         tgt_name="ls_reg" if "beads" in dataset_name.value else "ls_trf",
-        log_run=WandbSummaryLogger(metrics=metrics),
+        run_logger=WandbEvalLogger(),
     )
 
     for batch in run:

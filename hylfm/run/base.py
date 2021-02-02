@@ -27,9 +27,7 @@ class Run:
         metrics: MetricGroup,
         pred_name: str,
         tgt_name: Optional[str],
-        log_step: Optional[RunLogger] = None,
-        log_epoch: Optional[RunLogger] = None,
-        log_run: RunLogger,
+        run_logger: RunLogger,
         name: Optional[str] = None,
     ):
         assert isinstance(__version__, str)
@@ -52,9 +50,7 @@ class Run:
         self.pred_name = pred_name
         self.tgt_name = tgt_name
 
-        self.log_step = log_step
-        self.log_epoch = log_epoch
-        self.log_run = log_run
+        self.run_logger = run_logger
 
         self.name = self.__class__.__name__ if name is None else name
 

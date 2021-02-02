@@ -17,7 +17,7 @@ class Settings:
     log_dir: Path = Path(__file__).parent / "../../logs"
     download_dir: Path = Path(__file__).parent / "../../download"
     cache_dir: Path = Path(__file__).parent / "../../cache"
-    configs_dir: Path = Path(__file__).parent / "../../configs"
+    # configs_dir: Path = Path(__file__).parent / "../../configs"
 
     num_workers_train_data_loader: int = 1 if debug_mode else 2
     num_workers_validate_data_loader: int = 1 if debug_mode else 2
@@ -49,15 +49,15 @@ class Settings:
 
         self.download_dir = Path(self.download_dir).resolve()
         self.download_dir.mkdir(parents=True, exist_ok=True)
-        logger.info("caching to %s", self.download_dir)
+        logger.info("downloading to %s", self.download_dir)
 
         self.cache_dir = Path(self.cache_dir).resolve()
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         logger.info("caching to %s", self.cache_dir)
-
-        self.configs_dir = Path(self.configs_dir).resolve()
-        self.configs_dir.mkdir(parents=True, exist_ok=True)
-        logger.info("caching to %s", self.configs_dir)
+        #
+        # self.configs_dir = Path(self.configs_dir).resolve()
+        # self.configs_dir.mkdir(parents=True, exist_ok=True)
+        # logger.info("caching to %s", self.configs_dir)
 
         self.data_roots = {k: Path(v) for k, v in self.data_roots.items()}
 

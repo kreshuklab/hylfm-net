@@ -78,7 +78,7 @@ def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: Trans
                 )
             ]
         )
-    elif name == DatasetName.beads_highc_a:
+    elif name in [DatasetName.beads_highc_a, DatasetName.beads_highc_b]:
         if part == DatasetPart.train:
             tensors = {
                 "lf": f"beads.small_2",
@@ -111,7 +111,6 @@ def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: Trans
                 )
             ]
         )
-
     elif name == DatasetName.heart_static_a:
 
         def get_tensors(tag_: str):
