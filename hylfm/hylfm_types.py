@@ -13,9 +13,19 @@ try:
 except ImportError:
     from typing_extensions import Protocol
 
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 
 class TransformLike(Protocol):
     def __call__(self, tensors: Dict[str, Any]) -> Dict[str, Any]:
+        pass
+
+
+class CriterionLike(Protocol):
+    def __call__(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         pass
 
 

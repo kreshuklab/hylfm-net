@@ -10,7 +10,7 @@ from hylfm.get_model import app as app_get_model
 from hylfm.load_checkpoint import load_model_from_checkpoint
 from hylfm.metrics import MetricGroup
 from hylfm.run.eval import EvalRun
-from hylfm.run.logger import WandbEvalLogger
+from hylfm.run.logger import WandbLogger
 from hylfm.sampler import NoCrossBatchSampler
 from hylfm.train import app as app_train
 from hylfm.transform_pipelines import get_transforms_pipeline
@@ -62,7 +62,7 @@ def test(
 ):
     import wandb
 
-    wandb.init(project=f"HyLFM-test")
+    wandb_run = wandb.init(project=f"HyLFM-test")
     wandb.summary["dataset"] = dataset_name
     wandb.summary["dataset_part"] = dataset_part
 
@@ -146,7 +146,8 @@ def test(
         ),
         metrics.SmoothL1(along_dim=1),
     )
-    run = EvalRun(
+    eval_run = EvalRun(
+        log_pred_vs_spim=True,
         model=model,
         dataloader=dataloader,
         batch_preprocessing_in_step=transforms_pipeline.batch_preprocessing_in_step,
@@ -155,10 +156,12 @@ def test(
         metrics=metric_group,
         pred_name="pred",
         tgt_name="ls_reg" if "beads" in dataset_name.value else "ls_trf",
-        run_logger=WandbEvalLogger(),
+        run_logger=WandbLogger(zyx_scaling=(2, 0.7 * 8 / scale, 0.7 * 8 / scale)),
+        save_pred_to_disk=settings.log_dir / "output_tensors" / wandb_run.name / wandb_run.id / "pred",
+        save_spim_to_disk=settings.log_dir / "output_tensors" / wandb_run.name / wandb_run.id / "spim",
     )
 
-    for batch in run:
+    for batch in eval_run:
         pass
 
 

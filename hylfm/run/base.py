@@ -58,6 +58,5 @@ class Run:
         for batch in self._run():
             yield batch
 
-
     def _run(self) -> Iterable[Dict[str, Any]]:
         raise NotImplementedError

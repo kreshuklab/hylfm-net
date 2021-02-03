@@ -2,39 +2,16 @@ from __future__ import annotations
 
 import collections
 import logging
-from enum import Enum
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Tuple
 
 import torch
 import numpy
+import pandas
 import wandb
 
-from hylfm.metrics.base import MetricGroup
+from hylfm.utils.general import Period, PeriodUnit
 
 logger = logging.getLogger(__name__)
-
-
-class PeriodUnit(Enum):
-    epoch = "epoch"
-    iteration = "iteration"
-
-
-class Period:
-    def __init__(self, value: int, unit: PeriodUnit):
-        self.value = value
-        self.unit = unit
-
-    def match(self, *, epoch: int, iteration: int, epoch_len: int):
-        if self.unit == PeriodUnit.epoch:
-            if epoch % self.value == 0 and iteration == epoch_len - 1:
-                return True
-        if self.unit == PeriodUnit.iteration:
-            if iteration % self.value == 0:
-                return True
-        else:
-            raise NotImplementedError(self.unit)
-
-        return False
 
 
 def log_exception(func):
@@ -67,12 +44,13 @@ class RunLogger:
         raise NotImplementedError
 
 
-class WandbEvalLogger(RunLogger):
-    def __init__(self, point_cloud_threshold: float = 0.2, **super_kwargs):
+class WandbLogger(RunLogger):
+    def __init__(self, *, point_cloud_threshold: float = 0.2, zyx_scaling: Tuple[float, float, float], **super_kwargs):
         super().__init__(**super_kwargs)
         self.point_cloud_threshold = point_cloud_threshold
         self.tables = collections.defaultdict(list)
         self.hist = collections.defaultdict(list)
+        self.zyx_scaling = zyx_scaling
 
     def log_metrics_sample(self, *, epoch: int, epoch_len: int, iteration: int, batch_idx: int, **metrics):
         assert epoch == 0
@@ -104,6 +82,7 @@ class WandbEvalLogger(RunLogger):
                     if c == 2:
                         mask = value.max(0) > self.point_cloud_threshold
                         idx = numpy.asarray(numpy.where(mask)).T
+                        idx = idx * numpy.broadcast_to(numpy.array([self.zyx_scaling]), idx.shape)
                         pixels = value[numpy.broadcast_to(mask[None], value.shape)].reshape(-1, 2)
                         color = numpy.ones(len(pixels))
                         color[pixels[:, 0] > self.point_cloud_threshold] -= 1
@@ -114,6 +93,7 @@ class WandbEvalLogger(RunLogger):
                     elif c == 3:
                         mask = value.sum(0) > self.point_cloud_threshold
                         idx = numpy.asarray(numpy.where(mask)).T
+                        idx = idx * numpy.broadcast_to(numpy.array([self.zyx_scaling]), idx.shape)
                         rgb = value[numpy.broadcast_to(mask[None], value.shape)].reshape(-1, 3)
                         assert len(idx) == len(rgb)
                         point_cloud = numpy.asarray([list(coord) + [r, g, b] for coord, (r, g, b) in zip(idx, rgb)])
@@ -145,12 +125,15 @@ class WandbEvalLogger(RunLogger):
                 **{k: v[i] for k, v in metrics.items()}
             )
 
-    def log_summary(self, **metrics):
+    def _get_final_log_and_summary(self, metrics):
         summary = {}
         final_log = {}
         for key, value in metrics.items():
             if isinstance(value, list):
                 raise TypeError(key)
+
+            elif isinstance(value, pandas.DataFrame):
+                final_log[key] = wandb.Table(dataframe=value)
 
             elif "idx_pos" in key:
                 raise NotImplementedError("idx_pos")
@@ -179,8 +162,40 @@ class WandbEvalLogger(RunLogger):
             table = wandb.Table(data=data, columns=[key])
             final_log[key + "_hist"] = wandb.plot.histogram(table, key, title="hist: " + key)
 
+        return final_log, summary
+
+    def log_summary(self, **metrics):
+        final_log, summary = self._get_final_log_and_summary(metrics)
         wandb.log(final_log)
         wandb.summary.update(summary)
+
+
+class WandbValidationLogger(WandbLogger):
+    def __init__(self, *, score_metric: str, minimize: bool, **super_kwargs):
+        super().__init__(**super_kwargs)
+        self.score_metric = score_metric
+        self.minimize = minimize
+        self.best_score = None
+        self.val_it = 0
+
+    def log_metrics(self, *, epoch: int, epoch_len: int, iteration: int, batch_len: int, **metrics):
+        # don't log metrics per step when validating
+        pass
+
+    def log_summary(self, **metrics):
+        self.val_it += 1
+        final_log, summary = self._get_final_log_and_summary(metrics)
+        final_log["it"] = self.val_it
+        wandb.log({"val_" + k: v for k, v in final_log.items()}, commit=False)
+
+        score = summary[self.score_metric]
+        if self.minimize:
+            score *= -1
+
+        if self.best_score is None or self.best_score < score:
+            self.best_score = score
+            summary["it"] = self.val_it
+            wandb.summary.update({"val_" + k: v for k, v in summary.items()})
 
 
 class MultiLogger(RunLogger):

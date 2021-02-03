@@ -1,6 +1,7 @@
 import re
 import shutil
 import typing
+from enum import Enum
 from functools import wraps
 from inspect import signature
 from pathlib import Path
@@ -137,3 +138,26 @@ def download_file(url: str, download_file_path: Path):
         raise RuntimeError(f"downloading {url} to {download_file_path} failed")
 
     shutil.move(download_file_path.with_suffix(".part"), download_file_path)
+
+
+class PeriodUnit(Enum):
+    epoch = "epoch"
+    iteration = "iteration"
+
+
+class Period:
+    def __init__(self, value: int, unit: PeriodUnit):
+        self.value = value
+        self.unit = unit
+
+    def match(self, *, epoch: int, iteration: int, epoch_len: int):
+        if self.unit == PeriodUnit.epoch:
+            if epoch % self.value == 0 and iteration == epoch_len - 1:
+                return True
+        if self.unit == PeriodUnit.iteration:
+            if iteration % self.value == 0:
+                return True
+        else:
+            raise NotImplementedError(self.unit)
+
+        return False
