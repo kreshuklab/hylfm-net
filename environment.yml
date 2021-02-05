@@ -12,13 +12,12 @@ dependencies:
   - inferno
   - jupyter
   - matplotlib>=3.3.2
-  - merge_args
   - numpy>=1.16.3
   - pip>=19.1
   - pytest
   - python>=3.7.3
   - pytorch-msssim
-  - pytorch>=1.4.0
+  - pytorch>=1.7.0
   - pyyaml>=5.1
   - requests
   - ruamel.yaml
@@ -38,4 +37,5 @@ dependencies:
   - z5py>=1.4.1
   - pip:
       - csbdeep
+      - merge_args
       - wandb  # todo: install from conda first, then uninstall --force and install with pip to make cli working
