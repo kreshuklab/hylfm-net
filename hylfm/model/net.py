@@ -18,17 +18,17 @@ from inferno.extensions.initializers import Constant, Initialization
 
 class HyLFM_Net(nn.Module):
     class InitName(str, Enum):
-        uniform = "uniform_"
-        normal = "normal_"
-        constant = "constant_"
-        eye = "eye_"
-        dirac = "dirac_"
-        xavier_uniform = "xavier_uniform_"
-        xavier_normal = "xavier_normal_"
-        kaiming_uniform = "kaiming_uniform_"
-        kaiming_normal = "kaiming_normal_"
-        orthogonal = "orthogonal_"
-        sparse = "sparse_"
+        uniform_ = "uniform"
+        normal_ = "normal"
+        constant_ = "constant"
+        eye_ = "eye"
+        dirac_ = "dirac"
+        xavier_uniform_ = "xavier_uniform"
+        xavier_normal_ = "xavier_normal"
+        kaiming_uniform_ = "kaiming_uniform"
+        kaiming_normal_ = "kaiming_normal"
+        orthogonal_ = "orthogonal"
+        sparse_ = "sparse"
 
     def __init__(
         self,
@@ -43,12 +43,11 @@ class HyLFM_Net(nn.Module):
         kernel3d: int = 3,
         conv_per_block3d: int = 2,
         c_res3d: Sequence[str] = (7, "u7", 7, 7),
-        init_fn: Union[InitName, str] = InitName.xavier_uniform,
+        init_fn: Union[InitName, str] = InitName.xavier_uniform_.value,
         final_activation: Optional[Literal["sigmoid"]] = None,
     ):
         super().__init__()
-        if isinstance(init_fn, str):
-            init_fn = getattr(self.InitName, init_fn)
+        init_fn = self.InitName(init_fn)
 
         init_fn = getattr(nn.init, init_fn.value)
         self.c_res2d = list(c_res2d)

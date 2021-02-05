@@ -1,3 +1,4 @@
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 
@@ -31,6 +32,7 @@ app = typer.Typer()
 def train(
     batch_multiplier: int = typer.Option(1, "--batch_multiplier"),
     batch_size: int = typer.Option(1, "--batch_size"),
+    data_range: float = typer.Option(1.0, "--data_range"),
     dataset_name: DatasetName = typer.Option(..., "--dataset_name"),
     init_weights_from: Optional[Path] = typer.Option(None, "--init_weights_from"),
     interpolation_order: int = 2,
@@ -39,40 +41,37 @@ def train(
     max_epochs: int = typer.Option(10, "--max_epochs"),
     optimizer: str = "Adam",
     patience: int = typer.Option(10, "--patience"),
-    validate_every_unit: PeriodUnit = typer.Option(PeriodUnit.epoch, "--validate_every_unit"),
+    validate_every_unit: PeriodUnit = typer.Option(PeriodUnit.epoch.value, "--validate_every_unit"),
     validate_every_value: int = typer.Option(1, "--validate_every_value"),
     weight_decay: float = typer.Option(0.0, "--weight_decay"),
+    win_sigma: float = typer.Option(1.5, "--win_sigma"),
+    win_size: int = typer.Option(11, "--win_size"),
     **model_kwargs,
 ):
     config = {
-        "batch_multiplier": batch_multiplier,
-        "batch_size": batch_size,
-        "dataset": dataset_name,
-        "init_weights_from": init_weights_from,
-        "interpolation_order": interpolation_order,
-        "loss": loss,
-        "lr": lr,
-        "max_epochs": max_epochs,
-        "model": model_kwargs,
-        "optimizer": optimizer,
-        "patience": patience,
-        "validate_every_unit": validate_every_unit,
-        "validate_every_value": validate_every_value,
-        "weight_decay": weight_decay,
+        k: v.value if isinstance(v, Enum) else str(v) if isinstance(v, Path) else v
+        for k, v in dict(
+            batch_multiplier=batch_multiplier,
+            batch_size=batch_size,
+            data_range=data_range,
+            dataset=dataset_name,
+            init_weights_from=init_weights_from,
+            interpolation_order=interpolation_order,
+            loss=loss,
+            lr=lr,
+            max_epochs=max_epochs,
+            model={k: v.value if isinstance(v, Enum) else v for k, v in model_kwargs.items()},
+            optimizer=optimizer,
+            patience=patience,
+            validate_every_unit=validate_every_unit,
+            validate_every_value=validate_every_value,
+            weight_decay=weight_decay,
+            win_sigma=win_sigma,
+            win_size=win_size,
+        ).items()
     }
     wandb_run = wandb.init(project=f"HyLFM-train", dir=str(settings.cache_dir), config=config, reinit=True)
     config = wandb_run.config  # overwrites config during sweep?!?
-    assert config.model == model_kwargs, (config.model_kwargs, model_kwargs)
-    assert config.init_weights_from == init_weights_from, (config.init_weights_from, init_weights_from)
-    assert config.dataset == dataset_name, (config.dataset_name, dataset_name)
-    assert config.interpolation_order == interpolation_order, (config.interpolation_order, interpolation_order)
-    assert config.batch_size == batch_size, (config.batch_size, batch_size)
-    assert config.batch_multiplier == batch_multiplier, (config.batch_multiplier, batch_multiplier)
-    assert config.max_epochs == max_epochs, (config.max_epochs, max_epochs)
-    assert config.optimizer == optimizer, (config.optimizer, optimizer)
-    assert config.lr == lr, (config.lr, lr)
-    assert config.weight_decay == weight_decay, (config.weight_decay, weight_decay)
-    assert config.loss == loss, (config.loss, loss)
 
     model = get_model(**model_kwargs)
     if init_weights_from is not None:
@@ -80,7 +79,7 @@ def train(
         model.load_state_dict(state["model"], strict=True)
 
     opt: torch.optim.Optimizer = getattr(torch.optim, optimizer)(
-        parameters=model.parameters(), lr=lr, weight_decay=weight_decay
+        model.parameters(), lr=lr, weight_decay=weight_decay
     )
     criterion = getattr(hylfm.criteria, loss)
 
@@ -120,10 +119,6 @@ def train(
         )
         for part in DatasetPart
     }
-
-    data_range = 1
-    win_sigma = 1.5
-    win_size = 11
 
     metric_groups = {
         DatasetPart.train: MetricGroup(),
@@ -278,7 +273,9 @@ def train(
     train_run.fit()
 
     # test
-    wandb_run = wandb.init(project=f"HyLFM-test", dir=str(settings.cache_dir), config=config, reinit=True)
+    wandb_run = wandb.init(
+        name=wandb_run.name, project=f"HyLFM-test", dir=str(settings.cache_dir), config=config, reinit=True
+    )
     tester.run()
 
 
