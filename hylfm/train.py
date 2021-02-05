@@ -1,10 +1,7 @@
 from hylfm import settings  # noqa: first line to set numpy env vars
-
 from enum import Enum
 from pathlib import Path
 from typing import Optional
-
-import hylfm
 
 import torch.optim
 import typer
@@ -12,8 +9,9 @@ import wandb
 from merge_args import merge_args
 from torch.utils.data import DataLoader, SequentialSampler
 
+import hylfm
 import hylfm.criteria
-from hylfm import metrics, settings
+from hylfm import metrics
 from hylfm.datasets import get_collate
 from hylfm.datasets.named import get_dataset
 from hylfm.get_model import get_model
@@ -40,6 +38,7 @@ def train(
     init_weights_from: Optional[Path] = typer.Option(None, "--init_weights_from"),
     interpolation_order: int = 2,
     criterion: str = "SmoothL1",
+    criterion_beta: float = 1.0,
     lr: float = 1e-3,
     max_epochs: int = typer.Option(10, "--max_epochs"),
     optimizer: str = "Adam",
@@ -67,9 +66,11 @@ def train(
         criterion_kwargs = dict(
             channel=1, data_range=data_range, size_average=True, spatial_dims=3, win_size=win_size, win_sigma=win_sigma
         )
+    elif criterion == "SmoothL1":
+        criterion_kwargs = dict(beta=criterion_beta)
     elif criterion == "SmoothL1_MS_SSIM":
         criterion_kwargs = dict(
-            beta=1.0,
+            beta=criterion_beta,
             channel=1,
             data_range=data_range,
             size_average=True,
