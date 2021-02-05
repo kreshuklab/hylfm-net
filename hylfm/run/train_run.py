@@ -22,7 +22,6 @@ class TrainRun(Run):
         batch_premetric_trf: TransformLike,
         batch_preprocessing_in_step: TransformLike,
         criterion: CriterionLike,
-        minimize_criterion: bool = True,
         dataloader: torch.utils.data.DataLoader,
         max_epochs: int,
         metrics: MetricGroup,
@@ -58,7 +57,6 @@ class TrainRun(Run):
         self.criterion = criterion
         self.batch_multiplier = batch_multiplier
         self.optimizer = optimizer
-        self.minimize_criterion = minimize_criterion
 
     def fit(self):
         for it in self:
@@ -90,7 +88,7 @@ class TrainRun(Run):
                 batch = self.batch_postprocessing(batch)
 
                 loss = self.criterion(batch["pred"], batch[self.tgt_name]) / self.batch_multiplier
-                if not self.minimize_criterion:
+                if not self.criterion.minimize:
                     loss *= -1
 
                 loss.backward()

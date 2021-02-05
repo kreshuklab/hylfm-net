@@ -39,7 +39,7 @@ def train(
     dataset_name: DatasetName = typer.Option(..., "--dataset_name"),
     init_weights_from: Optional[Path] = typer.Option(None, "--init_weights_from"),
     interpolation_order: int = 2,
-    criterion: str = "MS_SSIM",
+    criterion: str = "SmoothL1",
     lr: float = 1e-3,
     max_epochs: int = typer.Option(10, "--max_epochs"),
     optimizer: str = "Adam",
@@ -64,9 +64,18 @@ def train(
 
     opt: torch.optim.Optimizer = getattr(torch.optim, optimizer)(model.parameters(), lr=lr, weight_decay=weight_decay)
     if criterion == "MS_SSIM":
-        minimize_criterion = False
         criterion_kwargs = dict(
             channel=1, data_range=data_range, size_average=True, spatial_dims=3, win_size=win_size, win_sigma=win_sigma
+        )
+    elif criterion == "SmoothL1_MS_SSIM":
+        criterion_kwargs = dict(
+            beta=1.0,
+            channel=1,
+            data_range=data_range,
+            size_average=True,
+            spatial_dims=3,
+            win_size=win_size,
+            win_sigma=win_sigma,
         )
     else:
         raise NotImplementedError(criterion)
@@ -207,14 +216,14 @@ def train(
         dataloader=dataloaders[part],
         log_pred_vs_spim=False,
         metrics=metric_groups[part],
-        minimize=False,
+        minimize=getattr(metrics, score_metric.replace("-", "_")).minimize,
         model=model,
         pred_name="pred",
         run_logger=WandbValidationLogger(
             point_cloud_threshold=0.3,
             zyx_scaling=(2, 0.7 * 8 / scale, 0.7 * 8 / scale),
             score_metric=score_metric,
-            minimize=False,
+            minimize=getattr(metrics, score_metric.replace("-", "_")).minimize,
         ),
         save_pred_to_disk=None,
         save_spim_to_disk=None,
@@ -229,7 +238,6 @@ def train(
         batch_premetric_trf=transforms_pipelines[part].batch_premetric_trf,
         batch_preprocessing_in_step=transforms_pipelines[part].batch_preprocessing_in_step,
         criterion=criterion_inst,
-        minimize_criterion=minimize_criterion,
         dataloader=dataloaders[part],
         max_epochs=max_epochs,
         metrics=metric_groups[part],

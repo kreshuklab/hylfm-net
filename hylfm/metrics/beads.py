@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class BeadPrecisionRecall(Metric):
+    minimize: bool = False
     found_missing_extra: list
     found_missing_extra_alongdim: DefaultDict[int, DefaultDict[int, List[Tuple[int, int, int]]]]
     max_shape: numpy.ndarray

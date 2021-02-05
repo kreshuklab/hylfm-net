@@ -25,6 +25,8 @@ class TransformLike(Protocol):
 
 
 class CriterionLike(Protocol):
+    minimize: bool
+
     def __call__(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         pass
 
