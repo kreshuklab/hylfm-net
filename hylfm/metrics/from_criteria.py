@@ -2,15 +2,15 @@ from hylfm import criteria
 from hylfm.metrics.base import SimpleSingleValueMetric
 
 
-class L1(SimpleSingleValueMetric, criteria.L1Loss):
+class L1(SimpleSingleValueMetric, criteria.L1):
     pass
 
 
-class MSE(SimpleSingleValueMetric, criteria.MSELoss):
+class MSE(SimpleSingleValueMetric, criteria.MSE):
     pass
 
 
-class SmoothL1(SimpleSingleValueMetric, criteria.SmoothL1Loss):
+class SmoothL1(SimpleSingleValueMetric, criteria.SmoothL1):
     pass
 
 
@@ -22,11 +22,11 @@ class MS_SSIM(SimpleSingleValueMetric, criteria.MS_SSIM):
     pass
 
 
-class WeightedL1(SimpleSingleValueMetric, criteria.WeightedL1Loss):
+class WeightedL1(SimpleSingleValueMetric, criteria.WeightedL1):
     pass
 
 
-class WeightedSmoothL1(SimpleSingleValueMetric, criteria.WeightedSmoothL1Loss):
+class WeightedSmoothL1(SimpleSingleValueMetric, criteria.WeightedSmoothL1):
     pass
 
 

@@ -69,7 +69,7 @@ class WeightedL1(WeightedLossBase, torch.nn.L1Loss):
         )
 
 
-class WeightedSmoothL1Loss(WeightedLossBase, torch.nn.SmoothL1Loss):
+class WeightedSmoothL1(WeightedLossBase, torch.nn.SmoothL1Loss):
     minimize = True
 
     def __init__(self, *, threshold: float, weight: float, apply_below_threshold: bool, beta: float = 1.0):
