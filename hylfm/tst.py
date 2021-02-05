@@ -34,7 +34,7 @@ def tst(
     checkpoint: Path,
     batch_size: int = 1,
     data_range: float = 1,
-    dataset_part: DatasetPart = typer.Option(DatasetPart.test, "--dataset_part"),
+    dataset_part: DatasetPart = typer.Option(DatasetPart.test.value, "--dataset_part"),
     interpolation_order: int = 2,
     win_sigma: float = 1.5,
     win_size: int = 11,

@@ -149,6 +149,7 @@ class Period:
     def __init__(self, value: int, unit: Union[PeriodUnit, str]):
         self.value = value
         self.unit = PeriodUnit(unit)
+        assert isinstance(self.unit, PeriodUnit)
 
     def match(self, *, epoch: int, iteration: int, epoch_len: int):
         if self.unit == PeriodUnit.epoch:

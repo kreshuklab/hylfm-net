@@ -275,7 +275,7 @@ def train(
             model={k: v.value if isinstance(v, Enum) else v for k, v in model_kwargs.items()},
             optimizer=optimizer,
             patience=patience,
-            validate_every_unit=validate_every_unit,
+            validate_every_unit=validate_every_unit.value,
             validate_every_value=validate_every_value,
             weight_decay=weight_decay,
             win_sigma=win_sigma,

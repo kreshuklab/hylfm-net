@@ -25,7 +25,7 @@ app.add_typer(app_test, name="test")
 @app.command()
 def preprocess(
     dataset_name: DatasetName,
-    dataset_part: DatasetPart = DatasetPart.test,
+    dataset_part: DatasetPart = DatasetPart.test.value,
     nnum: int = 19,
     z_out: int = 49,
     scale: int = 4,
