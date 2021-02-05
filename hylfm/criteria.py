@@ -3,32 +3,37 @@ import torch.nn
 import pytorch_msssim
 
 
-class L1Loss(torch.nn.L1Loss):
+class L1(torch.nn.L1Loss):
     minimize = True
+
     def forward(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         return super().forward(input=prediction, target=target)
 
 
-class MSELoss(torch.nn.MSELoss):
+class MSE(torch.nn.MSELoss):
     minimize = True
+
     def forward(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         return super().forward(input=prediction, target=target)
 
 
-class SmoothL1Loss(torch.nn.SmoothL1Loss):
+class SmoothL1(torch.nn.SmoothL1Loss):
     minimize = True
+
     def forward(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         return super().forward(input=prediction, target=target)
 
 
 class SSIM(pytorch_msssim.SSIM):
     minimize = False
+
     def forward(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         return super().forward(X=prediction, Y=target)
 
 
 class MS_SSIM(pytorch_msssim.MS_SSIM):
     minimize = False
+
     def forward(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         return super().forward(X=prediction, Y=target)
 
@@ -55,8 +60,9 @@ class WeightedLossBase(torch.nn.Module):
         return pixelwise.mean()
 
 
-class WeightedL1Loss(WeightedLossBase, torch.nn.L1Loss):
+class WeightedL1(WeightedLossBase, torch.nn.L1Loss):
     minimize = True
+
     def __init__(self, *, threshold: float, weight: float, apply_below_threshold: bool):
         super().__init__(
             threshold=threshold, weight=weight, apply_below_threshold=apply_below_threshold, reduction="none"
@@ -65,16 +71,19 @@ class WeightedL1Loss(WeightedLossBase, torch.nn.L1Loss):
 
 class WeightedSmoothL1Loss(WeightedLossBase, torch.nn.SmoothL1Loss):
     minimize = True
+
     def __init__(self, *, threshold: float, weight: float, apply_below_threshold: bool, beta: float = 1.0):
         super().__init__(
             threshold=threshold, weight=weight, apply_below_threshold=apply_below_threshold, beta=beta, reduction="none"
         )
 
+
 class SmoothL1_MS_SSIM(MS_SSIM):
     minimize = True
+
     def __init__(self, beta: float = 1.0, **super_kwargs):
         super().__init__(**super_kwargs)
-        self.smooth_l1 = SmoothL1Loss(beta=beta)
+        self.smooth_l1 = SmoothL1(beta=beta)
 
     def forward(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         ms_ssim = super().forward(prediction=prediction, target=target)
