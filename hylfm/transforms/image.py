@@ -27,7 +27,7 @@ class Crop(Transform):
         if (crop is not None and crop_fn is not None) or (crop is None and crop_fn is None):
             raise ValueError("exclusive arguments: `crop` and `crop_fn`")
         elif crop_fn is None:
-            assert all(len(c) == 2 for c in crop)
+            # assert all(len(c) == 2 for c in crop)
             self.crop_fn = None
             self.crop = crop
         else:
@@ -38,7 +38,7 @@ class Crop(Transform):
         if not isinstance(tensor, (numpy.ndarray, torch.Tensor)):
             raise TypeError(type(tensor))
 
-        crop = self.crop if self.crop_fn is None else self.crop_fn(tensor.shape[1:])
+        crop = self.crop if self.crop_fn is None else self.crop_fn(tensor.shape)
         assert len(tensor.shape) == len(crop), (tensor.shape, crop)
         return tensor[tuple(slice(lower, upper) for lower, upper in crop)]
 
@@ -180,7 +180,7 @@ class CropLSforDynamicTraining(Transform):
                 z_ls_rescaled=z_ls_rescaled,
                 ls_scale=scale,
             )
-            ls_roi = (0, None) + ls_roi  # add channel dim
+            ls_roi = ((0, None),) + ls_roi  # add channel dim
             self.crops[crop_name] = Crop(apply_to=apply_to, crop=ls_roi)
 
     def apply_to_sample(self, tensor: typing.Any, crop_name: str) -> typing.Union[numpy.ndarray, torch.Tensor]:
@@ -191,14 +191,16 @@ class CropWhatShrinkDoesNot(Transform):
     def __init__(self, apply_to: str, crop_names: Sequence[str], nnum: int, scale: int, shrink: int, wrt_ref: bool):
         assert isinstance(apply_to, str)
 
-        super().__init__(apply_to=apply_to)
+        super().__init__(
+            input_mapping={apply_to: "tensor", "crop_name": "crop_name"}, output_mapping={"tensor": apply_to}
+        )
         self.crops = {}
         for crop_name in crop_names:
             roi = get_lf_roi_in_raw_lf(crop_name, nnum=nnum, shrink=shrink, scale=scale, wrt_ref=wrt_ref)
             if apply_to != "lf":
-                roi = (0, None) + roi  # add z dim
+                roi = ((0, None),) + roi  # add z dim
 
-            roi = (0, None) + roi  # add channel dim
+            roi = ((0, None),) + roi  # add channel dim
             self.crops[crop_name] = Crop(apply_to=apply_to, crop=roi)
 
     def apply_to_sample(self, tensor: Array, crop_name: str) -> typing.Union[numpy.ndarray, torch.Tensor]:
@@ -221,9 +223,7 @@ class Pad(Transform):
         self.pad_mode = pad_mode
         self.nnum = nnum
 
-    def apply_to_sample(
-        self, tensor: typing.Any, *, name: str, idx: int, meta: typing.List[dict]
-    ) -> typing.Union[numpy.ndarray, torch.Tensor]:
+    def apply_to_sample(self, tensor: typing.Any) -> typing.Union[numpy.ndarray, torch.Tensor]:
         assert len(tensor.shape) - 1 == len(self.pad_width)
         if isinstance(tensor, numpy.ndarray):
             if self.pad_mode == "lenslets":
@@ -246,11 +246,10 @@ class Pad(Transform):
 class FlipAxis(Transform):
     def __init__(self, axis: int, **super_kwargs):
         super().__init__(**super_kwargs)
-        self.axis = axis if axis < 0 else axis + 1  # add batch dim for positive axis
+        assert axis != 0, "You are not supposed to flip the batch dimension!"
+        self.axis = axis
 
-    def apply_to_sample(
-        self, tensor: Union[numpy.ndarray, torch.Tensor], *, name: str, idx: int, meta: List[dict]
-    ) -> Union[numpy.ndarray, torch.Tensor]:
+    def apply_to_batch(self, tensor: Union[numpy.ndarray, torch.Tensor]) -> Union[numpy.ndarray, torch.Tensor]:
         if isinstance(tensor, numpy.ndarray):
             return numpy.flip(tensor, axis=self.axis)
         elif isinstance(tensor, torch.Tensor):
@@ -265,8 +264,6 @@ class SetPixelValue(Transform):
         super().__init__(**super_kwargs)
         self.value = value
 
-    def apply_to_sample(
-        self, tensor: typing.Any, *, name: str, idx: int, meta: typing.List[dict]
-    ) -> typing.Union[numpy.ndarray, torch.Tensor]:
+    def apply_to_sample(self, tensor: typing.Any) -> typing.Union[numpy.ndarray, torch.Tensor]:
         tensor[...] = self.value
         return tensor

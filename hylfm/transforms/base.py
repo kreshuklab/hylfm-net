@@ -63,7 +63,11 @@ class Transform:
         return batch
 
     def apply_to_batch(self, **batch: Any) -> Dict[str, Any]:
-        transformed_samples = [self.apply_to_sample(**sample_in) for sample_in in separate(batch)]
+        try:
+            transformed_samples = [self.apply_to_sample(**sample_in) for sample_in in separate(batch)]
+        except TypeError:
+            logger.error(f"failed to call {self}")
+            raise
 
         # output mapping done in self.__call__(), but we need valid samples of type dict for collate()
         for i, ts in enumerate(transformed_samples):

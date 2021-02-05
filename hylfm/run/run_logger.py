@@ -45,13 +45,14 @@ class RunLogger:
 
 
 class WandbLogger(RunLogger):
-    def __init__(self, *, point_cloud_threshold: float = 0.2, zyx_scaling: Tuple[float, float, float], **super_kwargs):
+    def __init__(self, *, point_cloud_threshold: float = 0.3, zyx_scaling: Tuple[float, float, float], **super_kwargs):
         super().__init__(**super_kwargs)
         self.point_cloud_threshold = point_cloud_threshold
         self.tables = collections.defaultdict(list)
         self.hist = collections.defaultdict(list)
         self.zyx_scaling = zyx_scaling
 
+    @torch.no_grad()
     def log_metrics_sample(self, *, epoch: int, epoch_len: int, iteration: int, batch_idx: int, **metrics):
         assert epoch == 0
         conv = {}
@@ -67,7 +68,7 @@ class WandbLogger(RunLogger):
 
             elif isinstance(value, (torch.Tensor, numpy.ndarray)):
                 if isinstance(value, torch.Tensor):
-                    value = value.cpu().numpy()
+                    value = value.detach().cpu().numpy()
 
                 if len(value.shape) == 1:
                     self.tables[(key[-1], key[:-2])] += [[d, v] for d, v in enumerate(value)]
@@ -78,9 +79,14 @@ class WandbLogger(RunLogger):
                     assert x > 1
                     if c == 1:
                         value = numpy.concatenate([value] * 3)
+                        c = 3
 
                     if c == 2:
                         mask = value.max(0) > self.point_cloud_threshold
+                        if not mask.max():
+                            logger.debug("no points in cloud")
+                            continue
+
                         idx = numpy.asarray(numpy.where(mask)).T
                         idx = idx * numpy.broadcast_to(numpy.array([self.zyx_scaling]), idx.shape)
                         pixels = value[numpy.broadcast_to(mask[None], value.shape)].reshape(-1, 2)
@@ -90,18 +96,33 @@ class WandbLogger(RunLogger):
 
                         assert len(idx) == len(color)
                         point_cloud = numpy.asarray([list(coord) + [col] for coord, col in zip(idx, color)])
+                        conv[key] = wandb.Object3D(point_cloud)
                     elif c == 3:
+                        raise NotImplementedError("result looks only black and white!")
                         mask = value.sum(0) > self.point_cloud_threshold
+                        if not mask.max():
+                            logger.debug("no points in cloud")
+                            continue
+
                         idx = numpy.asarray(numpy.where(mask)).T
                         idx = idx * numpy.broadcast_to(numpy.array([self.zyx_scaling]), idx.shape)
                         rgb = value[numpy.broadcast_to(mask[None], value.shape)].reshape(-1, 3)
                         assert len(idx) == len(rgb)
                         point_cloud = numpy.asarray([list(coord) + [r, g, b] for coord, (r, g, b) in zip(idx, rgb)])
+                        conv[key] = wandb.Object3D(point_cloud)
                     else:
                         raise NotImplementedError(c)
 
-                    conv[key] = wandb.Object3D(point_cloud)
+                elif len(value.shape) == 3:
+                    img = value.transpose(1, 2, 0)
+                    y, x, c = img.shape
+                    if c not in (1, 3, 4):
+                        raise NotImplementedError(c)
 
+                    img = (img * 255).clip(0, 255).astype(numpy.uint8)
+                    conv[key] = wandb.Image(img, caption=key)
+                else:
+                    raise NotImplementedError(value.shape)
             elif isinstance(value, (float, int)):
                 conv[key] = value
                 self.hist[key].append(value)

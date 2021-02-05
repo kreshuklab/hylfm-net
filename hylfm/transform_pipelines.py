@@ -127,13 +127,22 @@ def get_transforms_pipeline(
             Assert(apply_to="pred", expected_shape_like_tensor=spim),
         )
 
-    elif dataset_name in [DatasetName.heart_static_a]:
+    elif dataset_name in [
+        DatasetName.heart_static_sample0,
+        DatasetName.heart_static_a,
+        DatasetName.heart_static_b,
+        DatasetName.heart_static_c,
+    ]:
         spim = "ls_trf"
-        crop_names = ["staticHeartFOV"]
+        crop_names = ["staticHeartFOV", "Heart_tightCrop"]
         sample_precache_trf = []
 
+        if dataset_name in [DatasetName.heart_static_c, DatasetName.heart_static_sample0]:
+            spim_max_percentile = 99.8
+        else:
+            spim_max_percentile = 99.99
+
         if dataset_part == DatasetPart.train:
-            crop_names.append("Heart_tightCrop")
             sample_preprocessing = ComposedTransform(
                 CropWhatShrinkDoesNot(
                     apply_to="lf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=True, crop_names=crop_names
@@ -143,7 +152,7 @@ def get_transforms_pipeline(
                 ),
                 Crop(apply_to=spim, crop=((0, None), (0, None), (shrink, -shrink), (shrink, -shrink))),
                 Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
-                Normalize01Dataset(apply_to=spim, min_percentile=5.0, max_percentile=99.99),
+                Normalize01Dataset(apply_to=spim, min_percentile=5.0, max_percentile=spim_max_percentile),
                 RandomIntensityScale(apply_to=["lf", spim], factor_min=0.8, factor_max=1.2, independent=False),
                 PoissonNoise(apply_to="lf", peak=10),
                 PoissonNoise(apply_to=spim, peak=10),
@@ -163,7 +172,7 @@ def get_transforms_pipeline(
                 ),
                 Crop(apply_to=spim, crop=((0, None), (0, None), (shrink, -shrink), (shrink, -shrink))),
                 Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
-                Normalize01Dataset(apply_to=spim, min_percentile=5.0, max_percentile=99.99),
+                Normalize01Dataset(apply_to=spim, min_percentile=5.0, max_percentile=spim_max_percentile),
                 ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum),
             )
             batch_preprocessing = ComposedTransform()
@@ -178,9 +187,7 @@ def get_transforms_pipeline(
         raise NotImplementedError(dataset_name)
 
     meta["crop_names"].update(set(crop_names))
-    batch_premetric_trf = ComposedTransform(
-        NormalizeMSE(apply_to="pred", target_name=spim, return_alpha_beta=True)
-    )
+    batch_premetric_trf = ComposedTransform(NormalizeMSE(apply_to="pred", target_name=spim, return_alpha_beta=True))
     return TransformsPipeline(
         sample_precache_trf=sample_precache_trf,
         sample_preprocessing=sample_preprocessing,

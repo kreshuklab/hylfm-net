@@ -3,7 +3,7 @@ from typing import Any, Dict
 
 
 def get_config_for_old_checkpoint(checkpoint: Path) -> Dict[str, Any]:
-    if checkpoint.name == "v1_checkpoint_498_MS_SSIM=0.9710696664723483.pth":  # heart stat
+    if checkpoint.name in ["v1_checkpoint_498_MS_SSIM=0.9710696664723483.pth", "v1_checkpoint_MSSSIM=0.6722144321961836.pth", "v1_checkpoint_27500_ms_ssim-scaled=0.8430055000565269.pth"]:  # heart stat
         return {"model": {
             "nnum": 19,
             "z_out": 49,
@@ -60,7 +60,7 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> Dict[str, Any]:
             "init_fn": "xavier_uniform",
             "final_activation": None,
         }}
-    elif checkpoint.name == "v1_checkpoint_SmoothL1Loss=-0.00012947025970788673.pth":
+    elif checkpoint.name == "v1_checkpoint_SmoothL1Loss=-0.00012947025970788673.pth":  # beads f8
         return {"model": {
             "nnum": 19,
             "z_out": 51,

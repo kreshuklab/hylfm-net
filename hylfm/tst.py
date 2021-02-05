@@ -1,20 +1,17 @@
+import hylfm  # noqa
 import logging.config
 from pathlib import Path
-
-import hylfm
 
 from torch.utils.data import DataLoader, SequentialSampler
 
 from hylfm import metrics, settings
 from hylfm.datasets import get_collate
 from hylfm.datasets.named import DatasetName, DatasetPart, get_dataset
-from hylfm.get_model import app as app_get_model
 from hylfm.load_checkpoint import load_model_from_checkpoint
 from hylfm.metrics import MetricGroup
 from hylfm.run.eval import EvalRun
-from hylfm.run.logger import WandbLogger
+from hylfm.run.run_logger import WandbLogger
 from hylfm.sampler import NoCrossBatchSampler
-from hylfm.train import app as app_train
 from hylfm.transform_pipelines import get_transforms_pipeline
 
 try:
@@ -37,14 +34,28 @@ def tst(
     dataset_part: DatasetPart = typer.Option(DatasetPart.test, "--dataset_part"),
     batch_size: int = 1,
     interpolation_order: int = 2,
+    data_range: float = 1,
+    win_sigma: float = 1.5,
+    win_size: int = 11,
 ):
     import wandb
 
-    wandb_run = wandb.init(project=f"HyLFM-test", dir=str(settings.cache_dir))
-    wandb.summary["dataset"] = dataset_name
-    wandb.summary["dataset_part"] = dataset_part
-
     model, config = load_model_from_checkpoint(checkpoint)
+    config.update(
+        dict(
+            dataset=dataset_name,
+            dataset_part=dataset_part,
+            batch_size=batch_size,
+            interpolation_order=interpolation_order,
+            data_range=data_range,
+            win_sigma=win_sigma,
+            win_size=win_size,
+        )
+    )
+
+    wandb_run = wandb.init(project=f"HyLFM-test", dir=str(settings.cache_dir), config=config)
+    config = wandb_run.config
+
     nnum = model.nnum
     z_out = model.z_out
     scale = model.get_scale()
@@ -73,9 +84,6 @@ def tst(
         num_workers=settings.num_workers_train_data_loader,
         pin_memory=settings.pin_memory,
     )
-    data_range = 1
-    win_sigma = 1.5
-    win_size = 11
 
     metric_group = MetricGroup(
         # on volume
@@ -92,33 +100,43 @@ def tst(
         ),
         metrics.MSE(),
         metrics.MS_SSIM(
-            channel=1, data_range=data_range, size_average=True, spatial_dims=3, win_size=win_size, win_sigma=win_sigma
+            channel=1,
+            data_range=config.data_range,
+            size_average=True,
+            spatial_dims=3,
+            win_size=config.win_size,
+            win_sigma=config.win_sigma,
         ),
         metrics.NRMSE(),
-        metrics.PSNR(data_range=data_range),
+        metrics.PSNR(data_range=config.data_range),
         metrics.SSIM(
-            data_range=data_range, size_average=True, win_size=win_size, win_sigma=win_sigma, channel=1, spatial_dims=3
+            data_range=config.data_range,
+            size_average=True,
+            win_size=config.win_size,
+            win_sigma=config.win_sigma,
+            channel=1,
+            spatial_dims=3,
         ),
         metrics.SmoothL1(),
         # along z
         metrics.MSE(along_dim=1),
         metrics.MS_SSIM(
             along_dim=1,
-            data_range=data_range,
+            data_range=config.data_range,
             size_average=True,
-            win_size=win_size,
-            win_sigma=win_sigma,
+            win_size=config.win_size,
+            win_sigma=config.win_sigma,
             channel=1,
             spatial_dims=2,
         ),
         metrics.NRMSE(along_dim=1),
-        metrics.PSNR(along_dim=1, data_range=data_range),
+        metrics.PSNR(along_dim=1, data_range=config.data_range),
         metrics.SSIM(
             along_dim=1,
-            data_range=data_range,
+            data_range=config.data_range,
             size_average=True,
-            win_size=win_size,
-            win_sigma=win_sigma,
+            win_size=config.win_size,
+            win_sigma=config.win_sigma,
             channel=1,
             spatial_dims=2,
         ),
@@ -135,12 +153,11 @@ def tst(
         pred_name="pred",
         tgt_name="ls_reg" if "beads" in dataset_name.value else "ls_trf",
         run_logger=WandbLogger(zyx_scaling=(2, 0.7 * 8 / scale, 0.7 * 8 / scale)),
-        save_pred_to_disk=settings.log_dir / "output_tensors" / wandb_run.name / wandb_run.id / "pred",
-        save_spim_to_disk=settings.log_dir / "output_tensors" / wandb_run.name / wandb_run.id / "spim",
+        save_pred_to_disk=settings.log_dir / "output_tensors" / wandb_run.name / "pred",
+        save_spim_to_disk=settings.log_dir / "output_tensors" / wandb_run.name / "spim",
     )
 
-    for batch in eval_run:
-        pass
+    eval_run.run()
 
 
 if __name__ == "__main__":

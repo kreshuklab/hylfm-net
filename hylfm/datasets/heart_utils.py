@@ -16,13 +16,13 @@ def get_transformations(name: str, crop_name: str, meta: dict):
     assert crop_name in [Heart_tightCrop, staticHeartFOV, wholeFOV, fast_cropped_8ms, fast_cropped_6ms]
     if name == "lf":
         return [
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1] + get_raw_lf_shape(crop_name, wrt_ref=True)}}
+            {"Assert": {"apply_to": name, "expected_tensor_shape": [None, 1] + get_raw_lf_shape(crop_name, wrt_ref=True)}}
         ]
     elif name in ["ls", "ls_trf"]:
         trf = [
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [1, 241, 2048, 2060]}},  # raw ls shape
+            {"Assert": {"apply_to": name, "expected_tensor_shape": [None, 1, 241, 2048, 2060]}},  # raw ls shape
+            {"FlipAxis": {"apply_to": name, "axis": 3}},
             {"FlipAxis": {"apply_to": name, "axis": 2}},
-            {"FlipAxis": {"apply_to": name, "axis": 1}},
             {
                 "Crop": {
                     "apply_to": name,
@@ -32,7 +32,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1]
+                    "expected_tensor_shape": [None, 1]
                     + get_precropped_ls_shape(crop_name, for_slice=False, nnum=meta["nnum"], wrt_ref=True),
                 }
             },
@@ -76,7 +76,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                 {
                     "Assert": {
                         "apply_to": name,
-                        "expected_tensor_shape": [1, meta["z_ls_rescaled"]]
+                        "expected_tensor_shape": [None, 1, meta["z_ls_rescaled"]]
                         + get_precropped_ls_shape(
                             crop_name,
                             nnum=meta["nnum"],
@@ -94,14 +94,14 @@ def get_transformations(name: str, crop_name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1, 1, 1364, 1380]
+                    "expected_tensor_shape": [None, 1, 1, 1364, 1380]
                     if crop_name == fast_cropped_8ms
                     else [1, 1, 1024, 1040]
                     if crop_name == fast_cropped_6ms
                     else [1, 1, 2048, 2060],
                 }
             },  # raw ls shape
-            {"FlipAxis": {"apply_to": name, "axis": 2}},
+            {"FlipAxis": {"apply_to": name, "axis": 3}},
             {
                 "Crop": {
                     "apply_to": name,
@@ -111,7 +111,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1]
+                    "expected_tensor_shape": [None, 1]
                     + get_precropped_ls_shape(crop_name, for_slice=True, nnum=meta["nnum"], wrt_ref=True),
                 }
             },
@@ -131,7 +131,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1]
+                    "expected_tensor_shape": [None, 1]
                     + get_precropped_ls_shape(
                         crop_name,
                         for_slice=True,
@@ -147,7 +147,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1, meta["z_out"]] + get_raw_lf_shape(crop_name, wrt_ref=True),
+                    "expected_tensor_shape": [None, 1, meta["z_out"]] + get_raw_lf_shape(crop_name, wrt_ref=True),
                 }
             },
             {
@@ -164,7 +164,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
             {
                 "Assert": {
                     "apply_to": name,
-                    "expected_tensor_shape": [1, 838] + get_raw_lf_shape(crop_name, wrt_ref=True),
+                    "expected_tensor_shape": [None, 1, 838] + get_raw_lf_shape(crop_name, wrt_ref=True),
                 }
             },  # raw tif
             {

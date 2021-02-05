@@ -13,7 +13,19 @@ from hylfm.utils.general import Period, PeriodUnit
 
 
 class TrainRun(Run):
-    def __init__(self, *, max_epochs: int, train_metrics: MetricGroup, validator: ValidationRun, validate_every: Period, patience: int, criterion: CriterionLike, batch_multiplier: int = 1, optimizer: Optimizer,  **super_kwargs):
+    def __init__(
+        self,
+        *,
+        max_epochs: int,
+        train_metrics: MetricGroup,
+        validator: ValidationRun,
+        validate_every: Period,
+        patience: int,
+        criterion: CriterionLike,
+        batch_multiplier: int = 1,
+        optimizer: Optimizer,
+        **super_kwargs
+    ):
         assert max_epochs > 0, max_epochs
         super().__init__(**super_kwargs)
         self.max_epochs = max_epochs
@@ -23,10 +35,14 @@ class TrainRun(Run):
         self.patience = patience
         self.criterion = criterion
         self.batch_multiplier = batch_multiplier
-        self.optimizer =optimizer
+        self.optimizer = optimizer
 
-    @no_grad()
+    def fit(self):
+        for it in self:
+            pass
+
     def _run(self) -> Iterable[Dict[str, Any]]:
+        self.model.train()
         epoch_len = len(self.dataloader)
         assert epoch_len
         impatience = 0
@@ -56,11 +72,14 @@ class TrainRun(Run):
                     self.optimizer.zero_grad()
 
                 batch = self.batch_premetric_trf(batch)
-                step_metrics = self.train_metrics.update_with_batch(prediction=batch["pred"], target=batch[self.tgt_name])
+                step_metrics = self.train_metrics.update_with_batch(
+                    prediction=batch["pred"], target=batch[self.tgt_name]
+                )
                 step_metrics[self.criterion.__class__.__name__] = loss.item()
 
                 if self.vadate_every.match(epoch=epoch, iteration=it, epoch_len=epoch_len):
                     validation_score = self.validator.get_validation_score()
+                    self.model.train()
                     step_metrics[self.validator.score_metric + "_val-score"] = validation_score
                     if best_validation_score is None or best_validation_score < validation_score:
                         best_validation_score = validation_score

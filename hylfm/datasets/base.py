@@ -304,9 +304,6 @@ class DatasetFromInfoExtender(torch.utils.data.Dataset):
         assert isinstance(dataset, (DatasetFromInfo, N5CachedDatasetFromInfo)), type(dataset)
         self.dataset = dataset
 
-    def update_meta(self, meta: dict) -> dict:
-        return self.dataset.update_meta(meta)
-
     def __len__(self):
         return len(self.dataset)
 
@@ -327,7 +324,7 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
 
         self.from_source = not dataset.transform.transforms
         if not self.from_source:
-            logger.debug("cache %s_%s to %s", dataset.info.tag, dataset.tensor_name, data_file_path)
+            logger.warning("cache %s_%s to %s", dataset.info.tag, dataset.tensor_name, data_file_path)
             tensor_name = self.dataset.tensor_name
             self.data_file = data_file = z5py.File(path=str(data_file_path), mode="a", use_zarr_format=False)
             shape = data_file[tensor_name].shape if tensor_name in data_file else None
@@ -369,6 +366,7 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
             "batch_len": tensor.shape[0],
             self.dataset.tensor_name: tensor,
             "stat": [{self.dataset.tensor_name: self.stat}],
+            **{k: [v] for k, v in self.dataset.info.meta.items()},
         }
 
     def __len__(self):

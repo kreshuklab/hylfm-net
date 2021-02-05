@@ -36,7 +36,10 @@ class DatasetName(str, Enum):
     beads_sample0 = "beads_sample0"
     beads_highc_a = "beads_highc_a"
     beads_highc_b = "beads_highc_b"
+    heart_static_sample0 = "heart_static_sample0"
     heart_static_a = "heart_static_a"
+    heart_static_b = "heart_static_b"
+    heart_static_c = "heart_static_c"  # a with 99.8 spim percentile norm
 
 
 class DatasetPart(str, Enum):

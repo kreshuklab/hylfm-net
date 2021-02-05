@@ -376,7 +376,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         root=root,
         location=location,
         insert_singleton_axes_at=insert_singleton_axes_at,
-        transformations=transformations,
+        transforms=transformations,
         z_slice=z_slice,
         samples_per_dataset=samples_per_dataset,
         repeat=repeat,

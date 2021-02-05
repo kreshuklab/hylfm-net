@@ -1,11 +1,11 @@
 import re
 import shutil
-import typing
 from enum import Enum
 from functools import wraps
 from inspect import signature
 from pathlib import Path
 from time import perf_counter
+from typing import Any, OrderedDict, Union
 
 import requests
 import torch
@@ -38,7 +38,7 @@ def rename(newname):
 def handle_tensors(*output_names: str, **kwarg_mapping):
     def decorator(function):
         @wraps(function)
-        def wrapper(tensors: typing.OrderedDict[str, typing.Any]) -> typing.OrderedDict[str, typing.Any]:
+        def wrapper(tensors: OrderedDict[str, Any]) -> OrderedDict[str, Any]:
             kwargs = {name: tensors[tensor_name] for name, tensor_name in kwarg_mapping.items()}
             outputs = function(**kwargs)
             if not output_names:
@@ -66,7 +66,7 @@ def delete_empty_dirs(dir: Path):
             dir.rmdir()
 
 
-def percentile(t: torch.Tensor, q: float) -> typing.Union[int, float]:
+def percentile(t: torch.Tensor, q: float) -> Union[int, float]:
     """
     from: https://gist.github.com/spezold/42a451682422beb42bc43ad0c0967a30#file-torch_percentile-py-L7
     Return the ``q``-th percentile of the flattened input tensor's data.
@@ -146,9 +146,9 @@ class PeriodUnit(Enum):
 
 
 class Period:
-    def __init__(self, value: int, unit: PeriodUnit):
+    def __init__(self, value: int, unit: Union[PeriodUnit, str]):
         self.value = value
-        self.unit = unit
+        self.unit = PeriodUnit(unit)
 
     def match(self, *, epoch: int, iteration: int, epoch_len: int):
         if self.unit == PeriodUnit.epoch:

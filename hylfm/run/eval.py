@@ -5,12 +5,10 @@ from typing import Any, Dict, Iterable, Optional
 
 import pandas
 import torch
-import wandb
 from torch import no_grad
 from tqdm import tqdm
 
 from .base import Run
-from .. import settings
 from ..utils.io import save_tensor
 
 
@@ -26,8 +24,8 @@ class EvalRun(Run):
         self,
         *,
         log_pred_vs_spim: bool,
-        save_pred_to_disk: Optional[Path],
-        save_spim_to_disk: Optional[Path] = False,
+        save_pred_to_disk: Optional[Path] = None,
+        save_spim_to_disk: Optional[Path] = None,
         **super_kwargs,
     ):
         super().__init__(**super_kwargs)
@@ -45,6 +43,7 @@ class EvalRun(Run):
 
     @no_grad()
     def _run(self) -> Iterable[EvalYield]:
+        self.model.eval()
         epoch = 0
         epoch_len = len(self.dataloader)
         assert epoch_len
@@ -75,17 +74,33 @@ class EvalRun(Run):
                 batch = self.batch_premetric_trf(batch)
 
                 step_metrics = self.metrics.update_with_batch(prediction=batch["pred"], target=batch[self.tgt_name])
+                for from_batch in ["NormalizeMSE.alpha", "NormalizeMSE.beta"]:
+                    assert from_batch not in step_metrics
+                    if from_batch in batch:
+                        step_metrics[from_batch] = batch[from_batch]
 
                 if self.log_pred_vs_spim:
                     pred = batch["pred"]
                     spim = batch[self.tgt_name]
 
+                    pr = pred.detach().cpu().numpy()
+                    sp = spim.detach().cpu().numpy()
+                    assert len(pr.shape) == 5, pr.shape
+                    assert pr.shape[0] == 1, pr.shape
+                    assert pr.shape[1] == 1, pr.shape
+                    assert pr.shape[2] == 49, pr.shape
+
+                    step_metrics["pred_max"] = list(pr.max(2))
+                    step_metrics["spim_max"] = list(sp.max(2))
+                    # step_metrics["pred"] = list(pr)
+                    # step_metrics["spim"] = list(sp)
+                    step_metrics["pred-vs-spim"] = list(torch.cat([pred, spim], dim=1))
+
+                    # color version does not work somehow...
                     # zeros = torch.zeros_like(pred)
                     # pred = torch.cat([zeros, pred, pred], dim=1)
                     # spim = torch.cat([spim, zeros, spim], dim=1)
                     # step_metrics["pred-vs-spim"] = list(pred + spim)
-
-                    step_metrics["pred-vs-spim"] = list(torch.cat([pred, spim], dim=1))
 
                 if self.run_logger is not None:
                     self.run_logger(
@@ -116,6 +131,7 @@ class ValidationRun(EvalRun):
         self.score_metric = score_metric
         self.minimize = minimize
 
+    @no_grad()
     def get_validation_score(self) -> float:
         summary = None
         for y in self:

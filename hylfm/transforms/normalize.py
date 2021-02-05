@@ -263,12 +263,12 @@ class NormalizeMSE(Transform):
 
     def apply_to_sample(self, ipt: Array, tgt: Array):
         if isinstance(ipt, torch.Tensor):
-            ipt_numpy = ipt.cpu().numpy()  # todo: compute with pytorch
+            ipt_numpy = ipt.detach().cpu().numpy()  # todo: compute with pytorch
         else:
             ipt_numpy = ipt
 
         if isinstance(tgt, torch.Tensor):
-            tgt = tgt.cpu().numpy()
+            tgt = tgt.detach().cpu().numpy()
 
         ipt_numpy = ipt_numpy.astype(numpy.float32, copy=False)
         tgt = tgt.astype(numpy.float32, copy=False)
@@ -279,8 +279,8 @@ class NormalizeMSE(Transform):
 
         ret = {"ipt": alpha * ipt + beta}
         if self.return_alpha_beta:
-            prefix = f"{self.__class__.__name__}({self.apply_to},{self.target_name})."
-            ret[prefix + "alpha"] = alpha
-            ret[prefix + "beta"] = beta
+            prefix = f"{self.__class__.__name__}."  # ({self.apply_to},{self.target_name})
+            ret[prefix + "alpha"] = alpha.item()
+            ret[prefix + "beta"] = beta.item()
 
         return ret

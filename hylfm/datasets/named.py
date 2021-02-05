@@ -42,6 +42,8 @@ def get_dataset_subsection(
         indices = [indices]
     elif indices is None:
         indices = slice(None)
+    elif isinstance(indices, slice):
+        pass
     else:
         raise NotImplementedError(indices)
 
@@ -68,11 +70,7 @@ def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: Trans
                         "meta": transforms_pipeline.meta,
                     },
                     filters=[],
-                    indices={
-                        DatasetPart.train: [0],
-                        DatasetPart.validate: [1],
-                        DatasetPart.test: [2],
-                    }[part],
+                    indices={DatasetPart.train: [0], DatasetPart.validate: [1], DatasetPart.test: [2]}[part],
                     preprocess_sample=transforms_pipeline.sample_precache_trf,
                     augment_sample=transforms_pipeline.sample_preprocessing,
                 )
@@ -80,23 +78,11 @@ def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: Trans
         )
     elif name in [DatasetName.beads_highc_a, DatasetName.beads_highc_b]:
         if part == DatasetPart.train:
-            tensors = {
-                "lf": f"beads.small_2",
-                "ls_reg": f"beads.small_2",
-                "meta": transforms_pipeline.meta,
-            }
+            tensors = {"lf": f"beads.small_2", "ls_reg": f"beads.small_2", "meta": transforms_pipeline.meta}
         elif part == DatasetPart.validate:
-            tensors = {
-                "lf": f"beads.small_0",
-                "ls_reg": f"beads.small_0",
-                "meta": transforms_pipeline.meta,
-            }
+            tensors = {"lf": f"beads.small_0", "ls_reg": f"beads.small_0", "meta": transforms_pipeline.meta}
         elif part == DatasetPart.test:
-            tensors = {
-                "lf": f"beads.small_1",
-                "ls_reg": f"beads.small_1",
-                "meta": transforms_pipeline.meta,
-            }
+            tensors = {"lf": f"beads.small_1", "ls_reg": f"beads.small_1", "meta": transforms_pipeline.meta}
         else:
             raise NotImplementedError(part)
 
@@ -111,7 +97,35 @@ def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: Trans
                 )
             ]
         )
-    elif name == DatasetName.heart_static_a:
+    elif name == DatasetName.heart_static_sample0:
+
+        def get_tensors(tag_: str):
+            return {"lf": f"heart_static.{tag_}", "ls_trf": f"heart_static.{tag_}", "meta": transforms_pipeline.meta}
+
+        if part == DatasetPart.train:
+            indices = [0, 1]
+        elif part == DatasetPart.validate:
+            indices = [2]
+        elif part == DatasetPart.test:
+            indices = [3, 4]
+        else:
+            raise NotImplementedError(part)
+
+        sections.append([])
+        for tag in [  # fish5
+            "2019-12-08_06.35.52",
+        ]:
+            sections[-1].append(
+                get_dataset_subsection(
+                    tensors=get_tensors(tag),
+                    filters=[],
+                    indices=indices,
+                    preprocess_sample=transforms_pipeline.sample_precache_trf,
+                    augment_sample=transforms_pipeline.sample_preprocessing,
+                )
+            )
+
+    elif name in [DatasetName.heart_static_a, DatasetName.heart_static_c]:
 
         def get_tensors(tag_: str):
             return {"lf": f"heart_static.{tag_}", "ls_trf": f"heart_static.{tag_}", "meta": transforms_pipeline.meta}
@@ -219,6 +233,147 @@ def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: Trans
                 "2019-12-09_08.27.14",
                 "2019-12-09_07.42.47",
                 "2019-12-09_07.50.24",
+            ]:
+                sections[-1].append(
+                    get_dataset_subsection(
+                        tensors=get_tensors(tag),
+                        filters=[],
+                        indices=None,
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
+                    )
+                )
+
+        else:
+            raise NotImplementedError(part)
+
+    elif name == DatasetName.heart_static_b:
+
+        def get_tensors(tag_: str):
+            return {"lf": f"heart_static.{tag_}", "ls_trf": f"heart_static.{tag_}", "meta": transforms_pipeline.meta}
+
+        if part == DatasetPart.train:
+            sections.append([])
+            for tag in [  # fish1: Heart_tightCrop
+                "2019-12-09_02.16.30",
+                "2019-12-09_02.23.01",
+                "2019-12-09_02.29.34",
+                "2019-12-09_02.35.49",
+                "2019-12-09_02.42.03",
+                "2019-12-09_02.48.24",
+                "2019-12-09_02.54.46",
+            ]:
+                sections[-1].append(
+                    get_dataset_subsection(
+                        tensors=get_tensors(tag),
+                        filters=[],
+                        indices=slice(1, None, None),
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
+                    )
+                )
+
+            sections.append([])
+            for tag in [  # fish2, fish3: staticHeartFOV
+                # fish2
+                "2019-12-09_09.52.38",
+                "2019-12-09_08.34.44",
+                "2019-12-09_08.41.41",
+                "2019-12-09_08.51.01",
+                "2019-12-09_09.01.28",
+                "2019-12-09_09.11.59",
+                "2019-12-09_09.18.01",
+                "2019-12-09_08.15.07",
+                "2019-12-09_08.19.40",
+                "2019-12-09_08.27.14",
+                "2019-12-09_07.42.47",
+                "2019-12-09_07.50.24",
+                # fish3
+                "2019-12-10_04.24.29",
+                "2019-12-10_05.14.57",
+                "2019-12-10_05.41.48",
+                "2019-12-10_06.03.37",
+                "2019-12-10_06.25.14",
+            ]:
+
+                sections[-1].append(
+                    get_dataset_subsection(
+                        tensors=get_tensors(tag),
+                        filters=[],
+                        indices=slice(1, None, None),
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
+                    )
+                )
+
+        elif part == DatasetPart.validate:
+            sections.append([])
+            for tag in [  # fish1: Heart_tightCrop
+                "2019-12-09_02.16.30",
+                "2019-12-09_02.23.01",
+                "2019-12-09_02.29.34",
+                "2019-12-09_02.35.49",
+                "2019-12-09_02.42.03",
+                "2019-12-09_02.48.24",
+                "2019-12-09_02.54.46",
+            ]:
+                sections[-1].append(
+                    get_dataset_subsection(
+                        tensors=get_tensors(tag),
+                        filters=[],
+                        indices=[0],
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
+                    )
+                )
+
+            sections.append([])
+            for tag in [  # fish2, fish3: staticHeartFOV
+                # fish2
+                "2019-12-09_09.52.38",
+                "2019-12-09_08.34.44",
+                "2019-12-09_08.41.41",
+                "2019-12-09_08.51.01",
+                "2019-12-09_09.01.28",
+                "2019-12-09_09.11.59",
+                "2019-12-09_09.18.01",
+                "2019-12-09_08.15.07",
+                "2019-12-09_08.19.40",
+                "2019-12-09_08.27.14",
+                "2019-12-09_07.42.47",
+                "2019-12-09_07.50.24",
+                # fish3
+                "2019-12-10_04.24.29",
+                "2019-12-10_05.14.57",
+                "2019-12-10_05.41.48",
+                "2019-12-10_06.03.37",
+                "2019-12-10_06.25.14",
+            ]:
+
+                sections[-1].append(
+                    get_dataset_subsection(
+                        tensors=get_tensors(tag),
+                        filters=[],
+                        indices=[0],
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
+                    )
+                )
+
+        elif part == DatasetPart.test:
+            sections.append([])
+            for tag in [  # fish5
+                "2019-12-08_06.35.52",
+                "2019-12-08_06.38.47",
+                "2019-12-08_06.10.34",
+                "2019-12-08_06.41.39",
+                "2019-12-08_06.18.09",
+                "2019-12-08_06.46.09",
+                "2019-12-08_06.23.13",  # len=1
+                "2019-12-08_06.49.08",
+                "2019-12-08_06.25.02",
+                "2019-12-08_06.51.57",
+                "2019-12-08_06.30.40",
             ]:
                 sections[-1].append(
                     get_dataset_subsection(

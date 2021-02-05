@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from hylfm import __version__
 from hylfm.hylfm_types import TransformLike
 from hylfm.metrics.base import MetricGroup
-from hylfm.run.logger import RunLogger
+from hylfm.run.run_logger import RunLogger
 
 
 class Run:
@@ -57,6 +57,10 @@ class Run:
     def __iter__(self):
         for batch in self._run():
             yield batch
+
+    def run(self):
+        for it in self:
+            pass
 
     def _run(self) -> Iterable[Dict[str, Any]]:
         raise NotImplementedError
