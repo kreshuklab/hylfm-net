@@ -69,7 +69,7 @@ def get_model(
     c32_3d: Optional[int] = typer.Option(None, "--c32_3d"),
     c33_3d: Optional[int] = typer.Option(None, "--c33_3d"),
     c34_3d: Optional[int] = typer.Option(None, "--c34_3d"),
-    init_fn: HyLFM_Net.InitName = typer.Option(HyLFM_Net.InitName.xavier_uniform_.value, "--init_fn"),
+    init_fn: HyLFM_Net.InitName = typer.Option(HyLFM_Net.InitName.xavier_uniform_, "--init_fn"),
     final_activation: Optional[str] = typer.Option(None, "--final_activation"),
 ):
     c_res2d = [
@@ -125,7 +125,7 @@ def get_model(
     if torch.cuda.device_count() > 1:
         raise RuntimeError(f"Set CUDA_VISIBLE_DEVICES!")
 
-    return HyLFM_Net(
+    model = HyLFM_Net(
         z_out=z_out,
         nnum=nnum,
         kernel2d=kernel2d,
@@ -137,3 +137,5 @@ def get_model(
         init_fn=init_fn,
         final_activation=final_activation,
     )
+    model = model.cuda()
+    return model

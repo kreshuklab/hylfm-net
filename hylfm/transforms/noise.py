@@ -34,13 +34,13 @@ class AdditiveGaussianNoise(Transform):
         self.percentile_range_to_compute_sigma = percentile_range_to_compute_sigma
         self.scale_factor = scale_factor
 
-    def apply_to_sample(self, tensor, stat: DatasetStat):
+    def apply_to_sample(self, tensor, stat: Dict[str, DatasetStat]):
         if not isinstance(tensor, numpy.ndarray):
             raise NotImplementedError(type(tensor))
 
-        assert isinstance(stat, DatasetStat)
+        assert isinstance(stat, dict), type(stat)
         if self.sigma is None:
-            mean, sigma = stat.get_mean_std(name=self.apply_to, percentile_range=self.percentile_range_to_compute_sigma)
+            mean, sigma = stat[self.apply_to].get_mean_std(name=self.apply_to, percentile_range=self.percentile_range_to_compute_sigma)
         else:
             sigma = self.sigma
 
@@ -73,7 +73,8 @@ class PoissonNoise(Transform):
         self.peak_percentile = peak_percentile
         self.min_peak = min_peak
 
-    def apply_to_sample(self, tensor: Array, stat: DatasetStat):
+    def apply_to_sample(self, tensor: Array, stat: Dict[str, DatasetStat]):
+        assert isinstance(stat, dict), type(stat)
         if self.peak is None:
             peak = stat[self.apply_to].get_percentile(name=self.apply_to, percentile=self.peak_percentile)
             peak = max(self.min_peak, peak)

@@ -17,6 +17,7 @@ def load_model_from_state(checkpoint: Path, state: dict):
     if config is None:
         config = get_config_for_old_checkpoint(checkpoint)
 
+    config["checkpoint"] = str(checkpoint)
     model = get_model(**config["model"])
     model.load_state_dict(state["model"], strict=True)
     return model, config

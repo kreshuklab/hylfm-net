@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import collections
 import logging
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
 import numpy
@@ -27,9 +27,15 @@ def log_exception(func):
 class RunLogger:
     convert_metrics: Callable[[Dict[str, Any]], Dict[str, Any]]
 
-    def __init__(self, *, log_every: Period = Period(1, PeriodUnit.iteration)):
+    def __init__(
+        self,
+        *,
+        log_every: Period = Period(1, PeriodUnit.iteration),
+        step: Optional[int] = None,  # set to overwrite calculating step from epoch, epoch_len, iteration and batch_len
+    ):
         self.log_every = log_every
         self.last_batch_len = 0
+        self.step = step
 
     def __call__(self, *, epoch: int, epoch_len: int, iteration: int, batch_len: int, **metrics) -> None:
         if self.log_every.match(epoch=epoch, iteration=iteration, epoch_len=epoch_len):
@@ -45,7 +51,7 @@ class RunLogger:
 
 
 class WandbLogger(RunLogger):
-    def __init__(self, *, point_cloud_threshold: float = 0.3, zyx_scaling: Tuple[float, float, float], **super_kwargs):
+    def __init__(self, *, point_cloud_threshold: float, zyx_scaling: Tuple[float, float, float], **super_kwargs):
         super().__init__(**super_kwargs)
         self.point_cloud_threshold = point_cloud_threshold
         self.tables = collections.defaultdict(list)
@@ -54,7 +60,6 @@ class WandbLogger(RunLogger):
 
     @torch.no_grad()
     def log_metrics_sample(self, *, epoch: int, epoch_len: int, iteration: int, batch_idx: int, **metrics):
-        assert epoch == 0
         conv = {}
         for key, value in metrics.items():
             if isinstance(value, list):
@@ -129,13 +134,20 @@ class WandbLogger(RunLogger):
             else:
                 raise NotImplementedError((key, value))
 
-        step = (epoch * epoch_len + iteration) * self.last_batch_len + batch_idx
+        step = self.step or (epoch * epoch_len + iteration) * self.last_batch_len + batch_idx
         wandb.log(conv, step=step)
 
     def log_metrics(self, *, epoch: int, epoch_len: int, iteration: int, batch_len: int, **metrics):
-        for key, val in metrics.items():
-            assert isinstance(val, list), key
-            assert len(val) == batch_len, (key, len(val))
+        sample_metrics = {k: v for k, v in metrics.items() if isinstance(v, list)}
+        batch_metrics = {k: v for k, v in metrics.items() if not isinstance(v, list)}
+
+        self.log_metrics_sample(
+            epoch=epoch,
+            epoch_len=epoch_len,
+            iteration=iteration,
+            batch_idx=0,
+            **{k: v for k, v in batch_metrics.items()},
+        )
 
         for i in range(batch_len):
             self.log_metrics_sample(
@@ -143,7 +155,7 @@ class WandbLogger(RunLogger):
                 epoch_len=epoch_len,
                 iteration=iteration,
                 batch_idx=i,
-                **{k: v[i] for k, v in metrics.items()}
+                **{k: v[i] for k, v in sample_metrics.items()},
             )
 
     def _get_final_log_and_summary(self, metrics):
@@ -192,8 +204,10 @@ class WandbLogger(RunLogger):
 
 
 class WandbValidationLogger(WandbLogger):
-    def __init__(self, *, score_metric: str, minimize: bool, **super_kwargs):
-        super().__init__(**super_kwargs)
+    def __init__(self, *, score_metric: str, minimize: bool, step: int = 0, **super_kwargs):
+        super().__init__(
+            **super_kwargs, step=step
+        )  # no optional step, overwrite with training step to log validation at correct step
         self.score_metric = score_metric
         self.minimize = minimize
         self.best_score = None
@@ -207,7 +221,7 @@ class WandbValidationLogger(WandbLogger):
         self.val_it += 1
         final_log, summary = self._get_final_log_and_summary(metrics)
         final_log["it"] = self.val_it
-        wandb.log({"val_" + k: v for k, v in final_log.items()}, commit=False)
+        wandb.log({"val_" + k: v for k, v in final_log.items()}, step=self.step)
 
         score = summary[self.score_metric]
         if self.minimize:
@@ -219,11 +233,11 @@ class WandbValidationLogger(WandbLogger):
             wandb.summary.update({"val_" + k: v for k, v in summary.items()})
 
 
-class MultiLogger(RunLogger):
-    def __init__(self, loggers: List[RunLogger], **super_kwargs):
-        super().__init__(**super_kwargs)
-        self.loggers = [globals().get(lgr)(**super_kwargs) for lgr in loggers]
-
-    def log_metrics(self, *, step: int, **metrics):
-        for lgr in self.loggers:
-            lgr.log_metrics(step=step, **metrics)
+# class MultiLogger(RunLogger):
+#     def __init__(self, loggers: List[RunLogger], **super_kwargs):
+#         super().__init__(**super_kwargs)
+#         self.loggers = [globals().get(lgr)(**super_kwargs) for lgr in loggers]
+#
+#     def log_metrics(self, *, step: int, **metrics):
+#         for lgr in self.loggers:
+#             lgr.log_metrics(step=step, **metrics)

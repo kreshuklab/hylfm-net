@@ -19,16 +19,16 @@ class Run:
     def __init__(
         self,
         *,
-        model: torch.nn.Module,
-        dataloader: torch.utils.data.DataLoader,
-        batch_preprocessing_in_step: TransformLike,
         batch_postprocessing: TransformLike,
         batch_premetric_trf: TransformLike,
+        batch_preprocessing_in_step: TransformLike,
+        dataloader: torch.utils.data.DataLoader,
         metrics: MetricGroup,
-        pred_name: str,
-        tgt_name: Optional[str],
-        run_logger: RunLogger,
+        model: torch.nn.Module,
         name: Optional[str] = None,
+        pred_name: str,
+        run_logger: RunLogger,
+        tgt_name: Optional[str],
     ):
         assert isinstance(__version__, str)
         self.dirty = "dirty" in __version__

@@ -41,6 +41,10 @@ class EvalRun(Run):
             assert save_pred_to_disk is None or save_pred_to_disk.name != save_spim_to_disk.name, "name used as key"
             save_spim_to_disk.mkdir(parents=True, exist_ok=True)
 
+    @staticmethod
+    def progress_tqdm(iterable, desc: str, total: int):
+        return tqdm(iterable, desc=desc, total=total)
+
     @no_grad()
     def _run(self) -> Iterable[EvalYield]:
         self.model.eval()
@@ -57,7 +61,7 @@ class EvalRun(Run):
                 save_tensor(path, tensor)
                 tab_data_per_step[root.name].append(str(path))
 
-        for it, batch in tqdm(enumerate(self.dataloader), desc=self.name, total=epoch_len):
+        for it, batch in self.progress_tqdm(enumerate(self.dataloader), desc=self.name, total=epoch_len):
             assert "epoch" not in batch
             batch["epoch"] = 0
             assert "iteration" not in batch
@@ -131,8 +135,14 @@ class ValidationRun(EvalRun):
         self.score_metric = score_metric
         self.minimize = minimize
 
+    @staticmethod
+    def progress_tqdm(iterable, **kwargs):
+        # do not log progress of validation
+        return iterable
+
     @no_grad()
-    def get_validation_score(self) -> float:
+    def get_validation_score(self, step: int) -> float:
+        self.run_logger.step = step
         summary = None
         for y in self:
             summary = y.summary_metrics

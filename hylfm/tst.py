@@ -1,4 +1,5 @@
-import hylfm  # noqa
+from hylfm import settings  # noqa: first line to set numpy env vars
+
 import logging.config
 from pathlib import Path
 
@@ -29,37 +30,38 @@ app = typer.Typer()
 
 @app.command(name="test")
 def tst(
-    checkpoint: Path,
     dataset_name: DatasetName,
-    dataset_part: DatasetPart = typer.Option(DatasetPart.test, "--dataset_part"),
+    checkpoint: Path,
     batch_size: int = 1,
-    interpolation_order: int = 2,
     data_range: float = 1,
+    dataset_part: DatasetPart = typer.Option(DatasetPart.test, "--dataset_part"),
+    interpolation_order: int = 2,
     win_sigma: float = 1.5,
     win_size: int = 11,
 ):
     import wandb
 
     model, config = load_model_from_checkpoint(checkpoint)
+    nnum = model.nnum
+    z_out = model.z_out
+    scale = model.get_scale()
+    shrink = model.get_shrink()
     config.update(
         dict(
-            dataset=dataset_name,
-            dataset_part=dataset_part,
             batch_size=batch_size,
-            interpolation_order=interpolation_order,
             data_range=data_range,
+            dataset=dataset_name.value,
+            dataset_part=dataset_part.value,
+            interpolation_order=interpolation_order,
             win_sigma=win_sigma,
             win_size=win_size,
+            scale=scale,
+            shrink=shrink,
         )
     )
 
     wandb_run = wandb.init(project=f"HyLFM-test", dir=str(settings.cache_dir), config=config)
     config = wandb_run.config
-
-    nnum = model.nnum
-    z_out = model.z_out
-    scale = model.get_scale()
-    shrink = model.get_shrink()
 
     transforms_pipeline = get_transforms_pipeline(
         dataset_name=dataset_name,
@@ -100,43 +102,33 @@ def tst(
         ),
         metrics.MSE(),
         metrics.MS_SSIM(
-            channel=1,
-            data_range=config.data_range,
-            size_average=True,
-            spatial_dims=3,
-            win_size=config.win_size,
-            win_sigma=config.win_sigma,
+            channel=1, data_range=data_range, size_average=True, spatial_dims=3, win_size=win_size, win_sigma=win_sigma
         ),
         metrics.NRMSE(),
-        metrics.PSNR(data_range=config.data_range),
+        metrics.PSNR(data_range=data_range),
         metrics.SSIM(
-            data_range=config.data_range,
-            size_average=True,
-            win_size=config.win_size,
-            win_sigma=config.win_sigma,
-            channel=1,
-            spatial_dims=3,
+            data_range=data_range, size_average=True, win_size=win_size, win_sigma=win_sigma, channel=1, spatial_dims=3
         ),
         metrics.SmoothL1(),
         # along z
         metrics.MSE(along_dim=1),
         metrics.MS_SSIM(
             along_dim=1,
-            data_range=config.data_range,
+            data_range=data_range,
             size_average=True,
-            win_size=config.win_size,
-            win_sigma=config.win_sigma,
+            win_size=win_size,
+            win_sigma=win_sigma,
             channel=1,
             spatial_dims=2,
         ),
         metrics.NRMSE(along_dim=1),
-        metrics.PSNR(along_dim=1, data_range=config.data_range),
+        metrics.PSNR(along_dim=1, data_range=data_range),
         metrics.SSIM(
             along_dim=1,
-            data_range=config.data_range,
+            data_range=data_range,
             size_average=True,
-            win_size=config.win_size,
-            win_sigma=config.win_sigma,
+            win_size=win_size,
+            win_sigma=win_sigma,
             channel=1,
             spatial_dims=2,
         ),
@@ -152,7 +144,7 @@ def tst(
         metrics=metric_group,
         pred_name="pred",
         tgt_name="ls_reg" if "beads" in dataset_name.value else "ls_trf",
-        run_logger=WandbLogger(zyx_scaling=(2, 0.7 * 8 / scale, 0.7 * 8 / scale)),
+        run_logger=WandbLogger(point_cloud_threshold=0.2, zyx_scaling=(2, 0.7 * 8 / scale, 0.7 * 8 / scale)),
         save_pred_to_disk=settings.log_dir / "output_tensors" / wandb_run.name / "pred",
         save_spim_to_disk=settings.log_dir / "output_tensors" / wandb_run.name / "spim",
     )
