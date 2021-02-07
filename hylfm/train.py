@@ -85,7 +85,7 @@ def train(
         project="HyLFM-train",
         dir=str(settings.cache_dir),
         config=config.as_dict(for_logging=True),
-        reinit=True,
+        reinit=False,
         resume="never",
     )
 
@@ -105,7 +105,7 @@ def resume(checkpoint: Path):
         project="HyLFM-train",
         dir=str(settings.cache_dir),
         config=checkpoint.config.as_dict(checkpoint.model),
-        reinit=True,
+        reinit=False,
         resume="must",
         name=checkpoint.training_run_name,
         id=checkpoint.training_run_id,
@@ -368,16 +368,17 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
     train_run.fit()
     wandb_run.finish()
 
-    # run default test
-    wandb_run = wandb.init(
-        name=wandb_run.name,
-        project=f"HyLFM-test",
-        dir=str(settings.cache_dir),
-        config=test_config.as_dict(),
-        reinit=True,
-    )
-    tester.run()
-    wandb_run.finish()
+    # todo: start test in separate process
+    # # run default test
+    # wandb_run = wandb.init(
+    #     name=wandb_run.name,
+    #     project=f"HyLFM-test",
+    #     dir=str(settings.cache_dir),
+    #     config=test_config.as_dict(),
+    #     reinit=True,
+    # )
+    # tester.run()
+    # wandb_run.finish()
 
 
 if __name__ == "__main__":

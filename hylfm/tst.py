@@ -10,7 +10,7 @@ from hylfm.checkpoint import Checkpoint, TestConfig
 from hylfm.datasets import get_collate
 from hylfm.datasets.named import DatasetChoice, DatasetPart, get_dataset
 from hylfm.metrics import MetricGroup
-from hylfm.run.eval import EvalRun
+from hylfm.run.eval_run import EvalRun
 from hylfm.run.run_logger import WandbLogger
 from hylfm.sampler import NoCrossBatchSampler
 from hylfm.transform_pipelines import get_transforms_pipeline
