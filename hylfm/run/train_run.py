@@ -9,7 +9,7 @@ from hylfm.hylfm_types import CriterionLike, TransformLike
 from hylfm.metrics.base import MetricGroup
 from hylfm.utils.general import Period
 from .base import Run
-from .eval import ValidationRun
+from .eval_run import ValidationRun
 from .run_logger import RunLogger
 
 

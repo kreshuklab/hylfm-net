@@ -18,7 +18,7 @@ from hylfm.datasets.named import get_dataset
 from hylfm.get_model import get_model
 from hylfm.hylfm_types import CriterionChoice, DatasetChoice, DatasetPart, OptimizerChoice
 from hylfm.metrics import MetricGroup
-from hylfm.run.eval import EvalRun, ValidationRun
+from hylfm.run.eval_run import EvalRun, ValidationRun
 from hylfm.run.run_logger import WandbLogger, WandbValidationLogger
 from hylfm.run.train_run import TrainRun
 from hylfm.sampler import NoCrossBatchSampler
