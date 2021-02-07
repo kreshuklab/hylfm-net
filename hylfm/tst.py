@@ -134,6 +134,7 @@ def tst(
         log_pred_vs_spim=True,
         model=model,
         dataloader=dataloader,
+        batch_size=batch_size,
         batch_preprocessing_in_step=transforms_pipeline.batch_preprocessing_in_step,
         batch_postprocessing=transforms_pipeline.batch_postprocessing,
         batch_premetric_trf=transforms_pipeline.batch_premetric_trf,

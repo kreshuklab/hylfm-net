@@ -30,6 +30,7 @@ class TrainRun(Run):
         batch_preprocessing_in_step: TransformLike,
         criterion: CriterionLike,
         dataloader: torch.utils.data.DataLoader,
+        batch_size: int,
         metrics: MetricGroup,
         model: torch.nn.Module,
         optimizer: Optimizer,
@@ -43,6 +44,7 @@ class TrainRun(Run):
         super().__init__(
             model=model,
             dataloader=dataloader,
+            batch_size=batch_size,
             batch_preprocessing_in_step=batch_preprocessing_in_step,
             batch_postprocessing=batch_postprocessing,
             batch_premetric_trf=batch_premetric_trf,
