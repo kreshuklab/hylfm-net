@@ -1,6 +1,6 @@
 import logging.config
 
-from hylfm.datasets.named import DatasetName, DatasetPart, get_dataset
+from hylfm.datasets.named import DatasetChoice, DatasetPart, get_dataset
 from hylfm.get_model import app as app_get_model
 from hylfm.train import app as app_train
 from hylfm.tst import app as app_test
@@ -24,7 +24,7 @@ app.add_typer(app_test, name="test")
 
 @app.command()
 def preprocess(
-    dataset_name: DatasetName,
+    dataset_name: DatasetChoice,
     dataset_part: DatasetPart = DatasetPart.test.value,
     nnum: int = 19,
     z_out: int = 49,

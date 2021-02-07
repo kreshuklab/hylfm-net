@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, NamedTuple, TYPE_CHECKING, Union
+from typing import Any, Callable, Dict, List, NamedTuple, TYPE_CHECKING, Union
 
 import numpy
 import torch
@@ -19,9 +19,7 @@ except ImportError:
     from typing_extensions import Literal
 
 
-class TransformLike(Protocol):
-    def __call__(self, tensors: Dict[str, Any]) -> Dict[str, Any]:
-        pass
+Array = Union[numpy.ndarray, torch.Tensor]
 
 
 class CriterionLike(Protocol):
@@ -31,10 +29,25 @@ class CriterionLike(Protocol):
         pass
 
 
-Array = Union[numpy.ndarray, torch.Tensor]
+class TransformLike(Protocol):
+    def __call__(self, tensors: Dict[str, Any]) -> Dict[str, Any]:
+        pass
 
 
-class DatasetName(str, Enum):
+class CriterionChoice(str, Enum):
+    SmoothL1 = "SmoothL1"
+    MS_SSIM = "MS_SSIM"
+    SmoothL1_MS_SSIM = "SmoothL1_MS_SSIM"
+
+
+class DatasetAndTransforms(NamedTuple):
+    dataset: "ConcatDataset"
+    batch_preprocessing: TransformLike
+    batch_preprocessing_in_step: TransformLike
+    batch_postprocessing: TransformLike
+
+
+class DatasetChoice(str, Enum):
     beads_sample0 = "beads_sample0"
     beads_highc_a = "beads_highc_a"
     beads_highc_b = "beads_highc_b"
@@ -50,11 +63,13 @@ class DatasetPart(str, Enum):
     test = "test"
 
 
-class DatasetAndTransforms(NamedTuple):
-    dataset: "ConcatDataset"
-    batch_preprocessing: TransformLike
-    batch_preprocessing_in_step: TransformLike
-    batch_postprocessing: TransformLike
+class OptimizerChoice(str, Enum):
+    Adam = "Adam"
+
+
+class PeriodUnit(str, Enum):
+    epoch = "epoch"
+    iteration = "iteration"
 
 
 @dataclass

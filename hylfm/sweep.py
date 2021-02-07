@@ -3,13 +3,13 @@ import hylfm  # noqa
 import sys
 
 import wandb
-from hylfm.hylfm_types import DatasetName
+from hylfm.hylfm_types import DatasetChoice
 
 from hylfm.model import HyLFM_Net
 from hylfm.train import train
 
 default_kwargs = dict(
-    dataset=DatasetName.beads_highc_a.value,
+    dataset=DatasetChoice.beads_highc_a.value,
     model=dict(
         nnum=19,
         z_out=49,

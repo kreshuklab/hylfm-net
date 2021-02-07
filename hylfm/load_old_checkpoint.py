@@ -1,10 +1,16 @@
 from pathlib import Path
 from typing import Any, Dict
 
+from hylfm.checkpoint import Config
 
-def get_config_for_old_checkpoint(checkpoint: Path) -> Dict[str, Any]:
-    if checkpoint.name in ["v1_checkpoint_498_MS_SSIM=0.9710696664723483.pth", "v1_checkpoint_MSSSIM=0.6722144321961836.pth", "v1_checkpoint_27500_ms_ssim-scaled=0.8430055000565269.pth"]:  # heart stat
-        return {"model": {
+
+def get_config_for_old_checkpoint(checkpoint: Path) -> Config:
+    if checkpoint.name in [
+        "v1_checkpoint_498_MS_SSIM=0.9710696664723483.pth",
+        "v1_checkpoint_MSSSIM=0.6722144321961836.pth",
+        "v1_checkpoint_27500_ms_ssim-scaled=0.8430055000565269.pth",
+    ]:  # heart stat
+        model_config = {
             "nnum": 19,
             "z_out": 49,
             "kernel2d": 3,
@@ -59,9 +65,9 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> Dict[str, Any]:
             "c34_3d": None,
             "init_fn": "xavier_uniform",
             "final_activation": None,
-        }}
+        }
     elif checkpoint.name == "v1_checkpoint_SmoothL1Loss=-0.00012947025970788673.pth":  # beads f8
-        return {"model": {
+        model_config = {
             "nnum": 19,
             "z_out": 51,
             "kernel2d": 3,
@@ -116,10 +122,10 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> Dict[str, Any]:
             "c34_3d": None,
             "init_fn": "xavier_uniform",
             "final_activation": None,
-        }}
+        }
 
     elif checkpoint.name == "v1_checkpoint_SmoothL1Loss=-0.00016112386947497725.pth":  # beads f4
-        return {"model": {
+        model_config = {
             "nnum": 19,
             "z_out": 51,
             "kernel2d": 3,
@@ -174,6 +180,29 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> Dict[str, Any]:
             "c34_3d": None,
             "init_fn": "xavier_uniform",
             "final_activation": None,
-        }}
+        }
     else:
         raise NotImplementedError(checkpoint)
+
+    return Config(
+        model=model_config,
+        batch_multiplier=None,
+        batch_size=None,
+        eval_batch_size=None,
+        criterion=None,
+        criterion_beta=None,
+        data_range=None,
+        dataset=None,
+        interpolation_order=None,
+        lr=None,
+        max_epochs=100,
+        model_weights=checkpoint,
+        optimizer=None,
+        patience=None,
+        seed=None,
+        validate_every_unit=None,
+        validate_every_value=None,
+        weight_decay=None,
+        win_sigma=None,
+        win_size=None,
+    )

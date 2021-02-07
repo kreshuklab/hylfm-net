@@ -6,9 +6,9 @@ from pathlib import Path
 from torch.utils.data import DataLoader, SequentialSampler
 
 from hylfm import metrics, settings
+from hylfm.checkpoint import Checkpoint, TestConfig
 from hylfm.datasets import get_collate
-from hylfm.datasets.named import DatasetName, DatasetPart, get_dataset
-from hylfm.load_checkpoint import load_model_from_checkpoint
+from hylfm.datasets.named import DatasetChoice, DatasetPart, get_dataset
 from hylfm.metrics import MetricGroup
 from hylfm.run.eval import EvalRun
 from hylfm.run.run_logger import WandbLogger
@@ -30,49 +30,45 @@ app = typer.Typer()
 
 @app.command(name="test")
 def tst(
-    dataset_name: DatasetName,
+    dataset: DatasetChoice,
     checkpoint: Path,
     batch_size: int = 1,
     data_range: float = 1,
-    dataset_part: DatasetPart = typer.Option(DatasetPart.test.value, "--dataset_part"),
+    dataset_part: DatasetPart = typer.Option(DatasetPart.test, "--dataset_part"),
     interpolation_order: int = 2,
     win_sigma: float = 1.5,
     win_size: int = 11,
 ):
-    import wandb
-
-    model, config = load_model_from_checkpoint(checkpoint)
-    nnum = model.nnum
-    z_out = model.z_out
-    scale = model.get_scale()
-    shrink = model.get_shrink()
-    config.update(
-        dict(
-            batch_size=batch_size,
-            data_range=data_range,
-            dataset=dataset_name.value,
-            dataset_part=dataset_part.value,
-            interpolation_order=interpolation_order,
-            win_sigma=win_sigma,
-            win_size=win_size,
-            scale=scale,
-            shrink=shrink,
-        )
+    checkpoint = Checkpoint.load(checkpoint)
+    config = TestConfig(
+        batch_size=batch_size,
+        checkpoint=checkpoint,
+        data_range=data_range,
+        dataset=dataset,
+        dataset_part=dataset_part,
+        interpolation_order=interpolation_order,
+        win_sigma=win_sigma,
+        win_size=win_size,
     )
 
-    wandb_run = wandb.init(project=f"HyLFM-test", dir=str(settings.cache_dir), config=config)
-    config = wandb_run.config
+    model = checkpoint.model
+    nnum = model.nnum
+    z_out = model.z_out
+
+    import wandb
+
+    wandb_run = wandb.init(project=f"HyLFM-test", dir=str(settings.cache_dir), config=config.as_dict())
 
     transforms_pipeline = get_transforms_pipeline(
-        dataset_name=dataset_name,
+        dataset_name=dataset,
         dataset_part=dataset_part,
         nnum=nnum,
         z_out=z_out,
-        scale=scale,
-        shrink=shrink,
+        scale=checkpoint.scale,
+        shrink=checkpoint.shrink,
         interpolation_order=interpolation_order,
     )
-    dataset = get_dataset(dataset_name, dataset_part, transforms_pipeline)
+    dataset = get_dataset(config.dataset, dataset_part, transforms_pipeline)
 
     dataloader = DataLoader(
         dataset=dataset,
@@ -98,7 +94,7 @@ def tst(
             sigma_ratio=3.0,
             threshold=0.05,
             tgt_threshold=0.05,
-            scaling=(2.0, 0.7 * 8 / scale, 0.7 * 8 / scale),
+            scaling=(2.0, 0.7 * 8 / checkpoint.scale, 0.7 * 8 / checkpoint.scale),
         ),
         metrics.MSE(),
         metrics.MS_SSIM(
@@ -143,8 +139,10 @@ def tst(
         batch_premetric_trf=transforms_pipeline.batch_premetric_trf,
         metrics=metric_group,
         pred_name="pred",
-        tgt_name="ls_reg" if "beads" in dataset_name.value else "ls_trf",
-        run_logger=WandbLogger(point_cloud_threshold=0.2, zyx_scaling=(2, 0.7 * 8 / scale, 0.7 * 8 / scale)),
+        tgt_name="ls_reg" if "beads" in config.dataset.value else "ls_trf",
+        run_logger=WandbLogger(
+            point_cloud_threshold=0.2, zyx_scaling=(2, 0.7 * 8 / checkpoint.scale, 0.7 * 8 / checkpoint.scale)
+        ),
         save_pred_to_disk=settings.log_dir / "output_tensors" / wandb_run.name / "pred",
         save_spim_to_disk=settings.log_dir / "output_tensors" / wandb_run.name / "spim",
     )

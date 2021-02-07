@@ -1,12 +1,12 @@
-from hylfm.hylfm_types import Array, DatasetName, DatasetPart, TransformLike
+from hylfm.hylfm_types import Array, DatasetChoice, DatasetPart, TransformLike
 
 
 class MetricsPipeline:
-    def __init__(self, dataset_name: DatasetName, dataset_part: DatasetPart):
-        if dataset_name in [DatasetName.beads_sample0, DatasetName.beads_highc_a]:
+    def __init__(self, dataset_name: DatasetChoice, dataset_part: DatasetPart):
+        if dataset_name in [DatasetChoice.beads_sample0, DatasetChoice.beads_highc_a]:
             self.groups = "beads"
             self.tgt = "ls_reg"
-        elif dataset_name in [DatasetName.heart_static_a]:
+        elif dataset_name in [DatasetChoice.heart_static_a]:
             self.groups = "heart"
             self.tgt = "ls_trf"
         else:

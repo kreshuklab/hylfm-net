@@ -81,11 +81,12 @@ class WeightedSmoothL1(WeightedLossBase, torch.nn.SmoothL1Loss):
 class SmoothL1_MS_SSIM(MS_SSIM):
     minimize = True
 
-    def __init__(self, beta: float = 1.0, **super_kwargs):
+    def __init__(self, beta: float = 1.0, ms_ssim_weight: float = 0.01, **super_kwargs):
         super().__init__(**super_kwargs)
         self.smooth_l1 = SmoothL1(beta=beta)
+        self.ms_ssim_weight = ms_ssim_weight
 
     def forward(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         ms_ssim = super().forward(prediction=prediction, target=target)
         smooth_l1 = self.smooth_l1(prediction=prediction, target=target)
-        return smooth_l1 - ms_ssim
+        return smooth_l1 - ms_ssim * self.ms_ssim_weight

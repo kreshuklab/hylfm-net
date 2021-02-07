@@ -1,5 +1,5 @@
 from hylfm.datasets.named import DatasetPart
-from hylfm.hylfm_types import DatasetName, TransformsPipeline
+from hylfm.hylfm_types import DatasetChoice, TransformsPipeline
 from hylfm.transforms import (
     AdditiveGaussianNoise,
     Assert,
@@ -18,7 +18,7 @@ from hylfm.transforms import (
 
 
 def get_transforms_pipeline(
-    dataset_name: DatasetName,
+    dataset_name: DatasetChoice,
     dataset_part: DatasetPart,
     nnum: int,
     z_out: int,
@@ -33,10 +33,10 @@ def get_transforms_pipeline(
         "interpolation_order": interpolation_order,
         "crop_names": set(),
     }
-    if dataset_name in [DatasetName.beads_highc_a]:
+    if dataset_name in [DatasetChoice.beads_highc_a]:
         spim = "ls_reg"
         crop_names = []
-        if dataset_name == DatasetName.beads_highc_a and dataset_part == DatasetPart.train:
+        if dataset_name == DatasetChoice.beads_highc_a and dataset_part == DatasetPart.train:
             if scale != 8:
                 # due to size the zenodo upload is resized to scale 8
                 sample_precache_trf = [
@@ -80,10 +80,10 @@ def get_transforms_pipeline(
             Assert(apply_to="pred", expected_shape_like_tensor=spim),
         )
 
-    elif dataset_name in [DatasetName.beads_sample0, DatasetName.beads_highc_b]:
+    elif dataset_name in [DatasetChoice.beads_sample0, DatasetChoice.beads_highc_b]:
         spim = "ls_reg"
         crop_names = []
-        if dataset_name == DatasetName.beads_highc_a and dataset_part == DatasetPart.train:
+        if dataset_name == DatasetChoice.beads_highc_a and dataset_part == DatasetPart.train:
             if scale != 8:
                 # due to size the zenodo upload is resized to scale 8
                 sample_precache_trf = [
@@ -128,16 +128,16 @@ def get_transforms_pipeline(
         )
 
     elif dataset_name in [
-        DatasetName.heart_static_sample0,
-        DatasetName.heart_static_a,
-        DatasetName.heart_static_b,
-        DatasetName.heart_static_c,
+        DatasetChoice.heart_static_sample0,
+        DatasetChoice.heart_static_a,
+        DatasetChoice.heart_static_b,
+        DatasetChoice.heart_static_c,
     ]:
         spim = "ls_trf"
         crop_names = ["staticHeartFOV", "Heart_tightCrop"]
         sample_precache_trf = []
 
-        if dataset_name in [DatasetName.heart_static_c, DatasetName.heart_static_sample0]:
+        if dataset_name in [DatasetChoice.heart_static_c, DatasetChoice.heart_static_sample0]:
             spim_max_percentile = 99.8
         else:
             spim_max_percentile = 99.99

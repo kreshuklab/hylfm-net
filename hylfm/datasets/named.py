@@ -5,7 +5,7 @@ import numpy
 import torch.utils.data
 
 from hylfm.datasets import ConcatDataset, TensorInfo, ZipDataset, get_dataset_from_info, get_tensor_info
-from hylfm.hylfm_types import DatasetName, DatasetPart, TransformLike, TransformsPipeline
+from hylfm.hylfm_types import DatasetChoice, DatasetPart, TransformLike, TransformsPipeline
 from hylfm.transforms import Identity
 
 
@@ -58,9 +58,9 @@ def get_dataset_subsection(
     )
 
 
-def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: TransformsPipeline):
+def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: TransformsPipeline):
     sections = []
-    if name == DatasetName.beads_sample0:
+    if name == DatasetChoice.beads_sample0:
         sections.append(
             [
                 get_dataset_subsection(
@@ -76,7 +76,7 @@ def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: Trans
                 )
             ]
         )
-    elif name in [DatasetName.beads_highc_a, DatasetName.beads_highc_b]:
+    elif name in [DatasetChoice.beads_highc_a, DatasetChoice.beads_highc_b]:
         if part == DatasetPart.train:
             tensors = {"lf": f"beads.small_2", "ls_reg": f"beads.small_2", "meta": transforms_pipeline.meta}
         elif part == DatasetPart.validate:
@@ -97,7 +97,7 @@ def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: Trans
                 )
             ]
         )
-    elif name == DatasetName.heart_static_sample0:
+    elif name == DatasetChoice.heart_static_sample0:
 
         def get_tensors(tag_: str):
             return {"lf": f"heart_static.{tag_}", "ls_trf": f"heart_static.{tag_}", "meta": transforms_pipeline.meta}
@@ -125,7 +125,7 @@ def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: Trans
                 )
             )
 
-    elif name in [DatasetName.heart_static_a, DatasetName.heart_static_c]:
+    elif name in [DatasetChoice.heart_static_a, DatasetChoice.heart_static_c]:
 
         def get_tensors(tag_: str):
             return {"lf": f"heart_static.{tag_}", "ls_trf": f"heart_static.{tag_}", "meta": transforms_pipeline.meta}
@@ -247,7 +247,7 @@ def get_dataset(name: DatasetName, part: DatasetPart, transforms_pipeline: Trans
         else:
             raise NotImplementedError(part)
 
-    elif name == DatasetName.heart_static_b:
+    elif name == DatasetChoice.heart_static_b:
 
         def get_tensors(tag_: str):
             return {"lf": f"heart_static.{tag_}", "ls_trf": f"heart_static.{tag_}", "meta": transforms_pipeline.meta}

@@ -90,9 +90,6 @@ class EvalRun(Run):
                     pr = pred.detach().cpu().numpy()
                     sp = spim.detach().cpu().numpy()
                     assert len(pr.shape) == 5, pr.shape
-                    assert pr.shape[0] == 1, pr.shape
-                    assert pr.shape[1] == 1, pr.shape
-                    assert pr.shape[2] == 49, pr.shape
 
                     step_metrics["pred_max"] = list(pr.max(2))
                     step_metrics["spim_max"] = list(sp.max(2))

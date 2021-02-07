@@ -1,6 +1,5 @@
 import re
 import shutil
-from enum import Enum
 from functools import wraps
 from inspect import signature
 from pathlib import Path
@@ -11,6 +10,8 @@ import requests
 import torch
 from merge_args import merge_args
 from tqdm import tqdm
+
+from hylfm.hylfm_types import PeriodUnit
 
 
 def return_unused_kwargs_to(fn):
@@ -138,11 +139,6 @@ def download_file(url: str, download_file_path: Path):
         raise RuntimeError(f"downloading {url} to {download_file_path} failed")
 
     shutil.move(download_file_path.with_suffix(".part"), download_file_path)
-
-
-class PeriodUnit(Enum):
-    epoch = "epoch"
-    iteration = "iteration"
 
 
 class Period:
