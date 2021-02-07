@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import collections
-import json
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
-import torch
 import numpy
 import pandas
+import torch
 import wandb
 
 from hylfm.utils.general import Period, PeriodUnit
@@ -135,7 +134,6 @@ class WandbLogger(RunLogger):
             else:
                 raise NotImplementedError((key, value))
 
-        assert json.dumps(conv)
         wandb.log(conv, step=step)
 
     def log_metrics(self, *, step: int, **metrics):
@@ -191,12 +189,10 @@ class WandbLogger(RunLogger):
         return final_log, summary
 
     def log_summary(self, *, step: int, **metrics):
-        assert json.dumps(metrics)
         if self.step is not None:
             step = self.step
 
         final_log, summary = self._get_final_log_and_summary(metrics)
-        assert json.dumps(final_log)
         wandb.log(final_log, step=step)
         wandb.summary.update(summary)
 
@@ -224,7 +220,6 @@ class WandbValidationLogger(WandbLogger):
         final_log["it"] = self.val_it
 
         metrics = {"val_" + k: v for k, v in final_log.items()}
-        assert json.dumps(metrics)
         wandb.log(metrics, step=step)
 
         score = summary[self.score_metric]
