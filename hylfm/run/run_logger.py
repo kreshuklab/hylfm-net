@@ -134,7 +134,7 @@ class WandbLogger(RunLogger):
             else:
                 raise NotImplementedError((key, value))
 
-        step = self.step or (epoch * epoch_len + iteration) * self.last_batch_len + batch_idx
+        step = self.step or ((epoch * epoch_len + iteration) * self.last_batch_len + batch_idx)
         wandb.log(conv, step=step)
 
     def log_metrics(self, *, epoch: int, epoch_len: int, iteration: int, batch_len: int, **metrics):

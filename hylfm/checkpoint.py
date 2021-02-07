@@ -60,11 +60,12 @@ class Config:
 
     @classmethod
     def from_dict(cls, dat: dict):
+        dat = dict(dat)
         mw = dat.pop("model_weights")
         return cls(
             criterion=CriterionChoice(dat.pop("criterion")),
             dataset=DatasetChoice(dat.pop("dataset")),
-            model_weights=None if mw else Path(mw),
+            model_weights=None if mw is None else Path(mw),
             optimizer=OptimizerChoice(dat.pop("optimizer")),
             validate_every_unit=PeriodUnit(dat.pop("validate_every_unit")),
             **dat,
@@ -98,7 +99,7 @@ class Checkpoint:
     @classmethod
     def load(cls, path: Path):
         device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        checkpoint_data = torch.load(path, map_location=device)
+        checkpoint_data = torch.load(str(path), map_location=device)
         if "model" in checkpoint_data:
             from hylfm.load_old_checkpoint import get_config_for_old_checkpoint
 
@@ -110,7 +111,8 @@ class Checkpoint:
                 training_run_name=path.stem,
             )
         else:
-            config = Config.from_dict(checkpoint_data.pop("config"))
+            config = checkpoint_data.pop("config")
+            config = Config.from_dict(config)
             return cls(config=config, **checkpoint_data)
 
     def __post_init__(self, model_weights: Optional[dict]):
