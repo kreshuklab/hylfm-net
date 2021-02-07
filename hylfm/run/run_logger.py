@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import collections
+import json
 import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -31,22 +32,22 @@ class RunLogger:
         self,
         *,
         log_every: Period = Period(1, PeriodUnit.iteration),
-        step: Optional[int] = None,  # set to overwrite calculating step from epoch, epoch_len, iteration and batch_len
+        step: Optional[int] = None,  # set to overwrite step given in log methods
     ):
         self.log_every = log_every
-        self.last_batch_len = 0
         self.step = step
 
-    def __call__(self, *, epoch: int, epoch_len: int, iteration: int, batch_len: int, **metrics) -> None:
+    def __call__(self, *, epoch: int, iteration: int, epoch_len: int, step: int, **metrics) -> None:
+        if self.step is not None:
+            step = self.step
+
         if self.log_every.match(epoch=epoch, iteration=iteration, epoch_len=epoch_len):
-            self.log_metrics(epoch=epoch, epoch_len=epoch_len, iteration=iteration, batch_len=batch_len, **metrics)
+            self.log_metrics(step=step, **metrics)
 
-        self.last_batch_len = batch_len
-
-    def log_metrics(self, *, epoch: int, epoch_len: int, iteration: int, batch_len: int, **metrics):
+    def log_metrics(self, *, step: int, **metrics):
         raise NotImplementedError
 
-    def log_summary(self, **metrics):
+    def log_summary(self, *, step: int, **metrics):
         raise NotImplementedError
 
 
@@ -59,7 +60,7 @@ class WandbLogger(RunLogger):
         self.zyx_scaling = zyx_scaling
 
     @torch.no_grad()
-    def log_metrics_sample(self, *, epoch: int, epoch_len: int, iteration: int, batch_idx: int, **metrics):
+    def log_metrics_sample(self, *, step: int, **metrics):
         conv = {}
         for key, value in metrics.items():
             if isinstance(value, list):
@@ -134,29 +135,20 @@ class WandbLogger(RunLogger):
             else:
                 raise NotImplementedError((key, value))
 
-        step = self.step or ((epoch * epoch_len + iteration) * self.last_batch_len + batch_idx)
+        assert json.dumps(conv)
         wandb.log(conv, step=step)
 
-    def log_metrics(self, *, epoch: int, epoch_len: int, iteration: int, batch_len: int, **metrics):
+    def log_metrics(self, *, step: int, **metrics):
+        if self.step is not None:
+            step = self.step
+
         sample_metrics = {k: v for k, v in metrics.items() if isinstance(v, list)}
         batch_metrics = {k: v for k, v in metrics.items() if not isinstance(v, list)}
 
-        self.log_metrics_sample(
-            epoch=epoch,
-            epoch_len=epoch_len,
-            iteration=iteration,
-            batch_idx=0,
-            **{k: v for k, v in batch_metrics.items()},
-        )
+        self.log_metrics_sample(step=step, **{k: v for k, v in batch_metrics.items()})
 
-        for i in range(batch_len):
-            self.log_metrics_sample(
-                epoch=epoch,
-                epoch_len=epoch_len,
-                iteration=iteration,
-                batch_idx=i,
-                **{k: v[i] for k, v in sample_metrics.items()},
-            )
+        for i in range(min([len(v) for v in sample_metrics.values()])):
+            self.log_metrics_sample(step=step + i, **{k: v[i] for k, v in sample_metrics.items()})
 
     def _get_final_log_and_summary(self, metrics):
         summary = {}
@@ -197,9 +189,14 @@ class WandbLogger(RunLogger):
 
         return final_log, summary
 
-    def log_summary(self, **metrics):
+    def log_summary(self, *, step: int, **metrics):
+        assert json.dumps(metrics)
+        if self.step is not None:
+            step = self.step
+
         final_log, summary = self._get_final_log_and_summary(metrics)
-        wandb.log(final_log)
+        assert json.dumps(final_log)
+        wandb.log(final_log, step=step)
         wandb.summary.update(summary)
 
 
@@ -213,15 +210,21 @@ class WandbValidationLogger(WandbLogger):
         self.best_score = None
         self.val_it = 0
 
-    def log_metrics(self, *, epoch: int, epoch_len: int, iteration: int, batch_len: int, **metrics):
+    def log_metrics(self, *, step: int, **metrics):
         # don't log metrics per step when validating
         pass
 
-    def log_summary(self, **metrics):
+    def log_summary(self, *, step: int, **metrics):
+        if self.step is not None:
+            step = self.step
+
         self.val_it += 1
         final_log, summary = self._get_final_log_and_summary(metrics)
         final_log["it"] = self.val_it
-        wandb.log({"val_" + k: v for k, v in final_log.items()}, step=self.step)
+
+        metrics = {"val_" + k: v for k, v in final_log.items()}
+        assert json.dumps(metrics)
+        wandb.log(metrics, step=step)
 
         score = summary[self.score_metric]
         if self.minimize:

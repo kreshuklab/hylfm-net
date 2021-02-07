@@ -17,7 +17,6 @@ class TrainRun(Run):
     # state
     best_validation_score: float
     impatience: int
-    last_batch_len: Optional[int]
     validation_iteration: int
     epoch: int
     iteration: int
@@ -74,7 +73,6 @@ class TrainRun(Run):
         self.epoch = checkpoint.epoch
         self.impatience = checkpoint.impatience
         self.iteration = checkpoint.iteration
-        self.last_batch_len = checkpoint.last_batch_len
         self.training_run_id = checkpoint.training_run_id
         self.validation_iteration = checkpoint.validation_iteration
 
@@ -85,7 +83,6 @@ class TrainRun(Run):
             epoch=self.epoch,
             impatience=self.impatience,
             iteration=self.iteration,
-            last_batch_len=self.last_batch_len,
             model_weights=self.model.state_dict(),
             training_run_id=self.training_run_id,
             training_run_name=self.name,
@@ -99,7 +96,7 @@ class TrainRun(Run):
     def _validate(self) -> float:
         self.validation_iteration += 1
         validation_score = self.validator.get_validation_score(
-            step=(self.epoch * self.epoch_len + self.iteration) * (self.last_batch_len or self.current_batch_len)
+            step=(self.epoch * self.epoch_len + self.iteration) * (self.batch_size or self.current_batch_len)
         )
         best = self.best_validation_score is None or self.best_validation_score < validation_score
         val_it_is_power_of_two = self.validation_iteration & (self.validation_iteration - 1) == 0
@@ -149,9 +146,9 @@ class TrainRun(Run):
         if self.validate_every.match(epoch=ep, iteration=it, epoch_len=self.epoch_len):
             step_metrics[self.validator.score_metric + "_val-score"] = self._validate()
 
-        self.run_logger(epoch=ep, epoch_len=self.epoch_len, iteration=it, batch_len=batch["batch_len"], **step_metrics)
+        step = self.epoch * self.epoch_len + self.iteration
+        self.run_logger(epoch=ep, iteration=it, epoch_len=self.epoch_len, step=step, **step_metrics)
 
-        self.last_batch_len = batch["batch_len"]
         return batch
 
     def _run(self) -> Iterable[Dict[str, Any]]:
@@ -160,7 +157,7 @@ class TrainRun(Run):
         for epoch in range(self.epoch, self.max_epochs):
             self.epoch = epoch
             for it, batch in tqdm(
-                enumerate(self.dataloader), desc=f"{self.name}|ep {epoch:3}/{self.max_epochs}", total=self.epoch_len
+                enumerate(self.dataloader), desc=f"{self.name}|ep {epoch + 1:3}/{self.max_epochs}", total=self.epoch_len
             ):
                 if it < self.iteration:
                     continue  # catch up with loaded state
@@ -175,5 +172,5 @@ class TrainRun(Run):
             if stop_early:
                 break
 
-        self.run_logger.log_summary(**self.metrics.compute())
+        self.run_logger.log_summary(step=self.epoch * self.epoch_len + self.iteration, **self.metrics.compute())
         self.metrics.reset()

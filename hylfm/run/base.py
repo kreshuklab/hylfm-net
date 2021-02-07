@@ -42,6 +42,7 @@ class Run:
 
         self.model = model
         self.dataloader = dataloader
+        self.batch_size = dataloader.batch_size
         self.batch_preprocessing_in_step = batch_preprocessing_in_step
         self.batch_postprocessing = batch_postprocessing
         self.batch_premetric_trf = batch_premetric_trf

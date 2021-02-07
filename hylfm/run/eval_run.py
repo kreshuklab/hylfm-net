@@ -49,6 +49,7 @@ class EvalRun(Run):
     def _run(self) -> Iterable[EvalYield]:
         self.model.eval()
         epoch = 0
+        it = 0
         epoch_len = len(self.dataloader)
         assert epoch_len
         assert epoch_len < 100000 or not self.save_spim_to_disk and not self.save_pred_to_disk
@@ -104,9 +105,8 @@ class EvalRun(Run):
                     # step_metrics["pred-vs-spim"] = list(pred + spim)
 
                 if self.run_logger is not None:
-                    self.run_logger(
-                        epoch=epoch, epoch_len=epoch_len, iteration=it, batch_len=batch["batch_len"], **step_metrics
-                    )
+                    step = (epoch * epoch_len + it) * self.batch_size
+                    self.run_logger(epoch=epoch, iteration=it, epoch_len=epoch_len, step=step, **step_metrics)
 
                 if self.save_spim_to_disk:
                     save_tensor_batch(self.save_spim_to_disk, batch[self.tgt_name])
@@ -121,7 +121,7 @@ class EvalRun(Run):
         if self.save_pred_to_disk or self.save_spim_to_disk:
             summary_metrics["result_paths"] = pandas.DataFrame.from_dict(tab_data_per_step)
 
-        self.run_logger.log_summary(**summary_metrics)
+        self.run_logger.log_summary(step=(epoch * epoch_len + it + 1) * self.batch_size - 1, **summary_metrics)
         self.metrics.reset()
         yield EvalYield(summary_metrics=summary_metrics)
 

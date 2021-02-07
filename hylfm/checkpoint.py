@@ -91,7 +91,7 @@ class Checkpoint:
     epoch: int = 0
     impatience: int = 0
     iteration: int = 0
-    last_batch_len: Optional[int] = None
+    full_batch_len: Optional[int] = None  # todo: remove
     validation_iteration: int = 0
 
     model_weights: InitVar[Optional[dict]] = None

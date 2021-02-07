@@ -42,7 +42,7 @@ def train(
     criterion_apply_below_threshold: bool = True,
     data_range: float = typer.Option(1.0, "--data_range"),
     interpolation_order: int = 2,
-    lr: float = 1e-5,
+    lr: float = 1e-4,
     max_epochs: int = typer.Option(10, "--max_epochs"),
     model_weights: Optional[Path] = typer.Option(None, "--model_weights"),
     optimizer: OptimizerChoice = OptimizerChoice.Adam,
