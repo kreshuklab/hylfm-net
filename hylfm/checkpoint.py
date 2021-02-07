@@ -33,6 +33,9 @@ class Config:
     eval_batch_size: int
     criterion: CriterionChoice
     criterion_beta: float
+    criterion_threshold: float
+    criterion_weight: float
+    criterion_apply_below_threshold: bool
     data_range: float
     dataset: DatasetChoice
     interpolation_order: int

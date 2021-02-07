@@ -38,6 +38,7 @@ class CriterionChoice(str, Enum):
     SmoothL1 = "SmoothL1"
     MS_SSIM = "MS_SSIM"
     SmoothL1_MS_SSIM = "SmoothL1_MS_SSIM"
+    WeightedSmoothL1 = "WeightedSmoothL1"
 
 
 class DatasetAndTransforms(NamedTuple):

@@ -35,8 +35,11 @@ def train(
     batch_multiplier: int = typer.Option(1, "--batch_multiplier"),
     batch_size: int = typer.Option(1, "--batch_size"),
     eval_batch_size: int = typer.Option(1, "--eval_batch_size"),
-    criterion: CriterionChoice = CriterionChoice.SmoothL1_MS_SSIM,
+    criterion: CriterionChoice = CriterionChoice.WeightedSmoothL1,
     criterion_beta: float = 1.0,
+    criterion_threshold: float = 1.0,
+    criterion_weight: float = 0.05,
+    criterion_apply_below_threshold: bool = True,
     data_range: float = typer.Option(1.0, "--data_range"),
     interpolation_order: int = 2,
     lr: float = 1e-5,
@@ -58,6 +61,9 @@ def train(
         eval_batch_size=eval_batch_size,
         criterion=criterion,
         criterion_beta=criterion_beta,
+        criterion_threshold=criterion_threshold,
+        criterion_weight=criterion_weight,
+        criterion_apply_below_threshold=criterion_apply_below_threshold,
         data_range=data_range,
         dataset=dataset,
         interpolation_order=interpolation_order,
@@ -147,6 +153,13 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
             win_size=cfg.win_size,
             win_sigma=cfg.win_sigma,
             ms_ssim_weight=0.001,
+        )
+    elif cfg.criterion == CriterionChoice.WeightedSmoothL1:
+        criterion_kwargs = dict(
+            threshold=cfg.criterion_threshold,
+            weight=cfg.criterion_weight,
+            apply_below_threshold=cfg.criterion_apply_below_threshold,
+            beta=cfg.criterion_beta,
         )
     else:
         raise NotImplementedError(cfg.criterion)
