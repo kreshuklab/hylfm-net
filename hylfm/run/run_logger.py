@@ -147,8 +147,9 @@ class WandbLogger(RunLogger):
 
         self.log_metrics_sample(step=step, **{k: v for k, v in batch_metrics.items()})
 
-        for i in range(min([len(v) for v in sample_metrics.values()])):
-            self.log_metrics_sample(step=step + i, **{k: v[i] for k, v in sample_metrics.items()})
+        if sample_metrics:
+            for i in range(min([len(v) for v in sample_metrics.values()])):
+                self.log_metrics_sample(step=step + i, **{k: v[i] for k, v in sample_metrics.items()})
 
     def _get_final_log_and_summary(self, metrics):
         summary = {}
