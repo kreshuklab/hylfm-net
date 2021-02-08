@@ -150,6 +150,10 @@ class TrainRun(Run):
         batch = self.batch_premetric_trf(batch)
         step_metrics = self.train_metrics.update_with_batch(prediction=batch["pred"], target=batch[self.tgt_name])
         step_metrics[self.criterion.__class__.__name__ + "_loss"] = loss.item()
+        for from_batch in ["NormalizeMSE.alpha", "NormalizeMSE.beta"]:
+            assert from_batch not in step_metrics
+            if from_batch in batch:
+                step_metrics[from_batch] = batch[from_batch]
 
         if self.validate_every.match(epoch=ep, iteration=it, epoch_len=self.epoch_len):
             step_metrics[self.validator.score_metric + "_val-score"] = self._validate()
@@ -182,6 +186,7 @@ class TrainRun(Run):
 
                 self.iteration = it
                 batch = self._step(batch)
+                yield batch
                 if batch["pred"].max() < zero_max_threshold:
                     zero_max_impatience += 1
                     if zero_max_impatience > zero_max_patience:

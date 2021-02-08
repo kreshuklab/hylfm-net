@@ -219,6 +219,7 @@ class WandbValidationLogger(WandbLogger):
         final_log, summary = self._get_final_log_and_summary(metrics)
         final_log["it"] = self.val_it
 
+        final_log.update(summary)
         metrics = {"val_" + k: v for k, v in final_log.items()}
         wandb.log(metrics, step=step)
 
@@ -230,13 +231,3 @@ class WandbValidationLogger(WandbLogger):
             self.best_score = score
             summary["it"] = self.val_it
             wandb.summary.update({"val_" + k: v for k, v in summary.items()})
-
-
-# class MultiLogger(RunLogger):
-#     def __init__(self, loggers: List[RunLogger], **super_kwargs):
-#         super().__init__(**super_kwargs)
-#         self.loggers = [globals().get(lgr)(**super_kwargs) for lgr in loggers]
-#
-#     def log_metrics(self, *, step: int, **metrics):
-#         for lgr in self.loggers:
-#             lgr.log_metrics(step=step, **metrics)
