@@ -145,7 +145,7 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
     if cfg.optimizer == OptimizerChoice.SGD:
         opt_kwargs["momentum"] = cfg.optimizer_momentum
 
-    opt = torch.optim.Optimizer(model.parameters(), **opt_kwargs)
+    opt: torch.optim.Optimizer = opt_class(model.parameters(), **opt_kwargs)
     opt.zero_grad()
 
     if cfg.criterion == CriterionChoice.L1:
