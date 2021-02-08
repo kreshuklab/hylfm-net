@@ -61,7 +61,7 @@ class WeightedLossBase(torch.nn.Module):
         decay_weight_every: Period = Period(1, PeriodUnit.epoch),
         decay_weight_by: Optional[float] = None,
         decay_weight_limit: float = 1.0,
-        **super_kwargs
+        **super_kwargs,
     ):
         super().__init__(**super_kwargs)  # noqa: init mixin
         self.threshold = threshold
@@ -97,18 +97,50 @@ class WeightedLossBase(torch.nn.Module):
 class WeightedL1(WeightedLossBase, torch.nn.L1Loss):
     minimize = True
 
-    def __init__(self, *, threshold: float, weight: float, apply_below_threshold: bool):
+    def __init__(
+        self,
+        *,
+        threshold: float,
+        weight: float,
+        apply_below_threshold: bool,
+        decay_weight_every: Period,
+        decay_weight_by: Optional[float],
+        decay_weight_limit: float,
+    ):
         super().__init__(
-            threshold=threshold, weight=weight, apply_below_threshold=apply_below_threshold, reduction="none"
+            threshold=threshold,
+            weight=weight,
+            apply_below_threshold=apply_below_threshold,
+            decay_weight_every=decay_weight_every,
+            decay_weight_by=decay_weight_by,
+            decay_weight_limit=decay_weight_limit,
+            reduction="none",
         )
 
 
 class WeightedSmoothL1(WeightedLossBase, torch.nn.SmoothL1Loss):
     minimize = True
 
-    def __init__(self, *, threshold: float, weight: float, apply_below_threshold: bool, beta: float = 1.0):
+    def __init__(
+        self,
+        *,
+        threshold: float,
+        weight: float,
+        apply_below_threshold: bool,
+        decay_weight_every: Period,
+        decay_weight_by: Optional[float],
+        decay_weight_limit: float,
+        beta: float = 1.0,
+    ):
         super().__init__(
-            threshold=threshold, weight=weight, apply_below_threshold=apply_below_threshold, beta=beta, reduction="none"
+            threshold=threshold,
+            weight=weight,
+            apply_below_threshold=apply_below_threshold,
+            decay_weight_every=decay_weight_every,
+            decay_weight_by=decay_weight_by,
+            decay_weight_limit=decay_weight_limit,
+            beta=beta,
+            reduction="none",
         )
 
 
@@ -133,16 +165,29 @@ class WeightedSmoothL1_MS_SSIM(MS_SSIM):
 
     def __init__(
         self,
+        # weight kwargs
         threshold: float,
         weight: float,
         apply_below_threshold: bool,
+        decay_weight_every: Period,
+        decay_weight_by: Optional[float],
+        decay_weight_limit: float,
+        # smooth l1 kwargs
         beta: float = 1.0,
+        # mix ms_ssim kwargs
         ms_ssim_weight: float = 0.01,
-        **super_kwargs
+        # ms_ssim kwargs
+        **super_kwargs,
     ):
         super().__init__(**super_kwargs)
         self.weighted_smooth_l1 = WeightedSmoothL1(
-            threshold=threshold, weight=weight, apply_below_threshold=apply_below_threshold, beta=beta
+            threshold=threshold,
+            weight=weight,
+            apply_below_threshold=apply_below_threshold,
+            decay_weight_every=decay_weight_every,
+            decay_weight_by=decay_weight_by,
+            decay_weight_limit=decay_weight_limit,
+            beta=beta,
         )
         self.ms_ssim_weight = ms_ssim_weight
 
