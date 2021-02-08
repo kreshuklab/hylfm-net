@@ -1,3 +1,5 @@
+from hylfm import metrics, settings  # noqa: first line to set numpy env vars
+
 import logging
 import subprocess
 import sys
@@ -13,7 +15,6 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 
 import hylfm
 import hylfm.criteria
-from hylfm import metrics, settings  # noqa: first line to set numpy env vars
 from hylfm.checkpoint import Checkpoint, Config
 from hylfm.datasets import get_collate
 from hylfm.datasets.named import get_dataset
