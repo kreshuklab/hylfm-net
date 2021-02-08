@@ -19,7 +19,7 @@ class L1(torch.nn.L1Loss):
 class MSE(torch.nn.MSELoss):
     minimize = True
 
-    def __cal__(
+    def __call__(
         self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
     ) -> torch.Tensor:
         return super().__call__(prediction, target)
@@ -28,7 +28,7 @@ class MSE(torch.nn.MSELoss):
 class SmoothL1(torch.nn.SmoothL1Loss):
     minimize = True
 
-    def __cal__(
+    def __call__(
         self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
     ) -> torch.Tensor:
         return super().__call__(prediction, target)
@@ -37,7 +37,7 @@ class SmoothL1(torch.nn.SmoothL1Loss):
 class SSIM(pytorch_msssim.SSIM):
     minimize = False
 
-    def __cal__(
+    def __call__(
         self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
     ) -> torch.Tensor:
         return super().__call__(prediction, target)
@@ -46,7 +46,7 @@ class SSIM(pytorch_msssim.SSIM):
 class MS_SSIM(pytorch_msssim.MS_SSIM):
     minimize = False
 
-    def __cal__(
+    def __call__(
         self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
     ) -> torch.Tensor:
         return super().__call__(prediction, target)
@@ -152,7 +152,7 @@ class SmoothL1_MS_SSIM(MS_SSIM):
         self.smooth_l1 = SmoothL1(beta=beta)
         self.ms_ssim_weight = ms_ssim_weight
 
-    def __cal__(
+    def __call__(
         self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
     ) -> torch.Tensor:
         ms_ssim = super().__call__(prediction, target)
@@ -191,7 +191,7 @@ class WeightedSmoothL1_MS_SSIM(MS_SSIM):
         )
         self.ms_ssim_weight = ms_ssim_weight
 
-    def __cal__(
+    def __call__(
         self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
     ) -> torch.Tensor:
         ms_ssim = super().__call__(prediction, target)
