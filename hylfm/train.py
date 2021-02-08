@@ -1,11 +1,6 @@
-from hylfm import metrics, settings  # noqa: first line to set numpy env vars
-
 import logging
 import subprocess
 import sys
-
-import hylfm
-
 from pathlib import Path
 from typing import Optional, Type
 
@@ -16,7 +11,9 @@ import wandb
 from merge_args import merge_args
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 
+import hylfm
 import hylfm.criteria
+from hylfm import metrics, settings  # noqa: first line to set numpy env vars
 from hylfm.checkpoint import Checkpoint, Config
 from hylfm.datasets import get_collate
 from hylfm.datasets.named import get_dataset
@@ -103,13 +100,7 @@ def train(
         win_size=win_size,
     )
 
-    wandb_run = wandb.init(
-        project="HyLFM-train",
-        dir=str(settings.cache_dir),
-        config=config.as_dict(for_logging=True),
-        reinit=False,
-        resume="never",
-    )
+    wandb_run = wandb.init(project="HyLFM-train", dir=str(settings.cache_dir), config=config.as_dict(for_logging=True))
 
     if model_weights is not None:
         model_weights = Checkpoint.load(model_weights).model_weights
@@ -127,7 +118,6 @@ def resume(checkpoint: Path):
         project="HyLFM-train",
         dir=str(settings.cache_dir),
         config=checkpoint.config.as_dict(checkpoint.model),
-        reinit=False,
         resume="must",
         name=checkpoint.training_run_name,
         id=checkpoint.training_run_id,
