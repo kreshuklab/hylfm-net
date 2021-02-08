@@ -1,3 +1,8 @@
+from hylfm import metrics, settings  # noqa: first line to set numpy env vars
+
+import subprocess
+import sys
+
 import hylfm
 
 from pathlib import Path
@@ -11,14 +16,13 @@ from merge_args import merge_args
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 
 import hylfm.criteria
-from hylfm import metrics, settings  # noqa: first line to set numpy env vars
-from hylfm.checkpoint import Checkpoint, Config, TestConfig
+from hylfm.checkpoint import Checkpoint, Config
 from hylfm.datasets import get_collate
 from hylfm.datasets.named import get_dataset
 from hylfm.get_model import get_model
 from hylfm.hylfm_types import CriterionChoice, DatasetChoice, DatasetPart, OptimizerChoice
 from hylfm.metrics import MetricGroup
-from hylfm.run.eval_run import EvalRun, ValidationRun
+from hylfm.run.eval_run import ValidationRun
 from hylfm.run.run_logger import WandbLogger, WandbValidationLogger
 from hylfm.run.train_run import TrainRun
 from hylfm.sampler import NoCrossBatchSampler
@@ -193,10 +197,13 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
             shrink=checkpoint.shrink,
             interpolation_order=cfg.interpolation_order,
         )
-        for part in DatasetPart
+        for part in (DatasetPart.train, DatasetPart.validate)
     }
 
-    datasets = {part: get_dataset(cfg.dataset, part, transforms_pipelines[part]) for part in DatasetPart}
+    datasets = {
+        part: get_dataset(cfg.dataset, part, transforms_pipelines[part])
+        for part in (DatasetPart.train, DatasetPart.validate)
+    }
     dataloaders = {
         part: DataLoader(
             dataset=datasets[part],
@@ -211,24 +218,24 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
             num_workers=settings.num_workers_train_data_loader,
             pin_memory=settings.pin_memory,
         )
-        for part in DatasetPart
+        for part in (DatasetPart.train, DatasetPart.validate)
     }
 
     metric_groups = {
         DatasetPart.train: MetricGroup(),
         DatasetPart.validate: MetricGroup(
             # on volume
-            # metrics.BeadPrecisionRecall(
-            #     dist_threshold=3.0,
-            #     exclude_border=False,
-            #     max_sigma=6.0,
-            #     min_sigma=1.0,
-            #     overlap=0.5,
-            #     sigma_ratio=3.0,
-            #     threshold=0.05,
-            #     tgt_threshold=0.05,
-            #     scaling=(2.0, 0.7 * 8 / scale, 0.7 * 8 / scale),
-            # ),
+            metrics.BeadPrecisionRecall(
+                dist_threshold=3.0,
+                exclude_border=False,
+                max_sigma=6.0,
+                min_sigma=1.0,
+                overlap=0.5,
+                sigma_ratio=3.0,
+                threshold=0.05,
+                tgt_threshold=0.05,
+                scaling=(2.0, 0.7 * 8 / scale, 0.7 * 8 / scale),
+            ),
             metrics.MSE(),
             metrics.MS_SSIM(
                 channel=1,
@@ -249,63 +256,6 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
                 spatial_dims=3,
             ),
             metrics.SmoothL1(),
-        ),
-        DatasetPart.test: MetricGroup(
-            # on volume
-            # metrics.BeadPrecisionRecall(
-            #     dist_threshold=3.0,
-            #     exclude_border=False,
-            #     max_sigma=6.0,
-            #     min_sigma=1.0,
-            #     overlap=0.5,
-            #     sigma_ratio=3.0,
-            #     threshold=0.05,
-            #     tgt_threshold=0.05,
-            #     scaling=(2.0, 0.7 * 8 / scale, 0.7 * 8 / scale),
-            # ),
-            metrics.MSE(),
-            metrics.MS_SSIM(
-                channel=1,
-                data_range=cfg.data_range,
-                size_average=True,
-                spatial_dims=3,
-                win_size=cfg.win_size,
-                win_sigma=cfg.win_sigma,
-            ),
-            metrics.NRMSE(),
-            metrics.PSNR(data_range=cfg.data_range),
-            metrics.SSIM(
-                data_range=cfg.data_range,
-                size_average=True,
-                win_size=cfg.win_size,
-                win_sigma=cfg.win_sigma,
-                channel=1,
-                spatial_dims=3,
-            ),
-            metrics.SmoothL1(),
-            # along z
-            metrics.MSE(along_dim=1),
-            metrics.MS_SSIM(
-                along_dim=1,
-                data_range=cfg.data_range,
-                size_average=True,
-                win_size=cfg.win_size,
-                win_sigma=cfg.win_sigma,
-                channel=1,
-                spatial_dims=2,
-            ),
-            metrics.NRMSE(along_dim=1),
-            metrics.PSNR(along_dim=1, data_range=cfg.data_range),
-            metrics.SSIM(
-                along_dim=1,
-                data_range=cfg.data_range,
-                size_average=True,
-                win_size=cfg.win_size,
-                win_sigma=cfg.win_sigma,
-                channel=1,
-                spatial_dims=2,
-            ),
-            metrics.SmoothL1(along_dim=1),
         ),
     }
 
@@ -353,49 +303,28 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
         checkpoint=checkpoint,
     )
 
-    # part = DatasetPart.test
-    # tester = EvalRun(
-    #     batch_postprocessing=transforms_pipelines[part].batch_postprocessing,
-    #     batch_premetric_trf=transforms_pipelines[part].batch_premetric_trf,
-    #     batch_preprocessing_in_step=transforms_pipelines[part].batch_preprocessing_in_step,
-    #     dataloader=dataloaders[part],
-    #     batch_size=cfg.eval_batch_size,
-    #     log_pred_vs_spim=False,
-    #     metrics=metric_groups[part],
-    #     model=model,
-    #     pred_name="pred",
-    #     run_logger=WandbLogger(point_cloud_threshold=0.3, zyx_scaling=(2, 0.7 * 8 / scale, 0.7 * 8 / scale)),
-    #     save_pred_to_disk=None,
-    #     save_spim_to_disk=None,
-    #     tgt_name="ls_reg" if "beads" in cfg.dataset.value else "ls_trf",
-    # )
-    #
-    # test_config = TestConfig(
-    #     batch_size=cfg.eval_batch_size,
-    #     checkpoint=checkpoint,
-    #     data_range=cfg.data_range,
-    #     dataset=cfg.dataset,
-    #     dataset_part=DatasetPart.test,
-    #     interpolation_order=cfg.interpolation_order,
-    #     win_sigma=cfg.win_sigma,
-    #     win_size=cfg.win_size,
-    # )
-
-    # actually train
     train_run.fit()
-    wandb_run.finish()
 
-    # todo: start test in separate process
-    # # run default test
-    # wandb_run = wandb.init(
-    #     name=wandb_run.name,
-    #     project=f"HyLFM-test",
-    #     dir=str(settings.cache_dir),
-    #     config=test_config.as_dict(),
-    #     reinit=True,
-    # )
-    # tester.run()
-    # wandb_run.finish()
+    subprocess.run(
+        [
+            sys.executable,
+            str(Path(__file__).parent / "tst.py"),
+            "--associated_train_run_name",
+            wandb_run.name,
+            "--batch_size",
+            cfg.eval_batch_size,
+            "--data_range",
+            cfg.data_range,
+            "--interpolation_order",
+            cfg.interpolation_order,
+            "--win_sigma",
+            cfg.win_sigma,
+            "--win_size",
+            cfg.win_size,
+            "--light_logging",
+            str(settings.log_dir / "checkpoints" / wandb_run.name),
+        ]
+    )
 
 
 if __name__ == "__main__":

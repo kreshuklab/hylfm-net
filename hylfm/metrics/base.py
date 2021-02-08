@@ -149,3 +149,9 @@ class MetricGroup(Metric):
                 res[key] = value
 
         return res
+
+    def __add__(self, other: MetricGroup):
+        if not isinstance(other, MetricGroup):
+            raise NotImplementedError
+
+        return MetricGroup(*(list(self.metrics) + list(other.metrics)))
