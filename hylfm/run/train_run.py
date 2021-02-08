@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Dict, Iterable, Optional
 
 import torch.utils.data
@@ -11,6 +12,8 @@ from hylfm.utils.general import Period
 from .base import Run
 from .eval_run import ValidationRun
 from .run_logger import RunLogger
+
+logger = logging.getLogger(__name__)
 
 
 class TrainRun(Run):
@@ -159,20 +162,37 @@ class TrainRun(Run):
     def _run(self) -> Iterable[Dict[str, Any]]:
         self.model.train()
         stop_early = False
+        zero_max_threshold = 0.01
+        zero_max_patience = 10
+        zero_max_impatience = 0
         for epoch in range(self.epoch, self.max_epochs):
             self.epoch = epoch
             for it, batch in tqdm(
                 enumerate(self.dataloader), desc=f"{self.name}|ep {epoch + 1:3}/{self.max_epochs}", total=self.epoch_len
             ):
                 if it < self.iteration:
-                    continue  # catch up with loaded state
+                    # catch up with loaded state
+                    logger.warning("skipping iteration %s to resume at %s", it, self.iteration)
+                    continue
 
                 if self.impatience > self.patience:
                     stop_early = True
+                    logger.warning("stopping early after %s non-improving validations", self.impatience)
                     break
 
                 self.iteration = it
-                yield self._step(batch)
+                batch = self._step(batch)
+                if batch["pred"].max() < zero_max_threshold:
+                    zero_max_impatience += 1
+                    if zero_max_impatience > zero_max_patience:
+                        self.iteration += 1
+                        stop_early = True
+                        logger.warning(
+                            "stopping early after %s consecutive pred.max() < %s",
+                            zero_max_impatience,
+                            zero_max_threshold,
+                        )
+                        break
 
             if stop_early:
                 break
