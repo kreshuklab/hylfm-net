@@ -4,8 +4,10 @@ import collections
 import logging
 from typing import Any, Callable, Dict, Optional, Tuple
 
+import matplotlib.cm
 import numpy
 import pandas
+import PIL.Image
 import torch
 import wandb
 
@@ -121,11 +123,15 @@ class WandbLogger(RunLogger):
                 elif len(value.shape) == 3:
                     img = value.transpose(1, 2, 0)
                     y, x, c = img.shape
-                    if c not in (1, 3, 4):
+                    if c not in (1, 3):
                         raise NotImplementedError(c)
 
+                    if c == 1:
+                        img = matplotlib.cm.cividis(img[..., 0])
+
                     img = (img * 255).clip(0, 255).astype(numpy.uint8)
-                    conv[key] = wandb.Image(img, caption=key)
+                    pil_img = PIL.Image.fromarray(img)
+                    conv[key] = wandb.Image(pil_img, caption=key)
                 else:
                     raise NotImplementedError(value.shape)
             elif isinstance(value, (float, int)):

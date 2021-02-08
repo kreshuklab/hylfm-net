@@ -62,6 +62,7 @@ class Config:
         dat = conv_to_simple_dtypes(asdict(self))
         if not for_logging:
             dat.pop("model_weights_name")
+            dat.update(dat.pop("model"))  # flatten nested model dict
 
         return dat
 
@@ -94,7 +95,6 @@ class Checkpoint:
     epoch: int = 0
     impatience: int = 0
     iteration: int = 0
-    full_batch_len: Optional[int] = None  # todo: remove
     validation_iteration: int = 0
     hylfm_version: str = __version__
 
@@ -120,6 +120,10 @@ class Checkpoint:
             )
         else:
             config = checkpoint_data.pop("config")
+            if "model" in config:
+                # flatten model config  # todo: remove this support of older checkpoints
+                config.update(config.pop("model"))
+
             config = Config.from_dict(config)
             return cls(config=config, **checkpoint_data)
 

@@ -106,7 +106,7 @@ def tst(
             max_sigma=6.0,
             min_sigma=1.0,
             overlap=0.5,
-            scaling=(2.0, 0.7 * 8 / checkpoint.scale, 0.7 * 8 / checkpoint.scale),
+            scaling=(2.5, 0.7 * 8 / checkpoint.scale, 0.7 * 8 / checkpoint.scale),
             sigma_ratio=3.0,
             tgt_threshold=0.05,
             threshold=0.05,
@@ -161,7 +161,7 @@ def tst(
         pred_name="pred",
         tgt_name="ls_reg" if "beads" in config.dataset.value else "ls_trf",
         run_logger=WandbLogger(
-            point_cloud_threshold=0.2, zyx_scaling=(2, 0.7 * 8 / checkpoint.scale, 0.7 * 8 / checkpoint.scale)
+            point_cloud_threshold=0.2, zyx_scaling=(5, 0.7 * 8 / checkpoint.scale, 0.7 * 8 / checkpoint.scale)
         ),
         save_pred_to_disk=None if light_logging else settings.log_dir / "output_tensors" / wandb_run.name / "pred",
         save_spim_to_disk=None if light_logging else settings.log_dir / "output_tensors" / wandb_run.name / "spim",

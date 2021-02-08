@@ -254,9 +254,9 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
                 min_sigma=1.0,
                 overlap=0.5,
                 sigma_ratio=3.0,
-                threshold=0.05,
-                tgt_threshold=0.05,
-                scaling=(2.0, 0.7 * 8 / scale, 0.7 * 8 / scale),
+                threshold=0.3,  # orig 0.05
+                tgt_threshold=0.3,  # orig 0.05
+                scaling=(2.5, 0.7 * 8 / scale, 0.7 * 8 / scale),
             ),
             metrics.MSE(),
             metrics.MS_SSIM(
@@ -296,7 +296,7 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
         pred_name="pred",
         run_logger=WandbValidationLogger(
             point_cloud_threshold=0.3,
-            zyx_scaling=(2, 0.7 * 8 / scale, 0.7 * 8 / scale),
+            zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale),
             score_metric=score_metric,
             minimize=getattr(metrics, score_metric.replace("-", "_")).minimize,
         ),
@@ -318,7 +318,7 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
         model=model,
         optimizer=opt,
         pred_name="pred",
-        run_logger=WandbLogger(point_cloud_threshold=0.3, zyx_scaling=(2, 0.7 * 8 / scale, 0.7 * 8 / scale)),
+        run_logger=WandbLogger(point_cloud_threshold=0.3, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)),
         tgt_name="ls_reg" if "beads" in cfg.dataset.value else "ls_trf",
         train_metrics=metric_groups[part],
         validator=validator,
