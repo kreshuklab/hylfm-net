@@ -155,7 +155,7 @@ class SmoothL1_MS_SSIM(MS_SSIM):
     def __call__(
         self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
     ) -> torch.Tensor:
-        ms_ssim = super().__call__(prediction, target)
+        ms_ssim = super().__call__(prediction, target, epoch=epoch, iteration=iteration, epoch_len=epoch_len)
         smooth_l1 = self.smooth_l1(prediction, target, epoch=epoch, iteration=iteration, epoch_len=epoch_len)
         return smooth_l1 - ms_ssim * self.ms_ssim_weight
 
@@ -194,7 +194,7 @@ class WeightedSmoothL1_MS_SSIM(MS_SSIM):
     def __call__(
         self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
     ) -> torch.Tensor:
-        ms_ssim = super().__call__(prediction, target)
+        ms_ssim = super().__call__(prediction, target, epoch=epoch, iteration=iteration, epoch_len=epoch_len)
         weighted_smooth_l1 = self.weighted_smooth_l1(
             prediction, target, epoch=epoch, iteration=iteration, epoch_len=epoch_len
         )
