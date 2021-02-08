@@ -1,5 +1,6 @@
 from hylfm import metrics, settings  # noqa: first line to set numpy env vars
 
+import logging
 import subprocess
 import sys
 
@@ -30,6 +31,9 @@ from hylfm.transform_pipelines import get_transforms_pipeline
 from hylfm.utils.general import Period, PeriodUnit
 
 app = typer.Typer()
+
+
+logger = logging.getLogger(__name__)
 
 
 @app.command()
@@ -204,7 +208,12 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
     else:
         raise NotImplementedError(cfg.criterion)
 
-    crit = getattr(hylfm.criteria, cfg.criterion)(**criterion_kwargs)
+    crit_class = getattr(hylfm.criteria, cfg.criterion)
+    try:
+        crit = crit_class(**criterion_kwargs)
+    except Exception:
+        logger.error("Failed to init %s with %s", crit_class, criterion_kwargs)
+        raise
 
     transforms_pipelines = {
         part: get_transforms_pipeline(
