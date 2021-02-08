@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, NamedTuple, TYPE_CHECKING, Union
+from typing import Any, Dict, List, NamedTuple, Optional, TYPE_CHECKING, Union
 
 import numpy
 import torch
@@ -26,7 +26,13 @@ class CriterionLike(Protocol):
     minimize: bool
 
     def __call__(
-        self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
+        self,
+        prediction: torch.Tensor,
+        target: torch.Tensor,
+        *,
+        epoch: Optional[int],
+        iteration: Optional[int],
+        epoch_len: Optional[int]
     ) -> torch.Tensor:
         pass
 
