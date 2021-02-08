@@ -29,7 +29,7 @@ class Config:
     batch_multiplier: int
     batch_size: int
     criterion: CriterionChoice
-    criterion_apply_below_threshold: bool
+    criterion_apply_weight_above_threshold: bool
     criterion_beta: float
     criterion_decay_weight_by: Optional[float]
     criterion_decay_weight_every_unit: PeriodUnit

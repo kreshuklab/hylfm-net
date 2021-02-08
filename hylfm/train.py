@@ -44,7 +44,7 @@ def train(
     batch_size: int = typer.Option(1, "--batch_size"),
     eval_batch_size: int = typer.Option(1, "--eval_batch_size"),
     criterion: CriterionChoice = typer.Option(CriterionChoice.L1, "--criterion"),
-    criterion_apply_below_threshold: bool = typer.Option(True, "--criterion_apply_below_threshold"),
+    criterion_apply_weight_above_threshold: bool = typer.Option(False, "--criterion_apply_weight_above_threshold"),
     criterion_beta: float = typer.Option(1.0, "--criterion_beta"),
     criterion_decay_weight_by: Optional[float] = typer.Option(None, "--criterion_decay_weight_by"),
     criterion_decay_weight_every_unit: PeriodUnit = typer.Option(
@@ -83,7 +83,7 @@ def train(
         eval_batch_size=eval_batch_size,
         criterion_threshold=criterion_threshold,
         criterion_weight=criterion_weight,
-        criterion_apply_below_threshold=criterion_apply_below_threshold,
+        criterion_apply_weight_above_threshold=criterion_apply_weight_above_threshold,
         data_range=data_range,
         dataset=dataset,
         interpolation_order=interpolation_order,
@@ -182,7 +182,7 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
         criterion_kwargs = dict(
             threshold=cfg.criterion_threshold,
             weight=cfg.criterion_weight,
-            apply_below_threshold=cfg.criterion_apply_below_threshold,
+            apply_weight_above_threshold=cfg.criterion_apply_weight_above_threshold,
             beta=cfg.criterion_beta,
             decay_weight_by=cfg.criterion_decay_weight_by,
             decay_weight_every=Period(cfg.criterion_decay_weight_every_value, cfg.criterion_decay_weight_every_unit),
@@ -192,7 +192,7 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
         criterion_kwargs = dict(
             threshold=cfg.criterion_threshold,
             weight=cfg.criterion_weight,
-            apply_below_threshold=cfg.criterion_apply_below_threshold,
+            apply_weight_above_threshold=cfg.criterion_apply_weight_above_threshold,
             beta=cfg.criterion_beta,
             decay_weight_by=cfg.criterion_decay_weight_by,
             decay_weight_every=Period(cfg.criterion_decay_weight_every_value, cfg.criterion_decay_weight_every_unit),
