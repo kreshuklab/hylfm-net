@@ -57,7 +57,7 @@ def train(
     criterion_weight: float = typer.Option(0.05, "--criterion_weight"),
     data_range: float = typer.Option(1.0, "--data_range"),
     interpolation_order: int = typer.Option(2, "--interpolation_order"),
-    optimizer_lr: float = typer.Option(1e-4, "--lr"),
+    optimizer_lr: float = typer.Option(1e-4, "--optimizer_lr"),
     max_epochs: int = typer.Option(10, "--max_epochs"),
     model_weights: Optional[Path] = typer.Option(None, "--model_weights"),
     optimizer: OptimizerChoice = typer.Option(OptimizerChoice.Adam, "--optimizer"),
