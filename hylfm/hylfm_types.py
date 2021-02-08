@@ -25,7 +25,7 @@ Array = Union[numpy.ndarray, torch.Tensor]
 class CriterionLike(Protocol):
     minimize: bool
 
-    def __call__(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def __call__(self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int) -> torch.Tensor:
         pass
 
 
@@ -35,8 +35,10 @@ class TransformLike(Protocol):
 
 
 class CriterionChoice(str, Enum):
-    SmoothL1 = "SmoothL1"
+    L1 = "L1"
     MS_SSIM = "MS_SSIM"
+    MSE = "MSE"
+    SmoothL1 = "SmoothL1"
     SmoothL1_MS_SSIM = "SmoothL1_MS_SSIM"
     WeightedSmoothL1 = "WeightedSmoothL1"
 

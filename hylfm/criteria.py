@@ -1,52 +1,80 @@
+from typing import Optional
+
 import torch.nn
 
 import pytorch_msssim
+from hylfm.hylfm_types import PeriodUnit
+from hylfm.utils.general import Period
 
 
 class L1(torch.nn.L1Loss):
     minimize = True
 
-    def forward(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return super().forward(input=prediction, target=target)
+    def __call__(
+        self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
+    ) -> torch.Tensor:
+        return super().__call__(prediction, target)
 
 
 class MSE(torch.nn.MSELoss):
     minimize = True
 
-    def forward(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return super().forward(input=prediction, target=target)
+    def __cal__(
+        self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
+    ) -> torch.Tensor:
+        return super().__call__(prediction, target)
 
 
 class SmoothL1(torch.nn.SmoothL1Loss):
     minimize = True
 
-    def forward(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return super().forward(input=prediction, target=target)
+    def __cal__(
+        self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
+    ) -> torch.Tensor:
+        return super().__call__(prediction, target)
 
 
 class SSIM(pytorch_msssim.SSIM):
     minimize = False
 
-    def forward(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return super().forward(X=prediction, Y=target)
+    def __cal__(
+        self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
+    ) -> torch.Tensor:
+        return super().__call__(prediction, target)
 
 
 class MS_SSIM(pytorch_msssim.MS_SSIM):
     minimize = False
 
-    def forward(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return super().forward(X=prediction, Y=target)
+    def __cal__(
+        self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
+    ) -> torch.Tensor:
+        return super().__call__(prediction, target)
 
 
 class WeightedLossBase(torch.nn.Module):
-    def __init__(self, threshold: float, weight: float, apply_below_threshold: bool, **super_kwargs):
+    def __init__(
+        self,
+        threshold: float,
+        weight: float,
+        apply_below_threshold: bool,
+        decay_weight_every: Period = Period(1, PeriodUnit.epoch),
+        decay_weight_by: Optional[float] = None,
+        decay_weight_limit: float = 1.0,
+        **super_kwargs
+    ):
         super().__init__(**super_kwargs)  # noqa: init mixin
         self.threshold = threshold
         self.weight = weight
         self.apply_below_threshold = apply_below_threshold
+        self.decay_weight_every = decay_weight_every
+        self.decay_weight_by = decay_weight_by
+        self.decay_weight_limit = decay_weight_limit
 
-    def forward(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        pixelwise = super().forward(input=prediction, target=target)
+    def __cal__(
+        self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
+    ) -> torch.Tensor:
+        pixelwise = super().__call__(prediction, target)
 
         weights = torch.ones_like(pixelwise)
 
@@ -57,6 +85,12 @@ class WeightedLossBase(torch.nn.Module):
 
         weights[mask] = self.weight
         pixelwise *= weights
+
+        if self.decay_weight_by and self.decay_weight_every.match(
+            epoch=epoch, iteration=iteration, epoch_len=epoch_len
+        ):
+            self.weight = (self.weight - self.decay_weight_limit) * self.decay_weight_by + self.decay_weight_limit
+
         return pixelwise.mean()
 
 
@@ -86,7 +120,9 @@ class SmoothL1_MS_SSIM(MS_SSIM):
         self.smooth_l1 = SmoothL1(beta=beta)
         self.ms_ssim_weight = ms_ssim_weight
 
-    def forward(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        ms_ssim = super().forward(prediction=prediction, target=target)
-        smooth_l1 = self.smooth_l1(prediction=prediction, target=target)
+    def __cal__(
+        self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
+    ) -> torch.Tensor:
+        ms_ssim = super().__call__(prediction, target)
+        smooth_l1 = self.smooth_l1(prediction, target, epoch=epoch, iteration=iteration, epoch_len=epoch_len)
         return smooth_l1 - ms_ssim * self.ms_ssim_weight

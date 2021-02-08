@@ -2,11 +2,9 @@ import shutil
 from dataclasses import InitVar, asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from sys import platform
 from typing import Dict, Optional, Union
 
 import torch
-import wandb
 
 from hylfm import settings
 from hylfm.get_model import get_model
@@ -30,14 +28,18 @@ def conv_to_simple_dtypes(data: dict):
 class Config:
     batch_multiplier: int
     batch_size: int
-    eval_batch_size: int
     criterion: CriterionChoice
+    criterion_apply_below_threshold: bool
     criterion_beta: float
+    criterion_decay_weight_by: Optional[float]
+    criterion_decay_weight_every_unit: PeriodUnit
+    criterion_decay_weight_every_value: int
+    criterion_decay_weight_limit: float
     criterion_threshold: float
     criterion_weight: float
-    criterion_apply_below_threshold: bool
     data_range: float
     dataset: DatasetChoice
+    eval_batch_size: int
     interpolation_order: int
     lr: float
     max_epochs: int

@@ -23,7 +23,7 @@ from hylfm.run.run_logger import WandbLogger, WandbValidationLogger
 from hylfm.run.train_run import TrainRun
 from hylfm.sampler import NoCrossBatchSampler
 from hylfm.transform_pipelines import get_transforms_pipeline
-from hylfm.utils.general import PeriodUnit
+from hylfm.utils.general import Period, PeriodUnit
 
 app = typer.Typer()
 
@@ -35,11 +35,15 @@ def train(
     batch_multiplier: int = typer.Option(1, "--batch_multiplier"),
     batch_size: int = typer.Option(1, "--batch_size"),
     eval_batch_size: int = typer.Option(1, "--eval_batch_size"),
-    criterion: CriterionChoice = CriterionChoice.WeightedSmoothL1,
+    criterion: CriterionChoice = CriterionChoice.L1,
+    criterion_apply_below_threshold: bool = True,
     criterion_beta: float = 1.0,
+    criterion_decay_weight_by: Optional[float] = None,
+    criterion_decay_weight_every_unit: PeriodUnit = PeriodUnit.epoch,
+    criterion_decay_weight_every_value: int = 1,
+    criterion_decay_weight_limit: float = 1.0,
     criterion_threshold: float = 1.0,
     criterion_weight: float = 0.05,
-    criterion_apply_below_threshold: bool = True,
     data_range: float = typer.Option(1.0, "--data_range"),
     interpolation_order: int = 2,
     lr: float = 1e-4,
@@ -61,6 +65,10 @@ def train(
         eval_batch_size=eval_batch_size,
         criterion=criterion,
         criterion_beta=criterion_beta,
+        criterion_decay_weight_by=criterion_decay_weight_by,
+        criterion_decay_weight_every_unit=criterion_decay_weight_every_unit,
+        criterion_decay_weight_every_value=criterion_decay_weight_every_value,
+        criterion_decay_weight_limit=criterion_decay_weight_limit,
         criterion_threshold=criterion_threshold,
         criterion_weight=criterion_weight,
         criterion_apply_below_threshold=criterion_apply_below_threshold,
@@ -132,7 +140,9 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
     )
     opt.zero_grad()
 
-    if cfg.criterion == CriterionChoice.MS_SSIM:
+    if cfg.criterion == CriterionChoice.L1:
+        criterion_kwargs = dict()
+    elif cfg.criterion == CriterionChoice.MS_SSIM:
         criterion_kwargs = dict(
             channel=1,
             data_range=cfg.data_range,
@@ -141,6 +151,8 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
             win_size=cfg.win_size,
             win_sigma=cfg.win_sigma,
         )
+    elif cfg.criterion == CriterionChoice.MSE:
+        criterion_kwargs = dict()
     elif cfg.criterion == CriterionChoice.SmoothL1:
         criterion_kwargs = dict(beta=cfg.criterion_beta)
     elif cfg.criterion == CriterionChoice.SmoothL1_MS_SSIM:
@@ -160,6 +172,11 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
             weight=cfg.criterion_weight,
             apply_below_threshold=cfg.criterion_apply_below_threshold,
             beta=cfg.criterion_beta,
+            criterion_decay_weight_by=cfg.criterion_decay_weight_by,
+            criterion_decay_weight_every=Period(
+                cfg.criterion_decay_weight_every_value, cfg.criterion_decay_weight_every_unit
+            ),
+            criterion_decay_weight_limit=cfg.criterion_decay_weight_limit,
         )
     else:
         raise NotImplementedError(cfg.criterion)
