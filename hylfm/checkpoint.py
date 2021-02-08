@@ -37,6 +37,7 @@ class Config:
     criterion_decay_weight_limit: float
     criterion_threshold: float
     criterion_weight: float
+    criterion_ms_ssim_weight: float
     data_range: float
     dataset: DatasetChoice
     eval_batch_size: int

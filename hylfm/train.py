@@ -46,6 +46,7 @@ def train(
     criterion_decay_weight_every_unit: PeriodUnit = PeriodUnit.epoch,
     criterion_decay_weight_every_value: int = 1,
     criterion_decay_weight_limit: float = 1.0,
+    criterion_ms_ssim_weight: float = 0.001,
     criterion_threshold: float = 1.0,
     criterion_weight: float = 0.05,
     data_range: float = typer.Option(1.0, "--data_range"),
@@ -66,13 +67,14 @@ def train(
     config = Config(
         batch_multiplier=batch_multiplier,
         batch_size=batch_size,
-        eval_batch_size=eval_batch_size,
         criterion=criterion,
         criterion_beta=criterion_beta,
         criterion_decay_weight_by=criterion_decay_weight_by,
         criterion_decay_weight_every_unit=criterion_decay_weight_every_unit,
         criterion_decay_weight_every_value=criterion_decay_weight_every_value,
         criterion_decay_weight_limit=criterion_decay_weight_limit,
+        criterion_ms_ssim_weight=criterion_ms_ssim_weight,
+        eval_batch_size=eval_batch_size,
         criterion_threshold=criterion_threshold,
         criterion_weight=criterion_weight,
         criterion_apply_below_threshold=criterion_apply_below_threshold,
@@ -162,13 +164,13 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
     elif cfg.criterion == CriterionChoice.SmoothL1_MS_SSIM:
         criterion_kwargs = dict(
             beta=cfg.criterion_beta,
+            ms_ssim_weight=cfg.criterion_ms_ssim_weight,
             channel=1,
             data_range=cfg.data_range,
             size_average=True,
             spatial_dims=3,
             win_size=cfg.win_size,
             win_sigma=cfg.win_sigma,
-            ms_ssim_weight=0.001,
         )
     elif cfg.criterion == CriterionChoice.WeightedSmoothL1:
         criterion_kwargs = dict(
@@ -176,11 +178,30 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
             weight=cfg.criterion_weight,
             apply_below_threshold=cfg.criterion_apply_below_threshold,
             beta=cfg.criterion_beta,
-            criterion_decay_weight_by=cfg.criterion_decay_weight_by,
-            criterion_decay_weight_every=Period(
+            decay_weight_by=cfg.criterion_decay_weight_by,
+            decay_weight_every=Period(
                 cfg.criterion_decay_weight_every_value, cfg.criterion_decay_weight_every_unit
             ),
-            criterion_decay_weight_limit=cfg.criterion_decay_weight_limit,
+            decay_weight_limit=cfg.criterion_decay_weight_limit,
+        )
+    elif cfg.criterion == CriterionChoice.WeightedSmoothL1_MS_SSIM:
+        criterion_kwargs = dict(
+            threshold=cfg.criterion_threshold,
+            weight=cfg.criterion_weight,
+            apply_below_threshold=cfg.criterion_apply_below_threshold,
+            beta=cfg.criterion_beta,
+            decay_weight_by=cfg.criterion_decay_weight_by,
+            decay_weight_every=Period(
+                cfg.criterion_decay_weight_every_value, cfg.criterion_decay_weight_every_unit
+            ),
+            decay_weight_limit=cfg.criterion_decay_weight_limit,
+            ms_ssim_weight=cfg.criterion_ms_ssim_weight,
+            channel=1,
+            data_range=cfg.data_range,
+            size_average=True,
+            spatial_dims=3,
+            win_size=cfg.win_size,
+            win_sigma=cfg.win_sigma,
         )
     else:
         raise NotImplementedError(cfg.criterion)

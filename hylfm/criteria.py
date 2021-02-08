@@ -71,7 +71,7 @@ class WeightedLossBase(torch.nn.Module):
         self.decay_weight_by = decay_weight_by
         self.decay_weight_limit = decay_weight_limit
 
-    def __cal__(
+    def __call__(
         self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
     ) -> torch.Tensor:
         pixelwise = super().__call__(prediction, target)
@@ -126,3 +126,31 @@ class SmoothL1_MS_SSIM(MS_SSIM):
         ms_ssim = super().__call__(prediction, target)
         smooth_l1 = self.smooth_l1(prediction, target, epoch=epoch, iteration=iteration, epoch_len=epoch_len)
         return smooth_l1 - ms_ssim * self.ms_ssim_weight
+
+
+class WeightedSmoothL1_MS_SSIM(MS_SSIM):
+    minimize = True
+
+    def __init__(
+        self,
+        threshold: float,
+        weight: float,
+        apply_below_threshold: bool,
+        beta: float = 1.0,
+        ms_ssim_weight: float = 0.01,
+        **super_kwargs
+    ):
+        super().__init__(**super_kwargs)
+        self.weighted_smooth_l1 = WeightedSmoothL1(
+            threshold=threshold, weight=weight, apply_below_threshold=apply_below_threshold, beta=beta
+        )
+        self.ms_ssim_weight = ms_ssim_weight
+
+    def __cal__(
+        self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
+    ) -> torch.Tensor:
+        ms_ssim = super().__call__(prediction, target)
+        weighted_smooth_l1 = self.weighted_smooth_l1(
+            prediction, target, epoch=epoch, iteration=iteration, epoch_len=epoch_len
+        )
+        return weighted_smooth_l1 - ms_ssim * self.ms_ssim_weight
