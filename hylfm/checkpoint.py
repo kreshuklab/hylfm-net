@@ -29,15 +29,15 @@ class Config:
     batch_multiplier: int
     batch_size: int
     criterion: CriterionChoice
-    criterion_apply_weight_above_threshold: bool
-    criterion_beta: float
-    criterion_decay_weight_by: Optional[float]
-    criterion_decay_weight_every_unit: PeriodUnit
-    criterion_decay_weight_every_value: int
-    criterion_decay_weight_limit: float
-    criterion_ms_ssim_weight: float
-    criterion_threshold: float
-    criterion_weight: float
+    crit_apply_weight_above_threshold: bool
+    crit_beta: float
+    crit_decay_weight_by: Optional[float]
+    crit_decay_weight_every_unit: PeriodUnit
+    crit_decay_weight_every_value: int
+    crit_decay_weight_limit: float
+    crit_ms_ssim_weight: float
+    crit_threshold: float
+    crit_weight: float
     data_range: float
     dataset: DatasetChoice
     eval_batch_size: int
@@ -46,9 +46,9 @@ class Config:
     model: Dict[str, Union[None, float, int, str]]
     model_weights: Optional[Path]
     optimizer: OptimizerChoice
-    optimizer_lr: float
-    optimizer_momentum: float
-    optimizer_weight_decay: float
+    opt_lr: float
+    opt_momentum: float
+    opt_weight_decay: float
     patience: int
     seed: int
     validate_every_unit: PeriodUnit

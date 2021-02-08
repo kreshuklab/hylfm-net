@@ -40,31 +40,29 @@ def train(
     dataset: DatasetChoice,
     batch_multiplier: int = typer.Option(1, "--batch_multiplier"),
     batch_size: int = typer.Option(1, "--batch_size"),
-    eval_batch_size: int = typer.Option(1, "--eval_batch_size"),
+    crit_apply_weight_above_threshold: bool = typer.Option(False, "--crit_apply_weight_above_threshold"),
+    crit_beta: float = typer.Option(1.0, "--crit_beta"),
+    crit_decay_weight_by: Optional[float] = typer.Option(None, "--crit_decay_weight_by"),
     criterion: CriterionChoice = typer.Option(CriterionChoice.L1, "--criterion"),
-    criterion_apply_weight_above_threshold: bool = typer.Option(False, "--criterion_apply_weight_above_threshold"),
-    criterion_beta: float = typer.Option(1.0, "--criterion_beta"),
-    criterion_decay_weight_by: Optional[float] = typer.Option(None, "--criterion_decay_weight_by"),
-    criterion_decay_weight_every_unit: PeriodUnit = typer.Option(
-        PeriodUnit.epoch, "--criterion_decay_weight_every_unit"
-    ),
-    criterion_decay_weight_every_value: int = typer.Option(1, "--criterion_decay_weight_every_value"),
-    criterion_decay_weight_limit: float = typer.Option(1.0, "--criterion_decay_weight_limit"),
-    criterion_ms_ssim_weight: float = typer.Option(0.001, "--criterion_ms_ssim_weight"),
-    criterion_threshold: float = typer.Option(1.0, "--criterion_threshold"),
-    criterion_weight: float = typer.Option(0.05, "--criterion_weight"),
+    crit_decay_weight_every_unit: PeriodUnit = typer.Option(PeriodUnit.epoch, "--crit_decay_weight_every_unit"),
+    crit_decay_weight_every_value: int = typer.Option(1, "--crit_decay_weight_every_value"),
+    crit_decay_weight_limit: float = typer.Option(1.0, "--crit_decay_weight_limit"),
+    crit_ms_ssim_weight: float = typer.Option(0.001, "--crit_ms_ssim_weight"),
+    crit_threshold: float = typer.Option(1.0, "--crit_threshold"),
+    crit_weight: float = typer.Option(0.05, "--crit_weight"),
     data_range: float = typer.Option(1.0, "--data_range"),
+    eval_batch_size: int = typer.Option(1, "--eval_batch_size"),
     interpolation_order: int = typer.Option(2, "--interpolation_order"),
-    optimizer_lr: float = typer.Option(1e-4, "--optimizer_lr"),
     max_epochs: int = typer.Option(10, "--max_epochs"),
     model_weights: Optional[Path] = typer.Option(None, "--model_weights"),
+    opt_lr: float = typer.Option(1e-4, "--opt_lr"),
+    opt_momentum: float = typer.Option(0.0, "--opt_momentum"),
+    opt_weight_decay: float = typer.Option(0.0, "--opt_weight_decay"),
     optimizer: OptimizerChoice = typer.Option(OptimizerChoice.Adam, "--optimizer"),
     patience: int = typer.Option(5, "--patience"),
     seed: Optional[int] = typer.Option(None, "--seed"),
     validate_every_unit: PeriodUnit = typer.Option(PeriodUnit.epoch, "--validate_every_unit"),
     validate_every_value: int = typer.Option(1, "--validate_every_value"),
-    optimizer_weight_decay: float = typer.Option(0.0, "--optimizer_weight_decay"),
-    optimizer_momentum: float = typer.Option(0.0, "--optimizer_momentum"),
     win_sigma: float = typer.Option(1.5, "--win_sigma"),
     win_size: int = typer.Option(11, "--win_size"),
     **model_kwargs,
@@ -73,15 +71,15 @@ def train(
         batch_multiplier=batch_multiplier,
         batch_size=batch_size,
         criterion=criterion,
-        criterion_apply_weight_above_threshold=criterion_apply_weight_above_threshold,
-        criterion_beta=criterion_beta,
-        criterion_decay_weight_by=criterion_decay_weight_by,
-        criterion_decay_weight_every_unit=criterion_decay_weight_every_unit,
-        criterion_decay_weight_every_value=criterion_decay_weight_every_value,
-        criterion_decay_weight_limit=criterion_decay_weight_limit,
-        criterion_ms_ssim_weight=criterion_ms_ssim_weight,
-        criterion_threshold=criterion_threshold,
-        criterion_weight=criterion_weight,
+        crit_apply_weight_above_threshold=crit_apply_weight_above_threshold,
+        crit_beta=crit_beta,
+        crit_decay_weight_by=crit_decay_weight_by,
+        crit_decay_weight_every_unit=crit_decay_weight_every_unit,
+        crit_decay_weight_every_value=crit_decay_weight_every_value,
+        crit_decay_weight_limit=crit_decay_weight_limit,
+        crit_ms_ssim_weight=crit_ms_ssim_weight,
+        crit_threshold=crit_threshold,
+        crit_weight=crit_weight,
         data_range=data_range,
         dataset=dataset,
         eval_batch_size=eval_batch_size,
@@ -90,9 +88,9 @@ def train(
         model=model_kwargs,
         model_weights=model_weights,
         optimizer=optimizer,
-        optimizer_lr=optimizer_lr,
-        optimizer_momentum=optimizer_momentum,
-        optimizer_weight_decay=optimizer_weight_decay,
+        opt_lr=opt_lr,
+        opt_momentum=opt_momentum,
+        opt_weight_decay=opt_weight_decay,
         patience=patience,
         seed=seed,
         validate_every_unit=validate_every_unit,
@@ -141,17 +139,17 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
 
     # todo: get from checkpoint like model and restore optimizer
     opt_class: Type[torch.optim.Optimizer] = getattr(torch.optim, cfg.optimizer.name)
-    opt_kwargs = {"lr": cfg.optimizer_lr, "weight_decay": cfg.optimizer_weight_decay}
+    opt_kwargs = {"lr": cfg.opt_lr, "weight_decay": cfg.opt_weight_decay}
     if cfg.optimizer == OptimizerChoice.SGD:
-        opt_kwargs["momentum"] = cfg.optimizer_momentum
+        opt_kwargs["momentum"] = cfg.opt_momentum
 
     opt: torch.optim.Optimizer = opt_class(model.parameters(), **opt_kwargs)
     opt.zero_grad()
 
     if cfg.criterion == CriterionChoice.L1:
-        criterion_kwargs = dict()
+        crit_kwargs = dict()
     elif cfg.criterion == CriterionChoice.MS_SSIM:
-        criterion_kwargs = dict(
+        crit_kwargs = dict(
             channel=1,
             data_range=cfg.data_range,
             size_average=True,
@@ -160,13 +158,13 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
             win_sigma=cfg.win_sigma,
         )
     elif cfg.criterion == CriterionChoice.MSE:
-        criterion_kwargs = dict()
+        crit_kwargs = dict()
     elif cfg.criterion == CriterionChoice.SmoothL1:
-        criterion_kwargs = dict(beta=cfg.criterion_beta)
+        crit_kwargs = dict(beta=cfg.crit_beta)
     elif cfg.criterion == CriterionChoice.SmoothL1_MS_SSIM:
-        criterion_kwargs = dict(
-            beta=cfg.criterion_beta,
-            ms_ssim_weight=cfg.criterion_ms_ssim_weight,
+        crit_kwargs = dict(
+            beta=cfg.crit_beta,
+            ms_ssim_weight=cfg.crit_ms_ssim_weight,
             channel=1,
             data_range=cfg.data_range,
             size_average=True,
@@ -175,25 +173,25 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
             win_sigma=cfg.win_sigma,
         )
     elif cfg.criterion == CriterionChoice.WeightedSmoothL1:
-        criterion_kwargs = dict(
-            threshold=cfg.criterion_threshold,
-            weight=cfg.criterion_weight,
-            apply_weight_above_threshold=cfg.criterion_apply_weight_above_threshold,
-            beta=cfg.criterion_beta,
-            decay_weight_by=cfg.criterion_decay_weight_by,
-            decay_weight_every=Period(cfg.criterion_decay_weight_every_value, cfg.criterion_decay_weight_every_unit),
-            decay_weight_limit=cfg.criterion_decay_weight_limit,
+        crit_kwargs = dict(
+            threshold=cfg.crit_threshold,
+            weight=cfg.crit_weight,
+            apply_weight_above_threshold=cfg.crit_apply_weight_above_threshold,
+            beta=cfg.crit_beta,
+            decay_weight_by=cfg.crit_decay_weight_by,
+            decay_weight_every=Period(cfg.crit_decay_weight_every_value, cfg.crit_decay_weight_every_unit),
+            decay_weight_limit=cfg.crit_decay_weight_limit,
         )
     elif cfg.criterion == CriterionChoice.WeightedSmoothL1_MS_SSIM:
-        criterion_kwargs = dict(
-            threshold=cfg.criterion_threshold,
-            weight=cfg.criterion_weight,
-            apply_weight_above_threshold=cfg.criterion_apply_weight_above_threshold,
-            beta=cfg.criterion_beta,
-            decay_weight_by=cfg.criterion_decay_weight_by,
-            decay_weight_every=Period(cfg.criterion_decay_weight_every_value, cfg.criterion_decay_weight_every_unit),
-            decay_weight_limit=cfg.criterion_decay_weight_limit,
-            ms_ssim_weight=cfg.criterion_ms_ssim_weight,
+        crit_kwargs = dict(
+            threshold=cfg.crit_threshold,
+            weight=cfg.crit_weight,
+            apply_weight_above_threshold=cfg.crit_apply_weight_above_threshold,
+            beta=cfg.crit_beta,
+            decay_weight_by=cfg.crit_decay_weight_by,
+            decay_weight_every=Period(cfg.crit_decay_weight_every_value, cfg.crit_decay_weight_every_unit),
+            decay_weight_limit=cfg.crit_decay_weight_limit,
+            ms_ssim_weight=cfg.crit_ms_ssim_weight,
             channel=1,
             data_range=cfg.data_range,
             size_average=True,
@@ -206,9 +204,9 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
 
     crit_class = getattr(hylfm.criteria, cfg.criterion)
     try:
-        crit = crit_class(**criterion_kwargs)
+        crit = crit_class(**crit_kwargs)
     except Exception:
-        logger.error("Failed to init %s with %s", crit_class, criterion_kwargs)
+        logger.error("Failed to init %s with %s", crit_class, crit_kwargs)
         raise
 
     transforms_pipelines = {
