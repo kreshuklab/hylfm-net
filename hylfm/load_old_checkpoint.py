@@ -185,7 +185,6 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> Config:
         raise NotImplementedError(checkpoint)
 
     return Config(
-        model=model_config,
         batch_multiplier=None,
         batch_size=None,
         criterion=None,
@@ -204,6 +203,7 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> Config:
         interpolation_order=None,
         lr=None,
         max_epochs=None,
+        model=model_config,
         model_weights=checkpoint,
         optimizer=None,
         patience=None,

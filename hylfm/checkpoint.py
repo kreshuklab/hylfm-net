@@ -6,7 +6,7 @@ from typing import Dict, Optional, Union
 
 import torch
 
-from hylfm import settings
+from hylfm import __version__, settings
 from hylfm.get_model import get_model
 from hylfm.hylfm_types import CriterionChoice, DatasetChoice, DatasetPart, OptimizerChoice, PeriodUnit
 
@@ -96,6 +96,7 @@ class Checkpoint:
     iteration: int = 0
     full_batch_len: Optional[int] = None  # todo: remove
     validation_iteration: int = 0
+    hylfm_version: str = __version__
 
     model_weights: InitVar[Optional[dict]] = None
     root: Path = field(init=False)
@@ -112,6 +113,7 @@ class Checkpoint:
             # old checkpoint
             return cls(
                 config=get_config_for_old_checkpoint(path),
+                hylfm_version="0.0.0",
                 model_weights=checkpoint_data["model"],
                 training_run_id=None,
                 training_run_name=path.stem,
