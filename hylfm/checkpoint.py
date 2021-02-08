@@ -35,23 +35,24 @@ class Config:
     criterion_decay_weight_every_unit: PeriodUnit
     criterion_decay_weight_every_value: int
     criterion_decay_weight_limit: float
+    criterion_ms_ssim_weight: float
     criterion_threshold: float
     criterion_weight: float
-    criterion_ms_ssim_weight: float
     data_range: float
     dataset: DatasetChoice
     eval_batch_size: int
     interpolation_order: int
-    lr: float
     max_epochs: int
     model: Dict[str, Union[None, float, int, str]]
     model_weights: Optional[Path]
     optimizer: OptimizerChoice
+    optimizer_lr: float
+    optimizer_momentum: float
+    optimizer_weight_decay: float
     patience: int
     seed: int
     validate_every_unit: PeriodUnit
     validate_every_value: int
-    weight_decay: float
     win_sigma: float
     win_size: int
 

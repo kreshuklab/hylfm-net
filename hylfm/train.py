@@ -7,7 +7,7 @@ import sys
 import hylfm
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Type
 
 import numpy
 import torch.optim
@@ -57,7 +57,7 @@ def train(
     criterion_weight: float = typer.Option(0.05, "--criterion_weight"),
     data_range: float = typer.Option(1.0, "--data_range"),
     interpolation_order: int = typer.Option(2, "--interpolation_order"),
-    lr: float = typer.Option(1e-4, "--lr"),
+    optimizer_lr: float = typer.Option(1e-4, "--lr"),
     max_epochs: int = typer.Option(10, "--max_epochs"),
     model_weights: Optional[Path] = typer.Option(None, "--model_weights"),
     optimizer: OptimizerChoice = typer.Option(OptimizerChoice.Adam, "--optimizer"),
@@ -65,7 +65,8 @@ def train(
     seed: Optional[int] = typer.Option(None, "--seed"),
     validate_every_unit: PeriodUnit = typer.Option(PeriodUnit.epoch, "--validate_every_unit"),
     validate_every_value: int = typer.Option(1, "--validate_every_value"),
-    weight_decay: float = typer.Option(0.0, "--weight_decay"),
+    optimizer_weight_decay: float = typer.Option(0.0, "--optimizer_weight_decay"),
+    optimizer_momentum: float = typer.Option(0.0, "--optimizer_momentum"),
     win_sigma: float = typer.Option(1.5, "--win_sigma"),
     win_size: int = typer.Option(11, "--win_size"),
     **model_kwargs,
@@ -74,29 +75,30 @@ def train(
         batch_multiplier=batch_multiplier,
         batch_size=batch_size,
         criterion=criterion,
+        criterion_apply_weight_above_threshold=criterion_apply_weight_above_threshold,
         criterion_beta=criterion_beta,
         criterion_decay_weight_by=criterion_decay_weight_by,
         criterion_decay_weight_every_unit=criterion_decay_weight_every_unit,
         criterion_decay_weight_every_value=criterion_decay_weight_every_value,
         criterion_decay_weight_limit=criterion_decay_weight_limit,
         criterion_ms_ssim_weight=criterion_ms_ssim_weight,
-        eval_batch_size=eval_batch_size,
         criterion_threshold=criterion_threshold,
         criterion_weight=criterion_weight,
-        criterion_apply_weight_above_threshold=criterion_apply_weight_above_threshold,
         data_range=data_range,
         dataset=dataset,
+        eval_batch_size=eval_batch_size,
         interpolation_order=interpolation_order,
-        lr=lr,
         max_epochs=max_epochs,
         model=model_kwargs,
         model_weights=model_weights,
         optimizer=optimizer,
+        optimizer_lr=optimizer_lr,
+        optimizer_momentum=optimizer_momentum,
+        optimizer_weight_decay=optimizer_weight_decay,
         patience=patience,
         seed=seed,
         validate_every_unit=validate_every_unit,
         validate_every_value=validate_every_value,
-        weight_decay=weight_decay,
         win_sigma=win_sigma,
         win_size=win_size,
     )
@@ -147,9 +149,13 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
     scale = checkpoint.scale
 
     # todo: get from checkpoint like model and restore optimizer
-    opt: torch.optim.Optimizer = getattr(torch.optim, cfg.optimizer.name)(
-        model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay
-    )
+    opt_class: Type[torch.optim.Optimizer] = getattr(torch.optim, cfg.optimizer.name)
+    opt_kwargs = {"lr": cfg.optimizer_lr, "weight_decay": cfg.optimizer_weight_decay}
+    if cfg.optimizer == OptimizerChoice.SGD:
+        opt_kwargs["momentum"] = cfg.optimizer_momentum
+
+    opt: torch.optim.Optimizer(model.parameters(), **opt_kwargs)
+
     opt.zero_grad()
 
     if cfg.criterion == CriterionChoice.L1:

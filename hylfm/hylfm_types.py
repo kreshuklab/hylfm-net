@@ -25,7 +25,9 @@ Array = Union[numpy.ndarray, torch.Tensor]
 class CriterionLike(Protocol):
     minimize: bool
 
-    def __call__(self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int) -> torch.Tensor:
+    def __call__(
+        self, prediction: torch.Tensor, target: torch.Tensor, *, epoch: int, iteration: int, epoch_len: int
+    ) -> torch.Tensor:
         pass
 
 
@@ -69,6 +71,7 @@ class DatasetPart(str, Enum):
 
 class OptimizerChoice(str, Enum):
     Adam = "Adam"
+    SGD = "SGD"
 
 
 class PeriodUnit(str, Enum):
