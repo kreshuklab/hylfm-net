@@ -132,7 +132,10 @@ class TrainRun(Run):
         batch["pred"] = self.model(batch["lfc"])
         batch = self.batch_postprocessing(batch)
 
-        loss = self.criterion(batch["pred"], batch[self.tgt_name]) / self.batch_multiplier
+        loss = (
+            self.criterion(batch["pred"], batch[self.tgt_name], epoch=ep, iteration=it, epoch_len=self.epoch_len)
+            / self.batch_multiplier
+        )
         if not self.criterion.minimize:
             loss *= -1
 
