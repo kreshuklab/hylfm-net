@@ -79,7 +79,6 @@ class Config:
         )
 
     def __post_init__(self):
-        assert self.max_epochs > 0, self.max_epochs
         if self.model_weights is None:
             self.model_weights_name = None
         else:
