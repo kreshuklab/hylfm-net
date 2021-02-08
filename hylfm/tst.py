@@ -16,7 +16,7 @@ from hylfm.sampler import NoCrossBatchSampler
 from hylfm.transform_pipelines import get_transforms_pipeline
 
 try:
-    from typing import Literal
+    from typing import Literal, Optional
 except ImportError:
     from typing_extensions import Literal
 
@@ -30,8 +30,8 @@ app = typer.Typer()
 
 @app.command(name="test")
 def tst(
-    dataset: DatasetChoice,
     checkpoint: Path,
+    dataset: Optional[DatasetChoice] = None,
     batch_size: int = 1,
     data_range: float = 1,
     dataset_part: DatasetPart = typer.Option(DatasetPart.test, "--dataset_part"),
@@ -40,6 +40,9 @@ def tst(
     win_size: int = 11,
 ):
     checkpoint = Checkpoint.load(checkpoint)
+    if dataset is None:
+        dataset = checkpoint.config.dataset
+
     config = TestConfig(
         batch_size=batch_size,
         checkpoint=checkpoint,

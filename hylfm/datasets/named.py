@@ -70,7 +70,7 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                         "meta": transforms_pipeline.meta,
                     },
                     filters=[],
-                    indices={DatasetPart.train: [0], DatasetPart.validate: [1], DatasetPart.test: [2]}[part],
+                    indices={DatasetPart.train: [0, 1, 2], DatasetPart.validate: [2, 3], DatasetPart.test: [3]}[part],
                     preprocess_sample=transforms_pipeline.sample_precache_trf,
                     augment_sample=transforms_pipeline.sample_preprocessing,
                 )

@@ -174,5 +174,9 @@ class TrainRun(Run):
             if stop_early:
                 break
 
+            self.iteration = 0
+        else:
+            self.epoch += 1
+
         self.run_logger.log_summary(step=self.epoch * self.epoch_len + self.iteration, **self.metrics.compute())
         self.metrics.reset()

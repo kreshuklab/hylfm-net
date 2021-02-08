@@ -49,7 +49,6 @@ class DatasetAndTransforms(NamedTuple):
 
 
 class DatasetChoice(str, Enum):
-    default = "default"  # same dataset as checkpoint was trained on
     beads_sample0 = "beads_sample0"
     beads_highc_a = "beads_highc_a"
     beads_highc_b = "beads_highc_b"

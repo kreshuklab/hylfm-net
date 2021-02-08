@@ -336,33 +336,33 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
         checkpoint=checkpoint,
     )
 
-    part = DatasetPart.test
-    tester = EvalRun(
-        batch_postprocessing=transforms_pipelines[part].batch_postprocessing,
-        batch_premetric_trf=transforms_pipelines[part].batch_premetric_trf,
-        batch_preprocessing_in_step=transforms_pipelines[part].batch_preprocessing_in_step,
-        dataloader=dataloaders[part],
-        batch_size=cfg.eval_batch_size,
-        log_pred_vs_spim=False,
-        metrics=metric_groups[part],
-        model=model,
-        pred_name="pred",
-        run_logger=WandbLogger(point_cloud_threshold=0.3, zyx_scaling=(2, 0.7 * 8 / scale, 0.7 * 8 / scale)),
-        save_pred_to_disk=None,
-        save_spim_to_disk=None,
-        tgt_name="ls_reg" if "beads" in cfg.dataset.value else "ls_trf",
-    )
-
-    test_config = TestConfig(
-        batch_size=cfg.eval_batch_size,
-        checkpoint=checkpoint,
-        data_range=cfg.data_range,
-        dataset=cfg.dataset,
-        dataset_part=DatasetPart.test,
-        interpolation_order=cfg.interpolation_order,
-        win_sigma=cfg.win_sigma,
-        win_size=cfg.win_size,
-    )
+    # part = DatasetPart.test
+    # tester = EvalRun(
+    #     batch_postprocessing=transforms_pipelines[part].batch_postprocessing,
+    #     batch_premetric_trf=transforms_pipelines[part].batch_premetric_trf,
+    #     batch_preprocessing_in_step=transforms_pipelines[part].batch_preprocessing_in_step,
+    #     dataloader=dataloaders[part],
+    #     batch_size=cfg.eval_batch_size,
+    #     log_pred_vs_spim=False,
+    #     metrics=metric_groups[part],
+    #     model=model,
+    #     pred_name="pred",
+    #     run_logger=WandbLogger(point_cloud_threshold=0.3, zyx_scaling=(2, 0.7 * 8 / scale, 0.7 * 8 / scale)),
+    #     save_pred_to_disk=None,
+    #     save_spim_to_disk=None,
+    #     tgt_name="ls_reg" if "beads" in cfg.dataset.value else "ls_trf",
+    # )
+    #
+    # test_config = TestConfig(
+    #     batch_size=cfg.eval_batch_size,
+    #     checkpoint=checkpoint,
+    #     data_range=cfg.data_range,
+    #     dataset=cfg.dataset,
+    #     dataset_part=DatasetPart.test,
+    #     interpolation_order=cfg.interpolation_order,
+    #     win_sigma=cfg.win_sigma,
+    #     win_size=cfg.win_size,
+    # )
 
     # actually train
     train_run.fit()
