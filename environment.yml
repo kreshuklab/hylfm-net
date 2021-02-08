@@ -5,7 +5,7 @@ channels:
   - defaults
   - fynnbe
 dependencies:
-  - cudatoolkit
+  - cudatoolkit=10.1
   - dill
   - h5py>=2.9.0
   - imagecodecs
@@ -17,7 +17,7 @@ dependencies:
   - pytest
   - python>=3.7.3
   - pytorch-msssim
-  - pytorch>=1.7.0
+  - pytorch>=1.7.1
   - pyyaml>=5.1
   - requests
   - ruamel.yaml
@@ -26,8 +26,8 @@ dependencies:
   - scipy>=1.2.1
   - seaborn
   - six
-  - tensorboard #? 1.15
-  - tensorflow-gpu 1.*
+  #- tensorboard #? 1.15
+  #- tensorflow-gpu 1.*
   - tifffile>=0.15.1
   - torchvision>=0.2.1
   - tqdm
@@ -36,6 +36,6 @@ dependencies:
   - versioneer
   - z5py>=1.4.1
   - pip:
-      - csbdeep
+      # - csbdeep
       - merge_args
       - wandb  # todo: install from conda first, then uninstall --force and install with pip to make cli working
