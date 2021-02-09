@@ -93,6 +93,7 @@ class Checkpoint:
     config: Config
     training_run_name: str
     training_run_id: str
+    full_batch_len: int = None  # deprecated: todo: remove
     best_validation_score: Optional[float] = None
     epoch: int = 0
     impatience: int = 0
