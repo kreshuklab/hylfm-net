@@ -1,7 +1,9 @@
 import shutil
+import sys
 from dataclasses import InitVar, asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
+from sys import platform
 from typing import Dict, Optional, Union
 
 import torch
@@ -147,7 +149,14 @@ class Checkpoint:
         assert self.training_run_id is not None
         if best or keep_anyway:
             path = self.root / f"val{self.validation_iteration:05}_ep{self.epoch}_it{self.iteration}.pth"
+            best_path = self.root / "best.pth"
             if best:
+                try:
+                    best_path.unlink()
+                except FileNotFoundError:
+                    pass
+                # best_path.unlink(missing_ok=True)  # todo: python 3.8
+
                 # remove old best
                 if self.current_best_on_disk is not None:
                     self.current_best_on_disk.unlink()
@@ -160,8 +169,11 @@ class Checkpoint:
             torch.save(self.as_dict(for_logging=False), path)
 
             if best:
-                # (self.root / "best.pth").link_to(path)  # todo: python 3.8
-                shutil.copy(path, self.root / "best.pth")
+                if sys.platform == "win32":
+                    shutil.copy(path, best_path)
+                    # (best_path).link_to(path)  # todo: python 3.8
+                else:
+                    (best_path).symlink_to(path)
 
     def as_dict(self, for_logging: bool) -> dict:
         dat = asdict(self)
