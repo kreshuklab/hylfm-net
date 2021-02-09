@@ -2,6 +2,7 @@ import shutil
 import sys
 from dataclasses import InitVar, asdict, dataclass, field
 from enum import Enum
+from inspect import signature
 from pathlib import Path
 from sys import platform
 from typing import Dict, Optional, Union
@@ -123,6 +124,16 @@ class Checkpoint:
             )
         else:
             config = checkpoint_data.pop("config")
+            if "nnum" in config:
+                # someone was all about flattening that config dict, and somehow saved the flattened version in the checkpoint as well!?!?!!
+                model_config = {}
+                model_keys = signature(get_model).parameters
+                for key in list(config.keys()):
+                    if key in model_keys:
+                        model_config[key] = config.pop(key)
+
+                config["model"] = model_config
+
             config = Config.from_dict(config)
             return cls(config=config, **checkpoint_data)
 
