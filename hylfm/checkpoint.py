@@ -122,10 +122,6 @@ class Checkpoint:
             )
         else:
             config = checkpoint_data.pop("config")
-            if "model" in config:
-                # flatten model config  # todo: remove this support of older checkpoints
-                config.update(config.pop("model"))
-
             config = Config.from_dict(config)
             return cls(config=config, **checkpoint_data)
 
