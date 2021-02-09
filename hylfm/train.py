@@ -293,7 +293,6 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
         metrics=metric_groups[part],
         minimize=getattr(metrics, score_metric.replace("-", "_")).minimize,
         model=model,
-        pred_name="pred",
         run_logger=WandbValidationLogger(
             point_cloud_threshold=0.3,
             zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale),
@@ -317,7 +316,6 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
         metrics=metric_groups[part],
         model=model,
         optimizer=opt,
-        pred_name="pred",
         run_logger=WandbLogger(point_cloud_threshold=0.3, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)),
         tgt_name="ls_reg" if "beads" in cfg.dataset.value else "ls_trf",
         train_metrics=metric_groups[part],

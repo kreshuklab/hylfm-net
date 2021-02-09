@@ -8,8 +8,8 @@ import torch
 from torch import no_grad
 from tqdm import tqdm
 
+from hylfm.utils.io import save_tensor
 from .base import Run
-from ..utils.io import save_tensor
 
 
 @dataclass
@@ -46,8 +46,14 @@ class EvalRun(Run):
         return tqdm(iterable, desc=desc, total=total)
 
     @no_grad()
+    def get_pred(self, batch):
+        return self.model(batch["lfc"])
+
+    @no_grad()
     def _run(self) -> Iterable[EvalYield]:
-        self.model.eval()
+        if self.model is not None:
+            self.model.eval()
+
         epoch = 0
         it = 0
         epoch_len = len(self.dataloader)
@@ -71,7 +77,7 @@ class EvalRun(Run):
             batch["epoch_len"] = epoch_len
 
             batch = self.batch_preprocessing_in_step(batch)
-            batch["pred"] = self.model(batch["lfc"])
+            batch["pred"] = self.get_pred(batch)
             batch = self.batch_postprocessing(batch)
             if self.tgt_name is None:
                 step_metrics = None
@@ -149,3 +155,12 @@ class ValidationRun(EvalRun):
             score *= -1
 
         return score
+
+
+class EvalPrecomputedRun(EvalRun):
+    def __init__(self, pred_name: str, **super_kwargs):
+        super().__init__(model=None, **super_kwargs)
+        self.pred_name = pred_name
+
+    def get_pred(self, batch):
+        return batch[self.pred_name]

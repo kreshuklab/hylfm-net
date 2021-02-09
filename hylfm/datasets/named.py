@@ -1,5 +1,6 @@
 import collections
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy
 import torch.utils.data
@@ -7,6 +8,33 @@ import torch.utils.data
 from hylfm.datasets import ConcatDataset, TensorInfo, ZipDataset, get_dataset_from_info, get_tensor_info
 from hylfm.hylfm_types import DatasetChoice, DatasetPart, TransformLike, TransformsPipeline
 from hylfm.transforms import Identity
+
+
+def get_dataset_from_folder(
+    tensor_name: str,
+    dir: Path,
+    glob_expr: str,
+    transforms: Sequence[Dict[str, Any]] = tuple(),
+    filters: Sequence[Tuple[str, Dict[str, Any]]] = tuple(),
+    indices: Optional[Union[int, slice, List[int], numpy.ndarray]] = None,
+    insert_singleton_axes_at: Sequence[int] = (0, 0),
+):
+    z_slice: Optional[Union[int, Callable[[int], int]]] = None
+
+    info = TensorInfo(
+        name=tensor_name,
+        root=dir,
+        location=glob_expr,
+        transforms=transforms,
+        datasets_per_file=1,
+        samples_per_dataset=1,
+        remove_singleton_axes_at=tuple(),
+        insert_singleton_axes_at=insert_singleton_axes_at,
+        z_slice=z_slice,
+        skip_indices=tuple(),
+        meta=None,
+    )
+    return get_dataset_from_info(info, cache=True, filters=filters, indices=indices)
 
 
 def get_dataset_subsection(
@@ -112,9 +140,7 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
             raise NotImplementedError(part)
 
         sections.append([])
-        for tag in [  # fish5
-            "2019-12-08_06.35.52",
-        ]:
+        for tag in ["2019-12-08_06.35.52"]:  # fish5
             sections[-1].append(
                 get_dataset_subsection(
                     tensors=get_tensors(tag),
@@ -221,18 +247,18 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
         elif part == DatasetPart.test:
             sections.append([])
             for tag in [  # fish2
-                "2019-12-09_09.52.38",
+                "2019-12-09_08.15.07",
+                "2019-12-09_08.19.40",
+                "2019-12-09_08.27.14",
                 "2019-12-09_08.34.44",
                 "2019-12-09_08.41.41",
                 "2019-12-09_08.51.01",
                 "2019-12-09_09.01.28",
                 "2019-12-09_09.11.59",
                 "2019-12-09_09.18.01",
-                "2019-12-09_08.15.07",
-                "2019-12-09_08.19.40",
-                "2019-12-09_08.27.14",
-                "2019-12-09_07.42.47",
-                "2019-12-09_07.50.24",
+                "2019-12-09_09.52.38",
+                # "2019-12-09_07.42.47",  # no lr or bad quality
+                # "2019-12-09_07.50.24",  # no lr or bad quality
             ]:
                 sections[-1].append(
                     get_dataset_subsection(
@@ -387,6 +413,64 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
 
         else:
             raise NotImplementedError(part)
+
+    elif name == DatasetChoice.heart_static_c_care:
+        if part == DatasetPart.test:
+            sections.append(
+                [
+                    ZipDataset(
+                        collections.OrderedDict(
+                            lfd=get_dataset_from_folder(
+                                "lfd",
+                                dir=Path(
+                                    # "/g/kreshuk/LF_computed/lnet/logs/heart2/test_z_out49/lr_f4/20-06-09_11-13-58/heart_dynamic.2019-12-09_04.54.38/run000/ds0-0/lr_trf"
+                                    "/g/kreshuk/LF_computed/lnet/plain/heart/static1/test/lr"
+                                ),
+                                glob_expr="*.tif",
+                            ),
+                            ls_slice=get_dataset_from_folder(
+                                "ls_trf",
+                                dir=Path(
+                                    # "/g/kreshuk/LF_computed/lnet/logs/heart2/test_z_out49/lr_f4/20-06-09_11-13-58/heart_dynamic.2019-12-09_04.54.38/run000/ds0-0/ls_slice"
+                                    "/g/kreshuk/LF_computed/lnet/plain/heart/static1/test/ls_trf"
+                                ),
+                                glob_expr="*.tif",
+                            ),
+                            care=get_dataset_from_folder(
+                                "care",
+                                dir=Path("/g/kreshuk/LF_computed/lnet/plain/heart/static1/test/v0_on_48x88x88"),
+                                glob_expr="*.tif",
+                            ),
+                        )
+                    )
+                ]
+            )
+        #     sections.append([])
+        #     for tag in [  # fish2
+        #         "2019-12-09_08.15.07",
+        #         "2019-12-09_08.19.40",
+        #         "2019-12-09_08.27.14",
+        #         "2019-12-09_08.34.44",
+        #         "2019-12-09_08.41.41",
+        #         "2019-12-09_08.51.01",
+        #         "2019-12-09_09.01.28",
+        #         "2019-12-09_09.11.59",
+        #         "2019-12-09_09.18.01",
+        #         "2019-12-09_09.52.38",
+        #         # "2019-12-09_07.42.47",  # no lr or bad quality
+        #         # "2019-12-09_07.50.24",  # no lr or bad quality
+        #     ]:
+        #         sections[-1].append(
+        #             get_dataset_subsection(
+        #                 tensors=get_tensors(tag),
+        #                 filters=[],
+        #                 indices=None,
+        #                 preprocess_sample=transforms_pipeline.sample_precache_trf,
+        #                 augment_sample=transforms_pipeline.sample_preprocessing,
+        #             )
+        #         )
+        else:
+            raise NotImplementedError("see commit ed5c7b02eaaada4fea244f5727f3ea7f0acb3459")
     else:
         raise NotImplementedError(name)
 

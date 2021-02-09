@@ -555,10 +555,10 @@ class ZipDataset(torch.utils.data.Dataset):
             sample = merge_nested_dicts(sample, ds[idx])
 
         if self.transform is not None:
-            ret = self.transform(sample)
+            sample = self.transform(sample)
 
-        ret["idx"] = [idx]
-        return ret
+        sample["idx"] = [idx]
+        return sample
 
 
 class ConcatDataset(torch.utils.data.ConcatDataset):

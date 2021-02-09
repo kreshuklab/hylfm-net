@@ -202,7 +202,7 @@ class Checkpoint:
 @dataclass
 class TestConfig:
     batch_size: int
-    checkpoint: Checkpoint
+    checkpoint: Optional[Checkpoint]
     data_range: float
     dataset: DatasetChoice
     dataset_part: DatasetPart
@@ -212,6 +212,7 @@ class TestConfig:
 
     def as_dict(self):
         dat = asdict(self)
-        dat.pop("checkpoint")
-        dat["cp"] = self.checkpoint.as_dict(for_logging=True)
+        if dat.pop("checkpoint") is not None:
+            dat["cp"] = self.checkpoint.as_dict(for_logging=True)
+
         return conv_to_simple_dtypes(dat)

@@ -183,6 +183,21 @@ def get_transforms_pipeline(
             Assert(apply_to="pred", expected_shape_like_tensor=spim),
         )
 
+    elif dataset_name == DatasetChoice.heart_static_c_care:
+        spim = "ls_trf"
+        crop_names = []
+        sample_precache_trf = []
+
+        sample_preprocessing = ComposedTransform(
+            Normalize01Dataset(apply_to=spim, min_percentile=5.0, max_percentile=99.8)
+        )
+        batch_preprocessing = ComposedTransform()
+        batch_preprocessing_in_step = Cast(apply_to=["lfd", "care", spim], dtype="float32", device="cuda", non_blocking=True)
+        batch_postprocessing = ComposedTransform(
+            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None)),
+            Assert(apply_to="pred", expected_shape_like_tensor=spim),
+        )
+
     else:
         raise NotImplementedError(dataset_name)
 

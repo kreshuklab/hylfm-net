@@ -67,6 +67,7 @@ class DatasetChoice(str, Enum):
     heart_static_a = "heart_static_a"
     heart_static_b = "heart_static_b"
     heart_static_c = "heart_static_c"  # a with 99.8 spim percentile norm
+    heart_static_c_care = "heart_static_c_care"  # test data like heart_static_c, but also load lr and care
 
 
 class DatasetPart(str, Enum):

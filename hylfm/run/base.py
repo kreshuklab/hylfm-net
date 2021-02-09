@@ -25,9 +25,8 @@ class Run:
         dataloader: torch.utils.data.DataLoader,
         batch_size: int,
         metrics: MetricGroup,
-        model: torch.nn.Module,
+        model: Optional[torch.nn.Module],
         name: Optional[str] = None,
-        pred_name: str,
         run_logger: RunLogger,
         tgt_name: Optional[str],
     ):
@@ -38,7 +37,7 @@ class Run:
 
         logging.getLogger(__name__).info("run version: %s", __version__)
 
-        if torch.cuda.is_available():
+        if model is not None and torch.cuda.is_available():
             model = model.cuda(0)
 
         self.model = model
@@ -49,7 +48,6 @@ class Run:
         self.batch_premetric_trf = batch_premetric_trf
 
         self.metrics = metrics
-        self.pred_name = pred_name
         self.tgt_name = tgt_name
 
         self.run_logger = run_logger
