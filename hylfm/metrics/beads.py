@@ -96,13 +96,13 @@ class BeadPrecisionRecall(Metric):
     @staticmethod
     def get_precision(found_missing_extra: List[Tuple[int, int, int]]):
         f, m, e = numpy.asarray(found_missing_extra).sum(axis=0)
-        return 1.0 if e == 0 else float(f / (f + e))
+        return float('nan') if e == 0 else float(f / (f + e))
         # return float(numpy.asarray([1.0 if e == 0 else f / (f + e) for f, m, e in found_missing_extra]).mean())
 
     @staticmethod
     def get_recall(found_missing_extra: List[Tuple[int, int, int]]):
         f, m, e = numpy.asarray(found_missing_extra).sum(axis=0)
-        return 1.0 if m == 0 else float(f / (f + m))
+        return float('nan') if m == 0 else float(f / (f + m))
         # return float(numpy.asarray([1.0 if m == 0 else f / (f + m) for f, m, e in found_missing_extra]).mean())
 
     def compute(self) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
