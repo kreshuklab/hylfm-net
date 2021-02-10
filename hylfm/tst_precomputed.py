@@ -151,7 +151,7 @@ def tst_precomputed(
         batch_postprocessing=transforms_pipeline.batch_postprocessing,
         batch_premetric_trf=transforms_pipeline.batch_premetric_trf,
         metrics=metric_group,
-        tgt_name="ls_reg" if "beads" in dataset.value else "ls_trf",
+        tgt_name=transforms_pipeline.tgt_name,
         run_logger=WandbLogger(point_cloud_threshold=0.3, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)),
         save_pred_to_disk=None,
         save_spim_to_disk=None,
