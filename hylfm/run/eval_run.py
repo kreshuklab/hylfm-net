@@ -40,6 +40,8 @@ class EvalRun(Run):
         if save_spim_to_disk:
             assert save_pred_to_disk is None or save_pred_to_disk.name != save_spim_to_disk.name, "name used as key"
             save_spim_to_disk.mkdir(parents=True, exist_ok=True)
+            (save_spim_to_disk.parent / "lf").mkdir(parents=True, exist_ok=True)
+            (save_spim_to_disk.parent / "lfc").mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def progress_tqdm(iterable, desc: str, total: int):
@@ -116,6 +118,8 @@ class EvalRun(Run):
 
                 if self.save_spim_to_disk:
                     save_tensor_batch(self.save_spim_to_disk, batch[self.tgt_name])
+                    save_tensor_batch(self.save_spim_to_disk.parent / "lf", batch["lf"])
+                    save_tensor_batch(self.save_spim_to_disk.parent / "lfc", batch["lfc"])
 
             if self.save_pred_to_disk:
                 save_tensor_batch(self.save_pred_to_disk, batch["pred"])
