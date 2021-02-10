@@ -249,3 +249,45 @@ class WeightedSmoothL1_MS_SSIM(MS_SSIM):
             prediction, target, epoch=epoch, iteration=iteration, epoch_len=epoch_len
         )
         return weighted_smooth_l1 - ms_ssim * self.ms_ssim_weight
+
+
+class WeightedL1_MS_SSIM(MS_SSIM):
+    minimize = True
+
+    def __init__(
+        self,
+        # weight kwargs
+        threshold: float,
+        weight: float,
+        apply_weight_above_threshold: bool,
+        decay_weight_every: Period,
+        decay_weight_by: Optional[float],
+        decay_weight_limit: float,
+        # mix ms_ssim kwargs
+        ms_ssim_weight: float = 0.01,
+        # ms_ssim kwargs
+        **super_kwargs,
+    ):
+        super().__init__(**super_kwargs)
+        self.weighted_l1 = WeightedL1(
+            threshold=threshold,
+            weight=weight,
+            apply_weight_above_threshold=apply_weight_above_threshold,
+            decay_weight_every=decay_weight_every,
+            decay_weight_by=decay_weight_by,
+            decay_weight_limit=decay_weight_limit,
+        )
+        self.ms_ssim_weight = ms_ssim_weight
+
+    def __call__(
+        self,
+        prediction: torch.Tensor,
+        target: torch.Tensor,
+        *,
+        epoch: Optional[int] = None,
+        iteration: Optional[int] = None,
+        epoch_len: Optional[int] = None,
+    ) -> torch.Tensor:
+        ms_ssim = super().__call__(prediction, target, epoch=epoch, iteration=iteration, epoch_len=epoch_len)
+        weighted_l1 = self.weighted_l1(prediction, target, epoch=epoch, iteration=iteration, epoch_len=epoch_len)
+        return weighted_l1 - ms_ssim * self.ms_ssim_weight
