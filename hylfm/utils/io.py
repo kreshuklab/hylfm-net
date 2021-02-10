@@ -18,7 +18,7 @@ def save_tensor(path: Path, tensor: Union[numpy.ndarray, torch.Tensor]):
     tensor = numpy.moveaxis(tensor, 0, -1)  # save channel last
     *zyx, c = tensor.shape
     assert len(zyx) in (2, 3), zyx
-    assert c in (1, 3), c
+    assert c in (1, 3, 361), c
     tensor = tensor.squeeze()
     if c == 1:
         tensor = tensor[..., None]

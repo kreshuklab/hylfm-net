@@ -98,8 +98,8 @@ class WandbLogger(RunLogger):
                         idx = idx * numpy.broadcast_to(numpy.array([self.zyx_scaling]), idx.shape)
                         pixels = value[numpy.broadcast_to(mask[None], value.shape)].reshape(-1, 2)
                         color = numpy.ones(len(pixels))
-                        color[pixels[:, 0] > self.point_cloud_threshold] -= 1
-                        color[pixels[:, 1] > self.point_cloud_threshold] += 1
+                        color[pixels[:, 0] > self.point_cloud_threshold] += 1
+                        color[pixels[:, 1] > self.point_cloud_threshold] += 2
 
                         assert len(idx) == len(color)
                         point_cloud = numpy.asarray([list(coord) + [col] for coord, col in zip(idx, color)])

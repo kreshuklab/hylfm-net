@@ -48,7 +48,9 @@ class CriterionChoice(str, Enum):
     MSE = "MSE"
     SmoothL1 = "SmoothL1"
     SmoothL1_MS_SSIM = "SmoothL1_MS_SSIM"
+    WeightedL1 = "WeightedL1"
     WeightedSmoothL1 = "WeightedSmoothL1"
+    WeightedL1_MS_SSIM = "WeightedL1_MS_SSIM"
     WeightedSmoothL1_MS_SSIM = "WeightedSmoothL1_MS_SSIM"
 
 
@@ -68,7 +70,7 @@ class DatasetChoice(str, Enum):
     heart_static_b = "heart_static_b"
     heart_static_c = "heart_static_c"  # a with 99.8 spim percentile norm
     heart_static_c_care = "heart_static_c_care"  # test data like heart_static_c, but also load lr and care
-
+    heart_static_c_care_complex = "heart_static_c_care_complex"
 
 class DatasetPart(str, Enum):
     train = "train"

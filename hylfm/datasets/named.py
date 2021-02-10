@@ -21,19 +21,7 @@ def get_dataset_from_folder(
 ):
     z_slice: Optional[Union[int, Callable[[int], int]]] = None
 
-    info = TensorInfo(
-        name=tensor_name,
-        root=dir,
-        location=glob_expr,
-        transforms=transforms,
-        datasets_per_file=1,
-        samples_per_dataset=1,
-        remove_singleton_axes_at=tuple(),
-        insert_singleton_axes_at=insert_singleton_axes_at,
-        z_slice=z_slice,
-        skip_indices=tuple(),
-        meta=None,
-    )
+    info = TensorInfo()
     return get_dataset_from_info(info, cache=True, filters=filters, indices=indices)
 
 
@@ -414,61 +402,77 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
         else:
             raise NotImplementedError(part)
 
-    elif name == DatasetChoice.heart_static_c_care:
+    # elif name == DatasetChoice.heart_static_c_care:
+
+    elif name == DatasetChoice.heart_static_c_care_complex:
         if part == DatasetPart.test:
-            sections.append(
+            tensor_infos = {
+                "lfd": TensorInfo(
+                    name="lfd",
+                    root=Path("/g/kreshuk/LF_computed/lnet/plain/heart/static1/test/lr"),
+                    location="*.tif",
+                    transforms=tuple(),
+                    datasets_per_file=1,
+                    samples_per_dataset=1,
+                    remove_singleton_axes_at=tuple(),
+                    insert_singleton_axes_at=(0, 0),
+                    z_slice=None,
+                    skip_indices=tuple(),
+                    meta=None,
+                ),
+                "care": TensorInfo(
+                    name="care",
+                    root=Path("/g/kreshuk/LF_computed/lnet/plain/heart/static1/test/v0_on_48x88x88"),
+                    location="*.tif",
+                    transforms=tuple(),
+                    datasets_per_file=1,
+                    samples_per_dataset=1,
+                    remove_singleton_axes_at=tuple(),
+                    insert_singleton_axes_at=(0, 0),
+                    z_slice=None,
+                    skip_indices=tuple(),
+                    meta=None,
+                ),
+            }
+            datasets = {
+                k: get_dataset_from_info(dsinfo, cache=True, filters=[], indices=None)
+                for k, dsinfo in tensor_infos.items()
+            }
+
+            spim_dataset = torch.utils.data.ConcatDataset(
                 [
-                    ZipDataset(
-                        collections.OrderedDict(
-                            lfd=get_dataset_from_folder(
-                                "lfd",
-                                dir=Path(
-                                    # "/g/kreshuk/LF_computed/lnet/logs/heart2/test_z_out49/lr_f4/20-06-09_11-13-58/heart_dynamic.2019-12-09_04.54.38/run000/ds0-0/lr_trf"
-                                    "/g/kreshuk/LF_computed/lnet/plain/heart/static1/test/lr"
-                                ),
-                                glob_expr="*.tif",
-                            ),
-                            ls_slice=get_dataset_from_folder(
-                                "ls_trf",
-                                dir=Path(
-                                    # "/g/kreshuk/LF_computed/lnet/logs/heart2/test_z_out49/lr_f4/20-06-09_11-13-58/heart_dynamic.2019-12-09_04.54.38/run000/ds0-0/ls_slice"
-                                    "/g/kreshuk/LF_computed/lnet/plain/heart/static1/test/ls_trf"
-                                ),
-                                glob_expr="*.tif",
-                            ),
-                            care=get_dataset_from_folder(
-                                "care",
-                                dir=Path("/g/kreshuk/LF_computed/lnet/plain/heart/static1/test/v0_on_48x88x88"),
-                                glob_expr="*.tif",
-                            ),
-                        )
+                    get_dataset_subsection(
+                        tensors={
+                            "lf": f"heart_static.{tag}",
+                            "ls_trf": f"heart_static.{tag}",
+                            "meta": transforms_pipeline.meta,
+                        },
+                        filters=[],
+                        indices=None,
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
                     )
+                    for tag in [  # fish2
+                        "2019-12-09_08.15.07",
+                        "2019-12-09_08.19.40",
+                        "2019-12-09_08.27.14",
+                        "2019-12-09_08.34.44",
+                        "2019-12-09_08.41.41",
+                        "2019-12-09_08.51.01",
+                        "2019-12-09_09.01.28",
+                        "2019-12-09_09.11.59",
+                        "2019-12-09_09.18.01",
+                        "2019-12-09_09.52.38",
+                        # "2019-12-09_07.42.47",  # no lr or bad quality
+                        # "2019-12-09_07.50.24",  # no lr or bad quality
+                    ]
                 ]
             )
-        #     sections.append([])
-        #     for tag in [  # fish2
-        #         "2019-12-09_08.15.07",
-        #         "2019-12-09_08.19.40",
-        #         "2019-12-09_08.27.14",
-        #         "2019-12-09_08.34.44",
-        #         "2019-12-09_08.41.41",
-        #         "2019-12-09_08.51.01",
-        #         "2019-12-09_09.01.28",
-        #         "2019-12-09_09.11.59",
-        #         "2019-12-09_09.18.01",
-        #         "2019-12-09_09.52.38",
-        #         # "2019-12-09_07.42.47",  # no lr or bad quality
-        #         # "2019-12-09_07.50.24",  # no lr or bad quality
-        #     ]:
-        #         sections[-1].append(
-        #             get_dataset_subsection(
-        #                 tensors=get_tensors(tag),
-        #                 filters=[],
-        #                 indices=None,
-        #                 preprocess_sample=transforms_pipeline.sample_precache_trf,
-        #                 augment_sample=transforms_pipeline.sample_preprocessing,
-        #             )
-        #         )
+            datasets["ls_trf"] = spim_dataset
+
+            static1_dataset = ZipDataset(**datasets, transform=transforms_pipeline.sample_preprocessing)
+
+            sections.append([static1_dataset])
         else:
             raise NotImplementedError("see commit ed5c7b02eaaada4fea244f5727f3ea7f0acb3459")
     else:
