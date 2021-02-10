@@ -362,12 +362,20 @@ class N5CachedDatasetFromInfo(DatasetFromInfoExtender):
             assert phys_idx < z5dataset.shape[0], z5dataset.shape
             tensor = z5dataset[phys_idx : phys_idx + 1]
 
-        return {
-            "batch_len": tensor.shape[0],
+        batch_len = tensor.shape[0]
+        mini_batch = {
+            "batch_len": batch_len,
             self.dataset.tensor_name: tensor,
-            "stat": [{self.dataset.tensor_name: self.stat}],
-            **{k: [v] for k, v in self.dataset.info.meta.items()},
+            "stat": [{self.dataset.tensor_name: self.stat}] * batch_len,
+            **{
+                k: v if k == "crop_name" else [v] * batch_len for k, v in self.dataset.info.meta.items()
+            },  # crop_name is a shared key across any mini-batch
         }
+        z_slice = self.dataset.get_z_slice(phys_idx)
+        if z_slice is not None:
+            mini_batch["z_slice"] = [z_slice] * batch_len
+
+        return mini_batch
 
     def __len__(self):
         return len(self.dataset) * self.repeat

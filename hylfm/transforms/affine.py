@@ -87,6 +87,7 @@ def bdv_trafo_to_affine_matrix(trafo):
 
 
 class AffineTransformation(torch.nn.Module):
+    randomly_changes_shape = False
     mode_from_order = {0: "nearest", 2: "bilinear"}
     scipy_padding_mode = {"zeros": "constant", "border": "nearest"}
 
@@ -401,6 +402,7 @@ class AffineTransformation(torch.nn.Module):
 
 
 class AffineTransformationDynamicTraining(torch.nn.Module):
+    randomly_changes_shape = False
     def __init__(
         self,
         apply_to: str,  # todo: only allow 'str' for apply_to

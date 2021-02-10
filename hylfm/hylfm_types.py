@@ -21,6 +21,9 @@ except ImportError:
 
 Array = Union[numpy.ndarray, torch.Tensor]
 
+LRScheduler = torch.optim.lr_scheduler._LRScheduler
+
+Optimizer = torch.optim.Optimizer
 
 class CriterionLike(Protocol):
     minimize: bool
@@ -79,6 +82,20 @@ class DatasetPart(str, Enum):
     train = "train"
     validate = "validate"
     test = "test"
+
+
+class LRSchedulerChoice(str, Enum):
+    ReduceLROnPlateau = "ReduceLROnPlateau"
+
+
+class LRSchedThresMode(str, Enum):
+    rel = "rel"
+    abs = "abs"
+
+class MetricChoice(str, Enum):
+    MS_SSIM = "MS-SSIM"
+
+
 
 
 class OptimizerChoice(str, Enum):

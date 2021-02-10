@@ -1,17 +1,30 @@
 import logging
-from typing import Any, Dict, Iterable, Optional
+from pathlib import Path
+from typing import Any, Dict, Iterable, Optional, Type
 
+import hylfm.metrics
 import torch.utils.data
-from torch.optim import Optimizer
 from tqdm import tqdm
 
 from hylfm.checkpoint import Checkpoint
-from hylfm.hylfm_types import CriterionLike, TransformLike
+from hylfm.hylfm_types import (
+    CriterionLike,
+    DatasetPart,
+    LRScheduler,
+    LRSchedulerChoice,
+    Optimizer,
+    OptimizerChoice,
+    TransformLike,
+)
 from hylfm.metrics.base import MetricGroup
 from hylfm.utils.general import Period
 from .base import Run
 from .eval_run import ValidationRun
-from .run_logger import RunLogger
+from .run_logger import RunLogger, WandbLogger
+from .. import settings
+from ..get_criterion import get_criterion
+from ..get_model import get_model
+from ..model import HyLFM_Net
 
 logger = logging.getLogger(__name__)
 
@@ -25,68 +38,108 @@ class TrainRun(Run):
     iteration: int
     training_run_id: str
 
-    def __init__(
-        self,
-        *,
-        batch_postprocessing: TransformLike,
-        batch_premetric_trf: TransformLike,
-        batch_preprocessing_in_step: TransformLike,
-        criterion: CriterionLike,
-        dataloader: torch.utils.data.DataLoader,
-        batch_size: int,
-        metrics: MetricGroup,
-        model: torch.nn.Module,
-        optimizer: Optimizer,
-        run_logger: RunLogger,
-        tgt_name: Optional[str],
-        train_metrics: MetricGroup,
-        validator: ValidationRun,
-        checkpoint: Checkpoint,
-    ):
+    def __init__(self, *, checkpoint: Checkpoint):
+        cfg = checkpoint.config
+        model: HyLFM_Net = get_model(**cfg.model)
+        if checkpoint.model_weights is not None:
+            model.load_state_dict(checkpoint.model_weights, strict=True)
+
         super().__init__(
             model=model,
-            dataloader=dataloader,
-            batch_size=batch_size,
-            batch_preprocessing_in_step=batch_preprocessing_in_step,
-            batch_postprocessing=batch_postprocessing,
-            batch_premetric_trf=batch_premetric_trf,
-            metrics=metrics,
-            tgt_name=tgt_name,
-            run_logger=run_logger,
+            config=checkpoint.config,
             name=checkpoint.training_run_name,
+            dataset_parts=(DatasetPart.train, DatasetPart.validate),
         )
-        self.train_metrics = train_metrics
-        self.validator = validator
-        self.criterion = criterion
-        self.optimizer = optimizer
 
-        cfg = checkpoint.config
-        self.config_to_save_with_checkpoint = cfg
+        self.current_best_checkpoint_on_disk: Optional[Path] = None
+
+        self.criterion = get_criterion(
+            config=self.config, transforms_pipeline=self.transforms_pipelines[DatasetPart.train]
+        )
+
+        opt_class: Type[Optimizer] = getattr(torch.optim, self.config.optimizer.name)
+        opt_kwargs = {"lr": self.config.opt_lr, "weight_decay": self.config.opt_weight_decay}
+        if self.config.optimizer == OptimizerChoice.SGD:
+            opt_kwargs["momentum"] = self.config.opt_momentum
+
+        self.optimizer: Optimizer = opt_class(self.model.parameters(), **opt_kwargs)
+        self.optimizer.zero_grad()  # calling zero_grad here, because of how batch_multiplier is implemented in TrainRun
+
+        if checkpoint.opt_state_dict is not None:
+            self.optimizer.load_state_dict(checkpoint.opt_state_dict)
+
+        if self.config.lr_scheduler is None:
+            assert checkpoint.lr_scheduler_state_dict is None
+            self.lr_scheduler = None
+        else:
+            sched_class: Type[LRScheduler] = getattr(torch.optim.lr_scheduler, self.config.lr_scheduler.name)
+            if self.config.lr_scheduler == LRSchedulerChoice.ReduceLROnPlateau:
+                sched_kwargs = dict(
+                    mode="min" if getattr(hylfm.metrics, cfg.score_metric.name).minimize else "max",
+                    factor=cfg.lr_sched_factor,
+                    patience=cfg.lr_sched_patience,
+                    threshold=cfg.lr_sched_thres,
+                    threshold_mode=cfg.lr_sched_thres_mode,
+                    cooldown=0,
+                    min_lr=1e-7,
+                )
+            else:
+                raise NotImplementedError
+
+            self.lr_scheduler: LRScheduler = sched_class(self.optimizer, **sched_kwargs)
+            if checkpoint.lr_scheduler_state_dict is not None:
+                self.lr_scheduler.load_state_dict(checkpoint.lr_scheduler_state_dict)
+
+        self.root = settings.log_dir / "checkpoints" / self.training_run_name
+        self.root.mkdir(parents=True, exist_ok=True)
+
+        self.validator = ValidationRun(
+            # batch_postprocessing=transforms_pipelines[part].batch_postprocessing,
+            # batch_premetric_trf=transforms_pipelines[part].batch_premetric_trf,
+            # batch_preprocessing_in_step=transforms_pipelines[part].batch_preprocessing_in_step,
+            # dataloader=dataloaders[part],
+            # batch_size=cfg.eval_batch_size,
+            # log_pred_vs_spim=False,
+            # metrics=metric_groups[part],
+            # minimize=getattr(metrics, score_metric.replace("-", "_")).minimize,
+            # model=model,
+            # run_logger=WandbValidationLogger(
+            #     point_cloud_threshold=0.3,
+            #     zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale),
+            #     score_metric=score_metric,
+            #     minimize=getattr(metrics, score_metric.replace("-", "_")).minimize,
+            # ),
+            # save_pred_to_disk=None,
+            # save_spim_to_disk=None,
+            # score_metric=score_metric,
+            # tgt_name=transforms_pipelines[part].tgt_name,
+        )
         self.validate_every = Period(cfg.validate_every_value, cfg.validate_every_unit)
-        self.max_epochs = cfg.max_epochs
-        self.patience = cfg.patience
-        self.batch_multiplier = cfg.batch_multiplier
+        self.epoch_len = len(self.dataloaders[DatasetPart.train])
 
-        self.set_state(checkpoint)
-        self.epoch_len = len(self.dataloader)
-        assert self.epoch_len
+        self.batch_preprocessing_in_step = self.
 
-    def set_state(self, checkpoint: Checkpoint):
+
         self.best_validation_score = checkpoint.best_validation_score
         self.epoch = checkpoint.epoch
         self.impatience = checkpoint.impatience
         self.iteration = checkpoint.iteration
         self.training_run_id = checkpoint.training_run_id
         self.validation_iteration = checkpoint.validation_iteration
+        self.run_logger = WandbLogger(
+            point_cloud_threshold=0.3, zyx_scaling=(5, 0.7 * 8 / self.scale, 0.7 * 8 / self.scale)
+        )
 
     def save_a_checkpoint(self, best: bool, keep_anyway: bool):
         Checkpoint(
             best_validation_score=self.best_validation_score,
-            config=self.config_to_save_with_checkpoint,
+            config=self.config,
             epoch=self.epoch,
             impatience=self.impatience,
             iteration=self.iteration,
             model_weights=self.model.state_dict(),
+            opt_state_dict=self.optimizer.state_dict(),
+            scheduler_state_dict=self.scheduler.state_dict(),
             training_run_id=self.training_run_id,
             training_run_name=self.name,
             validation_iteration=self.validation_iteration,
@@ -152,13 +205,8 @@ class TrainRun(Run):
             if from_batch in batch:
                 step_metrics[from_batch] = batch[from_batch]
 
-        opt_state = self.optimizer.get_state()["state"]
-        for key, value in opt_state.items():
-            try:
-                step_metrics[str(key)] = value if isinstance(value, (int, float)) else value.item()
-            except Exception as e:
-                logger.warning(e)
-                pass
+        opt_param_groups = self.optimizer.state_dict()["param_groups"]
+        step_metrics["lr"] = opt_param_groups[0]["lr"]
 
         if self.validate_every.match(epoch=ep, iteration=it, epoch_len=self.epoch_len):
             step_metrics[self.validator.score_metric + "_val-score"] = self._validate()

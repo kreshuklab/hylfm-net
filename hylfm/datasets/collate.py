@@ -1,4 +1,5 @@
 from functools import partial
+from itertools import chain
 from typing import Any, Collection, Dict, List, Optional, Union
 
 import numpy
@@ -7,13 +8,8 @@ import torch
 from hylfm.hylfm_types import TransformLike
 
 
-COMMON_BATCH_KEYS = (
-    "iteration",
-    "epoch",
-    "epoch_len",
-    "batch_len",
-    "crop_name",
-)  # are shared across all samples in a batch
+COMMON_BATCH_KEYS = {"batch_len", "epoch", "epoch_len", "iteration"}  # are shared across all samples in a batch
+SAMPLE_KEYS_EQUAL_IN_BATCH = {"crop_name"}  # each sample has it, but they need to equal to be batched together
 
 
 def sample_values_to_batch_value(values: List, *, sample_key: Optional = None):
@@ -23,9 +19,9 @@ def sample_values_to_batch_value(values: List, *, sample_key: Optional = None):
         batch_value = numpy.ascontiguousarray(numpy.stack(values, axis=0))
     elif isinstance(v0, torch.Tensor):
         batch_value = torch.stack(values, dim=0)
-    elif sample_key in ("batch_len", "iteration", "epoch", "epoch_len"):
-        raise ValueError(f"invalid key in sample: {sample_key}")
     elif sample_key in COMMON_BATCH_KEYS:
+        raise ValueError(f"invalid key in sample: {sample_key}")
+    elif sample_key in SAMPLE_KEYS_EQUAL_IN_BATCH:
         batch_value = v0
         assert all(v0 == v for v in values)
     else:
@@ -68,7 +64,9 @@ def collate_batches(batches: List[Dict[str, Any]]) -> Dict[str, Any]:
     keys = verify_keys(batches, "batches")
     listed_batches = {key: [b[key] for b in batches] for key in keys}
     batch = {
-        key: condense_common_values(batch_values, key) if key in COMMON_BATCH_KEYS else stack_batch_values(batch_values)
+        key: condense_common_values(batch_values, key)
+        if key in COMMON_BATCH_KEYS or key in SAMPLE_KEYS_EQUAL_IN_BATCH
+        else stack_batch_values(batch_values)
         for key, batch_values in listed_batches.items()
     }
     return batch
@@ -103,8 +101,10 @@ def batch_value_to_sample_values(value: Any, *, sample_key: Optional = None) -> 
         sample_values = list(value)
     elif isinstance(value, list):
         sample_values = value
-    elif sample_key in ("batch_len",):
+    elif sample_key in COMMON_BATCH_KEYS:
         raise ValueError(f"invalid sample key: {sample_key}")
+    elif sample_key in SAMPLE_KEYS_EQUAL_IN_BATCH:
+        raise ValueError("tread SAMPLE_KEYS_EQUAL_IN_BATCH as COMMON_BATCH_KEYS here")
     else:
         raise NotImplementedError(f"{type(value)} for sample_key: {sample_key}")
 
@@ -120,7 +120,7 @@ def separate(batch: Dict[str, Any]) -> List[Dict[str, Any]]:
     batch_len = batch.pop("batch_len", None)
 
     batch = dict(batch)
-    common = {k: batch.pop(k) for k in COMMON_BATCH_KEYS if k in batch}
+    common = {k: batch.pop(k) for k in chain(COMMON_BATCH_KEYS, SAMPLE_KEYS_EQUAL_IN_BATCH) if k in batch}
 
     samples = [
         dict(zip(batch, sv), **common)

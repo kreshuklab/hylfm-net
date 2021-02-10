@@ -187,7 +187,7 @@ class HyLFM_Net(nn.Module):
                 converted[sk] = converted_v
         self.load_state_dict(converted)
 
-    def get_scale(self, ipt_shape: Optional[Tuple[int, int]] = None) -> float:
+    def get_scale(self, ipt_shape: Optional[Tuple[int, int]] = None) -> int:
         s = max(1, 2 * sum(isinstance(res2d, str) and res2d.startswith("u") for res2d in self.c_res2d)) * max(
             1, 2 * sum(isinstance(res3d, str) and res3d.startswith("u") for res3d in self.c_res3d)
         )

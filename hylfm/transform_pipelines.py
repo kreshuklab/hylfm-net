@@ -88,8 +88,7 @@ def get_transforms_pipeline(
 
         batch_preprocessing_in_step = Cast(apply_to=["lfc", spim], dtype="float32", device="cuda", non_blocking=True)
         batch_postprocessing = ComposedTransform(
-            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None)),
-            Assert(apply_to="pred", expected_shape_like_tensor=spim),
+            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )
 
     elif dataset_name in [DatasetChoice.beads_sample0, DatasetChoice.beads_highc_b]:
@@ -134,8 +133,7 @@ def get_transforms_pipeline(
 
         batch_preprocessing_in_step = Cast(apply_to=["lfc", spim], dtype="float32", device="cuda", non_blocking=True)
         batch_postprocessing = ComposedTransform(
-            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None)),
-            Assert(apply_to="pred", expected_shape_like_tensor=spim),
+            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )
 
     elif (
@@ -202,8 +200,7 @@ def get_transforms_pipeline(
 
         batch_preprocessing_in_step = Cast(apply_to=["lfc", spim], dtype="float32", device="cuda", non_blocking=True)
         batch_postprocessing = ComposedTransform(
-            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None)),
-            Assert(apply_to="pred", expected_shape_like_tensor=spim),
+            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )
 
     elif dataset_name == DatasetChoice.heart_static_c_care_complex:
@@ -218,8 +215,7 @@ def get_transforms_pipeline(
             apply_to=["lfd", "care", spim], dtype="float32", device="cuda", non_blocking=True
         )
         batch_postprocessing = ComposedTransform(
-            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None)),
-            Assert(apply_to="pred", expected_shape_like_tensor=spim),
+            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )
 
     elif (
@@ -244,8 +240,7 @@ def get_transforms_pipeline(
             Cast(apply_to=["lfc", "lfd", "care", spim], dtype="float32", device="cuda", non_blocking=True)
         )
         batch_postprocessing = ComposedTransform(
-            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None)),
-            Assert(apply_to="pred", expected_shape_like_tensor=spim),
+            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )
 
     else:
@@ -253,23 +248,23 @@ def get_transforms_pipeline(
 
     meta["crop_names"] = crop_names
     if sliced:
-        batch_postprocessing = (
-            ComposedTransform(
-                AffineTransformationDynamicTraining(
-                    apply_to="pred",
-                    target_to_compare_to="ls_slice",
-                    crop_names=crop_names,
-                    nnum=nnum,
-                    scale=scale,
-                    pred_z_min=pred_z_min,
-                    pred_z_max=pred_z_max,
-                    z_ls_rescaled=z_ls_rescaled,
-                    padding_mode="border",
-                    interpolation_order=interpolation_order,
-                )
+        assert spim == "ls_slice"
+        batch_postprocessing += ComposedTransform(
+            AffineTransformationDynamicTraining(
+                apply_to="pred",
+                target_to_compare_to=spim,
+                crop_names=crop_names,
+                nnum=nnum,
+                scale=scale,
+                pred_z_min=pred_z_min,
+                pred_z_max=pred_z_max,
+                z_ls_rescaled=z_ls_rescaled,
+                padding_mode="border",
+                interpolation_order=interpolation_order,
             )
-            + batch_postprocessing
         )
+
+    batch_postprocessing += Assert(apply_to="pred", expected_shape_like_tensor=spim)
 
     batch_premetric_trf = ComposedTransform(NormalizeMSE(apply_to="pred", target_name=spim, return_alpha_beta=True))
     return TransformsPipeline(

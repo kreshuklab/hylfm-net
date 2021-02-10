@@ -19,7 +19,15 @@ from hylfm.checkpoint import Checkpoint, Config
 from hylfm.datasets import get_collate
 from hylfm.datasets.named import get_dataset
 from hylfm.get_model import get_model
-from hylfm.hylfm_types import CriterionChoice, DatasetChoice, DatasetPart, OptimizerChoice
+from hylfm.hylfm_types import (
+    CriterionChoice,
+    DatasetChoice,
+    DatasetPart,
+    LRSchedThresMode,
+    LRSchedulerChoice,
+    MetricChoice,
+    OptimizerChoice,
+)
 from hylfm.metrics import MetricGroup
 from hylfm.run.eval_run import ValidationRun
 from hylfm.run.run_logger import WandbLogger, WandbValidationLogger
@@ -43,16 +51,21 @@ def train(
     crit_apply_weight_above_threshold: bool = typer.Option(False, "--crit_apply_weight_above_threshold"),
     crit_beta: float = typer.Option(1.0, "--crit_beta"),
     crit_decay_weight_by: Optional[float] = typer.Option(None, "--crit_decay_weight_by"),
-    criterion: CriterionChoice = typer.Option(CriterionChoice.L1, "--criterion"),
     crit_decay_weight_every_unit: PeriodUnit = typer.Option(PeriodUnit.epoch, "--crit_decay_weight_every_unit"),
     crit_decay_weight_every_value: int = typer.Option(1, "--crit_decay_weight_every_value"),
     crit_decay_weight_limit: float = typer.Option(1.0, "--crit_decay_weight_limit"),
     crit_ms_ssim_weight: float = typer.Option(0.001, "--crit_ms_ssim_weight"),
     crit_threshold: float = typer.Option(1.0, "--crit_threshold"),
     crit_weight: float = typer.Option(0.05, "--crit_weight"),
+    criterion: CriterionChoice = typer.Option(CriterionChoice.L1, "--criterion"),
     data_range: float = typer.Option(1.0, "--data_range"),
     eval_batch_size: int = typer.Option(1, "--eval_batch_size"),
     interpolation_order: int = typer.Option(2, "--interpolation_order"),
+    lr_sched_factor: float = typer.Option(0.1, "--lr_sched_factor"),
+    lr_sched_patience: int = typer.Option(10, "--lr_sched_patience"),
+    lr_sched_thres: float = typer.Option(0.0001, "--lr_sched_thres"),
+    lr_sched_thres_mode: LRSchedThresMode = typer.Option(LRSchedThresMode.abs, "--lr_sched_thres_mode"),
+    lr_scheduler: Optional[LRSchedulerChoice] = typer.Option(None, "--lr_scheduler"),
     max_epochs: int = typer.Option(10, "--max_epochs"),
     model_weights: Optional[Path] = typer.Option(None, "--model_weights"),
     opt_lr: float = typer.Option(1e-4, "--opt_lr"),
@@ -60,6 +73,7 @@ def train(
     opt_weight_decay: float = typer.Option(0.0, "--opt_weight_decay"),
     optimizer: OptimizerChoice = typer.Option(OptimizerChoice.Adam, "--optimizer"),
     patience: int = typer.Option(5, "--patience"),
+    score_metric: MetricChoice = typer.Option(MetricChoice.MS_SSIM, "--score_metric"),
     seed: Optional[int] = typer.Option(None, "--seed"),
     validate_every_unit: PeriodUnit = typer.Option(PeriodUnit.epoch, "--validate_every_unit"),
     validate_every_value: int = typer.Option(1, "--validate_every_value"),
@@ -70,7 +84,6 @@ def train(
     config = Config(
         batch_multiplier=batch_multiplier,
         batch_size=batch_size,
-        criterion=criterion,
         crit_apply_weight_above_threshold=crit_apply_weight_above_threshold,
         crit_beta=crit_beta,
         crit_decay_weight_by=crit_decay_weight_by,
@@ -80,18 +93,25 @@ def train(
         crit_ms_ssim_weight=crit_ms_ssim_weight,
         crit_threshold=crit_threshold,
         crit_weight=crit_weight,
+        criterion=criterion,
         data_range=data_range,
         dataset=dataset,
         eval_batch_size=eval_batch_size,
         interpolation_order=interpolation_order,
+        lr_sched_factor=lr_sched_factor,
+        lr_sched_patience=lr_sched_patience,
+        lr_sched_thres=lr_sched_thres,
+        lr_sched_thres_mode=lr_sched_thres_mode,
+        lr_scheduler=lr_scheduler,
         max_epochs=max_epochs,
         model=model_kwargs,
         model_weights=model_weights,
-        optimizer=optimizer,
         opt_lr=opt_lr,
         opt_momentum=opt_momentum,
         opt_weight_decay=opt_weight_decay,
+        optimizer=optimizer,
         patience=patience,
+        score_metric=score_metric,
         seed=seed,
         validate_every_unit=validate_every_unit,
         validate_every_value=validate_every_value,
@@ -130,200 +150,7 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
         numpy.random.seed(cfg.seed)
         torch.manual_seed(cfg.seed)
 
-    model = checkpoint.model
-
-    nnum = model.nnum
-    z_out = model.z_out
-    scale = checkpoint.scale
-
-    transforms_pipelines = {
-        part: get_transforms_pipeline(
-            dataset_name=cfg.dataset,
-            dataset_part=part,
-            nnum=nnum,
-            z_out=z_out,
-            scale=scale,
-            shrink=checkpoint.shrink,
-            interpolation_order=cfg.interpolation_order,
-        )
-        for part in (DatasetPart.train, DatasetPart.validate)
-    }
-
-    # todo: get from checkpoint like model and restore optimizer
-    opt_class: Type[torch.optim.Optimizer] = getattr(torch.optim, cfg.optimizer.name)
-    opt_kwargs = {"lr": cfg.opt_lr, "weight_decay": cfg.opt_weight_decay}
-    if cfg.optimizer == OptimizerChoice.SGD:
-        opt_kwargs["momentum"] = cfg.opt_momentum
-
-    opt: torch.optim.Optimizer = opt_class(model.parameters(), **opt_kwargs)
-    opt.zero_grad()
-
-    if cfg.criterion == CriterionChoice.L1:
-        crit_kwargs = dict()
-    elif cfg.criterion == CriterionChoice.MS_SSIM:
-        crit_kwargs = dict(
-            channel=1,
-            data_range=cfg.data_range,
-            size_average=True,
-            spatial_dims=transforms_pipelines[DatasetPart.train].spatial_dims,
-            win_size=cfg.win_size,
-            win_sigma=cfg.win_sigma,
-        )
-    elif cfg.criterion == CriterionChoice.MSE:
-        crit_kwargs = dict()
-    elif cfg.criterion == CriterionChoice.SmoothL1:
-        crit_kwargs = dict(beta=cfg.crit_beta)
-    elif cfg.criterion == CriterionChoice.SmoothL1_MS_SSIM:
-        crit_kwargs = dict(
-            beta=cfg.crit_beta,
-            ms_ssim_weight=cfg.crit_ms_ssim_weight,
-            channel=1,
-            data_range=cfg.data_range,
-            size_average=True,
-            spatial_dims=transforms_pipelines[DatasetPart.train].spatial_dims,
-            win_size=cfg.win_size,
-            win_sigma=cfg.win_sigma,
-        )
-    elif cfg.criterion == CriterionChoice.WeightedSmoothL1:
-        crit_kwargs = dict(
-            threshold=cfg.crit_threshold,
-            weight=cfg.crit_weight,
-            apply_weight_above_threshold=cfg.crit_apply_weight_above_threshold,
-            beta=cfg.crit_beta,
-            decay_weight_by=cfg.crit_decay_weight_by,
-            decay_weight_every=Period(cfg.crit_decay_weight_every_value, cfg.crit_decay_weight_every_unit),
-            decay_weight_limit=cfg.crit_decay_weight_limit,
-        )
-    elif cfg.criterion == CriterionChoice.WeightedSmoothL1_MS_SSIM:
-        crit_kwargs = dict(
-            threshold=cfg.crit_threshold,
-            weight=cfg.crit_weight,
-            apply_weight_above_threshold=cfg.crit_apply_weight_above_threshold,
-            beta=cfg.crit_beta,
-            decay_weight_by=cfg.crit_decay_weight_by,
-            decay_weight_every=Period(cfg.crit_decay_weight_every_value, cfg.crit_decay_weight_every_unit),
-            decay_weight_limit=cfg.crit_decay_weight_limit,
-            ms_ssim_weight=cfg.crit_ms_ssim_weight,
-            channel=1,
-            data_range=cfg.data_range,
-            size_average=True,
-            spatial_dims=transforms_pipelines[DatasetPart.train].spatial_dims,
-            win_size=cfg.win_size,
-            win_sigma=cfg.win_sigma,
-        )
-    else:
-        raise NotImplementedError(cfg.criterion)
-
-    crit_class = getattr(hylfm.criteria, cfg.criterion)
-    try:
-        crit = crit_class(**crit_kwargs)
-    except Exception:
-        logger.error("Failed to init %s with %s", crit_class, crit_kwargs)
-        raise
-
-    datasets = {
-        part: get_dataset(cfg.dataset, part, transforms_pipelines[part])
-        for part in (DatasetPart.train, DatasetPart.validate)
-    }
-    dataloaders = {
-        part: DataLoader(
-            dataset=datasets[part],
-            batch_sampler=NoCrossBatchSampler(
-                datasets[part],
-                sampler_class=RandomSampler if part == DatasetPart.train else SequentialSampler,
-                batch_sizes=[cfg.batch_size if part == DatasetPart.train else cfg.eval_batch_size]
-                * len(datasets[part].cumulative_sizes),
-                drop_last=False,
-            ),
-            collate_fn=get_collate(batch_transformation=transforms_pipelines[part].batch_preprocessing),
-            num_workers=settings.num_workers_train_data_loader,
-            pin_memory=settings.pin_memory,
-        )
-        for part in (DatasetPart.train, DatasetPart.validate)
-    }
-
-    metric_groups = {
-        DatasetPart.train: MetricGroup(),
-        DatasetPart.validate: MetricGroup(
-            metrics.MSE(),
-            metrics.MS_SSIM(
-                channel=1,
-                data_range=cfg.data_range,
-                size_average=True,
-                spatial_dims=transforms_pipelines[DatasetPart.validate].spatial_dims,
-                win_size=cfg.win_size,
-                win_sigma=cfg.win_sigma,
-            ),
-            metrics.NRMSE(),
-            metrics.PSNR(data_range=cfg.data_range),
-            metrics.SSIM(
-                data_range=cfg.data_range,
-                size_average=True,
-                win_size=cfg.win_size,
-                win_sigma=cfg.win_sigma,
-                channel=1,
-                spatial_dims=transforms_pipelines[DatasetPart.validate].spatial_dims,
-            ),
-            metrics.SmoothL1(),
-        ),
-    }
-
-    if transforms_pipelines[DatasetPart.validate].spatial_dims == 3:
-        metric_groups[DatasetPart.validate] += MetricGroup(
-            metrics.BeadPrecisionRecall(
-                dist_threshold=3.0,
-                exclude_border=False,
-                max_sigma=6.0,
-                min_sigma=1.0,
-                overlap=0.5,
-                sigma_ratio=3.0,
-                threshold=0.3,  # orig 0.05
-                tgt_threshold=0.3,  # orig 0.05
-                scaling=(2.5, 0.7 * 8 / scale, 0.7 * 8 / scale),
-            ),
-        )
-
-    part = DatasetPart.validate
-    score_metric = "MS-SSIM"
-    validator = ValidationRun(
-        batch_postprocessing=transforms_pipelines[part].batch_postprocessing,
-        batch_premetric_trf=transforms_pipelines[part].batch_premetric_trf,
-        batch_preprocessing_in_step=transforms_pipelines[part].batch_preprocessing_in_step,
-        dataloader=dataloaders[part],
-        batch_size=cfg.eval_batch_size,
-        log_pred_vs_spim=False,
-        metrics=metric_groups[part],
-        minimize=getattr(metrics, score_metric.replace("-", "_")).minimize,
-        model=model,
-        run_logger=WandbValidationLogger(
-            point_cloud_threshold=0.3,
-            zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale),
-            score_metric=score_metric,
-            minimize=getattr(metrics, score_metric.replace("-", "_")).minimize,
-        ),
-        save_pred_to_disk=None,
-        save_spim_to_disk=None,
-        score_metric=score_metric,
-        tgt_name=transforms_pipelines[part].tgt_name,
-    )
-
-    part = DatasetPart.train
-    train_run = TrainRun(
-        batch_postprocessing=transforms_pipelines[part].batch_postprocessing,
-        batch_premetric_trf=transforms_pipelines[part].batch_premetric_trf,
-        batch_preprocessing_in_step=transforms_pipelines[part].batch_preprocessing_in_step,
-        criterion=crit,
-        dataloader=dataloaders[part],
-        batch_size=cfg.batch_size,
-        metrics=metric_groups[part],
-        model=model,
-        optimizer=opt,
-        run_logger=WandbLogger(point_cloud_threshold=0.3, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)),
-        tgt_name=transforms_pipelines[part].tgt_name,
-        train_metrics=metric_groups[part],
-        validator=validator,
-        checkpoint=checkpoint,
-    )
+    train_run = TrainRun(checkpoint=checkpoint)
 
     train_run.fit()
 
@@ -332,17 +159,17 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
             sys.executable,
             str(Path(__file__).parent / "tst.py"),
             "--associated_train_run_name",
-            wandb_run.name,
+            str(wandb_run.name),
             "--batch_size",
-            cfg.eval_batch_size,
+            str(cfg.eval_batch_size),
             "--data_range",
-            cfg.data_range,
+            str(cfg.data_range),
             "--interpolation_order",
-            cfg.interpolation_order,
+            str(cfg.interpolation_order),
             "--win_sigma",
-            cfg.win_sigma,
+            str(cfg.win_sigma),
             "--win_size",
-            cfg.win_size,
+            str(cfg.win_size),
             "--light_logging",
             str(settings.log_dir / "checkpoints" / wandb_run.name),
         ]

@@ -1,17 +1,37 @@
 import shutil
 import sys
-from dataclasses import InitVar, asdict, dataclass, field
+from dataclasses import InitVar, asdict, dataclass, field, fields
 from enum import Enum
 from inspect import signature
 from pathlib import Path
-from sys import platform
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Sequence, Type, Union
 
 import torch
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 
-from hylfm import __version__, settings
+import hylfm.metrics
+from hylfm import __version__, metrics, settings
+from hylfm.datasets import ConcatDataset, get_collate
+from hylfm.datasets.named import get_dataset
+from hylfm.get_criterion import get_criterion
 from hylfm.get_model import get_model
-from hylfm.hylfm_types import CriterionChoice, DatasetChoice, DatasetPart, OptimizerChoice, PeriodUnit
+from hylfm.hylfm_types import (
+    CriterionChoice,
+    DatasetChoice,
+    DatasetPart,
+    LRSchedThresMode,
+    LRScheduler,
+    LRSchedulerChoice,
+    MetricChoice,
+    Optimizer,
+    OptimizerChoice,
+    PeriodUnit,
+    TransformsPipeline,
+)
+from hylfm.metrics import MetricGroup
+from hylfm.model import HyLFM_Net
+from hylfm.sampler import NoCrossBatchSampler
+from hylfm.transform_pipelines import get_transforms_pipeline
 
 
 def conv_to_simple_dtypes(data: dict):
@@ -31,7 +51,6 @@ def conv_to_simple_dtypes(data: dict):
 class Config:
     batch_multiplier: int
     batch_size: int
-    criterion: CriterionChoice
     crit_apply_weight_above_threshold: bool
     crit_beta: float
     crit_decay_weight_by: Optional[float]
@@ -41,18 +60,26 @@ class Config:
     crit_ms_ssim_weight: float
     crit_threshold: float
     crit_weight: float
+    criterion: CriterionChoice
     data_range: float
     dataset: DatasetChoice
     eval_batch_size: int
     interpolation_order: int
+    lr_sched_factor: float
+    lr_sched_patience: int
+    lr_sched_thres: float
+    lr_sched_thres_mode: LRSchedThresMode
+    lr_scheduler: LRSchedulerChoice
+    lr_scheduler: Optional[LRSchedulerChoice]
     max_epochs: int
     model: Dict[str, Union[None, float, int, str]]
     model_weights: Optional[Path]
-    optimizer: OptimizerChoice
     opt_lr: float
     opt_momentum: float
     opt_weight_decay: float
+    optimizer: OptimizerChoice
     patience: int
+    score_metric: MetricChoice
     seed: int
     validate_every_unit: PeriodUnit
     validate_every_value: int
@@ -88,6 +115,9 @@ class Config:
         else:
             self.model_weights_name = self.model_weights.stem
 
+@dataclass
+class IndependentConfig:
+    light_logging: bool
 
 @dataclass
 class Checkpoint:
@@ -102,10 +132,12 @@ class Checkpoint:
     validation_iteration: int = 0
     hylfm_version: str = __version__
 
-    model_weights: InitVar[Optional[dict]] = None
+    model_weights: Optional[dict] = None
+    opt_state_dict: Optional[dict] = None
+    lr_scheduler_state_dict: Optional[dict] = None
+
     root: Path = field(init=False)
-    scale: int = field(init=False)
-    shrink: int = field(init=False)
+
 
     @classmethod
     def load(cls, path: Path):
@@ -137,20 +169,6 @@ class Checkpoint:
             config = Config.from_dict(config)
             return cls(config=config, **checkpoint_data)
 
-    def __post_init__(self, model_weights: Optional[dict]):
-        self.current_best_on_disk: Optional[Path] = None
-        self.model = get_model(**self.config.model)
-        if model_weights is not None:
-            self.model.load_state_dict(model_weights, strict=True)
-
-        assert self.model.nnum == self.config.model["nnum"]
-        assert self.model.z_out == self.config.model["z_out"]
-
-        self.scale = self.model.get_scale()
-        self.shrink = self.model.get_shrink()
-
-        self.root = settings.log_dir / "checkpoints" / self.training_run_name
-        self.root.mkdir(parents=True, exist_ok=True)
 
     def save(self, best: bool, keep_anyway: bool):
         assert self.training_run_name is not None
@@ -186,14 +204,17 @@ class Checkpoint:
     def as_dict(self, for_logging: bool) -> dict:
         dat = asdict(self)
         dat.pop("config")
-        dat.pop("root")
         if for_logging:
             config_key = "cfg"
+            for f in fields(self):
+                if not f.init and not f.metadata.get("log", False):
+                    dat.pop(f.name)
         else:
             dat["model_weights"] = self.model.state_dict()
             config_key = "config"
-            dat.pop("scale")
-            dat.pop("shrink")
+            for f in fields(self):
+                if not f.init:
+                    dat.pop(f.name)
 
         dat[config_key] = self.config.as_dict(for_logging=for_logging)
         return conv_to_simple_dtypes(dat)

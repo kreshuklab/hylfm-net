@@ -70,22 +70,12 @@ def tst(
     )
 
     model = checkpoint.model
-    nnum = model.nnum
-    z_out = model.z_out
 
     import wandb
 
     wandb_run = wandb.init(project=f"HyLFM-test", dir=str(settings.cache_dir), config=config.as_dict(), name=ui_name)
 
-    transforms_pipeline = get_transforms_pipeline(
-        dataset_name=dataset,
-        dataset_part=dataset_part,
-        nnum=nnum,
-        z_out=z_out,
-        scale=checkpoint.scale,
-        shrink=checkpoint.shrink,
-        interpolation_order=interpolation_order,
-    )
+
     dataset = get_dataset(config.dataset, dataset_part, transforms_pipeline)
 
     dataloader = DataLoader(
@@ -101,56 +91,7 @@ def tst(
         pin_memory=settings.pin_memory,
     )
 
-    metric_group = MetricGroup(
-        # on volume
-        metrics.BeadPrecisionRecall(
-            dist_threshold=3.0,
-            exclude_border=False,
-            max_sigma=6.0,
-            min_sigma=1.0,
-            overlap=0.5,
-            scaling=(2.5, 0.7 * 8 / checkpoint.scale, 0.7 * 8 / checkpoint.scale),
-            sigma_ratio=3.0,
-            tgt_threshold=0.3,  # orig: 0.05
-            threshold=0.3,  # orig: 0.05
-        ),
-        metrics.MSE(),
-        metrics.MS_SSIM(
-            channel=1, data_range=data_range, size_average=True, spatial_dims=3, win_size=win_size, win_sigma=win_sigma
-        ),
-        metrics.NRMSE(),
-        metrics.PSNR(data_range=data_range),
-        metrics.SSIM(
-            data_range=data_range, size_average=True, win_size=win_size, win_sigma=win_sigma, channel=1, spatial_dims=3
-        ),
-        metrics.SmoothL1(),
-    )
-    if not light_logging:
-        metric_group += MetricGroup(
-            # along z
-            metrics.MSE(along_dim=1),
-            metrics.MS_SSIM(
-                along_dim=1,
-                channel=1,
-                data_range=data_range,
-                size_average=True,
-                spatial_dims=2,
-                win_sigma=win_sigma,
-                win_size=win_size,
-            ),
-            metrics.NRMSE(along_dim=1),
-            metrics.PSNR(along_dim=1, data_range=data_range),
-            metrics.SSIM(
-                along_dim=1,
-                channel=1,
-                data_range=data_range,
-                size_average=True,
-                spatial_dims=2,
-                win_sigma=win_sigma,
-                win_size=win_size,
-            ),
-            metrics.SmoothL1(along_dim=1),
-        )
+
 
     eval_run = EvalRun(
         log_pred_vs_spim=True,
