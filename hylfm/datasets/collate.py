@@ -7,7 +7,13 @@ import torch
 from hylfm.hylfm_types import TransformLike
 
 
-COMMON_BATCH_KEYS = ("iteration", "epoch", "epoch_len", "batch_len")  # are shared across all samples in a batch
+COMMON_BATCH_KEYS = (
+    "iteration",
+    "epoch",
+    "epoch_len",
+    "batch_len",
+    "crop_name",
+)  # are shared across all samples in a batch
 
 
 def sample_values_to_batch_value(values: List, *, sample_key: Optional = None):
@@ -17,9 +23,9 @@ def sample_values_to_batch_value(values: List, *, sample_key: Optional = None):
         batch_value = numpy.ascontiguousarray(numpy.stack(values, axis=0))
     elif isinstance(v0, torch.Tensor):
         batch_value = torch.stack(values, dim=0)
-    elif sample_key in ("batch_len",):
+    elif sample_key in ("batch_len", "iteration", "epoch", "epoch_len"):
         raise ValueError(f"invalid key in sample: {sample_key}")
-    elif sample_key == "epoch_len":
+    elif sample_key in COMMON_BATCH_KEYS:
         batch_value = v0
         assert all(v0 == v for v in values)
     else:

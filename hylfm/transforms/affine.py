@@ -407,7 +407,6 @@ class AffineTransformationDynamicTraining(torch.nn.Module):
         *,
         target_to_compare_to: str,
         crop_names: Collection[str],
-        meta: dict,
         pred_z_min: int,
         pred_z_max: int,
         nnum: int,

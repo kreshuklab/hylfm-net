@@ -126,7 +126,6 @@ def resume(checkpoint: Path):
 
 def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
     cfg = checkpoint.config
-
     if cfg.seed is not None:
         numpy.random.seed(cfg.seed)
         torch.manual_seed(cfg.seed)
@@ -136,6 +135,19 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
     nnum = model.nnum
     z_out = model.z_out
     scale = checkpoint.scale
+
+    transforms_pipelines = {
+        part: get_transforms_pipeline(
+            dataset_name=cfg.dataset,
+            dataset_part=part,
+            nnum=nnum,
+            z_out=z_out,
+            scale=scale,
+            shrink=checkpoint.shrink,
+            interpolation_order=cfg.interpolation_order,
+        )
+        for part in (DatasetPart.train, DatasetPart.validate)
+    }
 
     # todo: get from checkpoint like model and restore optimizer
     opt_class: Type[torch.optim.Optimizer] = getattr(torch.optim, cfg.optimizer.name)
@@ -153,7 +165,7 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
             channel=1,
             data_range=cfg.data_range,
             size_average=True,
-            spatial_dims=3,
+            spatial_dims=transforms_pipelines[DatasetPart.train].spatial_dims,
             win_size=cfg.win_size,
             win_sigma=cfg.win_sigma,
         )
@@ -168,7 +180,7 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
             channel=1,
             data_range=cfg.data_range,
             size_average=True,
-            spatial_dims=3,
+            spatial_dims=transforms_pipelines[DatasetPart.train].spatial_dims,
             win_size=cfg.win_size,
             win_sigma=cfg.win_sigma,
         )
@@ -195,7 +207,7 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
             channel=1,
             data_range=cfg.data_range,
             size_average=True,
-            spatial_dims=3,
+            spatial_dims=transforms_pipelines[DatasetPart.train].spatial_dims,
             win_size=cfg.win_size,
             win_sigma=cfg.win_sigma,
         )
@@ -208,19 +220,6 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
     except Exception:
         logger.error("Failed to init %s with %s", crit_class, crit_kwargs)
         raise
-
-    transforms_pipelines = {
-        part: get_transforms_pipeline(
-            dataset_name=cfg.dataset,
-            dataset_part=part,
-            nnum=nnum,
-            z_out=z_out,
-            scale=scale,
-            shrink=checkpoint.shrink,
-            interpolation_order=cfg.interpolation_order,
-        )
-        for part in (DatasetPart.train, DatasetPart.validate)
-    }
 
     datasets = {
         part: get_dataset(cfg.dataset, part, transforms_pipelines[part])
@@ -246,24 +245,12 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
     metric_groups = {
         DatasetPart.train: MetricGroup(),
         DatasetPart.validate: MetricGroup(
-            # on volume
-            metrics.BeadPrecisionRecall(
-                dist_threshold=3.0,
-                exclude_border=False,
-                max_sigma=6.0,
-                min_sigma=1.0,
-                overlap=0.5,
-                sigma_ratio=3.0,
-                threshold=0.3,  # orig 0.05
-                tgt_threshold=0.3,  # orig 0.05
-                scaling=(2.5, 0.7 * 8 / scale, 0.7 * 8 / scale),
-            ),
             metrics.MSE(),
             metrics.MS_SSIM(
                 channel=1,
                 data_range=cfg.data_range,
                 size_average=True,
-                spatial_dims=3,
+                spatial_dims=transforms_pipelines[DatasetPart.validate].spatial_dims,
                 win_size=cfg.win_size,
                 win_sigma=cfg.win_sigma,
             ),
@@ -275,11 +262,26 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
                 win_size=cfg.win_size,
                 win_sigma=cfg.win_sigma,
                 channel=1,
-                spatial_dims=3,
+                spatial_dims=transforms_pipelines[DatasetPart.validate].spatial_dims,
             ),
             metrics.SmoothL1(),
         ),
     }
+
+    if transforms_pipelines[DatasetPart.validate].spatial_dims == 3:
+        metric_groups[DatasetPart.validate] += MetricGroup(
+            metrics.BeadPrecisionRecall(
+                dist_threshold=3.0,
+                exclude_border=False,
+                max_sigma=6.0,
+                min_sigma=1.0,
+                overlap=0.5,
+                sigma_ratio=3.0,
+                threshold=0.3,  # orig 0.05
+                tgt_threshold=0.3,  # orig 0.05
+                scaling=(2.5, 0.7 * 8 / scale, 0.7 * 8 / scale),
+            ),
+        )
 
     part = DatasetPart.validate
     score_metric = "MS-SSIM"
@@ -302,7 +304,7 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
         save_pred_to_disk=None,
         save_spim_to_disk=None,
         score_metric=score_metric,
-        tgt_name="ls_reg" if "beads" in cfg.dataset.value else "ls_trf",
+        tgt_name=transforms_pipelines[part].tgt_name,
     )
 
     part = DatasetPart.train
@@ -317,7 +319,7 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
         model=model,
         optimizer=opt,
         run_logger=WandbLogger(point_cloud_threshold=0.3, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)),
-        tgt_name="ls_reg" if "beads" in cfg.dataset.value else "ls_trf",
+        tgt_name=transforms_pipelines[part].tgt_name,
         train_metrics=metric_groups[part],
         validator=validator,
         checkpoint=checkpoint,

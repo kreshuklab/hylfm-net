@@ -1,6 +1,5 @@
 import logging
-import typing
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Collection, Dict, Optional, Sequence, Tuple, Union
 
 import numpy
 import skimage.transform
@@ -133,14 +132,16 @@ class Resize(Transform):
 
 
 class SelectRoi(Transform):
-    def __init__(self, roi: Sequence[Union[int, None, str]], apply_to: str):
+    def __init__(self, roi: Sequence[Union[int, None, slice]], apply_to: str):
         assert isinstance(apply_to, str)
         super().__init__(apply_to=apply_to)
         self.roi = tuple(self._slice_descr_to_slice(r) for r in roi)
 
     @staticmethod
     def _slice_descr_to_slice(slice_descr: Union[int, None, str]):
-        if slice_descr is None or slice_descr in (":", "::"):
+        if isinstance(slice_descr, slice):
+            return slice_descr
+        elif slice_descr is None:
             return slice(None)
         elif isinstance(slice_descr, int):
             return slice_descr
@@ -165,11 +166,11 @@ class Transpose(Transform):
 
 
 class CropLSforDynamicTraining(Transform):
-    def __init__(self, apply_to: str, crop_names: Sequence[str], nnum: int, scale: int, z_ls_rescaled: int):
+    def __init__(self, apply_to: str, crop_names: Collection[str], nnum: int, scale: int, z_ls_rescaled: int):
         assert isinstance(apply_to, str)
-        input_mapping = {apply_to: "tensor", "crop_name": "crop_name"}
-
-        super().__init__(apply_to=apply_to)
+        super().__init__(
+            input_mapping={apply_to: "tensor", "crop_name": "crop_name"}, output_mapping={"tensor": apply_to}
+        )
         self.crops = {}
         for crop_name in crop_names:
             ls_roi = get_ls_roi(
@@ -183,12 +184,12 @@ class CropLSforDynamicTraining(Transform):
             ls_roi = ((0, None),) + ls_roi  # add channel dim
             self.crops[crop_name] = Crop(apply_to=apply_to, crop=ls_roi)
 
-    def apply_to_sample(self, tensor: typing.Any, crop_name: str) -> typing.Union[numpy.ndarray, torch.Tensor]:
+    def apply_to_sample(self, tensor: Any, crop_name: str) -> Union[numpy.ndarray, torch.Tensor]:
         return self.crops[crop_name].apply_to_sample(tensor=tensor)
 
 
 class CropWhatShrinkDoesNot(Transform):
-    def __init__(self, apply_to: str, crop_names: Sequence[str], nnum: int, scale: int, shrink: int, wrt_ref: bool):
+    def __init__(self, apply_to: str, crop_names: Collection[str], nnum: int, scale: int, shrink: int, wrt_ref: bool):
         assert isinstance(apply_to, str)
 
         super().__init__(
@@ -203,7 +204,7 @@ class CropWhatShrinkDoesNot(Transform):
             roi = ((0, None),) + roi  # add channel dim
             self.crops[crop_name] = Crop(apply_to=apply_to, crop=roi)
 
-    def apply_to_sample(self, tensor: Array, crop_name: str) -> typing.Union[numpy.ndarray, torch.Tensor]:
+    def apply_to_sample(self, tensor: Array, crop_name: str) -> Union[numpy.ndarray, torch.Tensor]:
         return self.crops[crop_name].apply_to_sample(tensor=tensor)
 
 
@@ -223,7 +224,7 @@ class Pad(Transform):
         self.pad_mode = pad_mode
         self.nnum = nnum
 
-    def apply_to_sample(self, tensor: typing.Any) -> typing.Union[numpy.ndarray, torch.Tensor]:
+    def apply_to_sample(self, tensor: Any) -> Union[numpy.ndarray, torch.Tensor]:
         assert len(tensor.shape) - 1 == len(self.pad_width)
         if isinstance(tensor, numpy.ndarray):
             if self.pad_mode == "lenslets":
@@ -264,6 +265,6 @@ class SetPixelValue(Transform):
         super().__init__(**super_kwargs)
         self.value = value
 
-    def apply_to_sample(self, tensor: typing.Any) -> typing.Union[numpy.ndarray, torch.Tensor]:
+    def apply_to_sample(self, tensor: Any) -> Union[numpy.ndarray, torch.Tensor]:
         tensor[...] = self.value
         return tensor

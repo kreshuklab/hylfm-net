@@ -184,6 +184,7 @@ class Assert(Transform):
             input_mapping[expected_shape_like_tensor] = "other"
 
         super().__init__(input_mapping=input_mapping)
+        self.apply_to = apply_to
         self.expected_shape = expected_tensor_shape
         self.expected_shape_like_tensor = expected_shape_like_tensor
 
@@ -191,7 +192,7 @@ class Assert(Transform):
         expected = self.expected_shape if self.expected_shape is not None else other.shape
         actual = tensor.shape
         if any(e != a for e, a in zip(expected, actual) if e is not None):
-            raise AssertionError(f"shape mismatch: {actual} != {expected}")
+            raise AssertionError(f"shape mismatch for {self.apply_to}: {actual} != {expected}")
 
         assert len(actual) == len(expected), (actual, expected)
         return {}

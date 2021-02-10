@@ -6,10 +6,11 @@ from hylfm.checkpoint import Config
 
 def get_config_for_old_checkpoint(checkpoint: Path) -> Config:
     if checkpoint.name in [
-        "v1_checkpoint_498_MS_SSIM=0.9710696664723483.pth",
+        "v1_checkpoint_498_MS_SSIM=0.9710696664723483.pth",  # heart stat
         "v1_checkpoint_MSSSIM=0.6722144321961836.pth",
         "v1_checkpoint_27500_ms_ssim-scaled=0.8430055000565269.pth",
-    ]:  # heart stat
+        "v1_checkpoint_37400_ms_ssim-scaled=0.8433429219506003.pth",  # repos/hylfm-net/logs/train/heart/fake_dyn/from_scratch/21-01-12_21-05-48
+    ]:
         model_config = {
             "nnum": 19,
             "z_out": 49,

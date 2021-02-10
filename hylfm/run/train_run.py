@@ -37,7 +37,6 @@ class TrainRun(Run):
         metrics: MetricGroup,
         model: torch.nn.Module,
         optimizer: Optimizer,
-        pred_name: str,
         run_logger: RunLogger,
         tgt_name: Optional[str],
         train_metrics: MetricGroup,
@@ -52,7 +51,6 @@ class TrainRun(Run):
             batch_postprocessing=batch_postprocessing,
             batch_premetric_trf=batch_premetric_trf,
             metrics=metrics,
-            pred_name=pred_name,
             tgt_name=tgt_name,
             run_logger=run_logger,
             name=checkpoint.training_run_name,
@@ -101,7 +99,7 @@ class TrainRun(Run):
     def _validate(self) -> float:
         self.validation_iteration += 1
         validation_score = self.validator.get_validation_score(
-            step=(self.epoch * self.epoch_len + self.iteration) * (self.batch_size or self.current_batch_len)
+            step=(self.epoch * self.epoch_len + self.iteration) * self.batch_size
         )
         best = self.best_validation_score is None or self.best_validation_score < validation_score
         val_it_is_power_of_two = self.validation_iteration & (self.validation_iteration - 1) == 0
@@ -129,7 +127,6 @@ class TrainRun(Run):
         batch["epoch_len"] = self.epoch_len
 
         assert "batch_len" in batch
-        self.current_batch_len: int = batch["batch_len"]
 
         batch = self.batch_preprocessing_in_step(batch)
         batch["pred"] = self.model(batch["lfc"])
@@ -154,6 +151,14 @@ class TrainRun(Run):
             assert from_batch not in step_metrics
             if from_batch in batch:
                 step_metrics[from_batch] = batch[from_batch]
+
+        opt_state = self.optimizer.get_state()["state"]
+        for key, value in opt_state.items():
+            try:
+                step_metrics[str(key)] = value if isinstance(value, (int, float)) else value.item()
+            except Exception as e:
+                logger.warning(e)
+                pass
 
         if self.validate_every.match(epoch=ep, iteration=it, epoch_len=self.epoch_len):
             step_metrics[self.validator.score_metric + "_val-score"] = self._validate()

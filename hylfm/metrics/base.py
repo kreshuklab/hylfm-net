@@ -150,8 +150,10 @@ class MetricGroup(Metric):
 
         return res
 
-    def __add__(self, other: MetricGroup):
-        if not isinstance(other, MetricGroup):
-            raise NotImplementedError
-
-        return MetricGroup(*(list(self.metrics) + list(other.metrics)))
+    def __add__(self, other: Metric):
+        if isinstance(other, MetricGroup):
+            return MetricGroup(*(list(self.metrics) + list(other.metrics)))
+        elif isinstance(other, Metric):
+            return MetricGroup(*(list(self.metrics) + [other]))
+        else:
+            raise NotImplementedError(type(other))

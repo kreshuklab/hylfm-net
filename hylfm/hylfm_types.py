@@ -72,6 +72,8 @@ class DatasetChoice(str, Enum):
     # heart_static_c_care = "heart_static_c_care"  # test data like heart_static_c, but also load lr and care
     heart_static_c_care_complex = "heart_static_c_care_complex"
     heart_static_fish2_f4 = "heart_static_fish2_f4"
+    heart_static_fish2_f4_sliced = "heart_static_fish2_f4_sliced"
+
 
 class DatasetPart(str, Enum):
     train = "train"
@@ -99,3 +101,4 @@ class TransformsPipeline:
     batch_premetric_trf: TransformLike
     meta: Dict[str, Any]
     tgt_name: str
+    spatial_dims: int

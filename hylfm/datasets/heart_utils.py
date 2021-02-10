@@ -96,9 +96,9 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                     "apply_to": name,
                     "expected_tensor_shape": [None, 1, 1, 1364, 1380]
                     if crop_name == fast_cropped_8ms
-                    else [1, 1, 1024, 1040]
+                    else [None, 1, 1, 1024, 1040]
                     if crop_name == fast_cropped_6ms
-                    else [1, 1, 2048, 2060],
+                    else [None, 1, 1, 2048, 2060],
                 }
             },  # raw ls shape
             {"FlipAxis": {"apply_to": name, "axis": 3}},

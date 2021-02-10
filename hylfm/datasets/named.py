@@ -1,6 +1,6 @@
 import collections
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy
 import torch.utils.data
@@ -8,21 +8,6 @@ import torch.utils.data
 from hylfm.datasets import ConcatDataset, TensorInfo, ZipDataset, get_dataset_from_info, get_tensor_info
 from hylfm.hylfm_types import DatasetChoice, DatasetPart, TransformLike, TransformsPipeline
 from hylfm.transforms import Identity
-
-
-def get_dataset_from_folder(
-    tensor_name: str,
-    dir: Path,
-    glob_expr: str,
-    transforms: Sequence[Dict[str, Any]] = tuple(),
-    filters: Sequence[Tuple[str, Dict[str, Any]]] = tuple(),
-    indices: Optional[Union[int, slice, List[int], numpy.ndarray]] = None,
-    insert_singleton_axes_at: Sequence[int] = (0, 0),
-):
-    z_slice: Optional[Union[int, Callable[[int], int]]] = None
-
-    info = TensorInfo()
-    return get_dataset_from_info(info, cache=True, filters=filters, indices=indices)
 
 
 def get_dataset_subsection(
@@ -75,7 +60,12 @@ def get_dataset_subsection(
 
 
 def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: TransformsPipeline):
-    sections = []
+    sliced = name.value.endswith("_sliced")
+
+    # sections will not be sampled across, which allows differentely sized images in the same dataset
+    # subsections are grouped together to form mini-batches, thus their size needs to match
+    sections: List[List[torch.utils.data.Dataset]] = []
+
     if name == DatasetChoice.beads_sample0:
         sections.append(
             [
@@ -139,10 +129,18 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                 )
             )
 
-    elif name in [DatasetChoice.heart_static_a, DatasetChoice.heart_static_c]:
+    elif (
+        name in [DatasetChoice.heart_static_a, DatasetChoice.heart_static_c]
+        or name in [DatasetChoice.heart_static_fish2_f4, DatasetChoice.heart_static_fish2_f4_sliced]
+        and part != DatasetPart.test
+    ):
 
         def get_tensors(tag_: str):
-            return {"lf": f"heart_static.{tag_}", "ls_trf": f"heart_static.{tag_}", "meta": transforms_pipeline.meta}
+            return {
+                "lf_repeat241" if sliced else "lf": f"heart_static.{tag_}",
+                "ls_slice" if sliced else "ls_trf": f"heart_static.{tag_}",
+                "meta": transforms_pipeline.meta,
+            }
 
         if part == DatasetPart.train:
             sections.append([])
@@ -232,7 +230,7 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                     )
                 )
 
-        elif part == DatasetPart.test:
+        elif part == DatasetPart.test and not name == DatasetChoice.heart_static_fish2_f4:
             sections.append([])
             for tag in [  # fish2
                 "2019-12-09_08.15.07",
@@ -268,7 +266,8 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
 
         if part == DatasetPart.train:
             sections.append([])
-            for tag in [  # fish1: Heart_tightCrop
+            for tag in [
+                # fish1: Heart_tightCrop
                 "2019-12-09_02.16.30",
                 "2019-12-09_02.23.01",
                 "2019-12-09_02.29.34",
@@ -288,8 +287,8 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                 )
 
             sections.append([])
-            for tag in [  # fish2, fish3: staticHeartFOV
-                # fish2
+            for tag in [
+                # fish2: staticHeartFOV
                 "2019-12-09_09.52.38",
                 "2019-12-09_08.34.44",
                 "2019-12-09_08.41.41",
@@ -302,14 +301,26 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                 "2019-12-09_08.27.14",
                 "2019-12-09_07.42.47",
                 "2019-12-09_07.50.24",
-                # fish3
+            ]:
+                sections[-1].append(
+                    get_dataset_subsection(
+                        tensors=get_tensors(tag),
+                        filters=[],
+                        indices=slice(1, None, None),
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
+                    )
+                )
+
+            sections.append([])
+            for tag in [
+                # fish3: staticHeartFOV
                 "2019-12-10_04.24.29",
                 "2019-12-10_05.14.57",
                 "2019-12-10_05.41.48",
                 "2019-12-10_06.03.37",
                 "2019-12-10_06.25.14",
             ]:
-
                 sections[-1].append(
                     get_dataset_subsection(
                         tensors=get_tensors(tag),
@@ -342,8 +353,8 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                 )
 
             sections.append([])
-            for tag in [  # fish2, fish3: staticHeartFOV
-                # fish2
+            for tag in [
+                # fish2: staticHeartFOV
                 "2019-12-09_09.52.38",
                 "2019-12-09_08.34.44",
                 "2019-12-09_08.41.41",
@@ -356,14 +367,26 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                 "2019-12-09_08.27.14",
                 "2019-12-09_07.42.47",
                 "2019-12-09_07.50.24",
-                # fish3
+            ]:
+                sections[-1].append(
+                    get_dataset_subsection(
+                        tensors=get_tensors(tag),
+                        filters=[],
+                        indices=[0],
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
+                    )
+                )
+
+            sections.append([])
+            for tag in [
+                # fish3: staticHeartFOV
                 "2019-12-10_04.24.29",
                 "2019-12-10_05.14.57",
                 "2019-12-10_05.41.48",
                 "2019-12-10_06.03.37",
                 "2019-12-10_06.25.14",
             ]:
-
                 sections[-1].append(
                     get_dataset_subsection(
                         tensors=get_tensors(tag),
@@ -403,6 +426,7 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
             raise NotImplementedError(part)
 
     elif name == DatasetChoice.heart_static_c_care_complex:
+        raise ValueError("not in use")
         if part == DatasetPart.test:
             tensor_infos = {
                 "lfd": TensorInfo(
@@ -473,8 +497,11 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
             sections.append([static1_dataset])
         else:
             raise NotImplementedError("see commit ed5c7b02eaaada4fea244f5727f3ea7f0acb3459")
-    elif name == DatasetChoice.heart_static_fish2_f4:
-        assert part == DatasetPart.test
+
+    elif (
+        name in [DatasetChoice.heart_static_fish2_f4, DatasetChoice.heart_static_fish2_f4_sliced]
+        and part == DatasetPart.test
+    ):
         tensor_infos = {
             name: TensorInfo(
                 name=name,
@@ -497,7 +524,6 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
 
         heart_static_fish2_f4_dataset = ZipDataset(datasets, transform=transforms_pipeline.sample_preprocessing)
         sections.append([heart_static_fish2_f4_dataset])
-
     else:
         raise NotImplementedError(name)
 
