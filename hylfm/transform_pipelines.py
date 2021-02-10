@@ -183,7 +183,7 @@ def get_transforms_pipeline(
             Assert(apply_to="pred", expected_shape_like_tensor=spim),
         )
 
-    elif dataset_name == DatasetChoice.heart_static_c_care:
+    elif dataset_name == DatasetChoice.heart_static_c_care_complex:
         spim = "ls_trf"
         crop_names = []
         sample_precache_trf = []
@@ -192,7 +192,32 @@ def get_transforms_pipeline(
             Normalize01Dataset(apply_to=spim, min_percentile=5.0, max_percentile=99.8)
         )
         batch_preprocessing = ComposedTransform()
-        batch_preprocessing_in_step = Cast(apply_to=["lfd", "care", spim], dtype="float32", device="cuda", non_blocking=True)
+        batch_preprocessing_in_step = Cast(
+            apply_to=["lfd", "care", spim], dtype="float32", device="cuda", non_blocking=True
+        )
+        batch_postprocessing = ComposedTransform(
+            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None)),
+            Assert(apply_to="pred", expected_shape_like_tensor=spim),
+        )
+
+    elif dataset_name == DatasetChoice.heart_static_fish2_f4:
+        spim = "spim"
+        crop_names = []
+        sample_precache_trf = []
+
+        sample_preprocessing = ComposedTransform(
+            Assert(apply_to="lf", expected_tensor_shape=(None, 1, None, None)),
+            Assert(apply_to="lfd", expected_tensor_shape=(None, 1, z_out, None, None)),
+            Assert(apply_to="care", expected_tensor_shape=(None, 1, z_out, None, None)),
+            Assert(apply_to=spim, expected_tensor_shape=(None, 1, z_out, None, None)),
+            Assert(apply_to="lfd", expected_shape_like_tensor=spim),
+            Assert(apply_to="care", expected_shape_like_tensor=spim),
+            ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum),
+        )
+        batch_preprocessing = ComposedTransform()
+        batch_preprocessing_in_step = ComposedTransform(
+            Cast(apply_to=["lfc", "lfd", "care", spim], dtype="float32", device="cuda", non_blocking=True)
+        )
         batch_postprocessing = ComposedTransform(
             Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None)),
             Assert(apply_to="pred", expected_shape_like_tensor=spim),
@@ -211,4 +236,5 @@ def get_transforms_pipeline(
         batch_postprocessing=batch_postprocessing,
         batch_premetric_trf=batch_premetric_trf,
         meta=meta,
+        tgt_name=spim,
     )

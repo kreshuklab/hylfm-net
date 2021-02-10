@@ -153,8 +153,8 @@ def tst_precomputed(
         metrics=metric_group,
         tgt_name="ls_reg" if "beads" in dataset.value else "ls_trf",
         run_logger=WandbLogger(point_cloud_threshold=0.3, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)),
-        save_pred_to_disk=None if light_logging else settings.log_dir / "output_tensors" / wandb_run.name / "pred",
-        save_spim_to_disk=None if light_logging else settings.log_dir / "output_tensors" / wandb_run.name / "spim",
+        save_pred_to_disk=None,
+        save_spim_to_disk=None,
     )
 
     eval_run.run()

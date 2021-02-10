@@ -193,6 +193,7 @@ class Assert(Transform):
         if any(e != a for e, a in zip(expected, actual) if e is not None):
             raise AssertionError(f"shape mismatch: {actual} != {expected}")
 
+        assert len(actual) == len(expected), (actual, expected)
         return {}
 
 

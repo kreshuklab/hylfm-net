@@ -40,14 +40,19 @@ def tst(
     win_size: int = typer.Option(11, "--win_size"),
     light_logging: bool = typer.Option(False, "--light_logging"),
     associated_train_run_name: Optional[str] = typer.Option(None, "--associated_train_run_name"),
+    ui_name: Optional[str] = typer.Option(None, "--ui_name"),
 ):
-    if associated_train_run_name is not None:
+    if ui_name is not None:
+        assert associated_train_run_name is None
+    elif associated_train_run_name is not None:
+        assert ui_name is None
         assert dataset is None, dataset
         assert dataset_part == DatasetPart.test, dataset_part
         assert associated_train_run_name in [p.name for p in checkpoint.parents], (
             associated_train_run_name,
             checkpoint,
         )
+        ui_name = associated_train_run_name
 
     checkpoint = Checkpoint.load(checkpoint)
     if dataset is None:
@@ -70,9 +75,7 @@ def tst(
 
     import wandb
 
-    wandb_run = wandb.init(
-        project=f"HyLFM-test", dir=str(settings.cache_dir), config=config.as_dict(), name=associated_train_run_name
-    )
+    wandb_run = wandb.init(project=f"HyLFM-test", dir=str(settings.cache_dir), config=config.as_dict(), name=ui_name)
 
     transforms_pipeline = get_transforms_pipeline(
         dataset_name=dataset,
@@ -158,12 +161,14 @@ def tst(
         batch_postprocessing=transforms_pipeline.batch_postprocessing,
         batch_premetric_trf=transforms_pipeline.batch_premetric_trf,
         metrics=metric_group,
-        tgt_name="ls_reg" if "beads" in config.dataset.value else "ls_trf",
+        tgt_name=transforms_pipeline.tgt_name,
         run_logger=WandbLogger(
             point_cloud_threshold=0.3, zyx_scaling=(5, 0.7 * 8 / checkpoint.scale, 0.7 * 8 / checkpoint.scale)
         ),
         save_pred_to_disk=None if light_logging else settings.log_dir / "output_tensors" / wandb_run.name / "pred",
-        save_spim_to_disk=None if light_logging else settings.log_dir / "output_tensors" / wandb_run.name / "spim",
+        save_spim_to_disk=None
+        if light_logging or dataset == DatasetChoice.heart_static_fish2_f4
+        else settings.log_dir / "output_tensors" / wandb_run.name / "spim",
     )
 
     eval_run.run()

@@ -402,8 +402,6 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
         else:
             raise NotImplementedError(part)
 
-    # elif name == DatasetChoice.heart_static_c_care:
-
     elif name == DatasetChoice.heart_static_c_care_complex:
         if part == DatasetPart.test:
             tensor_infos = {
@@ -475,6 +473,31 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
             sections.append([static1_dataset])
         else:
             raise NotImplementedError("see commit ed5c7b02eaaada4fea244f5727f3ea7f0acb3459")
+    elif name == DatasetChoice.heart_static_fish2_f4:
+        assert part == DatasetPart.test
+        tensor_infos = {
+            name: TensorInfo(
+                name=name,
+                root=Path("/g/kreshuk/beuttenm/hylfm-datasets/heart_static_fish2_f4") / name,
+                location="*.tif",
+                transforms=tuple(),
+                datasets_per_file=1,
+                samples_per_dataset=1,
+                remove_singleton_axes_at=(-1,) if name in ("lf", "spim") else tuple(),
+                insert_singleton_axes_at=(0, 0),
+                z_slice=None,
+                skip_indices=tuple(),
+                meta=None,
+            )
+            for name in ("lf", "spim", "care", "lfd")
+        }
+        datasets = {
+            k: get_dataset_from_info(dsinfo, cache=True, filters=[], indices=None) for k, dsinfo in tensor_infos.items()
+        }
+
+        heart_static_fish2_f4_dataset = ZipDataset(datasets, transform=transforms_pipeline.sample_preprocessing)
+        sections.append([heart_static_fish2_f4_dataset])
+
     else:
         raise NotImplementedError(name)
 

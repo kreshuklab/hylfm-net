@@ -69,8 +69,9 @@ class DatasetChoice(str, Enum):
     heart_static_a = "heart_static_a"
     heart_static_b = "heart_static_b"
     heart_static_c = "heart_static_c"  # a with 99.8 spim percentile norm
-    heart_static_c_care = "heart_static_c_care"  # test data like heart_static_c, but also load lr and care
+    # heart_static_c_care = "heart_static_c_care"  # test data like heart_static_c, but also load lr and care
     heart_static_c_care_complex = "heart_static_c_care_complex"
+    heart_static_fish2_f4 = "heart_static_fish2_f4"
 
 class DatasetPart(str, Enum):
     train = "train"
@@ -97,3 +98,4 @@ class TransformsPipeline:
     batch_postprocessing: TransformLike
     batch_premetric_trf: TransformLike
     meta: Dict[str, Any]
+    tgt_name: str
