@@ -203,7 +203,7 @@ class TrainRun(Run):
         if self.validate_every.match(epoch=ep, iteration=it, epoch_len=self.epoch_len):
             step_metrics[self.validator.score_metric + "_val-score"] = self._validate()
 
-        step = self.epoch * self.epoch_len + self.iteration
+        step = (ep * self.epoch_len + it) * self.config.batch_size
         self.run_logger(epoch=ep, iteration=it, epoch_len=self.epoch_len, step=step, **step_metrics)
 
         return batch

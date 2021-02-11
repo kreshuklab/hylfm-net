@@ -14,7 +14,7 @@ from .base import Run
 from .run_logger import WandbLogger, WandbValidationLogger
 from hylfm.checkpoint import RunConfig, TestRunConfig
 from hylfm.get_model import get_model
-from hylfm.hylfm_types import DatasetPart
+from hylfm.hylfm_types import DatasetPart, MetricChoice
 from hylfm.model import HyLFM_Net
 
 
@@ -140,7 +140,7 @@ class EvalRun(Run):
 
 
 class ValidationRun(EvalRun):
-    def __init__(self, *, config: RunConfig, model: HyLFM_Net, score_metric: str, name: str, ):
+    def __init__(self, *, config: RunConfig, model: HyLFM_Net, score_metric: MetricChoice, name: str):
         scale = model.get_scale()
         self.minimize = getattr(hylfm.metrics, score_metric.replace("-", "_")).minimize
         super().__init__(
