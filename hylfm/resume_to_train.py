@@ -40,18 +40,12 @@ def resume(
     config = checkpoint.as_dict(for_logging=True)
     config["resumed_from"] = checkpoint.training_run_name
 
-    checkpoint.training_run_name = None
-    checkpoint.training_run_id = None
-
     wandb_run = wandb.init(
-        project="HyLFM-train",
-        dir=str(settings.cache_dir),
-        config=config,
-        resume="allow",
-        name=checkpoint.training_run_name,
-        notes=notes,
-        id=checkpoint.training_run_id,
+        project="HyLFM-train", dir=str(settings.cache_dir), config=config, resume="allow", notes=notes
     )
+    checkpoint.training_run_name = wandb_run.name
+    checkpoint.training_run_id = wandb_run.id
+
     train_from_checkpoint(wandb_run, checkpoint)
 
 
