@@ -71,12 +71,13 @@ class RunConfig:
 
     @classmethod
     def from_dict(cls, dat: dict):
-        converted = cls.convert_dict(dat)
-
+        dat = dict(dat)
         if packaging.version.parse(dat.get("hylfm_version", "0.0.0")) < packaging.version.parse("0.1.1"):
-            converted = cls.add_new_keys_for_0_1_1(converted)
+            dat = cls.add_new_keys_for_0_1_1(dat)
 
-        return cls(**converted)
+        dat = cls.convert_dict(dat)
+
+        return cls(**dat)
 
 
 @dataclass
@@ -94,6 +95,7 @@ class TrainRunConfig(RunConfig):
     criterion: CriterionChoice
     eval_batch_size: int
     lr_sched_factor: float
+    lr_sched_min_lr: float
     lr_sched_patience: int
     lr_sched_thres: float
     lr_sched_thres_mode: LRSchedThresMode
@@ -132,9 +134,12 @@ class TrainRunConfig(RunConfig):
     @classmethod
     def add_new_keys_for_0_1_1(cls, dat: dict):
         dat = super().add_new_keys_for_0_1_1(dat)
-        for key in ["lr_sched_factor", "lr_sched_patience", "lr_sched_thres", "lr_sched_thres_mode", "lr_scheduler"]:
+        for key in ["lr_sched_factor", "lr_sched_patience", "lr_sched_thres", "lr_scheduler"]:
             if key not in dat:
                 dat[key] = None
+
+        if "lr_sched_thres_mode" not in dat:
+            dat["lr_sched_thres_mode"] = LRSchedThresMode.abs
 
         return dat
 
