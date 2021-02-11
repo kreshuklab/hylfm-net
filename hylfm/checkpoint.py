@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Collection, Dict, Optional, Union
 
 import torch
+import packaging.version
 
 from hylfm import __version__, settings
 from hylfm.get_model import get_model
@@ -51,10 +52,25 @@ class RunConfig:
         dat = conv_to_simple_dtypes(asdict(self))
         return dat
 
+    @staticmethod
+    def add_new_keys_for_0_1_1(dat: dict):
+        assert "save_output_to_disk" not in dat
+        dat["save_output_to_disk"] = None
+        return dat
+
+    @staticmethod
+    def convert_dict(dat: dict):
+        dat = dict(dat)
+        dat["dataset"] = DatasetChoice(dat.pop("dataset"))
+
     @classmethod
     def from_dict(cls, dat: dict):
-        dat = dict(dat)
-        return cls(dataset=DatasetChoice(dat.pop("dataset")), **dat)
+        converted = cls.convert_dict(dat)
+
+        if packaging.version.parse(dat["hylfm_version"]) < packaging.version.parse("0.1.1"):
+            converted = cls.add_new_keys_for_0_1_1(converted)
+
+        return cls(**converted)
 
 
 @dataclass
@@ -91,30 +107,31 @@ class TrainRunConfig(RunConfig):
 
     model_weights_name: Optional[str] = field(init=False)
 
-    @classmethod
-    def from_dict(cls, dat: dict):
-        dat = dict(dat)
+    @staticmethod
+    def convert_dict(dat: dict):
+        dat = super().convert_dict(dat)
 
-        # convert value types of super class
-        super_key_words = signature(super().__init__).parameters
-        super_dat = {k: v for k, v in dat.items() if k in super_key_words}
-        super_dat = asdict(super().from_dict(super_dat))
-
-        dat = {k: v for k, v in dat.items() if k not in super_key_words}
-        mw = dat.pop("model_weights")
+        dat["crit_decay_weight_every_unit"] = PeriodUnit(dat.pop("crit_decay_weight_every_unit"))
+        dat["criterion"] = CriterionChoice(dat.pop("criterion"))
+        dat["lr_sched_thres_mode"] = LRSchedThresMode(dat.pop("lr_sched_thres_mode"))
         lrs = dat.pop("lr_scheduler")
-        return cls(
-            crit_decay_weight_every_unit=PeriodUnit(dat.pop("crit_decay_weight_every_unit")),
-            criterion=CriterionChoice(dat.pop("criterion")),
-            lr_sched_thres_mode=LRSchedThresMode(dat.pop("lr_sched_thres_mode")),
-            lr_scheduler=None if lrs is None else LRSchedulerChoice(lrs),
-            model_weights=None if mw is None else Path(mw),
-            optimizer=OptimizerChoice(dat.pop("optimizer")),
-            score_metric=MetricChoice(dat.pop("score_metric")),
-            validate_every_unit=PeriodUnit(dat.pop("validate_every_unit")),
-            **dat,
-            **super_dat,
-        )
+        dat["lr_scheduler"] = None if lrs is None else LRSchedulerChoice(lrs)
+        mw = dat.pop("model_weights")
+        dat["model_weights"] = None if mw is None else Path(mw)
+        dat["optimizer"] = OptimizerChoice(dat.pop("optimizer"))
+        dat["score_metric"] = MetricChoice(dat.pop("score_metric"))
+        dat["validate_every_unit"] = PeriodUnit(dat.pop("validate_every_unit"))
+
+        return dat
+
+    @staticmethod
+    def add_new_keys_for_0_1_1(dat: dict):
+        dat = super().add_new_keys_for_0_1_1(dat)
+        for key in ["lr_sched_factor", "lr_sched_patience", "lr_sched_thres", "lr_sched_thres_mode", "lr_scheduler"]:
+            assert key not in dat
+            dat[key] = None
+
+        return dat
 
     def __post_init__(self):
         super().__post_init__()

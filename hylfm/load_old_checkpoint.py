@@ -214,7 +214,7 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> TrainRunConfig:
         opt_weight_decay=None,
         optimizer=None,
         patience=None,
-        save_output_to_disk=set(),
+        save_output_to_disk=None,
         score_metric=None,
         seed=None,
         validate_every_unit=None,
