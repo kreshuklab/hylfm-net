@@ -122,7 +122,7 @@ class EvalRun(Run):
                     step = (epoch * self.epoch_len + it) * self.config.batch_size
                     self.run_logger(epoch=epoch, iteration=it, epoch_len=self.epoch_len, step=step, **step_metrics)
 
-            for key, path in self.save_output_to_disk:
+            for key, path in self.save_output_to_disk.items():
                 save_tensor_batch(path, batch[key])
 
             sample_idx += batch["batch_len"]
