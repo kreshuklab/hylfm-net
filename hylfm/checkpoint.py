@@ -95,7 +95,6 @@ class TrainRunConfig(RunConfig):
     criterion: CriterionChoice
     eval_batch_size: int
     lr_sched_factor: float
-    lr_sched_min_lr: float
     lr_sched_patience: int
     lr_sched_thres: float
     lr_sched_thres_mode: LRSchedThresMode
