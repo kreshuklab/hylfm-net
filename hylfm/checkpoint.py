@@ -208,7 +208,8 @@ class Checkpoint:
         torch.save(self.as_dict(for_logging=False), path)
 
         if best:  # overwrite best
-            best_path = self.path.with_stem("best")
+            # best_path = self.path.with_stem("best")  # todo: python 3.9
+            best_path = self.path.with_name("best.pth")
             try:
                 best_path.unlink()
             except FileNotFoundError:
