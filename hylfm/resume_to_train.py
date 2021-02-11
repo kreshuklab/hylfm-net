@@ -47,7 +47,7 @@ def resume(
         project="HyLFM-train",
         dir=str(settings.cache_dir),
         config=config,
-        resume="must",
+        resume="allow",
         name=checkpoint.training_run_name,
         notes=notes,
         id=checkpoint.training_run_id,
