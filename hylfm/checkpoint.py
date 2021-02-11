@@ -53,15 +53,16 @@ class RunConfig:
         return dat
 
     @classmethod
-    def add_new_keys_for_0_1_1(cls, dat: dict):
+    def add_new_keys_for_0_1_1(cls, dat: dict) -> dict:
         assert "save_output_to_disk" not in dat
         dat["save_output_to_disk"] = None
         return dat
 
     @classmethod
-    def convert_dict(cls, dat: dict):
+    def convert_dict(cls, dat: dict) -> dict:
         dat = dict(dat)
         dat["dataset"] = DatasetChoice(dat.pop("dataset"))
+        return dat
 
     @classmethod
     def from_dict(cls, dat: dict):
@@ -110,7 +111,6 @@ class TrainRunConfig(RunConfig):
     @classmethod
     def convert_dict(cls, dat: dict):
         dat = super().convert_dict(dat)
-
         dat["crit_decay_weight_every_unit"] = PeriodUnit(dat.pop("crit_decay_weight_every_unit"))
         dat["criterion"] = CriterionChoice(dat.pop("criterion"))
         dat["lr_sched_thres_mode"] = LRSchedThresMode(dat.pop("lr_sched_thres_mode"))
