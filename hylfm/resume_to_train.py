@@ -5,15 +5,23 @@ import typer
 
 from hylfm import settings
 from hylfm.checkpoint import Checkpoint
+from hylfm.hylfm_types import DatasetChoice
 from hylfm.train import train_from_checkpoint
 
 app = typer.Typer()
 
 
 @app.command()
-def resume(checkpoint: Path, impatience: Optional[int] = typer.Option(None, "--impatience")):
+def resume(
+    checkpoint: Path,
+    dataset: Optional[DatasetChoice] = None,
+    impatience: Optional[int] = typer.Option(None, "--impatience"),
+):
 
     checkpoint = Checkpoint.load(checkpoint)
+    if dataset is not None:
+        checkpoint.config.dataset = dataset
+
     if impatience is not None:
         checkpoint.impatience = impatience
 
