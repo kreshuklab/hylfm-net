@@ -18,7 +18,9 @@ class Settings:
     download_dir: Path = Path(__file__).parent / "../../download"
     cache_dir: Path = Path(__file__).parent / "../../cache"
 
-    num_workers_data_loader: Dict[str, int] = field(default_factory=lambda: {dp.value: 0 if debug_mode else 8})
+    num_workers_data_loader: Dict[str, int] = field(
+        default_factory=lambda: {dp: 0 if debug_mode else 4 for dp in ("train", "validate", "test")}
+    )
     pin_memory: bool = False
 
     max_workers_per_dataset: int = 0 if debug_mode else 4

@@ -6,13 +6,13 @@ from hylfm.hylfm_types import CriterionChoice, TransformsPipeline
 from hylfm.utils.general import Period
 
 if TYPE_CHECKING:
-    from hylfm.checkpoint import Config
+    from hylfm.checkpoint import TrainRunConfig
 
 
 logger = logging.getLogger(__name__)
 
 
-def get_criterion(config: Config, transforms_pipeline: TransformsPipeline):
+def get_criterion(config: "TrainRunConfig", transforms_pipeline: TransformsPipeline):
     if config.criterion == CriterionChoice.L1:
         crit_kwargs = dict()
     elif config.criterion == CriterionChoice.MS_SSIM:

@@ -11,6 +11,7 @@ import PIL.Image
 import torch
 import wandb
 
+from hylfm.hylfm_types import MetricChoice
 from hylfm.utils.general import Period, PeriodUnit
 
 logger = logging.getLogger(__name__)
@@ -204,7 +205,7 @@ class WandbLogger(RunLogger):
 
 
 class WandbValidationLogger(WandbLogger):
-    def __init__(self, *, score_metric: str, minimize: bool, step: int = 0, **super_kwargs):
+    def __init__(self, *, score_metric: MetricChoice, minimize: bool, step: int = 0, **super_kwargs):
         super().__init__(
             **super_kwargs, step=step
         )  # no optional step, overwrite with training step to log validation at correct step
@@ -229,7 +230,7 @@ class WandbValidationLogger(WandbLogger):
         metrics = {"val_" + k: v for k, v in final_log.items()}
         wandb.log(metrics, step=step)
 
-        score = summary[self.score_metric]
+        score = summary[self.score_metric.value]
         if self.minimize:
             score *= -1
 

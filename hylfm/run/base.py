@@ -61,7 +61,10 @@ class Run:
 
         self.scale = scale
         self.shrink = shrink
-        run_logger.log_summary(step=0, scale=scale, shrink=shrink)
+
+        import wandb
+
+        wandb.summary.update(dict(scale=scale, shrink=shrink))
 
         self.dataset_part = dataset_part
         self.transforms_pipeline: Optional[TransformsPipeline] = None if model is None else get_transforms_pipeline(
@@ -86,7 +89,7 @@ class Run:
                 drop_last=self.dataset_part == DatasetPart.train,
             ),
             collate_fn=get_collate(batch_transformation=self.transforms_pipeline.batch_preprocessing),
-            num_workers=settings.num_workers_train_data_loader,
+            num_workers=settings.num_workers_data_loader[dataset_part.name],
             pin_memory=settings.pin_memory,
         )
         self.epoch_len = len(self.dataloader)

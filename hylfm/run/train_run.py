@@ -114,7 +114,7 @@ class TrainRun(Run):
             iteration=self.iteration,
             model_weights=self.model.state_dict(),
             optimizer_state_dict=self.optimizer.state_dict(),
-            lr_scheduler_state_dict=self.lr_scheduler.state_dict(),
+            lr_scheduler_state_dict=None if self.lr_scheduler is None else self.lr_scheduler.state_dict(),
             validation_iteration=self.validation_iteration,
         ).save(best=best)
 

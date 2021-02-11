@@ -121,19 +121,6 @@ def train(
     train_from_checkpoint(wandb_run, checkpoint=checkpoint)
 
 
-def resume(checkpoint: Path):
-    checkpoint = Checkpoint.load(checkpoint)
-    wandb_run = wandb.init(
-        project="HyLFM-train",
-        dir=str(settings.cache_dir),
-        config=checkpoint.config.as_dict(checkpoint.model),
-        resume="must",
-        name=checkpoint.training_run_name,
-        id=checkpoint.training_run_id,
-    )
-    train_from_checkpoint(wandb_run, checkpoint)
-
-
 def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
     cfg = checkpoint.config
     if cfg.seed is not None:
