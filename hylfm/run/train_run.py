@@ -85,6 +85,7 @@ class TrainRun(Run):
                 save_output_to_disk={},
                 win_sigma=cfg.win_sigma,
                 win_size=cfg.win_size,
+                hylfm_version=cfg.hylfm_version,
             ),
             model=model,
             score_metric=cfg.score_metric,
