@@ -1,3 +1,4 @@
+import collections
 from pathlib import Path
 from typing import Optional
 
@@ -19,20 +20,36 @@ def resume(
 ):
 
     checkpoint = Checkpoint.load(checkpoint)
+
+    changes = collections.OrderedDict()
     if dataset is not None:
         checkpoint.config.dataset = dataset
+        changes["dataset"] = dataset.value
 
     if impatience is not None:
         checkpoint.impatience = impatience
+        changes["impatience"] = impatience
+
+    if changes:
+        notes = "resumed with changes: " + " ".join([f"{k}: {v}" for k, v in changes.items()])
+    else:
+        notes = "resumed without changes"
 
     import wandb
+
+    config = checkpoint.as_dict(for_logging=True)
+    config["resumed_from"] = checkpoint.training_run_name
+
+    checkpoint.training_run_name = None
+    checkpoint.training_run_id = None
 
     wandb_run = wandb.init(
         project="HyLFM-train",
         dir=str(settings.cache_dir),
-        config=checkpoint.config.as_dict(checkpoint.model),
+        config=config,
         resume="must",
         name=checkpoint.training_run_name,
+        notes=notes,
         id=checkpoint.training_run_id,
     )
     train_from_checkpoint(wandb_run, checkpoint)
