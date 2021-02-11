@@ -44,6 +44,7 @@ class RunConfig:
     win_sigma: float
     win_size: int
     save_output_to_disk: Optional[Collection[str]]
+    hylfm_version: str
 
     def __post_init__(self):
         pass
@@ -54,8 +55,12 @@ class RunConfig:
 
     @classmethod
     def add_new_keys_for_0_1_1(cls, dat: dict) -> dict:
-        assert "save_output_to_disk" not in dat
-        dat["save_output_to_disk"] = None
+        if "hylfm_version" not in dat:
+            dat["hylfm_version"] = "0.0.0"
+
+        if "save_output_to_disk" not in dat:
+            dat["save_output_to_disk"] = None
+
         return dat
 
     @classmethod
@@ -68,7 +73,7 @@ class RunConfig:
     def from_dict(cls, dat: dict):
         converted = cls.convert_dict(dat)
 
-        if packaging.version.parse(dat["hylfm_version"]) < packaging.version.parse("0.1.1"):
+        if packaging.version.parse(dat.get("hylfm_version", "0.0.0")) < packaging.version.parse("0.1.1"):
             converted = cls.add_new_keys_for_0_1_1(converted)
 
         return cls(**converted)
@@ -128,8 +133,8 @@ class TrainRunConfig(RunConfig):
     def add_new_keys_for_0_1_1(cls, dat: dict):
         dat = super().add_new_keys_for_0_1_1(dat)
         for key in ["lr_sched_factor", "lr_sched_patience", "lr_sched_thres", "lr_sched_thres_mode", "lr_scheduler"]:
-            assert key not in dat
-            dat[key] = None
+            if key not in dat:
+                dat[key] = None
 
         return dat
 

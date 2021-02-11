@@ -221,4 +221,5 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> TrainRunConfig:
         validate_every_value=None,
         win_sigma=1.5,
         win_size=11,
+        hylfm_version="0.0.0"
     )

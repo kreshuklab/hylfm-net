@@ -1,4 +1,4 @@
-from hylfm import metrics, settings  # noqa: first line to set numpy env vars
+from hylfm import __version__, metrics, settings  # noqa: first line to set numpy env vars
 
 import logging
 import subprocess
@@ -107,6 +107,7 @@ def train(
         validate_every_value=validate_every_value,
         win_sigma=win_sigma,
         win_size=win_size,
+        hylfm_version=__version__,
     )
 
     wandb_run = wandb.init(project="HyLFM-train", dir=str(settings.cache_dir), config=config.as_dict(for_logging=True))

@@ -1,4 +1,4 @@
-from hylfm import metrics, settings  # noqa: first line to set numpy env vars
+from hylfm import __version__, metrics, settings  # noqa: first line to set numpy env vars
 
 import logging
 from typing import Optional
@@ -42,6 +42,7 @@ def tst_precomputed(
         win_sigma=win_sigma,
         win_size=win_size,
         save_output_to_disk={},
+        hylfm_version=__version__,
     )
 
     import wandb
