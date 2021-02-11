@@ -52,14 +52,14 @@ class RunConfig:
         dat = conv_to_simple_dtypes(asdict(self))
         return dat
 
-    @staticmethod
-    def add_new_keys_for_0_1_1(dat: dict):
+    @classmethod
+    def add_new_keys_for_0_1_1(cls, dat: dict):
         assert "save_output_to_disk" not in dat
         dat["save_output_to_disk"] = None
         return dat
 
-    @staticmethod
-    def convert_dict(dat: dict):
+    @classmethod
+    def convert_dict(cls, dat: dict):
         dat = dict(dat)
         dat["dataset"] = DatasetChoice(dat.pop("dataset"))
 
@@ -107,8 +107,8 @@ class TrainRunConfig(RunConfig):
 
     model_weights_name: Optional[str] = field(init=False)
 
-    @staticmethod
-    def convert_dict(dat: dict):
+    @classmethod
+    def convert_dict(cls, dat: dict):
         dat = super().convert_dict(dat)
 
         dat["crit_decay_weight_every_unit"] = PeriodUnit(dat.pop("crit_decay_weight_every_unit"))
@@ -124,8 +124,8 @@ class TrainRunConfig(RunConfig):
 
         return dat
 
-    @staticmethod
-    def add_new_keys_for_0_1_1(dat: dict):
+    @classmethod
+    def add_new_keys_for_0_1_1(cls, dat: dict):
         dat = super().add_new_keys_for_0_1_1(dat)
         for key in ["lr_sched_factor", "lr_sched_patience", "lr_sched_thres", "lr_sched_thres_mode", "lr_scheduler"]:
             assert key not in dat
@@ -251,9 +251,16 @@ class TestRunConfig(RunConfig):
 
     def as_dict(self, for_logging: bool = True):
         dat = super().as_dict(for_logging=for_logging)
+        checkpoint_key = "cp" if for_logging else "checkpoint"
         if dat.pop("checkpoint") is None:
-            dat["cp"] = None
+            dat[checkpoint_key] = None
         else:
-            dat["cp"] = self.checkpoint.path
+            dat[checkpoint_key] = self.checkpoint.path
 
+        return dat
+
+    @classmethod
+    def convert_dict(cls, dat: dict):
+        dat = super().convert_dict(dat)
+        dat["checkpoint"] = Checkpoint.load(Path(dat["checkpoint"]))
         return dat
