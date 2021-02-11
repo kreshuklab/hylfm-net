@@ -66,6 +66,22 @@ def get_criterion(config: "TrainRunConfig", transforms_pipeline: TransformsPipel
             win_size=config.win_size,
             win_sigma=config.win_sigma,
         )
+    elif config.criterion == CriterionChoice.WeightedL1_MS_SSIM:
+        crit_kwargs = dict(
+            threshold=config.crit_threshold,
+            weight=config.crit_weight,
+            apply_weight_above_threshold=config.crit_apply_weight_above_threshold,
+            decay_weight_by=config.crit_decay_weight_by,
+            decay_weight_every=Period(config.crit_decay_weight_every_value, config.crit_decay_weight_every_unit),
+            decay_weight_limit=config.crit_decay_weight_limit,
+            ms_ssim_weight=config.crit_ms_ssim_weight,
+            channel=1,
+            data_range=config.data_range,
+            size_average=True,
+            spatial_dims=transforms_pipeline.spatial_dims,
+            win_size=config.win_size,
+            win_sigma=config.win_sigma,
+        )
     else:
         raise NotImplementedError(config.criterion)
 
