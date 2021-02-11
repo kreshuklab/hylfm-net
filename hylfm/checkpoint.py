@@ -140,6 +140,9 @@ class TrainRunConfig(RunConfig):
         if "lr_sched_thres_mode" not in dat:
             dat["lr_sched_thres_mode"] = LRSchedThresMode.abs
 
+        if "score_metric" not in dat:
+            dat["score_metric"] = MetricChoice.MS_SSIM.value
+
         return dat
 
     def __post_init__(self):
