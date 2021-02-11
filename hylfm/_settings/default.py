@@ -1,10 +1,10 @@
 import logging
 import os
 import sys
-import typing
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -17,27 +17,24 @@ class Settings:
     log_dir: Path = Path(__file__).parent / "../../logs"
     download_dir: Path = Path(__file__).parent / "../../download"
     cache_dir: Path = Path(__file__).parent / "../../cache"
-    # configs_dir: Path = Path(__file__).parent / "../../configs"
 
-    num_workers_train_data_loader: int = 1 if debug_mode else 2
-    num_workers_validate_data_loader: int = 1 if debug_mode else 2
-    num_workers_test_data_loader: int = 1 if debug_mode else 2
+    num_workers_data_loader: Dict[str, int] = field(default_factory=lambda: {dp.value: 0 if debug_mode else 8})
     pin_memory: bool = False
 
     max_workers_per_dataset: int = 0 if debug_mode else 4
     reserved_workers_per_dataset_for_getitem: int = 0
-    max_workers_file_logger: int = 1 if debug_mode else 4
     max_workers_for_hist: int = 0 if debug_mode else 0
     max_workers_for_stat: int = 0 if debug_mode else 0
-    max_workers_for_trace: int = 1 if debug_mode else 4
+    # max_workers_file_logger: int = 1 if debug_mode else 4
+    # max_workers_for_trace: int = 1 if debug_mode else 4
     multiprocessing_start_method: str = "spawn"
-    OMP_NUM_THREADS: typing.Optional[int] = 1
-    OPENBLAS_NUM_THREADS: typing.Optional[int] = 0
-    MKL_NUM_THREADS: typing.Optional[int] = 0
-    VECLIB_MAXIMUM_THREADS: typing.Optional[int] = 0
-    NUMEXPR_NUM_THREADS: typing.Optional[int] = 0
+    OMP_NUM_THREADS: Optional[int] = 1
+    OPENBLAS_NUM_THREADS: Optional[int] = 0
+    MKL_NUM_THREADS: Optional[int] = 0
+    VECLIB_MAXIMUM_THREADS: Optional[int] = 0
+    NUMEXPR_NUM_THREADS: Optional[int] = 0
 
-    data_roots: typing.Dict[str, Path] = field(default_factory=dict)
+    data_roots: Dict[str, Path] = field(default_factory=dict)
 
     nice: int = 10
 
@@ -80,6 +77,7 @@ class Settings:
 
         if self.multiprocessing_start_method:
             import torch.multiprocessing
+
             start_method = torch.multiprocessing.get_start_method(allow_none=True)
             if start_method is None:
                 torch.multiprocessing.set_start_method(self.multiprocessing_start_method)

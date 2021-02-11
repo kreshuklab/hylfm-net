@@ -4,37 +4,26 @@ import logging
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional, Type
+from typing import Optional
 
 import numpy
 import torch.optim
 import typer
 import wandb
 from merge_args import merge_args
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 
-import hylfm
-import hylfm.criteria
-from hylfm.checkpoint import Checkpoint, Config
-from hylfm.datasets import get_collate
-from hylfm.datasets.named import get_dataset
+from hylfm.checkpoint import Checkpoint, TrainRunConfig
 from hylfm.get_model import get_model
 from hylfm.hylfm_types import (
     CriterionChoice,
     DatasetChoice,
-    DatasetPart,
     LRSchedThresMode,
     LRSchedulerChoice,
     MetricChoice,
     OptimizerChoice,
 )
-from hylfm.metrics import MetricGroup
-from hylfm.run.eval_run import ValidationRun
-from hylfm.run.run_logger import WandbLogger, WandbValidationLogger
 from hylfm.run.train_run import TrainRun
-from hylfm.sampler import NoCrossBatchSampler
-from hylfm.transform_pipelines import get_transforms_pipeline
-from hylfm.utils.general import Period, PeriodUnit
+from hylfm.utils.general import PeriodUnit
 
 app = typer.Typer()
 
@@ -81,7 +70,7 @@ def train(
     win_size: int = typer.Option(11, "--win_size"),
     **model_kwargs,
 ):
-    config = Config(
+    config = TrainRunConfig(
         batch_multiplier=batch_multiplier,
         batch_size=batch_size,
         crit_apply_weight_above_threshold=crit_apply_weight_above_threshold,
@@ -111,6 +100,7 @@ def train(
         opt_weight_decay=opt_weight_decay,
         optimizer=optimizer,
         patience=patience,
+        save_output_to_disk={},
         score_metric=score_metric,
         seed=seed,
         validate_every_unit=validate_every_unit,
@@ -150,30 +140,10 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
         numpy.random.seed(cfg.seed)
         torch.manual_seed(cfg.seed)
 
-    train_run = TrainRun(checkpoint=checkpoint)
-
+    train_run = TrainRun(wandb_run=wandb_run, checkpoint=checkpoint)
     train_run.fit()
 
-    subprocess.run(
-        [
-            sys.executable,
-            str(Path(__file__).parent / "tst.py"),
-            "--associated_train_run_name",
-            str(wandb_run.name),
-            "--batch_size",
-            str(cfg.eval_batch_size),
-            "--data_range",
-            str(cfg.data_range),
-            "--interpolation_order",
-            str(cfg.interpolation_order),
-            "--win_sigma",
-            str(cfg.win_sigma),
-            "--win_size",
-            str(cfg.win_size),
-            "--light_logging",
-            str(settings.log_dir / "checkpoints" / wandb_run.name),
-        ]
-    )
+    subprocess.run([sys.executable, str(Path(__file__).parent / "tst.py"), "--light_logging", str(checkpoint.path)])
 
 
 if __name__ == "__main__":

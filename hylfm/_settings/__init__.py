@@ -6,4 +6,4 @@ if not local_path.exists():
     template_path = Path(__file__).parent / "local.template.py"
     shutil.copy(template_path, local_path)
 
-from .local import settings
+from .local import settings  # noqa

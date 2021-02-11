@@ -2,60 +2,46 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional, Type
 
-import hylfm.metrics
 import torch.utils.data
 from tqdm import tqdm
 
-from hylfm.checkpoint import Checkpoint
-from hylfm.hylfm_types import (
-    CriterionLike,
-    DatasetPart,
-    LRScheduler,
-    LRSchedulerChoice,
-    Optimizer,
-    OptimizerChoice,
-    TransformLike,
-)
-from hylfm.metrics.base import MetricGroup
+import hylfm.metrics
+from hylfm.checkpoint import Checkpoint, RunConfig, TrainRunConfig
+from hylfm.get_criterion import get_criterion
+from hylfm.get_model import get_model
+from hylfm.hylfm_types import DatasetPart, LRScheduler, LRSchedulerChoice, Optimizer, OptimizerChoice
+from hylfm.model import HyLFM_Net
 from hylfm.utils.general import Period
 from .base import Run
 from .eval_run import ValidationRun
-from .run_logger import RunLogger, WandbLogger
-from .. import settings
-from ..get_criterion import get_criterion
-from ..get_model import get_model
-from ..model import HyLFM_Net
+from .run_logger import WandbLogger
 
 logger = logging.getLogger(__name__)
 
 
 class TrainRun(Run):
-    # state
-    best_validation_score: float
-    impatience: int
-    validation_iteration: int
-    epoch: int
-    iteration: int
-    training_run_id: str
+    config: TrainRunConfig
 
-    def __init__(self, *, checkpoint: Checkpoint):
+    def __init__(self, *, wandb_run, checkpoint: Checkpoint):
         cfg = checkpoint.config
         model: HyLFM_Net = get_model(**cfg.model)
         if checkpoint.model_weights is not None:
             model.load_state_dict(checkpoint.model_weights, strict=True)
 
+        self.wandb_run = wandb_run
+        assert wandb_run.name == checkpoint.training_run_name
+        scale = model.get_scale()
         super().__init__(
-            model=model,
             config=checkpoint.config,
+            dataset_part=DatasetPart.train,
+            model=model,
             name=checkpoint.training_run_name,
-            dataset_parts=(DatasetPart.train, DatasetPart.validate),
+            run_logger=WandbLogger(point_cloud_threshold=0.3, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)),
         )
 
         self.current_best_checkpoint_on_disk: Optional[Path] = None
 
-        self.criterion = get_criterion(
-            config=self.config, transforms_pipeline=self.transforms_pipelines[DatasetPart.train]
-        )
+        self.criterion = get_criterion(config=self.config, transforms_pipeline=self.transforms_pipeline)
 
         opt_class: Type[Optimizer] = getattr(torch.optim, self.config.optimizer.name)
         opt_kwargs = {"lr": self.config.opt_lr, "weight_decay": self.config.opt_weight_decay}
@@ -65,8 +51,8 @@ class TrainRun(Run):
         self.optimizer: Optimizer = opt_class(self.model.parameters(), **opt_kwargs)
         self.optimizer.zero_grad()  # calling zero_grad here, because of how batch_multiplier is implemented in TrainRun
 
-        if checkpoint.opt_state_dict is not None:
-            self.optimizer.load_state_dict(checkpoint.opt_state_dict)
+        if checkpoint.optimizer_state_dict is not None:
+            self.optimizer.load_state_dict(checkpoint.optimizer_state_dict)
 
         if self.config.lr_scheduler is None:
             assert checkpoint.lr_scheduler_state_dict is None
@@ -90,35 +76,22 @@ class TrainRun(Run):
             if checkpoint.lr_scheduler_state_dict is not None:
                 self.lr_scheduler.load_state_dict(checkpoint.lr_scheduler_state_dict)
 
-        self.root = settings.log_dir / "checkpoints" / self.training_run_name
-        self.root.mkdir(parents=True, exist_ok=True)
-
         self.validator = ValidationRun(
-            # batch_postprocessing=transforms_pipelines[part].batch_postprocessing,
-            # batch_premetric_trf=transforms_pipelines[part].batch_premetric_trf,
-            # batch_preprocessing_in_step=transforms_pipelines[part].batch_preprocessing_in_step,
-            # dataloader=dataloaders[part],
-            # batch_size=cfg.eval_batch_size,
-            # log_pred_vs_spim=False,
-            # metrics=metric_groups[part],
-            # minimize=getattr(metrics, score_metric.replace("-", "_")).minimize,
-            # model=model,
-            # run_logger=WandbValidationLogger(
-            #     point_cloud_threshold=0.3,
-            #     zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale),
-            #     score_metric=score_metric,
-            #     minimize=getattr(metrics, score_metric.replace("-", "_")).minimize,
-            # ),
-            # save_pred_to_disk=None,
-            # save_spim_to_disk=None,
-            # score_metric=score_metric,
-            # tgt_name=transforms_pipelines[part].tgt_name,
+            config=RunConfig(
+                batch_size=cfg.eval_batch_size,
+                data_range=cfg.data_range,
+                dataset=cfg.dataset,
+                interpolation_order=cfg.interpolation_order,
+                save_output_to_disk={},
+                win_sigma=cfg.win_sigma,
+                win_size=cfg.win_size,
+            ),
+            model=model,
+            score_metric=cfg.score_metric,
+            name=self.name,
         )
         self.validate_every = Period(cfg.validate_every_value, cfg.validate_every_unit)
-        self.epoch_len = len(self.dataloaders[DatasetPart.train])
-
-        self.batch_preprocessing_in_step = self.
-
+        self.epoch_len = len(self.dataloader)
 
         self.best_validation_score = checkpoint.best_validation_score
         self.epoch = checkpoint.epoch
@@ -126,24 +99,31 @@ class TrainRun(Run):
         self.iteration = checkpoint.iteration
         self.training_run_id = checkpoint.training_run_id
         self.validation_iteration = checkpoint.validation_iteration
-        self.run_logger = WandbLogger(
-            point_cloud_threshold=0.3, zyx_scaling=(5, 0.7 * 8 / self.scale, 0.7 * 8 / self.scale)
-        )
 
     def save_a_checkpoint(self, best: bool, keep_anyway: bool):
-        Checkpoint(
-            best_validation_score=self.best_validation_score,
+        if not (best or keep_anyway):
+            return
+
+        path = Checkpoint(
             config=self.config,
+            training_run_id=self.training_run_id,
+            training_run_name=self.name,
+            best_validation_score=self.best_validation_score,
             epoch=self.epoch,
             impatience=self.impatience,
             iteration=self.iteration,
             model_weights=self.model.state_dict(),
-            opt_state_dict=self.optimizer.state_dict(),
-            scheduler_state_dict=self.scheduler.state_dict(),
-            training_run_id=self.training_run_id,
-            training_run_name=self.name,
+            optimizer_state_dict=self.optimizer.state_dict(),
+            lr_scheduler_state_dict=self.lr_scheduler.state_dict(),
             validation_iteration=self.validation_iteration,
-        ).save(best=best, keep_anyway=keep_anyway)
+        ).save(best=best)
+
+        # remove old best
+        if self.current_best_checkpoint_on_disk is not None:
+            self.current_best_checkpoint_on_disk.unlink()
+
+        # remember current best to delete on finding new best
+        self.current_best_checkpoint_on_disk = None if keep_anyway else path
 
     def fit(self):
         for _ in self:
@@ -152,7 +132,7 @@ class TrainRun(Run):
     def _validate(self) -> float:
         self.validation_iteration += 1
         validation_score = self.validator.get_validation_score(
-            step=(self.epoch * self.epoch_len + self.iteration) * self.batch_size
+            step=(self.epoch * self.epoch_len + self.iteration) * self.config.batch_size
         )
         best = self.best_validation_score is None or self.best_validation_score < validation_score
         val_it_is_power_of_two = self.validation_iteration & (self.validation_iteration - 1) == 0
@@ -181,24 +161,32 @@ class TrainRun(Run):
 
         assert "batch_len" in batch
 
-        batch = self.batch_preprocessing_in_step(batch)
+        batch = self.transforms_pipeline.batch_preprocessing_in_step(batch)
         batch["pred"] = self.model(batch["lfc"])
-        batch = self.batch_postprocessing(batch)
+        batch = self.transforms_pipeline.batch_postprocessing(batch)
 
         loss = (
-            self.criterion(batch["pred"], batch[self.tgt_name], epoch=ep, iteration=it, epoch_len=self.epoch_len)
-            / self.batch_multiplier
+            self.criterion(
+                batch["pred"],
+                batch[self.transforms_pipeline.tgt_name],
+                epoch=ep,
+                iteration=it,
+                epoch_len=self.epoch_len,
+            )
+            / self.config.batch_multiplier
         )
         if not self.criterion.minimize:
             loss *= -1
 
         loss.backward()
-        if (it + 1) % self.batch_multiplier == 0:
+        if (it + 1) % self.config.batch_multiplier == 0:
             self.optimizer.step()
             self.optimizer.zero_grad()
 
-        batch = self.batch_premetric_trf(batch)
-        step_metrics = self.train_metrics.update_with_batch(prediction=batch["pred"], target=batch[self.tgt_name])
+        batch = self.transforms_pipeline.batch_premetric_trf(batch)
+        step_metrics = self.metric_group.update_with_batch(
+            prediction=batch["pred"], target=batch[self.transforms_pipeline.tgt_name]
+        )
         step_metrics[self.criterion.__class__.__name__ + "_loss"] = loss.item()
         for from_batch in ["NormalizeMSE.alpha", "NormalizeMSE.beta"]:
             assert from_batch not in step_metrics
@@ -222,17 +210,19 @@ class TrainRun(Run):
         zero_max_threshold = 0.01
         zero_max_patience = 10
         zero_max_impatience = 0
-        for epoch in range(self.epoch, self.max_epochs):
+        for epoch in range(self.epoch, self.config.max_epochs):
             self.epoch = epoch
             for it, batch in tqdm(
-                enumerate(self.dataloader), desc=f"{self.name}|ep {epoch + 1:3}/{self.max_epochs}", total=self.epoch_len
+                enumerate(self.dataloader),
+                desc=f"{self.name}|ep {epoch + 1:3}/{self.config.max_epochs}",
+                total=self.epoch_len,
             ):
                 if it < self.iteration:
                     # catch up with loaded state
                     logger.warning("skipping iteration %s to resume at %s", it, self.iteration)
                     continue
 
-                if self.impatience > self.patience:
+                if self.impatience > self.config.patience:
                     stop_early = True
                     logger.warning("stopping early after %s non-improving validations", self.impatience)
                     break
@@ -259,5 +249,5 @@ class TrainRun(Run):
         else:
             self.epoch += 1
 
-        self.run_logger.log_summary(step=self.epoch * self.epoch_len + self.iteration, **self.metrics.compute())
-        self.metrics.reset()
+        self.run_logger.log_summary(step=self.epoch * self.epoch_len + self.iteration, **self.metric_group.compute())
+        self.metric_group.reset()

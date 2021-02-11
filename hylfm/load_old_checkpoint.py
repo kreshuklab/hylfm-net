@@ -1,10 +1,9 @@
 from pathlib import Path
-from typing import Any, Dict
 
-from hylfm.checkpoint import Config
+from hylfm.checkpoint import RunConfig, TrainRunConfig
 
 
-def get_config_for_old_checkpoint(checkpoint: Path) -> Config:
+def get_config_for_old_checkpoint(checkpoint: Path) -> TrainRunConfig:
     if checkpoint.name in [
         "v1_checkpoint_498_MS_SSIM=0.9710696664723483.pth",  # heart stat
         "v1_checkpoint_MSSSIM=0.6722144321961836.pth",
@@ -185,10 +184,9 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> Config:
     else:
         raise NotImplementedError(checkpoint)
 
-    return Config(
+    return TrainRunConfig(
         batch_multiplier=None,
         batch_size=None,
-        criterion=None,
         crit_apply_weight_above_threshold=None,
         crit_beta=None,
         crit_decay_weight_by=None,
@@ -198,21 +196,29 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> Config:
         crit_ms_ssim_weight=None,
         crit_threshold=None,
         crit_weight=None,
-        data_range=None,
+        criterion=None,
+        data_range=1.0,
         dataset=None,
         eval_batch_size=None,
-        interpolation_order=None,
+        interpolation_order=2,
+        lr_sched_factor=None,
+        lr_sched_patience=None,
+        lr_sched_thres=None,
+        lr_sched_thres_mode=None,
+        lr_scheduler=None,
         max_epochs=None,
         model=model_config,
         model_weights=checkpoint,
-        optimizer=None,
         opt_lr=None,
         opt_momentum=None,
         opt_weight_decay=None,
+        optimizer=None,
         patience=None,
+        save_output_to_disk=set(),
+        score_metric=None,
         seed=None,
         validate_every_unit=None,
         validate_every_value=None,
-        win_sigma=None,
-        win_size=None,
+        win_sigma=1.5,
+        win_size=11,
     )
