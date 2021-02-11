@@ -130,7 +130,14 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
     train_run = TrainRun(wandb_run=wandb_run, checkpoint=checkpoint)
     train_run.fit()
 
-    subprocess.run([sys.executable, str(Path(__file__).parent / "tst.py"), "--light_logging", str(checkpoint.path)])
+    subprocess.run(
+        [
+            sys.executable,
+            str(Path(__file__).parent / "tst.py"),
+            "--light_logging",
+            str(checkpoint.path.with_stem("best")),
+        ]
+    )
 
 
 if __name__ == "__main__":

@@ -100,11 +100,8 @@ class TrainRun(Run):
         self.training_run_id = checkpoint.training_run_id
         self.validation_iteration = checkpoint.validation_iteration
 
-    def save_a_checkpoint(self, best: bool, keep_anyway: bool):
-        if not (best or keep_anyway):
-            return
-
-        path = Checkpoint(
+    def get_checkpoint(self):
+        return Checkpoint(
             config=self.config,
             training_run_id=self.training_run_id,
             training_run_name=self.name,
@@ -116,7 +113,13 @@ class TrainRun(Run):
             optimizer_state_dict=self.optimizer.state_dict(),
             lr_scheduler_state_dict=None if self.lr_scheduler is None else self.lr_scheduler.state_dict(),
             validation_iteration=self.validation_iteration,
-        ).save(best=best)
+        )
+
+    def save_a_checkpoint(self, best: bool, keep_anyway: bool):
+        if not (best or keep_anyway):
+            return
+
+        path = self.get_checkpoint().save(best=best)
 
         # remove old best
         if self.current_best_checkpoint_on_disk is not None:
