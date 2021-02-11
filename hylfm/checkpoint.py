@@ -240,9 +240,8 @@ class Checkpoint:
         dat.pop("config")
         if for_logging:
             config_key = "cfg"
-            for f in fields(self):
-                if not f.init and not f.metadata.get("log", False):
-                    dat.pop(f.name)
+            for key in ["lr_scheduler_state_dict", "model_weights", "optimizer_state_dict"]:
+                dat.pop(key)
         else:
             config_key = "config"
             for f in fields(self):
