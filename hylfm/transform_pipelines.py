@@ -143,25 +143,29 @@ def get_transforms_pipeline(
             DatasetChoice.heart_static_a,
             DatasetChoice.heart_static_b,
             DatasetChoice.heart_static_c,
+            DatasetChoice.heart_dyn_refine,
         ]
         or dataset_part != DatasetPart.test
         and dataset_name in [DatasetChoice.heart_static_fish2_f4, DatasetChoice.heart_static_fish2_f4_sliced]
     ):
-        spim = "ls_slice" if sliced else "ls_trf"
-        crop_names.update({"staticHeartFOV", "Heart_tightCrop"})
+        spim = "ls_slice" if sliced or dynamic else "ls_trf"
+        crop_names.add("Heart_tightCrop")
+        if dataset_name != DatasetChoice.heart_dyn_refine:
+            crop_names.add("staticHeartFOV")
+
         sample_precache_trf = []
 
-        if dataset_name in [DatasetChoice.heart_static_c, DatasetChoice.heart_static_sample0]:
-            spim_max_percentile = 99.8
-        else:
+        if dataset_name == DatasetChoice.heart_static_a:
             spim_max_percentile = 99.99
+        else:
+            spim_max_percentile = 99.8
 
         sample_preprocessing = ComposedTransform(
             CropWhatShrinkDoesNot(
                 apply_to="lf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=True, crop_names=crop_names
             )
         )
-        if sliced:
+        if sliced or dynamic:
             assert spim == "ls_slice"
             sample_preprocessing += CropLSforDynamicTraining(
                 apply_to=spim, crop_names=crop_names, nnum=nnum, scale=scale, z_ls_rescaled=z_ls_rescaled
@@ -247,7 +251,7 @@ def get_transforms_pipeline(
         raise NotImplementedError(dataset_name)
 
     meta["crop_names"] = crop_names
-    if sliced:
+    if sliced or dynamic:
         assert spim == "ls_slice"
         batch_postprocessing += ComposedTransform(
             AffineTransformationDynamicTraining(

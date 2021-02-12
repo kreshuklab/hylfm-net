@@ -537,6 +537,31 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
 
         heart_static_fish2_f4_dataset = ZipDataset(datasets, transform=transforms_pipeline.sample_preprocessing)
         sections.append([heart_static_fish2_f4_dataset])
+    elif name == DatasetChoice.heart_dyn_refine:
+        filters = [("z_range", {})]
+        split_at = 964
+        if part == DatasetPart.train:
+            indices = slice(split_at, None, None)
+        elif part == DatasetPart.validate:
+            indices = slice(0, split_at, 4)
+        elif part == DatasetPart.test:
+            indices = slice(0, split_at)
+        else:
+            raise NotImplementedError(part)
+
+        tag = "2019-12-09_04.54.38"
+        sections.append(
+            [
+                get_dataset_subsection(
+                    tensors={"lf": f"heart.{tag}", "ls_slice": f"heart.{tag}", "meta": transforms_pipeline.meta},
+                    filters=filters,
+                    indices=indices,
+                    preprocess_sample=transforms_pipeline.sample_precache_trf,
+                    augment_sample=transforms_pipeline.sample_preprocessing,
+                )
+            ]
+        )
+
     else:
         raise NotImplementedError(name)
 

@@ -76,6 +76,7 @@ class DatasetChoice(str, Enum):
     heart_static_c_care_complex = "heart_static_c_care_complex"
     heart_static_fish2_f4 = "heart_static_fish2_f4"
     heart_static_fish2_f4_sliced = "heart_static_fish2_f4_sliced"
+    heart_dyn_refine = "heart_dyn_refine"
 
 
 class DatasetPart(str, Enum):
