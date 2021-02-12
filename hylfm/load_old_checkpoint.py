@@ -12,7 +12,7 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> TrainRunConfig:
         "v1_checkpoint_28200_ms_ssim-scaled=0.8401095325296576.pth",
         "v1_checkpoint_37500_ms_ssim-scaled=0.8358002250844782.pth",
         "v1_checkpoint_0_ms_ssim-scaled=0.8727825609120455.pth",
-        "v1_checkpoint_9900_ms_ssim-scaled=0.8582265810533003.pt",
+        "v1_checkpoint_9900_ms_ssim-scaled=0.8582265810533003.pth",
     ]:
         model_config = {
             "nnum": 19,
