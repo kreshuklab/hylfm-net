@@ -55,7 +55,7 @@ class RunConfig:
         return dat
 
     @classmethod
-    def add_new_keys_for_0_1_1(cls, dat: dict) -> dict:
+    def add_new_keys_for_0_1_2(cls, dat: dict) -> dict:
         if "hylfm_version" not in dat:
             dat["hylfm_version"] = "0.0.0"
 
@@ -76,8 +76,8 @@ class RunConfig:
     @classmethod
     def from_dict(cls, dat: dict):
         dat = dict(dat)
-        if packaging.version.parse(dat.get("hylfm_version", "0.0.0")) < packaging.version.parse("0.1.1"):
-            dat = cls.add_new_keys_for_0_1_1(dat)
+        if packaging.version.parse(dat.get("hylfm_version", "0.0.0")) < packaging.version.parse("0.1.2"):
+            dat = cls.add_new_keys_for_0_1_2(dat)
 
         dat = cls.convert_dict(dat)
 
@@ -142,8 +142,8 @@ class TrainRunConfig(RunConfig):
         return dat
 
     @classmethod
-    def add_new_keys_for_0_1_1(cls, dat: dict):
-        dat = super().add_new_keys_for_0_1_1(dat)
+    def add_new_keys_for_0_1_2(cls, dat: dict):
+        dat = super().add_new_keys_for_0_1_2(dat)
         for key in ["lr_sched_factor", "lr_sched_patience", "lr_sched_thres", "lr_scheduler"]:
             if key not in dat:
                 dat[key] = None
