@@ -178,7 +178,10 @@ class WandbLogger(RunLogger):
                 name = key[:-2] + "_avg"
                 table = wandb.Table(data=[[d, v] for d, v in enumerate(value)], columns=[dim, name])
                 final_log[key + "_scatter_avg"] = wandb.plot.scatter(table=table, x=dim, y=name)
-                summary[key] = value.mean().item()
+                try:
+                    summary[key] = value.mean().item()
+                except Exception as e:
+                    logger.error(e)
 
             elif isinstance(value, (float, int)):
                 summary[key] = value
@@ -193,7 +196,10 @@ class WandbLogger(RunLogger):
             data = [[s] for s in data]
             table = wandb.Table(data=data, columns=[key])
             final_log[key + "_hist"] = wandb.plot.histogram(table, key, title="hist: " + key)
-            summary[key] = value.mean().item()
+            try:
+                summary[key] = value.mean().item()
+            except Exception as e:
+                logger.error(e)
 
         return final_log, summary
 
