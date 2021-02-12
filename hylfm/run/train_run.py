@@ -198,11 +198,13 @@ class TrainRun(Run):
                 step_metrics[from_batch] = batch[from_batch]
 
         opt_param_groups = self.optimizer.state_dict()["param_groups"]
-        step_metrics["lr"] = opt_param_groups[0]["lr"]
 
         if self.validate_every.match(epoch=ep, iteration=it, epoch_len=self.epoch_len):
-            step_metrics[self.validator.score_metric + "_val-score"] = self._validate()
+            val_score = self._validate()
+            step_metrics[self.validator.score_metric + "_val-score"] = val_score
+            self.lr_scheduler.step(val_score)
 
+        step_metrics["lr"] = opt_param_groups[0]["lr"]
         step = (ep * self.epoch_len + it) * self.config.batch_size
         self.run_logger(epoch=ep, iteration=it, epoch_len=self.epoch_len, step=step, **step_metrics)
 

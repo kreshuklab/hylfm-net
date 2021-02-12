@@ -21,7 +21,6 @@ except ImportError:
 
 Array = Union[numpy.ndarray, torch.Tensor]
 
-LRScheduler = torch.optim.lr_scheduler._LRScheduler
 
 Optimizer = torch.optim.Optimizer
 
@@ -87,6 +86,9 @@ class DatasetPart(str, Enum):
 
 class LRSchedulerChoice(str, Enum):
     ReduceLROnPlateau = "ReduceLROnPlateau"
+
+
+LRScheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
 
 
 class LRSchedThresMode(str, Enum):
