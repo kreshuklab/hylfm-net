@@ -112,7 +112,14 @@ class TrainRunConfig(RunConfig):
     validate_every_unit: PeriodUnit
     validate_every_value: int
 
-    model_weights_name: Optional[str] = field(init=False)
+    model_weights_name: Optional[str] = None
+
+    def as_dict(self, for_logging: bool = False) -> dict:
+        dat = super().as_dict(for_logging=for_logging)
+        if not for_logging:
+            dat.pop("model_weights_name")
+
+        return dat
 
     @classmethod
     def convert_dict(cls, dat: dict):
@@ -147,9 +154,7 @@ class TrainRunConfig(RunConfig):
 
     def __post_init__(self):
         super().__post_init__()
-        if self.model_weights is None:
-            self.model_weights_name = None
-        else:
+        if self.model_weights is not None and self.model_weights_name is None:
             self.model_weights_name = self.model_weights.stem
 
 
