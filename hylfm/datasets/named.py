@@ -553,7 +553,7 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
         sections.append(
             [
                 get_dataset_subsection(
-                    tensors={"lf": f"heart.{tag}", "ls_slice": f"heart.{tag}", "meta": transforms_pipeline.meta},
+                    tensors={"lf": f"heart_dynamic.{tag}", "ls_slice": f"heart_dynamic.{tag}", "meta": transforms_pipeline.meta},
                     filters=filters,
                     indices=indices,
                     preprocess_sample=transforms_pipeline.sample_precache_trf,

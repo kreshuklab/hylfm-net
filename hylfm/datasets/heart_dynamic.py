@@ -14,7 +14,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     assert "z_out" in meta
     assert "nnum" in meta
     assert "interpolation_order" in meta
-    assert "expected_scale" in meta
+    assert "scale" in meta
     assert "z_ls_rescaled" in meta
     assert "pred_z_min" in meta
     assert "pred_z_max" in meta
@@ -405,7 +405,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         root=root,
         location=location,
         insert_singleton_axes_at=insert_singleton_axes_at,
-        transformations=transformations,
+        transforms=transformations,
         z_slice=z_slice,
         samples_per_dataset=samples_per_dataset,
         repeat=repeat,

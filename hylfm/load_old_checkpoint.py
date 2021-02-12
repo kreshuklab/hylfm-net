@@ -189,8 +189,8 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> TrainRunConfig:
         raise NotImplementedError(checkpoint)
 
     return TrainRunConfig(
-        batch_multiplier=None,
-        batch_size=None,
+        batch_multiplier=1,
+        batch_size=1,
         crit_apply_weight_above_threshold=None,
         crit_beta=None,
         crit_decay_weight_by=None,
@@ -203,7 +203,7 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> TrainRunConfig:
         criterion=None,
         data_range=1.0,
         dataset=None,
-        eval_batch_size=None,
+        eval_batch_size=1,
         interpolation_order=2,
         lr_sched_factor=None,
         lr_sched_patience=None,
