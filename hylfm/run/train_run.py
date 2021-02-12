@@ -232,6 +232,8 @@ class TrainRun(Run):
 
                 if self.val_it_is_power_of_two or self.val_it_is_best:
                     self.save_a_checkpoint(best=self.val_it_is_best, keep_anyway=self.val_it_is_power_of_two)
+                    self.val_it_is_power_of_two = False
+                    self.val_it_is_best = False
 
                 if self.impatience > self.config.patience:
                     stop_early = True
@@ -259,6 +261,9 @@ class TrainRun(Run):
             self.iteration = 0
         else:
             self.epoch += 1
+
+        # save latest checkpoint
+        self.save_a_checkpoint(best=self.val_it_is_best, keep_anyway=True)
 
         self.run_logger.log_summary(step=self.epoch * self.epoch_len + self.iteration, **self.metric_group.compute())
         self.metric_group.reset()
