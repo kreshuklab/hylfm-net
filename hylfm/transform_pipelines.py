@@ -93,7 +93,7 @@ def get_transforms_pipeline(
 
     elif dataset_name in [DatasetChoice.beads_sample0, DatasetChoice.beads_highc_b]:
         spim = "ls_reg"
-        if dataset_name == DatasetChoice.beads_highc_a and dataset_part == DatasetPart.train:
+        if dataset_name == DatasetChoice.beads_highc_b and dataset_part == DatasetPart.train:
             if scale != 8:
                 # due to size the zenodo upload is resized to scale 8
                 sample_precache_trf = [
