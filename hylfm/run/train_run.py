@@ -202,7 +202,8 @@ class TrainRun(Run):
         if self.validate_every.match(epoch=ep, iteration=it, epoch_len=self.epoch_len):
             val_score = self._validate()
             step_metrics[self.validator.score_metric + "_val-score"] = val_score
-            self.lr_scheduler.step(val_score)
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step(val_score)
 
         step_metrics["lr"] = opt_param_groups[0]["lr"]
         step = (ep * self.epoch_len + it) * self.config.batch_size

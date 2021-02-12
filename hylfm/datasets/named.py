@@ -60,7 +60,7 @@ def get_dataset_subsection(
 
 
 def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: TransformsPipeline):
-    sliced = name.value.endswith("_sliced")
+    sliced = name.value.endswith("_sliced") and part == DatasetPart.train
 
     # sections will not be sampled across, which allows differentely sized images in the same dataset
     # subsections are grouped together to form mini-batches, thus their size needs to match
@@ -231,7 +231,7 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                     get_dataset_subsection(
                         tensors=get_tensors(tag),
                         filters=filters,
-                        indices=slice(0, idx_first_vol, None),
+                        indices=[0],
                         preprocess_sample=transforms_pipeline.sample_precache_trf,
                         augment_sample=transforms_pipeline.sample_preprocessing,
                     )
