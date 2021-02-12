@@ -100,6 +100,8 @@ class TrainRun(Run):
         self.iteration = checkpoint.iteration
         self.training_run_id = checkpoint.training_run_id
         self.validation_iteration = checkpoint.validation_iteration
+        self.val_it_is_power_of_two = False
+        self.val_it_is_best = False
 
     def get_checkpoint(self):
         return Checkpoint(
@@ -138,17 +140,6 @@ class TrainRun(Run):
         validation_score = self.validator.get_validation_score(
             step=(self.epoch * self.epoch_len + self.iteration) * self.config.batch_size
         )
-        best = self.best_validation_score is None or self.best_validation_score < validation_score
-        val_it_is_power_of_two = self.validation_iteration & (self.validation_iteration - 1) == 0
-        if val_it_is_power_of_two or best:
-            self.save_a_checkpoint(best=best, keep_anyway=val_it_is_power_of_two)
-
-        if best:
-            self.best_validation_score = validation_score
-            self.impatience = 0
-        else:
-            self.impatience += 1
-
         self.model.train()
         return validation_score
 
@@ -200,10 +191,20 @@ class TrainRun(Run):
         opt_param_groups = self.optimizer.state_dict()["param_groups"]
 
         if self.validate_every.match(epoch=ep, iteration=it, epoch_len=self.epoch_len):
-            val_score = self._validate()
-            step_metrics[self.validator.score_metric + "_val-score"] = val_score
+            validation_score = self._validate()
+            best = self.best_validation_score is None or self.best_validation_score < validation_score
+            self.val_it_is_best = best
+            self.val_it_is_power_of_two = self.validation_iteration & (self.validation_iteration - 1) == 0
+
+            if best:
+                self.best_validation_score = validation_score
+                self.impatience = 0
+            else:
+                self.impatience += 1
+
+            step_metrics[self.validator.score_metric + "_val-score"] = validation_score
             if self.lr_scheduler is not None:
-                self.lr_scheduler.step(val_score)
+                self.lr_scheduler.step(validation_score)
 
         step_metrics["lr"] = opt_param_groups[0]["lr"]
         step = (ep * self.epoch_len + it) * self.config.batch_size
@@ -225,9 +226,12 @@ class TrainRun(Run):
                 total=self.epoch_len,
             ):
                 if it < self.iteration:
-                    # catch up with loaded state
+                    # catch up with loaded state  # todo: improve speed by not loading batch data in this case
                     logger.warning("skipping iteration %s to resume at %s", it, self.iteration)
                     continue
+
+                if self.val_it_is_power_of_two or self.val_it_is_best:
+                    self.save_a_checkpoint(best=self.val_it_is_best, keep_anyway=self.val_it_is_power_of_two)
 
                 if self.impatience > self.config.patience:
                     stop_early = True

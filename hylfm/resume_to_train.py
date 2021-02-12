@@ -21,10 +21,6 @@ def resume(
 ):
     checkpoint = Checkpoint.load(checkpoint)
 
-    # checkpoints are made at the end of an epoch e.g. ep: 0, it: 99; reset epoch and iteration to start the next epoch
-    checkpoint.epoch += 1
-    checkpoint.iteration = 0
-
     changes = collections.OrderedDict()
     if dataset is not None:
         checkpoint.config.dataset = dataset
