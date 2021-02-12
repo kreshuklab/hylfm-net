@@ -28,7 +28,7 @@ def get_transforms_pipeline(
     shrink: int,
     interpolation_order: int = 2,
 ):
-    sliced = dataset_name.value.endswith("_sliced") and dataset_part == DatasetPart.train
+    sliced = dataset_name.value.endswith("_sliced") and dataset_part != DatasetPart.test
     dynamic = "dyn" in dataset_name.value
     spatial_dims = 2 if sliced or dynamic else 3
 

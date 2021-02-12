@@ -430,8 +430,8 @@ class N5CachedDatasetFromInfoSubset(DatasetFromInfoExtender):
             / f"{dataset.dataset.info.tag}_{hash_algorithm(description.encode()).hexdigest()}.index_mask.npy"
         )
         mask_description_file_path = mask_file_path.with_suffix(".txt")
-        if not mask_description_file_path.exists():
-            mask_description_file_path.write_text(description)
+
+        mask_description_file_path.write_text(description)
 
         logger.warning("using dataset mask %s", mask_description_file_path)
         if mask_file_path.exists():

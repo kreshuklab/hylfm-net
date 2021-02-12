@@ -26,7 +26,7 @@ def z_range(dataset: N5CachedDatasetFromInfo, idx: int, *, z_min: int = None, z_
             nnum=meta["nnum"],
             wrt_ref=True,
             z_ls_rescaled=meta["z_ls_rescaled"],
-            ls_scale=meta.get("ls_scale", meta["expected_scale"]),
+            ls_scale=meta.get("ls_scale", meta["scale"]),
         )
         z_min, z_max = ls_roi[0]
     else:

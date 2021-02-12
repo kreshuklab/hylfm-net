@@ -142,6 +142,13 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                 "meta": transforms_pipeline.meta,
             }
 
+        if name == DatasetChoice.heart_static_fish2_f4_sliced:
+            filters = [("z_range", {})]
+            idx_first_vol = 209
+        else:
+            filters = []
+            idx_first_vol = 1
+
         if part == DatasetPart.train:
             sections.append([])
             for tag in [  # fish3
@@ -154,7 +161,7 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                 sections[-1].append(
                     get_dataset_subsection(
                         tensors=get_tensors(tag),
-                        filters=[],
+                        filters=filters,
                         indices=None,
                         preprocess_sample=transforms_pipeline.sample_precache_trf,
                         augment_sample=transforms_pipeline.sample_preprocessing,
@@ -174,7 +181,7 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                 sections[-1].append(
                     get_dataset_subsection(
                         tensors=get_tensors(tag),
-                        filters=[],
+                        filters=filters,
                         indices=None,
                         preprocess_sample=transforms_pipeline.sample_precache_trf,
                         augment_sample=transforms_pipeline.sample_preprocessing,
@@ -198,8 +205,8 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                 sections[-1].append(
                     get_dataset_subsection(
                         tensors=get_tensors(tag),
-                        filters=[],
-                        indices=slice(1, None, None),
+                        filters=filters,
+                        indices=slice(idx_first_vol, None, None),
                         preprocess_sample=transforms_pipeline.sample_precache_trf,
                         augment_sample=transforms_pipeline.sample_preprocessing,
                     )
@@ -223,8 +230,8 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                 sections[-1].append(
                     get_dataset_subsection(
                         tensors=get_tensors(tag),
-                        filters=[],
-                        indices=[0],
+                        filters=filters,
+                        indices=slice(0, idx_first_vol, None),
                         preprocess_sample=transforms_pipeline.sample_precache_trf,
                         augment_sample=transforms_pipeline.sample_preprocessing,
                     )
@@ -249,7 +256,7 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                 sections[-1].append(
                     get_dataset_subsection(
                         tensors=get_tensors(tag),
-                        filters=[],
+                        filters=filters,
                         indices=None,
                         preprocess_sample=transforms_pipeline.sample_precache_trf,
                         augment_sample=transforms_pipeline.sample_preprocessing,
@@ -518,8 +525,14 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
             )
             for name in ("lf", "spim", "care", "lfd")
         }
+        if name == DatasetChoice.heart_static_fish2_f4_sliced:
+            filters = [("z_range", {})]
+        else:
+            filters = []
+
         datasets = {
-            k: get_dataset_from_info(dsinfo, cache=True, filters=[], indices=None) for k, dsinfo in tensor_infos.items()
+            k: get_dataset_from_info(dsinfo, cache=True, filters=filters, indices=None)
+            for k, dsinfo in tensor_infos.items()
         }
 
         heart_static_fish2_f4_dataset = ZipDataset(datasets, transform=transforms_pipeline.sample_preprocessing)
