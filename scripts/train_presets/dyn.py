@@ -37,7 +37,7 @@ if __name__ == "__main__":
         lr_sched_thres_mode=LRSchedThresMode.abs,
         lr_scheduler=LRSchedulerChoice.ReduceLROnPlateau,
         max_epochs=200,
-        model_weights=Path("/g/kreshuk/LF_computed/lnet/logs/heart2/z_out49/f4_b2/20-05-20_10-18-11/train/run000/checkpoints/v1_checkpoint_MSSSIM=0.6722144321961836.pth"),
+        model_weights=None, # Path("/g/kreshuk/LF_computed/lnet/logs/heart2/z_out49/f4_b2/20-05-20_10-18-11/train/run000/checkpoints/v1_checkpoint_MSSSIM=0.6722144321961836.pth"),
         opt_lr=5e-4,
         opt_momentum=0.0,
         opt_weight_decay=0.0,
