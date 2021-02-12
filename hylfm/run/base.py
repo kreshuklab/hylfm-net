@@ -57,7 +57,7 @@ class Run:
             scale = model.get_scale()
             shrink = model.get_shrink()
             if torch.cuda.is_available():
-                model = model.cuda(0)
+                self.model = self.model.cuda(0)
 
         self.scale = scale
         self.shrink = shrink
@@ -67,11 +67,11 @@ class Run:
         wandb.summary.update(dict(scale=scale, shrink=shrink))
 
         self.dataset_part = dataset_part
-        self.transforms_pipeline: Optional[TransformsPipeline] = None if model is None else get_transforms_pipeline(
+        self.transforms_pipeline: TransformsPipeline = get_transforms_pipeline(
             dataset_name=cfg.dataset,
             dataset_part=dataset_part,
-            nnum=self.model.nnum,
-            z_out=self.model.z_out,
+            nnum=19 if self.model is None else self.model.nnum,
+            z_out=49 if self.model is None else self.model.z_out,
             scale=scale,
             shrink=shrink,
             interpolation_order=cfg.interpolation_order,

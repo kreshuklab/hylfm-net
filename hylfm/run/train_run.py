@@ -36,7 +36,9 @@ class TrainRun(Run):
             dataset_part=DatasetPart.train,
             model=model,
             name=checkpoint.training_run_name,
-            run_logger=WandbLogger(point_cloud_threshold=0.3, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)),
+            run_logger=WandbLogger(
+                point_cloud_threshold=cfg.point_cloud_threshold, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)
+            ),
         )
 
         self.current_best_checkpoint_on_disk: Optional[Path] = None

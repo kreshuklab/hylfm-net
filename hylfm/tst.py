@@ -33,6 +33,7 @@ def tst(
     ui_name: Optional[str] = typer.Option(None, "--ui_name"),
     win_sigma: Optional[float] = typer.Option(None, "--win_sigma"),
     win_size: Optional[int] = typer.Option(None, "--win_size"),
+    point_cloud_threshold: float = typer.Option(1.0, "--point_cloud_threshold"),
 ):
     checkpoint = Checkpoint.load(checkpoint)
     if ui_name is None:
@@ -61,13 +62,14 @@ def tst(
         win_size=win_size or checkpoint.config.win_size,
         save_output_to_disk=save_output_to_disk,
         hylfm_version=__version__,
+        point_cloud_threshold=point_cloud_threshold,
     )
 
     import wandb
 
     wandb_run = wandb.init(project=f"HyLFM-test", dir=str(settings.cache_dir), config=config.as_dict(), name=ui_name)
 
-    test_run = TestRun(config=config, wandb_run=wandb_run, log_pred_vs_spim=True)
+    test_run = TestRun(config=config, wandb_run=wandb_run, log_pred_vs_spim=not light_logging)
 
     test_run.run()
 

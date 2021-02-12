@@ -45,6 +45,7 @@ class RunConfig:
     win_size: int
     save_output_to_disk: Optional[Collection[str]]
     hylfm_version: str
+    point_cloud_threshold: float
 
     def __post_init__(self):
         pass
@@ -60,6 +61,9 @@ class RunConfig:
 
         if "save_output_to_disk" not in dat:
             dat["save_output_to_disk"] = None
+
+        if "point_cloud_threshold" not in dat:
+            dat["point_cloud_threshold"] = 1.0
 
         return dat
 

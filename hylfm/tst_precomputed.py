@@ -32,6 +32,7 @@ def tst_precomputed(
     ui_name: str = typer.Option(..., "--ui_name"),
     win_sigma: float = typer.Option(1.5, "--win_sigma"),
     win_size: int = typer.Option(11, "--win_size"),
+    point_cloud_threshold: float = typer.Option(1.0, "--point_cloud_threshold"),
 ):
 
     config = RunConfig(
@@ -43,6 +44,7 @@ def tst_precomputed(
         win_size=win_size,
         save_output_to_disk={},
         hylfm_version=__version__,
+        point_cloud_threshold=point_cloud_threshold,
     )
 
     import wandb

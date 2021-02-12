@@ -108,6 +108,7 @@ def train(
         win_sigma=win_sigma,
         win_size=win_size,
         hylfm_version=__version__,
+        point_cloud_threshold=1.0,
     )
 
     wandb_run = wandb.init(project="HyLFM-train", dir=str(settings.cache_dir), config=config.as_dict(for_logging=True))

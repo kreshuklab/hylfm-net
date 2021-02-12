@@ -150,7 +150,7 @@ class ValidationRun(EvalRun):
             log_pred_vs_spim=False,
             name=name,
             run_logger=WandbValidationLogger(
-                point_cloud_threshold=0.3,
+                point_cloud_threshold=config.point_cloud_threshold,
                 zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale),
                 score_metric=score_metric,
                 minimize=self.minimize,
@@ -189,7 +189,7 @@ class TestRun(EvalRun):
             dataset_part=DatasetPart.test,
             model=model,
             name=config.checkpoint.training_run_name,
-            run_logger=WandbLogger(point_cloud_threshold=0.3, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)),
+            run_logger=WandbLogger(point_cloud_threshold=config.point_cloud_threshold, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)),
             log_pred_vs_spim=log_pred_vs_spim,
         )
 
@@ -203,7 +203,7 @@ class TestPrecomputedRun(EvalRun):
             model=None,
             dataset_part=DatasetPart.test,
             name=wandb_run.name,
-            run_logger=WandbLogger(point_cloud_threshold=0.3, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)),
+            run_logger=WandbLogger(point_cloud_threshold=config.point_cloud_threshold, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)),
             log_pred_vs_spim=log_pred_vs_spim,
             scale=scale,
             shrink=shrink,
