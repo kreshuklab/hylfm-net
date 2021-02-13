@@ -131,7 +131,13 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
 
     elif (
         name in [DatasetChoice.heart_static_a, DatasetChoice.heart_static_c]
-        or name in [DatasetChoice.heart_static_fish2_f4, DatasetChoice.heart_static_fish2_f4_sliced]
+        or name
+        in [
+            DatasetChoice.heart_static_fish2,
+            DatasetChoice.heart_static_fish2_sliced,
+            DatasetChoice.heart_static_fish2_f4,
+            DatasetChoice.heart_static_fish2_f4_sliced,
+        ]
         and part != DatasetPart.test
     ):
 
@@ -142,7 +148,7 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                 "meta": transforms_pipeline.meta,
             }
 
-        if name == DatasetChoice.heart_static_fish2_f4_sliced:
+        if name.name.endswith("_sliced"):
             filters = [("z_range", {})]
             idx_first_vol = 209
         else:
@@ -237,7 +243,12 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                     )
                 )
 
-        elif part == DatasetPart.test and not name == DatasetChoice.heart_static_fish2_f4:
+        elif part == DatasetPart.test and not name in (
+            DatasetChoice.heart_static_fish2,
+            DatasetChoice.heart_static_fish2_sliced,
+            DatasetChoice.heart_static_fish2_f4,
+            DatasetChoice.heart_static_fish2_f4_sliced,
+        ):
             sections.append([])
             for tag in [  # fish2
                 "2019-12-09_08.15.07",
@@ -536,7 +547,7 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
             )
             for tensor_name in ("lf", "spim", "care", "lfd")
         }
-        if name == DatasetChoice.heart_static_fish2_f4_sliced:
+        if name.name.endswith("_sliced"):
             filters = [("z_range", {})]
         else:
             filters = []

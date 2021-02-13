@@ -19,12 +19,14 @@ def resume(
     impatience: Optional[int] = typer.Option(None, "--impatience"),
     patience: Optional[int] = typer.Option(None, "--patience"),
     best_validation_score: Optional[float] = typer.Option(None, "--best_validation_score"),
+    reset_epoch: Optional[bool] = typer.Option(False, "--reset_epoch"),
 ):
     checkpoint = Checkpoint.load(checkpoint)
 
     changes = collections.OrderedDict()
-    if dataset is not None:
+    if dataset is not None and checkpoint.config.dataset != dataset:
         checkpoint.config.dataset = dataset
+        checkpoint.iteration = 0
         changes["dataset"] = dataset.value
         if impatience is None:
             impatience = 0
@@ -32,6 +34,10 @@ def resume(
     if best_validation_score is not None:
         checkpoint.best_validation_score = best_validation_score
         changes["best_validation_score"] = best_validation_score
+
+    if reset_epoch:
+        checkpoint.epoch = 0
+        changes["epoch"] = 0
 
     if impatience is not None:
         checkpoint.impatience = impatience
