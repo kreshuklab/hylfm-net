@@ -17,6 +17,7 @@ def resume(
     checkpoint: Path,
     dataset: Optional[DatasetChoice] = None,
     impatience: Optional[int] = typer.Option(None, "--impatience"),
+    patience: Optional[int] = typer.Option(None, "--patience"),
     best_validation_score: Optional[float] = typer.Option(None, "--best_validation_score"),
 ):
     checkpoint = Checkpoint.load(checkpoint)
@@ -35,6 +36,10 @@ def resume(
     if impatience is not None:
         checkpoint.impatience = impatience
         changes["impatience"] = impatience
+
+    if patience is not None:
+        checkpoint.patience = patience
+        changes["patience"] = patience
 
     if changes:
         notes = "resumed with changes: " + " ".join([f"{k}: {v}" for k, v in changes.items()])
