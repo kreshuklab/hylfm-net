@@ -102,14 +102,15 @@ class EvalRun(Run):
                     pred = batch["pred"]
                     spim = batch[trfs.tgt_name]
 
+                    lf = batch["lf"]
+                    assert len(lf.shape) == 4, lf.shape
                     pr = pred.detach().cpu().numpy()
                     sp = spim.detach().cpu().numpy()
                     assert len(pr.shape) == 5, pr.shape
 
+                    step_metrics["lf"] = list(lf)
                     step_metrics["pred_max"] = list(pr.max(2))
                     step_metrics["spim_max"] = list(sp.max(2))
-                    # step_metrics["pred"] = list(pr)
-                    # step_metrics["spim"] = list(sp)
                     step_metrics["pred-vs-spim"] = list(torch.cat([pred, spim], dim=1))
 
                     # color version does not work somehow...
@@ -189,7 +190,9 @@ class TestRun(EvalRun):
             dataset_part=DatasetPart.test,
             model=model,
             name=config.checkpoint.training_run_name,
-            run_logger=WandbLogger(point_cloud_threshold=config.point_cloud_threshold, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)),
+            run_logger=WandbLogger(
+                point_cloud_threshold=config.point_cloud_threshold, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)
+            ),
             log_pred_vs_spim=log_pred_vs_spim,
         )
 
@@ -203,7 +206,9 @@ class TestPrecomputedRun(EvalRun):
             model=None,
             dataset_part=DatasetPart.test,
             name=wandb_run.name,
-            run_logger=WandbLogger(point_cloud_threshold=config.point_cloud_threshold, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)),
+            run_logger=WandbLogger(
+                point_cloud_threshold=config.point_cloud_threshold, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)
+            ),
             log_pred_vs_spim=log_pred_vs_spim,
             scale=scale,
             shrink=shrink,

@@ -27,13 +27,13 @@ def tst(
     batch_size: Optional[int] = typer.Option(None, "--batch_size"),
     data_range: Optional[float] = typer.Option(None, "--data_range"),
     dataset: Optional[DatasetChoice] = None,
-    heavy_logging: bool = typer.Option(False, "--heavy_logging"),
+    disk_logging: int = typer.Option(0, "--disk_logging"),
     interpolation_order: Optional[int] = typer.Option(None, "--interpolation_order"),
-    light_logging: bool = typer.Option(False, "--light_logging"),
+    point_cloud_threshold: float = typer.Option(1.0, "--point_cloud_threshold"),
     ui_name: Optional[str] = typer.Option(None, "--ui_name"),
+    wandb_logging: int = typer.Option(2, "--wandb_logging"),
     win_sigma: Optional[float] = typer.Option(None, "--win_sigma"),
     win_size: Optional[int] = typer.Option(None, "--win_size"),
-    point_cloud_threshold: float = typer.Option(1.0, "--point_cloud_threshold"),
 ):
     checkpoint = Checkpoint.load(checkpoint)
     if ui_name is None:
@@ -47,12 +47,11 @@ def tst(
         )
 
     save_output_to_disk = {}
-    if not light_logging or heavy_logging:
-        save_output_to_disk["pred"] = settings.log_dir / ui_name / "test" / "output_tensors" / "pred"
+    for log_level, key in enumerate(["pred", "spim", "lf"]):
+        if log_level >= disk_logging:
+            break
 
-    if heavy_logging:
-        for key in ("spim", "lf"):
-            save_output_to_disk[key] = settings.log_dir / ui_name / "test" / "output_tensors" / key
+        save_output_to_disk[key] = settings.log_dir / ui_name / "test" / "output_tensors" / key
 
     config = TestRunConfig(
         batch_size=batch_size or checkpoint.config.eval_batch_size,
@@ -71,7 +70,7 @@ def tst(
 
     wandb_run = wandb.init(project=f"HyLFM-test", dir=str(settings.cache_dir), config=config.as_dict(), name=ui_name)
 
-    test_run = TestRun(config=config, wandb_run=wandb_run, log_pred_vs_spim=not light_logging)
+    test_run = TestRun(config=config, wandb_run=wandb_run, log_pred_vs_spim=wandb_logging > 1)
 
     test_run.run()
 

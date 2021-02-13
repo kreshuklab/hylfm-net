@@ -506,24 +506,35 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
             raise NotImplementedError("see commit ed5c7b02eaaada4fea244f5727f3ea7f0acb3459")
 
     elif (
-        name in [DatasetChoice.heart_static_fish2_f4, DatasetChoice.heart_static_fish2_f4_sliced]
+        name
+        in [
+            DatasetChoice.heart_static_fish2,
+            DatasetChoice.heart_static_fish2_f4,
+            DatasetChoice.heart_static_fish2_sliced,
+            DatasetChoice.heart_static_fish2_f4_sliced,
+        ]
         and part == DatasetPart.test
     ):
+        if name.name.endswith("_f4"):
+            skip_indices = []
+        else:
+            skip_indices = []
+
         tensor_infos = {
-            name: TensorInfo(
-                name=name,
-                root=Path("/g/kreshuk/beuttenm/hylfm-datasets/heart_static_fish2_f4") / name,
+            tensor_name: TensorInfo(
+                name=tensor_name,
+                root=Path("/g/kreshuk/beuttenm/hylfm-datasets/heart_static_fish2_f4") / tensor_name,
                 location="*.tif",
                 transforms=tuple(),
                 datasets_per_file=1,
                 samples_per_dataset=1,
-                remove_singleton_axes_at=(-1,) if name in ("lf", "spim") else tuple(),
+                remove_singleton_axes_at=(-1,) if tensor_name in ("lf", "spim") else tuple(),
                 insert_singleton_axes_at=(0, 0),
                 z_slice=None,
-                skip_indices=tuple(),
+                skip_indices=skip_indices,
                 meta=None,
             )
-            for name in ("lf", "spim", "care", "lfd")
+            for tensor_name in ("lf", "spim", "care", "lfd")
         }
         if name == DatasetChoice.heart_static_fish2_f4_sliced:
             filters = [("z_range", {})]
@@ -535,8 +546,8 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
             for k, dsinfo in tensor_infos.items()
         }
 
-        heart_static_fish2_f4_dataset = ZipDataset(datasets, transform=transforms_pipeline.sample_preprocessing)
-        sections.append([heart_static_fish2_f4_dataset])
+        heart_static_fish2_dataset = ZipDataset(datasets, transform=transforms_pipeline.sample_preprocessing)
+        sections.append([heart_static_fish2_dataset])
     elif name == DatasetChoice.heart_dyn_refine:
         filters = [("z_range", {})]
         split_at = 964
@@ -553,7 +564,11 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
         sections.append(
             [
                 get_dataset_subsection(
-                    tensors={"lf": f"heart_dynamic.{tag}", "ls_slice": f"heart_dynamic.{tag}", "meta": transforms_pipeline.meta},
+                    tensors={
+                        "lf": f"heart_dynamic.{tag}",
+                        "ls_slice": f"heart_dynamic.{tag}",
+                        "meta": transforms_pipeline.meta,
+                    },
                     filters=filters,
                     indices=indices,
                     preprocess_sample=transforms_pipeline.sample_precache_trf,

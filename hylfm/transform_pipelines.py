@@ -146,7 +146,13 @@ def get_transforms_pipeline(
             DatasetChoice.heart_dyn_refine,
         ]
         or dataset_part != DatasetPart.test
-        and dataset_name in [DatasetChoice.heart_static_fish2_f4, DatasetChoice.heart_static_fish2_f4_sliced]
+        and dataset_name
+        in [
+            DatasetChoice.heart_static_fish2,
+            DatasetChoice.heart_static_fish2_sliced,
+            DatasetChoice.heart_static_fish2_f4,
+            DatasetChoice.heart_static_fish2_f4_sliced,
+        ]
     ):
         spim = "ls_slice" if sliced or dynamic else "ls_trf"
         crop_names.add("Heart_tightCrop")
@@ -223,7 +229,13 @@ def get_transforms_pipeline(
         )
 
     elif (
-        dataset_name in [DatasetChoice.heart_static_fish2_f4, DatasetChoice.heart_static_fish2_f4_sliced]
+        dataset_name
+        in [
+            DatasetChoice.heart_static_fish2,
+            DatasetChoice.heart_static_fish2_sliced,
+            DatasetChoice.heart_static_fish2_f4,
+            DatasetChoice.heart_static_fish2_f4_sliced,
+        ]
         and dataset_part == DatasetPart.test
     ):
         spim = "spim"

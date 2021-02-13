@@ -136,9 +136,10 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
         [
             sys.executable,
             str(Path(__file__).parent / "tst.py"),
-            "--light_logging",
-            str(checkpoint.path.with_name("best.pth")),  # todo: python 3.9
-            # str(checkpoint.path.with_stem("best")),
+            "--wandb_logging",
+            1,
+            str(checkpoint.path.with_name("best.pth")),
+            # str(checkpoint.path.with_stem("best")),  # todo: python 3.9
         ]
     )
 
