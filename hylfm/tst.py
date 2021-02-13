@@ -42,7 +42,9 @@ def tst(
 
         ui_name = checkpoint.training_run_name
     elif checkpoint.training_run_name is not None:
-        raise ValueError("don't you want to use the name saved in the checkpoint??")
+        logger.warning(
+            "ui_name %s overwrites training_run_name %s from checkpoint", ui_name, checkpoint.training_run_name
+        )
 
     save_output_to_disk = {}
     if not light_logging or heavy_logging:
