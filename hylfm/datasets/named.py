@@ -518,7 +518,7 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
         if name.name.endswith("_f4"):
             skip_indices = []
         else:
-            skip_indices = []
+            skip_indices = numpy.arange(100, 166).tolist()
 
         tensor_infos = {
             tensor_name: TensorInfo(
