@@ -6,10 +6,10 @@ import torch
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 
 from hylfm import __version__, metrics, settings
-from hylfm.checkpoint import RunConfig
-from hylfm.datasets import ConcatDataset, get_collate
+from hylfm.checkpoint import PredictRunConfig, RunConfig
+from hylfm.datasets import ConcatDataset, TensorInfo, get_collate, get_dataset_from_info
 from hylfm.datasets.named import get_dataset
-from hylfm.hylfm_types import DatasetPart, TransformsPipeline
+from hylfm.hylfm_types import DatasetChoice, DatasetPart, TransformsPipeline
 from hylfm.metrics.base import MetricGroup
 from hylfm.model import HyLFM_Net
 from hylfm.run.run_logger import WandbLogger
@@ -40,10 +40,17 @@ class Run:
 
         self.config = cfg = config
         self.name = name
-        self.save_output_to_disk = {
-            key: settings.log_dir / name / dataset_part.name / "output_tensors" / key
-            for key in (config.save_output_to_disk or [])
-        }
+        if isinstance(config.save_output_to_disk, (set, list, tuple)):
+            self.save_output_to_disk = {
+                key: settings.log_dir / name / dataset_part.name / "output_tensors" / key
+                for key in (config.save_output_to_disk or [])
+            }
+        elif config.save_output_to_disk is None:
+            self.save_output_to_disk = {}
+        else:
+            assert isinstance(config.save_output_to_disk, dict)
+            self.save_output_to_disk = config.save_output_to_disk
+
         for path in self.save_output_to_disk.values():
             path.mkdir(parents=True, exist_ok=True)
 
@@ -77,7 +84,29 @@ class Run:
             interpolation_order=cfg.interpolation_order,
         )
 
-        self.dataset: ConcatDataset = get_dataset(cfg.dataset, dataset_part, self.transforms_pipeline)
+        if (
+            dataset_part == DatasetPart.predict
+            and cfg.dataset == DatasetChoice.predict_path
+            and isinstance(config, PredictRunConfig)
+        ):
+            tensor_info = TensorInfo(
+                name="lf",
+                root=config.path,
+                location=config.glob_expr,
+                transforms=self.transforms_pipeline.sample_precache_trf,
+                datasets_per_file=1,
+                samples_per_dataset=1,
+                remove_singleton_axes_at=tuple(),  # (-1,),
+                insert_singleton_axes_at=(0, 0),
+                z_slice=None,
+                skip_indices=tuple(),
+                meta=None,
+            )
+
+            dtst = get_dataset_from_info(tensor_info, cache=True, filters=[], indices=None)
+            self.dataset = ConcatDataset([dtst], transform=self.transforms_pipeline.sample_preprocessing)
+        else:
+            self.dataset: ConcatDataset = get_dataset(cfg.dataset, dataset_part, self.transforms_pipeline)
 
         self.dataloader: DataLoader = DataLoader(
             dataset=self.dataset,
@@ -102,7 +131,7 @@ class Run:
     def get_metric_group(self) -> MetricGroup:
         cfg = self.config
 
-        if self.dataset_part == DatasetPart.train:
+        if self.dataset_part in (DatasetPart.train, DatasetPart.predict):
             return MetricGroup()
 
         elif self.dataset_part in (DatasetPart.validate, DatasetPart.test):

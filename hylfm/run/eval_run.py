@@ -12,7 +12,7 @@ from tqdm import tqdm
 from hylfm.utils.io import save_tensor
 from .base import Run
 from .run_logger import WandbLogger, WandbValidationLogger
-from hylfm.checkpoint import RunConfig, TestRunConfig
+from hylfm.checkpoint import PredictRunConfig, RunConfig, TestRunConfig
 from hylfm.get_model import get_model
 from hylfm.hylfm_types import DatasetPart, MetricChoice
 from hylfm.model import HyLFM_Net
@@ -85,35 +85,17 @@ class EvalRun(Run):
             batch = trfs.batch_preprocessing_in_step(batch)
             batch["pred"] = self.get_pred(batch)
             batch = trfs.batch_postprocessing(batch)
+            batch = trfs.batch_premetric_trf(batch)
+
             if trfs.tgt_name is None:
-                step_metrics = None
+                step_metrics = {}
             else:
-                batch = trfs.batch_premetric_trf(batch)
+                step_metrics = self.metric_group.update_with_batch(prediction=batch["pred"], target=batch[trfs.tgt_name])
 
-                step_metrics = self.metric_group.update_with_batch(
-                    prediction=batch["pred"], target=batch[trfs.tgt_name]
-                )
-                for from_batch in ["NormalizeMSE.alpha", "NormalizeMSE.beta"]:
-                    assert from_batch not in step_metrics
-                    if from_batch in batch:
-                        step_metrics[from_batch] = batch[from_batch]
-
-                if self.log_level_wandb > 0:
-                    pred = batch["pred"]
-                    pr = pred.detach().cpu().numpy()
-                    assert len(pr.shape) == 5, pr.shape
-                    step_metrics["pred_max"] = list(pr.max(2))
-
-                    if self.log_level_wandb > 1:
-                        spim = batch[trfs.tgt_name]
-                        sp = spim.detach().cpu().numpy()
-                        step_metrics["spim_max"] = list(sp.max(2))
-                        step_metrics["pred-vs-spim"] = list(torch.cat([pred, spim], dim=1))
-
-                        if self.log_level_wandb > 2:
-                            lf = batch["lf"]
-                            assert len(lf.shape) == 4, lf.shape
-                            step_metrics["lf"] = list(lf)
+            for from_batch in ["NormalizeMSE.alpha", "NormalizeMSE.beta"]:
+                assert from_batch not in step_metrics
+                if from_batch in batch:
+                    step_metrics[from_batch] = batch[from_batch]
 
                     # color version does not work somehow...
                     # zeros = torch.zeros_like(pred)
@@ -121,9 +103,26 @@ class EvalRun(Run):
                     # spim = torch.cat([spim, zeros, spim], dim=1)
                     # step_metrics["pred-vs-spim"] = list(pred + spim)
 
-                if self.run_logger is not None:
-                    step = (epoch * self.epoch_len + it) * self.config.batch_size
-                    self.run_logger(epoch=epoch, iteration=it, epoch_len=self.epoch_len, step=step, **step_metrics)
+            if self.log_level_wandb > 0:
+                pred = batch["pred"]
+                pr = pred.detach().cpu().numpy()
+                assert len(pr.shape) == 5, pr.shape
+                step_metrics["pred_max"] = list(pr.max(2))
+
+                if self.log_level_wandb > 1:
+                    if trfs.tgt_name in batch:
+                        spim = batch[trfs.tgt_name]
+                        sp = spim.detach().cpu().numpy()
+                        step_metrics["spim_max"] = list(sp.max(2))
+                        step_metrics["pred-vs-spim"] = list(torch.cat([pred, spim], dim=1))
+
+                    if self.log_level_wandb > 2:
+                        lf = batch["lf"]
+                        assert len(lf.shape) == 4, lf.shape
+                        step_metrics["lf"] = list(lf)
+
+            step = (epoch * self.epoch_len + it) * self.config.batch_size
+            self.run_logger(epoch=epoch, iteration=it, epoch_len=self.epoch_len, step=step, **step_metrics)
 
             for key, path in self.save_output_to_disk.items():
                 save_tensor_batch(path, batch[key])
@@ -150,7 +149,7 @@ class ValidationRun(EvalRun):
             config=config,
             model=model,
             dataset_part=DatasetPart.validate,
-            log_level_wandb=False,
+            log_level_wandb=0,
             name=name,
             run_logger=WandbValidationLogger(
                 point_cloud_threshold=config.point_cloud_threshold,
@@ -217,3 +216,22 @@ class TestPrecomputedRun(EvalRun):
 
     def get_pred(self, batch):
         return batch[self.pred_name]
+
+
+class PredictRun(EvalRun):
+    def __init__(self, wandb_run, config: PredictRunConfig, log_level_wandb: int):
+        model: HyLFM_Net = get_model(**config.checkpoint.config.model)
+        model.load_state_dict(config.checkpoint.model_weights, strict=True)
+
+        self.wandb_run = wandb_run
+        scale = model.get_scale()
+        super().__init__(
+            config=config,
+            dataset_part=DatasetPart.predict,
+            model=model,
+            name=config.checkpoint.training_run_name,
+            run_logger=WandbLogger(
+                point_cloud_threshold=config.point_cloud_threshold, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)
+            ),
+            log_level_wandb=log_level_wandb,
+        )

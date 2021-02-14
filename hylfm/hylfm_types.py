@@ -79,12 +79,14 @@ class DatasetChoice(str, Enum):
     heart_static_fish2_f4 = "heart_static_fish2_f4"
     heart_static_fish2_f4_sliced = "heart_static_fish2_f4_sliced"
     heart_dyn_refine = "heart_dyn_refine"
+    predict_path = "predict_path"
 
 
 class DatasetPart(str, Enum):
     train = "train"
     validate = "validate"
     test = "test"
+    predict = "predict"
 
 
 class LRSchedulerChoice(str, Enum):
@@ -122,5 +124,5 @@ class TransformsPipeline:
     batch_postprocessing: TransformLike
     batch_premetric_trf: TransformLike
     meta: Dict[str, Any]
-    tgt_name: str
+    tgt_name: Optional[str]
     spatial_dims: int

@@ -43,7 +43,7 @@ class RunConfig:
     interpolation_order: int
     win_sigma: float
     win_size: int
-    save_output_to_disk: Optional[Collection[str]]
+    save_output_to_disk: Optional[Dict[str, Path]]
     hylfm_version: str
     point_cloud_threshold: float
 
@@ -285,3 +285,9 @@ class TestRunConfig(RunConfig):
         dat = super().convert_dict(dat)
         dat["checkpoint"] = Checkpoint.load(Path(dat["checkpoint"]))
         return dat
+
+
+@dataclass
+class PredictRunConfig(TestRunConfig):
+    path: Path
+    glob_expr: str

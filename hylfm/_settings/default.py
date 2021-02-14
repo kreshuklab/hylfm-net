@@ -19,7 +19,7 @@ class Settings:
     cache_dir: Path = Path(__file__).parent / "../../cache"
 
     num_workers_data_loader: Dict[str, int] = field(
-        default_factory=lambda: {dp: 0 if debug_mode else 4 for dp in ("train", "validate", "test")}
+        default_factory=lambda: {dp: 0 if debug_mode else 4 for dp in ("train", "validate", "test", "predict")}
     )
     pin_memory: bool = False
 

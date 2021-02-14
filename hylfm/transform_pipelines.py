@@ -258,9 +258,26 @@ def get_transforms_pipeline(
         batch_postprocessing = ComposedTransform(
             Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )
+    elif dataset_part == DatasetPart.predict:
+        spim = None
+        sample_precache_trf = []
+
+        sample_preprocessing = ComposedTransform(
+            Assert(apply_to="lf", expected_tensor_shape=(None, 1, None, None)),
+            Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8),
+            ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum),
+        )
+
+        batch_preprocessing = ComposedTransform()
+        batch_preprocessing_in_step = ComposedTransform(
+            Cast(apply_to="lfc", dtype="float32", device="cuda", non_blocking=True)
+        )
+        batch_postprocessing = ComposedTransform(
+            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
+        )
 
     else:
-        raise NotImplementedError(dataset_name)
+        raise NotImplementedError(dataset_name, dataset_part)
 
     meta["crop_names"] = crop_names
     if sliced or dynamic:
@@ -280,9 +297,13 @@ def get_transforms_pipeline(
             )
         )
 
-    batch_postprocessing += Assert(apply_to="pred", expected_shape_like_tensor=spim)
+    if spim is not None:
+        batch_postprocessing += Assert(apply_to="pred", expected_shape_like_tensor=spim)
 
-    batch_premetric_trf = ComposedTransform(NormalizeMSE(apply_to="pred", target_name=spim, return_alpha_beta=True))
+        batch_premetric_trf = ComposedTransform(NormalizeMSE(apply_to="pred", target_name=spim, return_alpha_beta=True))
+    else:
+        batch_premetric_trf = ComposedTransform()
+
     return TransformsPipeline(
         sample_precache_trf=sample_precache_trf,
         sample_preprocessing=sample_preprocessing,

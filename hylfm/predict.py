@@ -1,12 +1,11 @@
 from hylfm import __version__, metrics, settings  # noqa: first line to set numpy env vars
-
 import logging
 from pathlib import Path
 from typing import Optional
 
-from hylfm.checkpoint import Checkpoint, TestRunConfig
-from hylfm.datasets.named import DatasetChoice
-from hylfm.run.eval_run import TestRun
+from hylfm.checkpoint import Checkpoint, PredictRunConfig
+from hylfm.hylfm_types import DatasetChoice
+from hylfm.run.eval_run import PredictRun
 
 try:
     from typing import Literal
@@ -21,19 +20,18 @@ logger = logging.getLogger(__name__)
 app = typer.Typer()
 
 
-@app.command(name="test")
-def tst(
+@app.command()
+def predict(
+    path: Path,
+    glob_expr: str,
     checkpoint: Path,
     batch_size: Optional[int] = typer.Option(None, "--batch_size"),
     data_range: Optional[float] = typer.Option(None, "--data_range"),
-    dataset: Optional[DatasetChoice] = None,
-    log_level_disk: int = typer.Option(0, "--disk_logging"),
+    log_level_disk: int = typer.Option(1, "--disk_logging"),
     interpolation_order: Optional[int] = typer.Option(None, "--interpolation_order"),
     point_cloud_threshold: float = typer.Option(1.0, "--point_cloud_threshold"),
     ui_name: Optional[str] = typer.Option(None, "--ui_name"),
-    log_level_wandb: int = typer.Option(0, "--log_level_wandb"),
-    win_sigma: Optional[float] = typer.Option(None, "--win_sigma"),
-    win_size: Optional[int] = typer.Option(None, "--win_size"),
+    log_level_wandb: int = typer.Option(1, "--log_level_wandb"),
 ):
     checkpoint = Checkpoint.load(checkpoint)
     if ui_name is None:
@@ -47,20 +45,22 @@ def tst(
         )
 
     save_output_to_disk = {}
-    for lvl, key in enumerate(["pred", "spim", "lf"]):
+    for lvl, key in enumerate(["pred"]):
         if lvl >= log_level_disk:
             break
 
-        save_output_to_disk[key] = settings.log_dir / ui_name / "test" / "output_tensors" / key
+        save_output_to_disk[key] = path / ui_name / key
 
-    config = TestRunConfig(
+    config = PredictRunConfig(
+        path=path,
+        glob_expr=glob_expr,
         batch_size=batch_size or checkpoint.config.eval_batch_size,
         checkpoint=checkpoint,
         data_range=data_range or checkpoint.config.data_range,
-        dataset=dataset or checkpoint.config.dataset,
+        dataset=DatasetChoice.predict_path,
         interpolation_order=interpolation_order or checkpoint.config.interpolation_order,
-        win_sigma=win_sigma or checkpoint.config.win_sigma,
-        win_size=win_size or checkpoint.config.win_size,
+        win_sigma=checkpoint.config.win_sigma,
+        win_size=checkpoint.config.win_size,
         save_output_to_disk=save_output_to_disk,
         hylfm_version=__version__,
         point_cloud_threshold=point_cloud_threshold,
@@ -68,9 +68,9 @@ def tst(
 
     import wandb
 
-    wandb_run = wandb.init(project=f"HyLFM-test", dir=str(settings.cache_dir), config=config.as_dict(), name=ui_name)
+    wandb_run = wandb.init(project=f"HyLFM-predict", dir=str(settings.cache_dir), config=config.as_dict(), name=ui_name)
 
-    test_run = TestRun(config=config, wandb_run=wandb_run, log_level_wandb=log_level_wandb)
+    test_run = PredictRun(config=config, wandb_run=wandb_run, log_level_wandb=log_level_wandb)
 
     test_run.run()
 
