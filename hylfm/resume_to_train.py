@@ -19,6 +19,7 @@ def resume(
     impatience: Optional[int] = typer.Option(None, "--impatience"),
     patience: Optional[int] = typer.Option(None, "--patience"),
     best_validation_score: Optional[float] = typer.Option(None, "--best_validation_score"),
+    max_epochs: Optional[int] = typer.Option(None, "--max_epochs"),
     reset_epoch: Optional[bool] = typer.Option(False, "--reset_epoch"),
 ):
     checkpoint = Checkpoint.load(checkpoint)
@@ -34,6 +35,10 @@ def resume(
     if best_validation_score is not None:
         checkpoint.best_validation_score = best_validation_score
         changes["best_validation_score"] = best_validation_score
+
+    if max_epochs is not None:
+        checkpoint.config.max_epochs = max_epochs
+        changes["max_epochs"] = max_epochs
 
     if reset_epoch:
         checkpoint.epoch = 0
