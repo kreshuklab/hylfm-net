@@ -66,7 +66,7 @@ class WandbLogger(RunLogger):
         conv = {}
 
         def log_img(img):
-            img = value.transpose(1, 2, 0)
+            img = img.transpose(1, 2, 0)
             y, x, c = img.shape
             if c not in (1, 3):
                 raise NotImplementedError(c)
@@ -91,7 +91,7 @@ class WandbLogger(RunLogger):
                 mask = img.max(0) > self.point_cloud_threshold
                 if not mask.max():
                     logger.debug("no points in cloud")
-                    continue
+                    return
 
                 idx = numpy.asarray(numpy.where(mask)).T
                 idx = idx * numpy.broadcast_to(numpy.array([self.zyx_scaling]), idx.shape)
@@ -108,7 +108,7 @@ class WandbLogger(RunLogger):
                 mask = img.sum(0) > self.point_cloud_threshold
                 if not mask.max():
                     logger.debug("no points in cloud")
-                    continue
+                    return
 
                 idx = numpy.asarray(numpy.where(mask)).T
                 idx = idx * numpy.broadcast_to(numpy.array([self.zyx_scaling]), idx.shape)
