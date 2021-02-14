@@ -132,16 +132,16 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
     train_run = TrainRun(wandb_run=wandb_run, checkpoint=checkpoint)
     train_run.fit()
 
-    subprocess.run(
-        [
-            sys.executable,
-            str(Path(__file__).parent / "tst.py"),
-            "--wandb_logging",
-            1,
-            str(checkpoint.path.with_name("best.pth")),
-            # str(checkpoint.path.with_stem("best")),  # todo: python 3.9
-        ]
-    )
+    test_cmd = [
+        sys.executable,
+        str(Path(__file__).parent / "tst.py"),
+        "--wandb_logging",
+        "1",
+        str(checkpoint.path.with_name("best.pth")),
+        # str(checkpoint.path.with_stem("best")),  # todo: python 3.9
+    ]
+    logger.info("testing model: %s", test_cmd)
+    subprocess.run(test_cmd)
 
 
 if __name__ == "__main__":
