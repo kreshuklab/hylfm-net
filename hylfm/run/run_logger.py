@@ -68,11 +68,14 @@ class WandbLogger(RunLogger):
         def log_img(img):
             img = img.transpose(1, 2, 0)
             y, x, c = img.shape
-            if c not in (1, 3):
-                raise NotImplementedError(c)
-
             if c == 1:
                 img = matplotlib.cm.cividis(img[..., 0])
+            elif c == 2:
+                alpha = img.max(-1).clip(0, 1)
+                balance = (img[..., 0].clip(0, 1) - img[..., 1].clip(0, 1)) / 2 + 0.5
+                img = numpy.concatenate([matplotlib.cm.viridis(balance)[..., :3], alpha[..., None]], -1)
+            elif c > 4:
+                raise NotImplementedError(c)
 
             img = (img * 255).clip(0, 255).astype(numpy.uint8)
             pil_img = PIL.Image.fromarray(img)

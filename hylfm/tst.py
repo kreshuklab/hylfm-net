@@ -27,11 +27,11 @@ def tst(
     batch_size: Optional[int] = typer.Option(None, "--batch_size"),
     data_range: Optional[float] = typer.Option(None, "--data_range"),
     dataset: Optional[DatasetChoice] = None,
-    disk_logging: int = typer.Option(0, "--disk_logging"),
+    log_level_disk: int = typer.Option(0, "--disk_logging"),
     interpolation_order: Optional[int] = typer.Option(None, "--interpolation_order"),
     point_cloud_threshold: float = typer.Option(1.0, "--point_cloud_threshold"),
     ui_name: Optional[str] = typer.Option(None, "--ui_name"),
-    wandb_logging: int = typer.Option(2, "--wandb_logging"),
+    log_level_wandb: int = typer.Option(0, "--log_level_wandb"),
     win_sigma: Optional[float] = typer.Option(None, "--win_sigma"),
     win_size: Optional[int] = typer.Option(None, "--win_size"),
 ):
@@ -47,8 +47,8 @@ def tst(
         )
 
     save_output_to_disk = {}
-    for log_level, key in enumerate(["pred", "spim", "lf"]):
-        if log_level >= disk_logging:
+    for lvl, key in enumerate(["pred", "spim", "lf"]):
+        if lvl >= log_level_disk:
             break
 
         save_output_to_disk[key] = settings.log_dir / ui_name / "test" / "output_tensors" / key
@@ -70,7 +70,7 @@ def tst(
 
     wandb_run = wandb.init(project=f"HyLFM-test", dir=str(settings.cache_dir), config=config.as_dict(), name=ui_name)
 
-    test_run = TestRun(config=config, wandb_run=wandb_run, log_pred_vs_spim=wandb_logging > 1)
+    test_run = TestRun(config=config, wandb_run=wandb_run, log_level_wandb=log_level_wandb > 1)
 
     test_run.run()
 

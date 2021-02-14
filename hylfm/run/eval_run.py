@@ -29,7 +29,7 @@ class EvalRun(Run):
     def __init__(
         self,
         *,
-        log_pred_vs_spim: bool,
+        log_level_wandb: int,
         config: RunConfig,
         model: Optional[HyLFM_Net],
         dataset_part: DatasetPart,
@@ -47,7 +47,7 @@ class EvalRun(Run):
             scale=scale,
             shrink=shrink,
         )
-        self.log_pred_vs_spim = log_pred_vs_spim
+        self.log_level_wandb = log_level_wandb
 
     @staticmethod
     def progress_tqdm(iterable, desc: str, total: int):
@@ -98,20 +98,22 @@ class EvalRun(Run):
                     if from_batch in batch:
                         step_metrics[from_batch] = batch[from_batch]
 
-                if self.log_pred_vs_spim:
+                if self.log_level_wandb > 0:
                     pred = batch["pred"]
-                    spim = batch[trfs.tgt_name]
-
-                    lf = batch["lf"]
-                    assert len(lf.shape) == 4, lf.shape
                     pr = pred.detach().cpu().numpy()
-                    sp = spim.detach().cpu().numpy()
                     assert len(pr.shape) == 5, pr.shape
-
-                    step_metrics["lf"] = list(lf)
                     step_metrics["pred_max"] = list(pr.max(2))
-                    step_metrics["spim_max"] = list(sp.max(2))
-                    step_metrics["pred-vs-spim"] = list(torch.cat([pred, spim], dim=1))
+
+                    if self.log_level_wandb > 1:
+                        spim = batch[trfs.tgt_name]
+                        sp = spim.detach().cpu().numpy()
+                        step_metrics["spim_max"] = list(sp.max(2))
+                        step_metrics["pred-vs-spim"] = list(torch.cat([pred, spim], dim=1))
+
+                        if self.log_level_wandb > 2:
+                            lf = batch["lf"]
+                            assert len(lf.shape) == 4, lf.shape
+                            step_metrics["lf"] = list(lf)
 
                     # color version does not work somehow...
                     # zeros = torch.zeros_like(pred)
@@ -148,7 +150,7 @@ class ValidationRun(EvalRun):
             config=config,
             model=model,
             dataset_part=DatasetPart.validate,
-            log_pred_vs_spim=False,
+            log_level_wandb=False,
             name=name,
             run_logger=WandbValidationLogger(
                 point_cloud_threshold=config.point_cloud_threshold,
@@ -179,7 +181,7 @@ class ValidationRun(EvalRun):
 
 
 class TestRun(EvalRun):
-    def __init__(self, wandb_run, config: TestRunConfig, log_pred_vs_spim: bool):
+    def __init__(self, wandb_run, config: TestRunConfig, log_level_wandb: int):
         model: HyLFM_Net = get_model(**config.checkpoint.config.model)
         model.load_state_dict(config.checkpoint.model_weights, strict=True)
 
@@ -193,14 +195,12 @@ class TestRun(EvalRun):
             run_logger=WandbLogger(
                 point_cloud_threshold=config.point_cloud_threshold, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)
             ),
-            log_pred_vs_spim=log_pred_vs_spim,
+            log_level_wandb=log_level_wandb,
         )
 
 
 class TestPrecomputedRun(EvalRun):
-    def __init__(
-        self, *, wandb_run, config: RunConfig, pred_name: str, scale: int, shrink: int, log_pred_vs_spim: bool
-    ):
+    def __init__(self, *, wandb_run, config: RunConfig, pred_name: str, scale: int, shrink: int, log_level_wandb: int):
         super().__init__(
             config=config,
             model=None,
@@ -209,7 +209,7 @@ class TestPrecomputedRun(EvalRun):
             run_logger=WandbLogger(
                 point_cloud_threshold=config.point_cloud_threshold, zyx_scaling=(5, 0.7 * 8 / scale, 0.7 * 8 / scale)
             ),
-            log_pred_vs_spim=log_pred_vs_spim,
+            log_level_wandb=log_level_wandb,
             scale=scale,
             shrink=shrink,
         )

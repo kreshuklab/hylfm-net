@@ -54,7 +54,7 @@ def tst_precomputed(
     )
 
     test_run = TestPrecomputedRun(
-        config=config, wandb_run=wandb_run, pred_name=pred, log_pred_vs_spim=True, scale=scale, shrink=shrink
+        config=config, wandb_run=wandb_run, pred_name=pred, log_level_wandb=1, scale=scale, shrink=shrink
     )
 
     test_run.run()
