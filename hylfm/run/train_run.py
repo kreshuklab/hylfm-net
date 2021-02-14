@@ -125,16 +125,16 @@ class TrainRun(Run):
         if not (best or keep_anyway):
             return
 
-        path = self.get_checkpoint().save(best=best)
-
-        # remove old best
-        if self.current_best_checkpoint_on_disk is not None:
+        if best and self.current_best_checkpoint_on_disk is not None:
+            # remove old best
             try:
                 self.current_best_checkpoint_on_disk.unlink()
             except Exception as e:
                 logger.warning(
                     "Could not remove old best checkpoint %s, due to %s", self.current_best_checkpoint_on_disk, e
                 )
+
+        path = self.get_checkpoint().save(best=best)
 
         # remember current best to delete on finding new best
         self.current_best_checkpoint_on_disk = None if keep_anyway else path
