@@ -92,7 +92,9 @@ class EvalRun(Run):
             if trfs.tgt_name is None:
                 step_metrics = {}
             else:
-                step_metrics = self.metric_group.update_with_batch(prediction=batch["pred"], target=batch[trfs.tgt_name])
+                step_metrics = self.metric_group.update_with_batch(
+                    prediction=batch["pred"], target=batch[trfs.tgt_name]
+                )
 
             for from_batch in ["NormalizeMSE.alpha", "NormalizeMSE.beta"]:
                 assert from_batch not in step_metrics
@@ -130,6 +132,10 @@ class EvalRun(Run):
             self.run_logger(epoch=epoch, iteration=it, epoch_len=self.epoch_len, step=step, **step_metrics)
 
             for key, path in self.save_output_to_disk.items():
+                if key not in batch:
+                    if key == "spim" and "ls_slice" in batch and "ls_slice" not in self.save_output_to_disk:
+                        key = "ls_slice"
+
                 save_tensor_batch(path, batch[key])
 
             sample_idx += batch["batch_len"]
