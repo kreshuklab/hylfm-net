@@ -27,7 +27,7 @@ def tst(
     batch_size: Optional[int] = typer.Option(None, "--batch_size"),
     data_range: Optional[float] = typer.Option(None, "--data_range"),
     dataset: Optional[DatasetChoice] = None,
-    log_level_disk: int = typer.Option(0, "--disk_logging"),
+    log_level_disk: int = typer.Option(0, "--log_level_disk"),
     interpolation_order: Optional[int] = typer.Option(None, "--interpolation_order"),
     point_cloud_threshold: float = typer.Option(1.0, "--point_cloud_threshold"),
     ui_name: Optional[str] = typer.Option(None, "--ui_name"),
@@ -47,7 +47,7 @@ def tst(
         )
 
     save_output_to_disk = {}
-    for lvl, key in enumerate(["pred", "spim", "lf"]):
+    for lvl, key in enumerate(["pred", "spim", "lf", "pred_vol"]):
         if lvl >= log_level_disk:
             break
 

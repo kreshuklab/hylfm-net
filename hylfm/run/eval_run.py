@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
+import numpy
+
 import hylfm.metrics
 import pandas
 import torch
@@ -106,20 +108,23 @@ class EvalRun(Run):
             if self.log_level_wandb > 0:
                 pred = batch["pred"]
                 pr = pred.detach().cpu().numpy()
-                assert len(pr.shape) == 5, pr.shape
+                # pr = get_max_projection_img(pr)
                 step_metrics["pred_max"] = list(pr.max(2))
 
                 if self.log_level_wandb > 1:
+                    step_metrics["pred-cloud"] = list(pr)
+
+                if self.log_level_wandb > 2:
                     if trfs.tgt_name in batch:
                         spim = batch[trfs.tgt_name]
                         sp = spim.detach().cpu().numpy()
                         step_metrics["spim_max"] = list(sp.max(2))
                         step_metrics["pred-vs-spim"] = list(torch.cat([pred, spim], dim=1))
 
-                    if self.log_level_wandb > 2:
-                        lf = batch["lf"]
-                        assert len(lf.shape) == 4, lf.shape
-                        step_metrics["lf"] = list(lf)
+            if self.log_level_wandb > 3:
+                lf = batch["lf"]
+                assert len(lf.shape) == 4, lf.shape
+                step_metrics["lf"] = list(lf)
 
             step = (epoch * self.epoch_len + it) * self.config.batch_size
             self.run_logger(epoch=epoch, iteration=it, epoch_len=self.epoch_len, step=step, **step_metrics)

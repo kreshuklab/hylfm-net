@@ -28,36 +28,6 @@ def camel_to_snake(name: str) -> str:
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", name).lower()
 
 
-def rename(newname):
-    def decorator(f):
-        f.__name__ = newname
-        return f
-
-    return decorator
-
-
-def handle_tensors(*output_names: str, **kwarg_mapping):
-    def decorator(function):
-        @wraps(function)
-        def wrapper(tensors: OrderedDict[str, Any]) -> OrderedDict[str, Any]:
-            kwargs = {name: tensors[tensor_name] for name, tensor_name in kwarg_mapping.items()}
-            outputs = function(**kwargs)
-            if not output_names:
-                pass
-            elif len(output_names) == 1:
-                tensors[output_names[0]] = outputs
-            else:
-                assert len(output_names) == len(outputs)
-                for name, out in zip(output_names, outputs):
-                    tensors[name] = out
-
-            return tensors
-
-        return wrapper
-
-    return decorator
-
-
 def delete_empty_dirs(dir: Path):
     if dir.is_dir():
         for d in dir.iterdir():
@@ -105,40 +75,6 @@ def print_timing(func):
         return result
 
     return wrapper
-
-
-def download_file_from_zenodo(doi: str, file_name: str, download_file_path: Path):
-    url = "https://doi.org/" + doi
-    r = requests.get(url)
-    if not r.ok:
-        raise RuntimeError("DOI could not be resolved.")
-
-    zenodo_record_id = r.url.split("/")[-1]
-
-    return download_file(
-        url=f"https://zenodo.org/record/{zenodo_record_id}/files/{file_name}", download_file_path=download_file_path
-    )
-
-
-def download_file(url: str, download_file_path: Path):
-    response = requests.get(url, stream=True)
-    total_size_in_bytes = int(response.headers.get("content-length", 0))
-    block_size = 1024  # 1 Kibibyte
-    progress_bar = tqdm(
-        total=total_size_in_bytes, unit="iB", unit_scale=True, desc=f"Downloading {download_file_path.name}"
-    )
-    download_file_path.parent.mkdir(parents=True, exist_ok=True)
-    with download_file_path.with_suffix(".part").open("wb") as file:
-        for data in response.iter_content(block_size):
-            progress_bar.update(len(data))
-            file.write(data)
-
-    progress_bar.close()
-    # todo: checksum
-    if total_size_in_bytes != 0 and progress_bar.n != total_size_in_bytes:
-        raise RuntimeError(f"downloading {url} to {download_file_path} failed")
-
-    shutil.move(download_file_path.with_suffix(".part"), download_file_path)
 
 
 class Period:

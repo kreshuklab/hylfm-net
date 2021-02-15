@@ -526,7 +526,7 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
         ]
         and part == DatasetPart.test
     ):
-        if name.name.endswith("_f4"):
+        if "_f4" in name.name:
             skip_indices = []
         else:
             skip_indices = numpy.arange(100, 166).tolist()
@@ -547,10 +547,10 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
             )
             for tensor_name in ("lf", "spim", "care", "lfd")
         }
-        if name.name.endswith("_sliced"):
-            filters = [("z_range", {})]
-        else:
-            filters = []
+        # if name.name.endswith("_sliced"):  # saved already is filtered
+        #     filters = [("z_range", {})]
+        # else:
+        filters = []
 
         datasets = {
             k: get_dataset_from_info(dsinfo, cache=True, filters=filters, indices=None)
@@ -559,7 +559,7 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
 
         heart_static_fish2_dataset = ZipDataset(datasets, transform=transforms_pipeline.sample_preprocessing)
         sections.append([heart_static_fish2_dataset])
-    elif name == DatasetChoice.heart_dyn_refine:
+    elif name in [DatasetChoice.heart_dyn_refine, DatasetChoice.heart_dyn_refine_lfd]:
         filters = [("z_range", {})]
         split_at = 964
         if part == DatasetPart.train:
@@ -572,21 +572,76 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
             raise NotImplementedError(part)
 
         tag = "2019-12-09_04.54.38"
-        sections.append(
-            [
-                get_dataset_subsection(
-                    tensors={
-                        "lf": f"heart_dynamic.{tag}",
-                        "ls_slice": f"heart_dynamic.{tag}",
-                        "meta": transforms_pipeline.meta,
-                    },
-                    filters=filters,
-                    indices=indices,
-                    preprocess_sample=transforms_pipeline.sample_precache_trf,
-                    augment_sample=transforms_pipeline.sample_preprocessing,
+        if name == DatasetChoice.heart_dyn_refine:
+            sections.append(
+                [
+                    get_dataset_subsection(
+                        tensors={
+                            "lf": f"heart_dynamic.{tag}",
+                            "ls_slice": f"heart_dynamic.{tag}",
+                            "meta": transforms_pipeline.meta,
+                        },
+                        filters=filters,
+                        indices=indices,
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
+                    )
+                ]
+            )
+        elif name == DatasetChoice.heart_dyn_refine_lfd:
+            # ls_slice_pre_cache_trf = [
+            #     trf
+            #     for trf in transforms_pipeline.sample_precache_trf
+            #     if any([kwargs["apply_to"] == "ls_slice" for kwargs in trf.values()])
+            # ]
+
+            def ds_from_path(tensor_name: str, path: Path):
+                pre_cache_trf = [
+                    trf
+                    for trf in transforms_pipeline.sample_precache_trf
+                    if any([kwargs["apply_to"] == tensor_name for kwargs in trf.values()])
+                ]
+                tensor_info = TensorInfo(
+                    name=tensor_name,
+                    root=path,
+                    location="*.tif",
+                    transforms=pre_cache_trf,
+                    datasets_per_file=1,
+                    samples_per_dataset=1,
+                    remove_singleton_axes_at=(-1,) if tensor_name in ("lf", "spim") else tuple(),
+                    insert_singleton_axes_at=(0, 0),
+                    z_slice=None,
+                    skip_indices=skip_indices,
+                    meta=None,
                 )
-            ]
-        )
+                return get_dataset_from_info(
+                    tensor_info, transforms=pre_cache_trf, cache=True, filters=[], indices=slice(4 * 209, None, None)
+                )
+
+            zipped_ds = ZipDataset(
+                dict(
+                    # ls_slice=get_dataset_from_info(
+                    #     get_tensor_info(
+                    #         info_name=f"heart_dynamic.{tag}", name="ls_slice", meta=transforms_pipeline.meta
+                    #     ),
+                    #     transforms=ls_slice_pre_cache_trf,
+                    #     cache=True,
+                    #     filters=filters,
+                    #     indices=indices,
+                    # ),
+                    ls_slice=ds_from_path(
+                        "ls_slice", Path("/g/kreshuk/LF_computed/lnet/plain/heart/dynamic1/test/ls_slice")
+                    ),
+                    lfd=ds_from_path("lfd", Path("/g/kreshuk/LF_computed/lnet/plain/heart/dynamic1/test/lr")),
+                    care=ds_from_path(
+                        "care", Path("/g/kreshuk/LF_computed/lnet/plain/heart/dynamic1/test/v0_on_48x88x88/")
+                    ),
+                ),
+                transform=transforms_pipeline.sample_preprocessing,
+            )
+            sections.append([zipped_ds])
+        else:
+            raise NotImplementedError(name)
 
     else:
         raise NotImplementedError(name)

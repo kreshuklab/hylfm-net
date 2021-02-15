@@ -82,6 +82,7 @@ class Run:
             scale=scale,
             shrink=shrink,
             interpolation_order=cfg.interpolation_order,
+            incl_pred_vol="pred_vol" in self.save_output_to_disk,
         )
 
         if (

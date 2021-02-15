@@ -4,7 +4,7 @@ from tqdm import tqdm
 
 from hylfm import settings
 from .base import TensorInfo
-from ..utils.general import download_file_from_zenodo
+from hylfm.utils.io import download_file_from_zenodo
 
 
 class OnlineTensorInfo(TensorInfo):

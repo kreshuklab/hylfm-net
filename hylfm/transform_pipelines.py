@@ -1,3 +1,5 @@
+from typing import Tuple, Union
+
 from hylfm.datasets.named import DatasetPart
 from hylfm.hylfm_types import DatasetChoice, TransformsPipeline
 from hylfm.transforms import (
@@ -10,6 +12,7 @@ from hylfm.transforms import (
     Crop,
     CropLSforDynamicTraining,
     CropWhatShrinkDoesNot,
+    Identity,
     Normalize01Dataset,
     NormalizeMSE,
     PoissonNoise,
@@ -27,10 +30,12 @@ def get_transforms_pipeline(
     scale: int,
     shrink: int,
     interpolation_order: int = 2,
+    incl_pred_vol: bool = False,
 ):
     sliced = dataset_name.value.endswith("_sliced") and dataset_part == DatasetPart.train
     dynamic = "dyn" in dataset_name.value
     spatial_dims = 2 if sliced or dynamic else 3
+    dyn_precomputed = dataset_name in [DatasetChoice.heart_dyn_refine_lfd]
 
     pred_z_min = 0
     pred_z_max = 838
@@ -258,6 +263,27 @@ def get_transforms_pipeline(
         batch_postprocessing = ComposedTransform(
             Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )
+
+    elif dataset_name == DatasetChoice.heart_dyn_refine_lfd and dataset_part == DatasetPart.test:  # todo: test
+        spim = "ls_slice"
+        sample_precache_trf = []
+
+        sample_preprocessing = ComposedTransform(
+            Assert(apply_to="lfd", expected_tensor_shape=(None, 1, z_out, None, None)),
+            Assert(apply_to="care", expected_tensor_shape=(None, 1, z_out, None, None)),
+            Assert(apply_to=spim, expected_tensor_shape=(None, 1, z_out, None, None)),
+            Assert(apply_to="lfd", expected_shape_like_tensor=spim),
+            Assert(apply_to="care", expected_shape_like_tensor=spim),
+        )
+
+        batch_preprocessing = ComposedTransform()
+        batch_preprocessing_in_step = ComposedTransform(
+            Cast(apply_to=["lfd", "care", spim], dtype="float32", device="cuda", non_blocking=True)
+        )
+        batch_postprocessing = ComposedTransform(
+            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
+        )
+
     elif dataset_part == DatasetPart.predict:
         spim = None
         sample_precache_trf = []
@@ -280,22 +306,34 @@ def get_transforms_pipeline(
         raise NotImplementedError(dataset_name, dataset_part)
 
     meta["crop_names"] = crop_names
-    if sliced or dynamic:
+    if (sliced or dynamic) and not dyn_precomputed:
         assert spim == "ls_slice"
-        batch_postprocessing += ComposedTransform(
-            AffineTransformationDynamicTraining(
-                apply_to="pred",
-                target_to_compare_to=spim,
-                crop_names=crop_names,
-                nnum=nnum,
-                scale=scale,
-                pred_z_min=pred_z_min,
-                pred_z_max=pred_z_max,
-                z_ls_rescaled=z_ls_rescaled,
-                padding_mode="border",
-                interpolation_order=interpolation_order,
+
+        def get_affine_trf_dyn(apply_to: str, targe_to_compare_to: Union[str, Tuple[int, str]]):
+            return ComposedTransform(
+                AffineTransformationDynamicTraining(
+                    apply_to=apply_to,
+                    target_to_compare_to=targe_to_compare_to,
+                    crop_names=crop_names,
+                    nnum=nnum,
+                    scale=scale,
+                    pred_z_min=pred_z_min,
+                    pred_z_max=pred_z_max,
+                    z_ls_rescaled=z_ls_rescaled,
+                    padding_mode="border",
+                    interpolation_order=interpolation_order,
+                )
             )
-        )
+
+        if incl_pred_vol:
+            batch_postprocessing += Identity(apply_to={"pred": "pred_vol"})
+            batch_postprocessing += get_affine_trf_dyn(
+                "pred_vol", (z_out, spim)
+            )  # transform pred volume to ls orientation
+
+        batch_postprocessing += get_affine_trf_dyn(
+            "pred", spim
+        )  # transform pred and sample only the z_slice of ls_slice
 
     if spim is not None:
         batch_postprocessing += Assert(apply_to="pred", expected_shape_like_tensor=spim)

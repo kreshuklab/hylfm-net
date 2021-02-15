@@ -502,7 +502,7 @@ def get_dataset_from_info(
     *,
     transforms: Sequence[Dict[str, dict]] = tuple(),
     cache: bool = False,
-    indices: Optional[Sequence[int]] = None,
+    indices: Optional[Union[slice, Sequence[int]]] = None,
     filters: Sequence[Tuple[str, Dict[str, Any]]] = tuple(),
 ) -> Union[DatasetFromInfo, N5CachedDatasetFromInfo, N5CachedDatasetFromInfoSubset]:
     info.transforms += list(transforms)

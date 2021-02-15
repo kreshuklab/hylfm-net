@@ -79,6 +79,7 @@ class DatasetChoice(str, Enum):
     heart_static_fish2_f4 = "heart_static_fish2_f4"
     heart_static_fish2_f4_sliced = "heart_static_fish2_f4_sliced"
     heart_dyn_refine = "heart_dyn_refine"
+    heart_dyn_refine_lfd = "heart_dyn_refine_lfd"
     predict_path = "predict_path"
 
 

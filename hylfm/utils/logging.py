@@ -1,3 +1,6 @@
+import numpy
+
+
 class DuplicateLogFilter:
     def __init__(self):
         self.msgs = set()
@@ -6,3 +9,19 @@ class DuplicateLogFilter:
         rv = record.msg not in self.msgs
         self.msgs.add(record.msg)
         return int(rv)
+
+
+def get_max_projection_img(img: numpy.ndarray):
+    assert len(img.shape) == 5, img.shape
+    b, c, z, y, x = img.shape
+    zmax = img.max(2)  # bcyx
+    ymax = img.max(3)  # bczx
+    xmax = img.max(4)  # bczy
+    free = numpy.zeros((b, c, z, z), dtype=zmax.dtype)
+
+
+
+
+    p1 = numpy.concatenate([zmax, ymax], axis=-2)
+    p2 = numpy.concatenate([xmax, free], axis=-2)
+    return numpy.block([[zmax, xmax], [ymax, free]])
