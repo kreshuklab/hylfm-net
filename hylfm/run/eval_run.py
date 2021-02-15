@@ -18,6 +18,7 @@ from hylfm.checkpoint import PredictRunConfig, RunConfig, TestRunConfig
 from hylfm.get_model import get_model
 from hylfm.hylfm_types import DatasetPart, MetricChoice
 from hylfm.model import HyLFM_Net
+from ..utils.logging import get_max_projection_img
 
 
 @dataclass
@@ -74,7 +75,8 @@ class EvalRun(Run):
             for batch_idx, tensor in enumerate(tensor_batch):
                 file_path = root / f"{sample_idx + batch_idx:05}.tif"
                 save_tensor(file_path, tensor)
-                tab_data_per_step[root.name].append(str(file_path))
+                if "metrics" in self.save_output_to_disk:
+                    tab_data_per_step[root.name].append(str(file_path))
 
         for it, batch in self.progress_tqdm(enumerate(self.dataloader), desc=self.name, total=self.epoch_len):
             assert "epoch" not in batch
@@ -107,11 +109,15 @@ class EvalRun(Run):
                     # spim = torch.cat([spim, zeros, spim], dim=1)
                     # step_metrics["pred-vs-spim"] = list(pred + spim)
 
+            if "metrics" in self.save_output_to_disk:
+                for key, val in step_metrics.items():
+                    tab_data_per_step[key].append(val)
+
             if self.log_level_wandb > 0:
                 pred = batch["pred"]
                 pr = pred.detach().cpu().numpy()
-                # pr = get_max_projection_img(pr)
-                step_metrics["pred_max"] = list(pr.max(2))
+                pr = get_max_projection_img(pr)
+                step_metrics["pred_max"] = list(pr)
 
                 if self.log_level_wandb > 1:
                     step_metrics["pred-cloud"] = list(pr)
@@ -132,7 +138,9 @@ class EvalRun(Run):
             self.run_logger(epoch=epoch, iteration=it, epoch_len=self.epoch_len, step=step, **step_metrics)
 
             for key, path in self.save_output_to_disk.items():
-                if key not in batch:
+                if key == "metrics":
+                    continue  # added to tab_data_per_step above
+                elif key not in batch:
                     if key == "spim" and "ls_slice" in batch and "ls_slice" not in self.save_output_to_disk:
                         key = "ls_slice"
 
@@ -142,8 +150,20 @@ class EvalRun(Run):
             yield EvalYield(batch=batch, step_metrics=step_metrics)
 
         summary_metrics = self.metric_group.compute()
-        if self.save_output_to_disk:
-            summary_metrics["result_paths"] = pandas.DataFrame.from_dict(tab_data_per_step)
+        if "metrics" in self.save_output_to_disk:
+            df = pandas.DataFrame.from_dict(tab_data_per_step)
+            df_path = self.save_output_to_disk["metrics"]
+            if ".h5" in df_path.suffix or ".hdf5" in df_path.suffix:
+                df_path, *internal_h5_path = df_path.name.split("/")
+                if not internal_h5_path:
+                    internal_h5_path = ["df"]
+
+                store = pandas.HDFStore(str(df_path))
+                store["/".join(internal_h5_path)] = df
+            elif df_path.suffix in (".pkl", ".pickle"):
+                df.to_pickle(str(df_path))
+            else:
+                raise NotImplementedError(df_path)
 
         self.run_logger.log_summary(
             step=(epoch * self.epoch_len + it + 1) * self.config.batch_size - 1, **summary_metrics

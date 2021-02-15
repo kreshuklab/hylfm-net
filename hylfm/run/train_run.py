@@ -103,8 +103,6 @@ class TrainRun(Run):
         self.iteration = checkpoint.iteration
         self.training_run_id = checkpoint.training_run_id
         self.validation_iteration = checkpoint.validation_iteration
-        self.val_it_is_power_of_two = False
-        self.val_it_is_best = False
 
     def get_checkpoint(self):
         return Checkpoint(
@@ -143,12 +141,25 @@ class TrainRun(Run):
         for _ in self:
             pass
 
-    def _validate(self) -> float:
+    def _validate(self, last: bool = False) -> float:
         self.validation_iteration += 1
         validation_score = self.validator.get_validation_score(
             step=(self.epoch * self.epoch_len + self.iteration) * self.config.batch_size
         )
         self.model.train()
+
+        best = self.best_validation_score is None or self.best_validation_score < validation_score
+        val_it_is_power_of_two = self.validation_iteration & (self.validation_iteration - 1) == 0
+
+        if best:
+            self.best_validation_score = validation_score
+            self.impatience = 0
+        else:
+            self.impatience += 1
+
+        if val_it_is_power_of_two or best:
+            self.save_a_checkpoint(best=best, keep_anyway=val_it_is_power_of_two or last)
+
         return validation_score
 
     def _step(self, batch: dict):
@@ -200,15 +211,6 @@ class TrainRun(Run):
 
         if self.validate_every.match(epoch=ep, iteration=it, epoch_len=self.epoch_len):
             validation_score = self._validate()
-            best = self.best_validation_score is None or self.best_validation_score < validation_score
-            self.val_it_is_best = best
-            self.val_it_is_power_of_two = self.validation_iteration & (self.validation_iteration - 1) == 0
-
-            if best:
-                self.best_validation_score = validation_score
-                self.impatience = 0
-            else:
-                self.impatience += 1
 
             step_metrics[self.validator.score_metric + "_val-score"] = validation_score
             if self.lr_scheduler is not None:
@@ -226,6 +228,13 @@ class TrainRun(Run):
         zero_max_threshold = 0.01
         zero_max_patience = 10
         zero_max_impatience = 0
+
+        if self.iteration + 1 >= self.epoch_len:
+            self.epoch += 1
+            self.iteration = 0
+
+        catch_up_to_iteration = self.iteration
+
         for epoch in range(self.epoch, self.config.max_epochs):
             self.epoch = epoch
             for it, batch in tqdm(
@@ -233,24 +242,21 @@ class TrainRun(Run):
                 desc=f"{self.name}|ep {epoch + 1:3}/{self.config.max_epochs}",
                 total=self.epoch_len,
             ):
-                if it < self.iteration:
+                if it < catch_up_to_iteration:
                     # catch up with loaded state  # todo: improve speed by not loading batch data in this case
                     logger.warning("skipping iteration %s to resume at %s", it, self.iteration)
                     continue
 
-                if self.val_it_is_power_of_two or self.val_it_is_best:
-                    self.save_a_checkpoint(best=self.val_it_is_best, keep_anyway=self.val_it_is_power_of_two)
-                    self.val_it_is_power_of_two = False
-                    self.val_it_is_best = False
+                self.iteration = it
+                batch = self._step(batch)
+
+                yield batch
 
                 if self.impatience > self.config.patience:
                     stop_early = True
                     logger.warning("stopping early after %s non-improving validations", self.impatience)
                     break
 
-                self.iteration = it
-                batch = self._step(batch)
-                yield batch
                 if batch["pred"].max() < zero_max_threshold:
                     zero_max_impatience += 1
                     if zero_max_impatience > zero_max_patience:
@@ -266,12 +272,8 @@ class TrainRun(Run):
             if stop_early:
                 break
 
-            self.iteration = 0
-        else:
-            self.epoch += 1
-
-        # save latest checkpoint
-        self.save_a_checkpoint(best=self.val_it_is_best, keep_anyway=True)
+        if not stop_early:
+            self._validate(last=True)
 
         self.run_logger.log_summary(step=self.epoch * self.epoch_len + self.iteration, **self.metric_group.compute())
         self.metric_group.reset()

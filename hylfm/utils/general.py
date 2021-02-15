@@ -85,7 +85,7 @@ class Period:
 
     def match(self, *, epoch: int, iteration: int, epoch_len: int):
         if self.unit == PeriodUnit.epoch:
-            if epoch % self.value == 0 and iteration == epoch_len - 1:
+            if epoch % self.value == 0 and iteration == 0:
                 return True
         elif self.unit == PeriodUnit.iteration:
             if iteration % self.value == 0:

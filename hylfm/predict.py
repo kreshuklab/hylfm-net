@@ -27,7 +27,7 @@ def predict(
     checkpoint: Path,
     batch_size: Optional[int] = typer.Option(None, "--batch_size"),
     data_range: Optional[float] = typer.Option(None, "--data_range"),
-    log_level_disk: int = typer.Option(1, "--disk_logging"),
+    log_level_disk: int = typer.Option(1, "--log_level_disk"),
     interpolation_order: Optional[int] = typer.Option(None, "--interpolation_order"),
     point_cloud_threshold: float = typer.Option(1.0, "--point_cloud_threshold"),
     ui_name: Optional[str] = typer.Option(None, "--ui_name"),

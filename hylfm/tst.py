@@ -47,7 +47,7 @@ def tst(
         )
 
     save_output_to_disk = {}
-    for lvl, key in enumerate(["pred", "spim", "lf", "pred_vol"]):
+    for lvl, key in enumerate(["metrics", "pred", "spim", "lf", "pred_vol"]):
         if lvl >= log_level_disk:
             break
 
