@@ -157,8 +157,11 @@ class TrainRun(Run):
         else:
             self.impatience += 1
 
-        if val_it_is_power_of_two or best:
-            self.save_a_checkpoint(best=best, keep_anyway=val_it_is_power_of_two or last)
+        keep_anyway = (
+            last or val_it_is_power_of_two or self.validation_iteration in self.config.save_after_validation_iterations
+        )
+        if keep_anyway or best:
+            self.save_a_checkpoint(best=best, keep_anyway=keep_anyway)
 
         return validation_score
 

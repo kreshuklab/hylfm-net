@@ -4,10 +4,10 @@ from dataclasses import asdict, dataclass, field, fields
 from enum import Enum
 from inspect import signature
 from pathlib import Path
-from typing import Collection, Dict, Optional, Union
+from typing import Dict, Optional, Sequence, Union
 
-import torch
 import packaging.version
+import torch
 
 from hylfm import __version__, settings
 from hylfm.get_model import get_model
@@ -115,6 +115,7 @@ class TrainRunConfig(RunConfig):
     seed: int
     validate_every_unit: PeriodUnit
     validate_every_value: int
+    save_after_validation_iterations: Sequence[int] = tuple()
 
     model_weights_name: Optional[str] = None
 

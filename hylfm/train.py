@@ -4,7 +4,7 @@ import logging
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import numpy
 import torch.optim
@@ -68,6 +68,7 @@ def train(
     validate_every_value: int = typer.Option(1, "--validate_every_value"),
     win_sigma: float = typer.Option(1.5, "--win_sigma"),
     win_size: int = typer.Option(11, "--win_size"),
+    save_after_validation_iterations: List[int] = typer.Option([], "--save_after_validation_iterations"),
     **model_kwargs,
 ):
     config = TrainRunConfig(
@@ -109,6 +110,7 @@ def train(
         win_size=win_size,
         hylfm_version=__version__,
         point_cloud_threshold=1.0,
+        save_after_validation_iterations=save_after_validation_iterations,
     )
 
     wandb_run = wandb.init(project="HyLFM-train", dir=str(settings.cache_dir), config=config.as_dict(for_logging=True))
