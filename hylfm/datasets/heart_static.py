@@ -364,6 +364,24 @@ def get_tensor_info(tag: str, name: str, meta: dict):
             location += "*/stack_0_channel_0/TP_00000/RC_rectified/Cam_Right_001_rectified.tif"
         elif name == "ls" or name == "ls_trf":
             location += "*/stack_1_channel_1/Cam_Left_00000.h5/Data"
+        elif name == "ls_slice":
+            location += "*/stack_1_channel_1/Cam_Left_00000.h5/Data"
+            samples_per_dataset = 241
+            z_slice = idx2z_slice_241
+        else:
+            raise NotImplementedError(name)
+    elif tag == "heart_2020_02_fish2_static":
+        crop_name = "heart_2020_02_fish2_static"
+        transformations = get_transformations(name, "heart_2020_02_fish2_static", meta=meta)
+        location = "LF_partially_restored/LenseLeNet_Microscope/20210214_static_dynamic_Heart_revision2/fish/8988_8749/fish2_static/"
+        if name == "lf":
+            location += "*/stack_0_channel_0/TP_00000/RC_rectified/Cam_Right_001_rectified.tif"
+        elif name == "ls" or name == "ls_trf":
+            location += "*/stack_1_channel_1/Cam_Left_00000.h5/Data"
+        elif name == "ls_slice":
+            location += "*/stack_1_channel_1/Cam_Left_00000.h5/Data"
+            samples_per_dataset = 241
+            z_slice = idx2z_slice_241
         else:
             raise NotImplementedError(name)
     else:

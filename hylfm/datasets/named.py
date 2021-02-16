@@ -641,7 +641,12 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
             )
             sections.append([zipped_ds])
 
-    elif name in [DatasetChoice.heart_2020_02_fish1_static]:
+    elif name in [
+        DatasetChoice.heart_2020_02_fish1_static,
+        DatasetChoice.heart_2020_02_fish1_static_sliced,
+        DatasetChoice.heart_2020_02_fish2_static,
+        DatasetChoice.heart_2020_02_fish2_static_sliced,
+    ]:
 
         def get_tensors(tag_: str):
             return {
@@ -652,26 +657,38 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
 
         if name.name.endswith("_sliced"):
             filters = [("z_range", {})]
-            # idx_first_vol = 209
+            val_until = 209 * 4
         else:
             filters = []
-            idx_first_vol = 1
+            val_until = 4
 
-        tag = "heart_2020_02_fish1_static"
-        if part == DatasetPart.test:
-            sections.append(
-                [
-                    get_dataset_subsection(
-                        tensors=get_tensors(tag),
-                        filters=filters,
-                        indices=None,
-                        preprocess_sample=transforms_pipeline.sample_precache_trf,
-                        augment_sample=transforms_pipeline.sample_preprocessing,
-                    )
-                ]
-            )
+        if "fish1" in name.name:
+            tag = "heart_2020_02_fish1_static"
+        elif "fish2" in name.name:
+            tag = "heart_2020_02_fish2_static"
+        else:
+            raise NotImplementedError(name)
+
+        if part == DatasetPart.train:
+            indices = slice(val_until, None, None)
+        elif part == DatasetPart.validate:
+            indices = slice(None, val_until, None)
+        elif part == DatasetPart.test:
+            indices = None
         else:
             raise NotImplementedError(part)
+
+        sections.append(
+            [
+                get_dataset_subsection(
+                    tensors=get_tensors(tag),
+                    filters=filters,
+                    indices=indices,
+                    preprocess_sample=transforms_pipeline.sample_precache_trf,
+                    augment_sample=transforms_pipeline.sample_preprocessing,
+                )
+            ]
+        )
     else:
         raise NotImplementedError(name)
 

@@ -716,7 +716,11 @@ def get_ls_ref_shape(crop_name: str):
     elif crop_name == heart_2020_02_fish1_static:
         # rect_LF = [350, 350, 1300, 1300]; %[xmin, ymin, width, height];
         # rect_LS = [300, 300, 1400, 1400];
-        ref_roi = [[0, 241], [0, 1301], [0, 1301]]
+        ref_roi = [[0, 241], [0, 1401], [0, 1401]]
+    elif crop_name == heart_2020_02_fish2_static:
+        # rect_LF = [230, 330, 1600, 1200]; %[xmin, ymin, width, height];
+        # rect_LS = [180, 280, 1700, 1300]; %[xmin, ymin, width, height];
+        ref_roi = [[0, 241], [0, 1301], [0, 1701]]
     else:
         raise NotImplementedError(crop_name)
 
@@ -751,7 +755,10 @@ def get_precropped_ls_roi_in_raw_ls(crop_name: str, *, for_slice: bool, wrt_ref:
         elif crop_name == heart_2020_02_fish1_static:
             # rect_LF = [350, 350, 1300, 1300]; %[xmin, ymin, width, height];
             # rect_LS = [300, 300, 1400, 1400];
-            precropped_roi = [[0, 241], [4, 1301 - 3], [4, 1301 - 3]]
+            precropped_roi = [[0, 241], [7, 1401 - 7], [7, 1401 - 7]]
+        elif crop_name == heart_2020_02_fish2_static:
+            # rect_LS = [180, 280, 1700, 1300]; %[xmin, ymin, width, height];
+            precropped_roi = [[0, 241], [4, 1301 - 5], [5, 1701 - 5]]
         else:
             raise NotImplementedError(crop_name)
     else:
@@ -780,7 +787,10 @@ def get_precropped_ls_roi_in_raw_ls(crop_name: str, *, for_slice: bool, wrt_ref:
         elif crop_name == heart_2020_02_fish1_static:
             # rect_LF = [350, 350, 1300, 1300]; %[xmin, ymin, width, height];
             # rect_LS = [300, 300, 1400, 1400];
-            precropped_roi = [[0, 241], [349 + 4, 349 + 1301 - 3], [349 + 4, 349 + 1301 - 3]]
+            precropped_roi = [[0, 241], [299 + 7, 299 + 1401 - 7], [299 + 7, 299 + 1401 - 7]]
+        elif crop_name == heart_2020_02_fish2_static:
+            # rect_LS = [180, 280, 1700, 1300]; %[xmin, ymin, width, height];
+            precropped_roi = [[0, 241], [279 + 4, 279 + 1301 - 5], [179 + 5, 179 + 1701 - 5]]
         else:
             raise NotImplementedError(crop_name)
 
@@ -799,7 +809,9 @@ def get_precropped_ls_shape(
     precropped_ls_shape_float[1] /= nnum
     precropped_ls_shape_float[2] /= nnum
     precropped_ls_shape = [int(s) for s in precropped_ls_shape_float]
-    assert precropped_ls_shape == precropped_ls_shape_float, (precropped_ls_shape, precropped_ls_shape_float)
+    if precropped_ls_shape != precropped_ls_shape_float:
+        logger.warning("rounding precropped_ls_shape: %s, %s", precropped_ls_shape, precropped_ls_shape_float)
+
     if not wrt_ref and ls_scale is None:
         raise TypeError("ls_scale required if not 'wrt_ref'")
 
@@ -825,7 +837,9 @@ def get_ls_roi(  # either in ref vol or in precroped ls
     elif crop_name == gcamp:
         ls_crop = [[60, 60], [4 * 19, 9 * 19], [9 * 19, 6 * 19]]
     elif crop_name == heart_2020_02_fish1_static:
-        ls_crop = [[0, 0], [0, 0], [0, 0]]
+        ls_crop = [[16, 16], [5 * 19, 5 * 19], [5 * 19, 5 * 19]]
+    elif crop_name == heart_2020_02_fish2_static:
+        ls_crop = [[16, 16], [5 * 19, 5 * 19], [5 * 19, 5 * 19]]
     else:
         raise NotImplementedError(crop_name)
 
