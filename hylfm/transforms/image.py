@@ -6,7 +6,7 @@ import skimage.transform
 import skimage.transform
 import torch
 
-from hylfm.utils.logging import DuplicateLogFilter
+from hylfm.utils.for_log import DuplicateLogFilter
 from .affine_utils import get_lf_roi_in_raw_lf, get_ls_roi
 from .base import Transform
 from ..hylfm_types import Array

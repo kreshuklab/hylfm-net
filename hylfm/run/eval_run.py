@@ -3,22 +3,20 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
-import numpy
-
-import hylfm.metrics
 import pandas
 import torch
 from torch import no_grad
 from tqdm import tqdm
 
-from hylfm.utils.io import save_tensor
-from .base import Run
-from .run_logger import WandbLogger, WandbValidationLogger
+import hylfm.metrics
 from hylfm.checkpoint import PredictRunConfig, RunConfig, TestRunConfig
 from hylfm.get_model import get_model
 from hylfm.hylfm_types import DatasetPart, MetricChoice
 from hylfm.model import HyLFM_Net
-from ..utils.logging import get_max_projection_img
+from hylfm.utils.for_log import get_max_projection_img
+from hylfm.utils.io import save_tensor
+from .base import Run
+from .run_logger import WandbLogger, WandbValidationLogger
 
 
 @dataclass
@@ -143,6 +141,10 @@ class EvalRun(Run):
                 elif key not in batch:
                     if key == "spim" and "ls_slice" in batch and "ls_slice" not in self.save_output_to_disk:
                         key = "ls_slice"
+                    elif key == "spim" and "ls_trf" in batch and "ls_trf" not in self.save_output_to_disk:
+                        key = "ls_trf"
+                    else:
+                        raise NotImplementedError(key)
 
                 save_tensor_batch(path, batch[key])
 
@@ -153,6 +155,9 @@ class EvalRun(Run):
         if "metrics" in self.save_output_to_disk:
             df = pandas.DataFrame.from_dict(tab_data_per_step)
             df_path = self.save_output_to_disk["metrics"]
+            if not df_path.suffix:
+                df_path = df_path.with_suffix(".h5")
+
             if ".h5" in df_path.suffix or ".hdf5" in df_path.suffix:
                 df_path, *internal_h5_path = df_path.name.split("/")
                 if not internal_h5_path:

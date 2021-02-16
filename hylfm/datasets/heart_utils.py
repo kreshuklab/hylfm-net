@@ -1,22 +1,37 @@
 from hylfm.transforms.affine_utils import (
     Heart_tightCrop,
-    fast_cropped_8ms,
     fast_cropped_6ms,
+    fast_cropped_8ms,
     get_bdv_affine_transformations_by_name,
-    staticHeartFOV,
-    wholeFOV,
+    get_ls_ref_shape,
     get_precropped_ls_roi_in_raw_ls,
     get_precropped_ls_shape,
     get_raw_lf_shape,
-    get_ls_ref_shape,
+    heart_2020_02_fish1_static,
+    heart_2020_02_fish2_static,
+    staticHeartFOV,
+    wholeFOV,
 )
 
 
 def get_transformations(name: str, crop_name: str, meta: dict):
-    assert crop_name in [Heart_tightCrop, staticHeartFOV, wholeFOV, fast_cropped_8ms, fast_cropped_6ms]
+    assert crop_name in [
+        Heart_tightCrop,
+        staticHeartFOV,
+        wholeFOV,
+        fast_cropped_8ms,
+        fast_cropped_6ms,
+        heart_2020_02_fish1_static,
+        heart_2020_02_fish2_static,
+    ]
     if name == "lf":
         return [
-            {"Assert": {"apply_to": name, "expected_tensor_shape": [None, 1] + get_raw_lf_shape(crop_name, wrt_ref=True)}}
+            {
+                "Assert": {
+                    "apply_to": name,
+                    "expected_tensor_shape": [None, 1] + get_raw_lf_shape(crop_name, wrt_ref=True),
+                }
+            }
         ]
     elif name in ["ls", "ls_trf"]:
         trf = [

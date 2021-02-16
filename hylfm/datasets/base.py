@@ -24,7 +24,6 @@ from hylfm import settings
 from hylfm.datasets.utils import get_paths, merge_nested_dicts
 from hylfm.hylfm_types import TransformLike
 from hylfm.stat_ import DatasetStat
-from hylfm.transforms import ComposedTransform
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +135,8 @@ class DatasetFromInfo(torch.utils.data.Dataset):
         self.tensor_name = info.name
         self.info = info
         self.description = info.description
+        from hylfm.transforms import ComposedTransform
+
         self.transform = ComposedTransform(
             *[getattr(hylfm.transforms, name)(**kwargs) for trf in info.transforms for name, kwargs in trf.items()]
         )

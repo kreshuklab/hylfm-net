@@ -1,6 +1,18 @@
+import logging
 from typing import List, Optional, Tuple
 
+logger = logging.getLogger(__name__)
+
 MAX_SRHINK_IN_LENSLETS = 3
+
+Heart_tightCrop = "Heart_tightCrop"
+staticHeartFOV = "staticHeartFOV"
+wholeFOV = "wholeFOV"
+fast_cropped_8ms = "fast_cropped_8ms"
+fast_cropped_6ms = "fast_cropped_6ms"
+gcamp = "gcamp"
+heart_2020_02_fish1_static = "heart_2020_02_fish1_static"
+heart_2020_02_fish2_static = "heart_2020_02_fish2_static"
 
 
 def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
@@ -21,8 +33,7 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
                 846.8515,
             ]
         ]
-
-    elif name == "Heart_tightCrop":
+    elif name == Heart_tightCrop:
         return [
             [
                 0.97945,
@@ -39,8 +50,7 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
                 -102.0931,
             ]
         ]
-
-    elif name == "staticHeartFOV":
+    elif name == staticHeartFOV:
         return [
             [
                 1.000045172184472,
@@ -86,7 +96,7 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
             ],
             [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0],
         ]
-    elif name == "wholeFOV":
+    elif name == wholeFOV:
         return [
             [
                 1.0000330417435905,
@@ -216,7 +226,7 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
             ],
             [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0],
         ]
-    elif name == "fast_cropped_8ms":
+    elif name == fast_cropped_8ms:
         return [
             [
                 0.9986010487421885,
@@ -332,7 +342,7 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
             ],
             [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0],
         ]
-    elif name == "fast_cropped_6ms":
+    elif name == fast_cropped_6ms:
         return [
             [
                 1.0002459794124785,
@@ -546,7 +556,7 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
             ],
             [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.4185, 0.0],
         ]
-    elif name == "gcamp":
+    elif name == gcamp:
         return [
             [
                 0.98048,
@@ -563,16 +573,25 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
                 846.8515,
             ]
         ]
+    elif name == heart_2020_02_fish1_static:
+        return [
+            [
+                0.98115,
+                0.0076884,
+                -0.16868,
+                -37.8586,
+                -0.011549,
+                0.98008,
+                -0.70569,
+                -3.7397,
+                0.027099,
+                0.013045,
+                3.9761,
+                -89.4007,
+            ]
+        ]
     else:
         raise NotImplementedError(name)
-
-
-Heart_tightCrop = "Heart_tightCrop"
-staticHeartFOV = "staticHeartFOV"
-wholeFOV = "wholeFOV"
-fast_cropped_8ms = "fast_cropped_8ms"
-fast_cropped_6ms = "fast_cropped_6ms"
-gcamp = "gcamp"
 
 
 def get_raw_lf_shape(crop_name: str, *, wrt_ref: bool, nnum: int = None, scale: int = None) -> List[int]:
@@ -595,6 +614,12 @@ def get_raw_lf_shape(crop_name: str, *, wrt_ref: bool, nnum: int = None, scale: 
     elif crop_name == gcamp:
         # crop on raw in matlab: rect_LF = [174, 324, 1700, 1400]; %[250, 300, 1550, 1350]; %[xmin, ymin, width, height];
         ref_shape = [1330, 1615]
+    elif crop_name == heart_2020_02_fish1_static:
+        #     # rect_LF = [350, 350, 1300, 1300]; %[xmin, ymin, width, height];
+        #     # rect_LS = [300, 300, 1400, 1400];
+        ref_shape = [1235, 1235]
+    elif crop_name == heart_2020_02_fish2_static:
+        ref_shape = [1140, 1520]
     else:
         raise NotImplementedError(crop_name)
 
@@ -688,6 +713,10 @@ def get_ls_ref_shape(crop_name: str):
     elif crop_name == gcamp:
         # in matlab: 124, 274, 1800, 1500
         ref_roi = [[0, 241], [0, 1774 - 273], [0, 1924 - 123 - 0]]
+    elif crop_name == heart_2020_02_fish1_static:
+        # rect_LF = [350, 350, 1300, 1300]; %[xmin, ymin, width, height];
+        # rect_LS = [300, 300, 1400, 1400];
+        ref_roi = [[0, 241], [0, 1301], [0, 1301]]
     else:
         raise NotImplementedError(crop_name)
 
@@ -719,6 +748,10 @@ def get_precropped_ls_roi_in_raw_ls(crop_name: str, *, for_slice: bool, wrt_ref:
         elif crop_name == gcamp:
             # in matlab: 124, 274, 1800, 1500
             precropped_roi = [[0, 241], [0, 1774 - 273], [7, 1924 - 123 - 8]]
+        elif crop_name == heart_2020_02_fish1_static:
+            # rect_LF = [350, 350, 1300, 1300]; %[xmin, ymin, width, height];
+            # rect_LS = [300, 300, 1400, 1400];
+            precropped_roi = [[0, 241], [4, 1301 - 3], [4, 1301 - 3]]
         else:
             raise NotImplementedError(crop_name)
     else:
@@ -744,6 +777,10 @@ def get_precropped_ls_roi_in_raw_ls(crop_name: str, *, for_slice: bool, wrt_ref:
             precropped_roi = [[0, 241], [9, 1024 + 1 - 9], [9, 1024 + 1 - 9]]
         elif crop_name == gcamp:
             precropped_roi = [[0, 241], [273, 1774], [123 + 7, 1924 - 8]]
+        elif crop_name == heart_2020_02_fish1_static:
+            # rect_LF = [350, 350, 1300, 1300]; %[xmin, ymin, width, height];
+            # rect_LS = [300, 300, 1400, 1400];
+            precropped_roi = [[0, 241], [349 + 4, 349 + 1301 - 3], [349 + 4, 349 + 1301 - 3]]
         else:
             raise NotImplementedError(crop_name)
 
@@ -787,6 +824,8 @@ def get_ls_roi(  # either in ref vol or in precroped ls
         ls_crop = [[19, 13], [4 * 19, 3 * 19], [4 * 19, 2 * 19]]
     elif crop_name == gcamp:
         ls_crop = [[60, 60], [4 * 19, 9 * 19], [9 * 19, 6 * 19]]
+    elif crop_name == heart_2020_02_fish1_static:
+        ls_crop = [[0, 0], [0, 0], [0, 0]]
     else:
         raise NotImplementedError(crop_name)
 

@@ -99,7 +99,7 @@ class AffineTransformation(torch.nn.Module):
             str, Tuple[int, str], Tuple[Union[int, float], Union[int, float], Union[int, float]]
         ],
         order: int,
-        align_corners: bool,
+        align_corners: bool = False,
         # subtract_one_when_scale: str,
         ref_input_shape: Union[str, Sequence[int]],
         bdv_affine_transformations: Union[

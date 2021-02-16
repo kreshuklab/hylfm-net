@@ -51,6 +51,9 @@ class Run:
             assert isinstance(config.save_output_to_disk, dict)
             self.save_output_to_disk = config.save_output_to_disk
 
+        if self.save_output_to_disk:
+            logger.warning("saving output to disk: %s", self.save_output_to_disk)
+
         for path in self.save_output_to_disk.values():
             path.mkdir(parents=True, exist_ok=True)
 

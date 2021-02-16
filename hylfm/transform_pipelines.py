@@ -141,6 +141,49 @@ def get_transforms_pipeline(
             Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )
 
+    elif dataset_name in [DatasetChoice.heart_2020_02_fish1_static, DatasetChoice.heart_2020_02_fish2_static]:
+        spim = "ls_trf"
+
+        if dataset_name == DatasetChoice.heart_2020_02_fish1_static:
+            crop_names.add("heart_2020_02_fish1_static")
+        elif dataset_name == DatasetChoice.heart_2020_02_fish2_static:
+            crop_names.add("heart_2020_02_fish2_static")
+        else:
+            raise NotImplementedError(dataset_name)
+
+        spim_max_percentile = 99.8
+
+        sample_precache_trf = []
+
+        # sample_preprocessing = ComposedTransform()
+        sample_preprocessing = ComposedTransform(
+            CropWhatShrinkDoesNot(
+                apply_to="lf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=True, crop_names=crop_names
+            )
+        )
+
+        sample_preprocessing += CropWhatShrinkDoesNot(
+            apply_to=spim, nnum=nnum, scale=scale, shrink=shrink, wrt_ref=False, crop_names=crop_names
+        )
+
+        sample_preprocessing += Crop(apply_to=spim, crop=((0, None), (0, None), (shrink, -shrink), (shrink, -shrink)))
+
+        sample_preprocessing += Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8)
+        sample_preprocessing += Normalize01Dataset(
+            apply_to=spim, min_percentile=5.0, max_percentile=spim_max_percentile
+        )
+
+        if dataset_part == DatasetPart.train:
+            raise NotImplementedError(dataset_part)
+        else:
+            sample_preprocessing += ComposedTransform(ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum))
+            batch_preprocessing = ComposedTransform()
+
+        batch_preprocessing_in_step = Cast(apply_to=["lfc", spim], dtype="float32", device="cuda", non_blocking=True)
+        batch_postprocessing = ComposedTransform(
+            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
+        )
+
     elif (
         dataset_name
         in [
@@ -161,7 +204,8 @@ def get_transforms_pipeline(
     ):
         spim = "ls_slice" if sliced or dynamic else "ls_trf"
         crop_names.add("Heart_tightCrop")
-        if dataset_name != DatasetChoice.heart_dyn_refine:
+
+        if dataset_name not in [DatasetChoice.heart_dyn_refine]:
             crop_names.add("staticHeartFOV")
 
         sample_precache_trf = []

@@ -640,9 +640,38 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                 transform=transforms_pipeline.sample_preprocessing,
             )
             sections.append([zipped_ds])
-        else:
-            raise NotImplementedError(name)
 
+    elif name in [DatasetChoice.heart_2020_02_fish1_static]:
+
+        def get_tensors(tag_: str):
+            return {
+                "lf_repeat241" if sliced else "lf": f"heart_static.{tag_}",
+                "ls_slice" if sliced else "ls_trf": f"heart_static.{tag_}",
+                "meta": transforms_pipeline.meta,
+            }
+
+        if name.name.endswith("_sliced"):
+            filters = [("z_range", {})]
+            # idx_first_vol = 209
+        else:
+            filters = []
+            idx_first_vol = 1
+
+        tag = "heart_2020_02_fish1_static"
+        if part == DatasetPart.test:
+            sections.append(
+                [
+                    get_dataset_subsection(
+                        tensors=get_tensors(tag),
+                        filters=filters,
+                        indices=None,
+                        preprocess_sample=transforms_pipeline.sample_precache_trf,
+                        augment_sample=transforms_pipeline.sample_preprocessing,
+                    )
+                ]
+            )
+        else:
+            raise NotImplementedError(part)
     else:
         raise NotImplementedError(name)
 

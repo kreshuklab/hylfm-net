@@ -45,7 +45,7 @@ def predict(
         )
 
     save_output_to_disk = {}
-    for lvl, key in enumerate(["pred"]):
+    for lvl, key in enumerate(["pred", "pred_vol"]):
         if lvl >= log_level_disk:
             break
 
