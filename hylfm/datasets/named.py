@@ -7,6 +7,7 @@ import torch.utils.data
 
 from hylfm.datasets import ConcatDataset, TensorInfo, ZipDataset, get_dataset_from_info, get_tensor_info
 from hylfm.hylfm_types import DatasetChoice, DatasetPart, TransformLike, TransformsPipeline
+from hylfm.transform_pipelines import get_transforms_pipeline
 from hylfm.transforms import Identity
 
 
@@ -60,8 +61,51 @@ def get_dataset_subsection(
 
 
 def get_dataset(
-    name: DatasetChoice, part: DatasetPart, transforms_pipeline: TransformsPipeline
+    name: DatasetChoice,
+    part: DatasetPart,
+    nnum: int,
+    z_out: int,
+    scale: int,
+    shrink: int,
+    interpolation_order: int = 2,
+    incl_pred_vol: bool = False,
 ):  # todo: move filters to TransformsPipeline, merge get_dataset and get_transforms_pipeline
+    # sections will not be sampled across, which allows differentely sized images in the same dataset
+    # subsections are grouped together to form mini-batches, thus their size needs to match
+    sections: List[List[torch.utils.data.Dataset]] = []
+
+    combined_datasets = {
+        DatasetChoice.heart_static_mix1_sliced: [
+            DatasetChoice.heart_static_fish2_sliced,
+            DatasetChoice.heart_2020_02_fish2_static,
+        ],
+        DatasetChoice.heart_static_mix2_sliced: [
+            DatasetChoice.heart_static_fish2_sliced,
+            DatasetChoice.heart_2020_02_fish2_static,
+            DatasetChoice.heart_2020_02_fish1_static,
+        ],
+        DatasetChoice.heart_static_mix3_sliced: [
+            DatasetChoice.heart_static_fish5_sliced,
+            DatasetChoice.heart_2020_02_fish1_static_sliced,
+        ],
+    }
+    for subname in combined_datasets.get(name, [name]):
+        transforms_pipeline = get_transforms_pipeline(
+            dataset_name=name,
+            dataset_part=part,
+            nnum=nnum,
+            z_out=z_out,
+            scale=scale,
+            shrink=shrink,
+            interpolation_order=interpolation_order,
+            incl_pred_vol=incl_pred_vol,
+        )
+        sections += get_dataset_sections(subname, part, transforms_pipeline)
+
+    return ConcatDataset([torch.utils.data.ConcatDataset(subsections) for subsections in sections])
+
+
+def get_dataset_sections(name: DatasetChoice, part: DatasetPart, transforms_pipeline: TransformsPipeline):
     sliced = name.value.endswith("_sliced") and part == DatasetPart.train
 
     # sections will not be sampled across, which allows differentely sized images in the same dataset
@@ -131,6 +175,48 @@ def get_dataset(
                 )
             )
 
+    elif name == DatasetChoice.heart_static_fish5_sliced and part != DatasetPart.test:
+
+        def get_tensors(tag_: str):
+            return {
+                "lf_repeat241" if sliced else "lf": f"heart_static.{tag_}",
+                "ls_slice" if sliced else "ls_trf": f"heart_static.{tag_}",
+                "meta": transforms_pipeline.meta,
+            }
+
+        if name.name.endswith("_sliced"):
+            filters = [("z_range", {})]
+            idx_first_vol = 209
+        else:
+            filters = []
+            idx_first_vol = 1
+
+        tags = {
+            DatasetPart.train: [
+                "2019-12-08_06.38.47",
+                "2019-12-08_06.10.34",
+                "2019-12-08_06.41.39",
+                "2019-12-08_06.18.09",
+                "2019-12-08_06.46.09",
+                "2019-12-08_06.23.13",
+                "2019-12-08_06.49.08",
+                "2019-12-08_06.25.02",
+                "2019-12-08_06.51.57",
+                "2019-12-08_06.30.40",
+            ],
+            DatasetPart.validate: ["2019-12-08_06.35.52"],
+        }
+        sections.append([])
+        for tag in tags[part]:
+            sections[-1].append(
+                get_dataset_subsection(
+                    tensors=get_tensors(tag),
+                    filters=filters,
+                    indices=slice(idx_first_vol, None, None),
+                    preprocess_sample=transforms_pipeline.sample_precache_trf,
+                    augment_sample=transforms_pipeline.sample_preprocessing,
+                )
+            )
     elif (
         name in [DatasetChoice.heart_static_a, DatasetChoice.heart_static_c]
         or name
@@ -525,6 +611,7 @@ def get_dataset(
             DatasetChoice.heart_static_fish2_f4,
             DatasetChoice.heart_static_fish2_sliced,
             DatasetChoice.heart_static_fish2_f4_sliced,
+            DatasetChoice.heart_static_fish5_sliced,
         ]
         and part == DatasetPart.test
     ):
@@ -731,4 +818,4 @@ def get_dataset(
     else:
         raise NotImplementedError(name)
 
-    return ConcatDataset([torch.utils.data.ConcatDataset(subsections) for subsections in sections])
+    return sections

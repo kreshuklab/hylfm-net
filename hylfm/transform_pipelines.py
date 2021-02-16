@@ -42,7 +42,106 @@ def get_transforms_pipeline(
     z_ls_rescaled = 241
     crop_names = set()
 
-    if dataset_name in [DatasetChoice.beads_highc_a]:
+    if dataset_name == DatasetChoice.heart_static_mix3_sliced:
+        tgt = "ls_slice"
+        crop_names.add("heart_2020_02_fish1_static")
+        crop_names.add("Heart_tightCrop")
+        crop_names.add("staticHeartFOV")
+
+        sample_precache_trf = []
+
+        tgt_max_percentile = 99.8
+
+        sample_preprocessing = ComposedTransform(
+            CropWhatShrinkDoesNot(
+                apply_to="lf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=True, crop_names=crop_names
+            )
+        )
+        assert tgt == "ls_slice"
+        sample_preprocessing += CropLSforDynamicTraining(
+            apply_to=tgt, crop_names=crop_names, nnum=nnum, scale=scale, z_ls_rescaled=z_ls_rescaled
+        )
+
+        sample_preprocessing += Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8)
+        sample_preprocessing += Normalize01Dataset(apply_to=tgt, min_percentile=5.0, max_percentile=tgt_max_percentile)
+
+        if dataset_part == DatasetPart.train:
+            sample_preprocessing += ComposedTransform(
+                RandomIntensityScale(apply_to=["lf", tgt], factor_min=0.8, factor_max=1.2, independent=False),
+                PoissonNoise(apply_to="lf", peak=10),
+                PoissonNoise(apply_to=tgt, peak=10),
+                # AdditiveGaussianNoise(apply_to="lf", sigma=0.1),
+                # AdditiveGaussianNoise(apply_to=tgt, sigma=0.05),
+                RandomlyFlipAxis(apply_to=["lf", tgt], axis=-1),
+                RandomlyFlipAxis(apply_to=["lf", tgt], axis=-2),
+            )
+            batch_preprocessing = ComposedTransform(
+                RandomRotate90(apply_to=["lf", tgt]), ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum)
+            )
+        else:
+            sample_preprocessing += ComposedTransform(ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum))
+            batch_preprocessing = ComposedTransform()
+
+        batch_preprocessing_in_step = Cast(apply_to=["lfc", tgt], dtype="float32", device="cuda", non_blocking=True)
+        batch_postprocessing = ComposedTransform(
+            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
+        )
+
+    elif dataset_name in [DatasetChoice.heart_static_mix1_sliced, DatasetChoice.heart_static_mix2_sliced]:
+        tgt = "ls_slice"
+        crop_names.add("heart_2020_02_fish1_static")
+        crop_names.add("heart_2020_02_fish2_static")
+
+        spim_max_percentile = 99.8
+
+        sample_precache_trf = []
+
+        sample_preprocessing = ComposedTransform(
+            CropWhatShrinkDoesNot(
+                apply_to="lf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=True, crop_names=crop_names
+            )
+        )
+        if sliced or dynamic:
+            tgt = "ls_slice"
+            sample_preprocessing += CropLSforDynamicTraining(
+                apply_to=tgt, crop_names=crop_names, nnum=nnum, scale=scale, z_ls_rescaled=z_ls_rescaled
+            )
+        else:
+            tgt = "ls_trf"
+            sample_preprocessing += CropWhatShrinkDoesNot(
+                apply_to=tgt, nnum=nnum, scale=scale, shrink=shrink, wrt_ref=False, crop_names=crop_names
+            )
+
+            sample_preprocessing += Crop(
+                apply_to=tgt, crop=((0, None), (0, None), (shrink, -shrink), (shrink, -shrink))
+            )
+
+        sample_preprocessing += Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8)
+        sample_preprocessing += Normalize01Dataset(apply_to=tgt, min_percentile=5.0, max_percentile=spim_max_percentile)
+
+        if dataset_part == DatasetPart.train:
+            sample_preprocessing += ComposedTransform(
+                RandomIntensityScale(apply_to=["lf", tgt], factor_min=0.8, factor_max=1.2, independent=False),
+                PoissonNoise(apply_to="lf", peak=10),
+                PoissonNoise(apply_to=tgt, peak=10),
+                # AdditiveGaussianNoise(apply_to="lf", sigma=0.1),
+                # AdditiveGaussianNoise(apply_to=spim, sigma=0.05),
+                RandomlyFlipAxis(apply_to=["lf", tgt], axis=-1),
+                RandomlyFlipAxis(apply_to=["lf", tgt], axis=-2),
+            )
+            batch_preprocessing = ComposedTransform(
+                RandomRotate90(apply_to=["lf", tgt]), ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum)
+            )
+        else:
+            sample_preprocessing += ComposedTransform(ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum))
+            batch_preprocessing = ComposedTransform()
+
+        batch_preprocessing_in_step = Cast(apply_to=["lfc", tgt], dtype="float32", device="cuda", non_blocking=True)
+        batch_postprocessing = ComposedTransform(
+            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
+        )
+
+    elif dataset_name in [DatasetChoice.beads_highc_a]:
         tgt = "ls_reg"
         if dataset_name == DatasetChoice.beads_highc_a and dataset_part == DatasetPart.train:
             if scale != 8:
@@ -354,6 +453,7 @@ def get_transforms_pipeline(
             DatasetChoice.heart_static_fish2_sliced,
             DatasetChoice.heart_static_fish2_f4,
             DatasetChoice.heart_static_fish2_f4_sliced,
+            DatasetChoice.heart_static_fish5_sliced,
         ]
         and dataset_part == DatasetPart.test
     ):

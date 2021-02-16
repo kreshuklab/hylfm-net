@@ -110,7 +110,12 @@ class Run:
             dtst = get_dataset_from_info(tensor_info, cache=True, filters=[], indices=None)
             self.dataset = ConcatDataset([dtst], transform=self.transforms_pipeline.sample_preprocessing)
         else:
-            self.dataset: ConcatDataset = get_dataset(cfg.dataset, dataset_part, self.transforms_pipeline)
+            self.dataset: ConcatDataset = get_dataset(cfg.dataset, dataset_part,             nnum=19 if self.model is None else self.model.nnum,
+            z_out=49 if self.model is None else self.model.z_out,
+            scale=scale,
+            shrink=shrink,
+            interpolation_order=cfg.interpolation_order,
+            incl_pred_vol="pred_vol" in self.save_output_to_disk)
 
         self.dataloader: DataLoader = DataLoader(
             dataset=self.dataset,

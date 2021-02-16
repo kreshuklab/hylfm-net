@@ -141,6 +141,8 @@ class EvalRun(Run):
                         key = "ls_slice"
                     elif key == "spim" and "ls_trf" in batch and "ls_trf" not in self.save_output_to_disk:
                         key = "ls_trf"
+                    elif key == "spim" and "lfd" in batch and "lfd" not in self.save_output_to_disk:
+                        key = "lfd"  # train on lfd, todo: rename 'spim' to 'target'
                     else:
                         raise NotImplementedError(key)
 

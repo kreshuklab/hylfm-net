@@ -86,6 +86,11 @@ class DatasetChoice(str, Enum):
     heart_2020_02_fish2_static = "heart_2020_02_fish2_static"
     heart_2020_02_fish2_static_sliced = "heart_2020_02_fish2_static_sliced"
     train_on_lfd = "train_on_lfd"
+    heart_static_mix1_sliced = "heart_static_mix1_sliced"  # old static fish training data + 2020_02 fish2 training
+    # old static fish training data + 2020_02 fish2 training + 2020_02 fish1 training
+    heart_static_mix2_sliced = "heart_static_mix2_sliced"
+    heart_static_fish5_sliced = "heart_static_fish5_sliced"
+    heart_static_mix3_sliced = "heart_static_mix3_sliced"  # old static fish 5 + 2020_02 fish 1
 
 
 class DatasetPart(str, Enum):
@@ -123,7 +128,7 @@ class PeriodUnit(str, Enum):
 
 @dataclass
 class TransformsPipeline:
-    sample_precache_trf: List[Dict[str, Dict[str, Any]]]
+    sample_precache_trf: Optional[List[Dict[str, Dict[str, Any]]]]
     sample_preprocessing: TransformLike
     batch_preprocessing: TransformLike
     batch_preprocessing_in_step: TransformLike
