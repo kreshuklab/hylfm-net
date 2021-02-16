@@ -48,6 +48,7 @@ def train_model_like(
     reference_checkpoint = Checkpoint.load(model_kwargs_from_checkpoint)
     reference_config = reference_checkpoint.config
     config = reference_config.as_dict(for_logging=False)
+    config.pop("hylfm_version")
     config.update(config.pop("model"))  # flatten model kwargs into config
 
     changes = {
@@ -81,9 +82,6 @@ def train_model_like(
         }.items()
         if v is not None
     }
-
-    if config.pop("hylfm_version") != __version__:
-        changes["hylfm_version"] = __version__
 
     note = f"train like {model_kwargs_from_checkpoint.resolve()} {'with changes:' if changes else ''} " + " ".join(
         [f"{k}: {v}" for k, v in changes.items()]
