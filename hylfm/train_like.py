@@ -43,6 +43,7 @@ def train_model_like(
     win_sigma: Optional[float] = typer.Option(None, "--win_sigma"),
     win_size: Optional[int] = typer.Option(None, "--win_size"),
     save_after_validation_iterations: Optional[List[int]] = typer.Option(None, "--save_after_validation_iterations"),
+    z_out: Optional[int] = typer.Option(None, "-z_out"),
 ):
     reference_checkpoint = Checkpoint.load(model_kwargs_from_checkpoint)
     reference_config = reference_checkpoint.config
@@ -75,6 +76,7 @@ def train_model_like(
             "win_sigma": win_sigma,
             "win_size": win_size,
             "save_after_validation_iterations": save_after_validation_iterations,
+            "z_out": z_out,
         }.items()
         if v is not None
     }
