@@ -590,6 +590,23 @@ def get_bdv_affine_transformations_by_name(name: str) -> List[List[float]]:
                 -89.4007,
             ]
         ]
+    elif name == heart_2020_02_fish2_static:
+        return [
+            [
+                0.98094,
+                0.0096704,
+                -0.16265,
+                -43.6254,
+                -0.012271,
+                0.98115,
+                -0.70286,
+                -4.1238,
+                0.024953,
+                0.0081028,
+                4.0148,
+                -90.4854,
+            ]
+        ]
     else:
         raise NotImplementedError(name)
 
@@ -691,6 +708,8 @@ def get_pred_shape(crop_name: str, *, shrink: int, nnum: int, scale: int, wrt_re
 
 def get_ls_ref_shape(crop_name: str):
     if crop_name == Heart_tightCrop:
+        # rect_LF = [250, 300, 1550, 1350]; %[xmin, ymin, width, height];
+        # rect_LS = [200, 250, 1650, 1450]; %[xmin, ymin, width, height];
         # crop in matlab: 200, 250, 1650, 1450 for ref shape
         # crop for ref shape + crop for divisibility
         ref_roi = [[0, 241], [0, 1700 - 249 - 0], [0, 1850 - 199 - 0]]
