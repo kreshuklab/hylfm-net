@@ -9,7 +9,7 @@ from torch import no_grad
 from tqdm import tqdm
 
 import hylfm.metrics
-from hylfm.checkpoint import PredictRunConfig, RunConfig, TestRunConfig
+from hylfm.checkpoint import PredictRunConfig, RunConfig, TestRunConfig, ValidationRunConfig
 from hylfm.get_model import get_model
 from hylfm.hylfm_types import DatasetPart, MetricChoice
 from hylfm.model import HyLFM_Net
@@ -178,7 +178,7 @@ class EvalRun(Run):
 
 
 class ValidationRun(EvalRun):
-    def __init__(self, *, config: RunConfig, model: HyLFM_Net, score_metric: MetricChoice, name: str):
+    def __init__(self, *, config: ValidationRunConfig, model: HyLFM_Net, score_metric: MetricChoice, name: str):
         scale = model.get_scale()
         self.minimize = getattr(hylfm.metrics, score_metric.replace("-", "_")).minimize
         super().__init__(

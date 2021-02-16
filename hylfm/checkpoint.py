@@ -281,6 +281,21 @@ class Checkpoint:
 
 
 @dataclass
+class ValidationRunConfigDefaults(RunConfigDefaults):
+    pass
+
+
+@dataclass
+class ValidationRunConfigBase(RunConfigBase):
+    pass
+
+
+@dataclass
+class ValidationRunConfig(ValidationRunConfigDefaults, ValidationRunConfigBase):
+    pass
+
+
+@dataclass
 class TestRunConfigDefaults(RunConfigDefaults):
     pass
 
@@ -330,4 +345,4 @@ class PredictRunConfig(PredictRunConfigDefaults, PredictRunConfigBase):
     pass
 
 
-RunConfig = Union[TrainRunConfig, TestRunConfig, PredictRunConfig]
+RunConfig = Union[PredictRunConfig, TestRunConfig, TrainRunConfig, ValidationRunConfig]

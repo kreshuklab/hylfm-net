@@ -162,6 +162,9 @@ def train(
     if isinstance(lr_sched_thres_mode, str):
         lr_sched_thres_mode = LRSchedThresMode(lr_sched_thres_mode)
 
+    if isinstance(lr_scheduler, str) and lr_scheduler is not None:
+        lr_scheduler = LRSchedulerChoice(lr_scheduler)
+
     if isinstance(optimizer, str):
         optimizer = OptimizerChoice(optimizer)
 

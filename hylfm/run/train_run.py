@@ -6,7 +6,7 @@ import torch.utils.data
 from tqdm import tqdm
 
 import hylfm.metrics
-from hylfm.checkpoint import Checkpoint, RunConfig, TrainRunConfig
+from hylfm.checkpoint import Checkpoint, TrainRunConfig, ValidationRunConfig
 from hylfm.get_criterion import get_criterion
 from hylfm.get_model import get_model
 from hylfm.hylfm_types import DatasetPart, LRScheduler, LRSchedulerChoice, Optimizer, OptimizerChoice
@@ -79,7 +79,7 @@ class TrainRun(Run):
                 self.lr_scheduler.load_state_dict(checkpoint.lr_scheduler_state_dict)
 
         self.validator = ValidationRun(
-            config=RunConfig(
+            config=ValidationRunConfig(
                 batch_size=cfg.eval_batch_size,
                 data_range=cfg.data_range,
                 dataset=cfg.dataset,
