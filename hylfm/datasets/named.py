@@ -689,6 +689,35 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
                 )
             ]
         )
+    elif name == DatasetChoice.train_on_lfd:
+        tensors = {
+            "lf": "dualview.RC_LFD_n156to156_steps4",
+            "lfd": "dualview.RC_LFD_n156to156_steps4",
+            "meta": transforms_pipeline.meta,
+        }
+
+        filters = []
+        if part == DatasetPart.train:
+            indices = slice(0, 271)
+        elif part == DatasetPart.validate:
+            indices = slice(271, 276)
+        elif part == DatasetPart.test:
+            indices = slice(276 - 286)
+        else:
+            raise NotImplementedError(part)
+
+        sections.append(
+            [
+                get_dataset_subsection(
+                    tensors=tensors,
+                    filters=filters,
+                    indices=indices,
+                    preprocess_sample=transforms_pipeline.sample_precache_trf,
+                    augment_sample=transforms_pipeline.sample_preprocessing,
+                )
+            ]
+        )
+
     else:
         raise NotImplementedError(name)
 

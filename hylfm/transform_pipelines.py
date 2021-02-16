@@ -371,6 +371,46 @@ def get_transforms_pipeline(
             Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )
 
+    elif dataset_name == DatasetChoice.train_on_lfd:
+        spim = "lfd"
+        sample_precache_trf = []
+
+        sample_preprocessing = ComposedTransform(
+            CropWhatShrinkDoesNot(
+                apply_to="lf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=True, crop_names=crop_names
+            )
+        )
+
+        sample_preprocessing += CropWhatShrinkDoesNot(
+            apply_to=spim, nnum=nnum, scale=scale, shrink=shrink, wrt_ref=False, crop_names=crop_names
+        )
+
+        sample_preprocessing += Crop(apply_to=spim, crop=((0, None), (0, None), (shrink, -shrink), (shrink, -shrink)))
+
+        sample_preprocessing += Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8)
+        sample_preprocessing += Normalize01Dataset(apply_to=spim, min_percentile=5.0, max_percentile=99.8)
+
+        if dataset_part == DatasetPart.train:
+            sample_preprocessing += ComposedTransform(
+                RandomIntensityScale(apply_to=["lf", spim], factor_min=0.8, factor_max=1.2, independent=False),
+                PoissonNoise(apply_to="lf", peak=10),
+                PoissonNoise(apply_to=spim, peak=10),
+                # AdditiveGaussianNoise(apply_to="lf", sigma=0.1),
+                # AdditiveGaussianNoise(apply_to=spim, sigma=0.05),
+                RandomlyFlipAxis(apply_to=["lf", spim], axis=-1),
+                RandomlyFlipAxis(apply_to=["lf", spim], axis=-2),
+            )
+            batch_preprocessing = ComposedTransform(
+                RandomRotate90(apply_to=["lf", spim]), ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum)
+            )
+        else:
+            sample_preprocessing += ComposedTransform(ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum))
+            batch_preprocessing = ComposedTransform()
+
+        batch_preprocessing_in_step = Cast(apply_to=["lfc", spim], dtype="float32", device="cuda", non_blocking=True)
+        batch_postprocessing = ComposedTransform(
+            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
+        )
     elif dataset_part == DatasetPart.predict:
         spim = None
         sample_precache_trf = []

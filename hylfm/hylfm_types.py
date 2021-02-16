@@ -85,6 +85,7 @@ class DatasetChoice(str, Enum):
     heart_2020_02_fish1_static_sliced = "heart_2020_02_fish1_static_sliced"
     heart_2020_02_fish2_static = "heart_2020_02_fish2_static"
     heart_2020_02_fish2_static_sliced = "heart_2020_02_fish2_static_sliced"
+    train_on_lfd = "train_on_lfd"
 
 
 class DatasetPart(str, Enum):
