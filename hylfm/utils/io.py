@@ -77,7 +77,7 @@ def save_pandas_df(df: pandas.DataFrame, df_path: Path):
         df_path = df_path.with_suffix(".h5")
 
     if ".h5" in df_path.suffix or ".hdf5" in df_path.suffix:
-        df_path, *internal_h5_path = df_path.name.split("/")
+        _, *internal_h5_path = df_path.name.split("/")
         if not internal_h5_path:
             internal_h5_path = ["df"]
 
