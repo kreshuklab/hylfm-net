@@ -69,7 +69,7 @@ def resume(
 
     import wandb
 
-    config = checkpoint.config.as_dict(for_logging=True)
+    config = checkpoint.config.as_dict(for_logging=False)
     config["resumed_from"] = checkpoint.training_run_name
 
     wandb_run = wandb.init(

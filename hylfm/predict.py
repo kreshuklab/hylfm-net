@@ -44,8 +44,12 @@ def predict(
             "ui_name %s overwrites training_run_name %s from checkpoint", ui_name, checkpoint.training_run_name
         )
 
+    tensors_to_log = ["pred"]
+    if checkpoint.config.dataset is not None and "dyn" in checkpoint.config.dataset.name:
+        tensors_to_log.append("pred_vol")
+
     save_output_to_disk = {}
-    for lvl, key in enumerate(["pred", "pred_vol"]):
+    for lvl, key in enumerate(tensors_to_log):
         if lvl >= log_level_disk:
             break
 

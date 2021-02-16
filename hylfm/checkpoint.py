@@ -220,6 +220,15 @@ class Checkpoint:
             )
         else:
             config = checkpoint_data.pop("config")
+
+            # todo: remove this monkey path
+            savi = config.pop("save_after_validation_iterations", [])
+            if isinstance(savi, list):
+                config["save_after_validation_iterations"] = savi
+            else:
+                # somehow a 'typer.models.OptionInfo' found its way here...
+                config["save_after_validation_iterations"] = []
+
             if "nnum" in config:
                 # someone was all about flattening that config dict, and somehow saved the flattened version in the checkpoint as well!?!?!!
                 model_config = {}
@@ -325,6 +334,7 @@ class TestRunConfigBase(RunConfigBase):
         return dat
 
 
+@dataclass
 class TestRunConfig(TestRunConfigDefaults, TestRunConfigBase):
     pass
 
