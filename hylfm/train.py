@@ -238,6 +238,9 @@ def train_from_checkpoint(wandb_run, checkpoint: Checkpoint):
     train_run = TrainRun(wandb_run=wandb_run, checkpoint=checkpoint)
     train_run.fit()
 
+    del train_run
+    torch.cuda.empty_cache()
+
     test_cmd = [
         sys.executable,
         str(Path(__file__).parent / "tst.py"),
