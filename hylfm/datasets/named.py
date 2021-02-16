@@ -59,7 +59,9 @@ def get_dataset_subsection(
     )
 
 
-def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: TransformsPipeline):
+def get_dataset(
+    name: DatasetChoice, part: DatasetPart, transforms_pipeline: TransformsPipeline
+):  # todo: move filters to TransformsPipeline, merge get_dataset and get_transforms_pipeline
     sliced = name.value.endswith("_sliced") and part == DatasetPart.train
 
     # sections will not be sampled across, which allows differentely sized images in the same dataset
@@ -560,7 +562,15 @@ def get_dataset(name: DatasetChoice, part: DatasetPart, transforms_pipeline: Tra
         heart_static_fish2_dataset = ZipDataset(datasets, transform=transforms_pipeline.sample_preprocessing)
         sections.append([heart_static_fish2_dataset])
     elif name in [DatasetChoice.heart_dyn_refine, DatasetChoice.heart_dyn_refine_lfd]:
-        filters = [("z_range", {})]
+        filters = [
+            # ("z_range", {"z_min": 29, "z_max": 218}),
+            ("z_range", {}),
+            (
+                "signal2noise",
+                {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 1.3},
+            ),
+        ]
+        # filters = [("z_range", {})]
         split_at = 964
         if part == DatasetPart.train:
             indices = slice(split_at, None, None)

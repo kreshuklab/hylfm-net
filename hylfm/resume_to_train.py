@@ -6,7 +6,7 @@ import typer
 
 from hylfm import settings
 from hylfm.checkpoint import Checkpoint
-from hylfm.hylfm_types import DatasetChoice
+from hylfm.hylfm_types import DatasetChoice, PeriodUnit
 from hylfm.train import train_from_checkpoint
 
 app = typer.Typer()
@@ -15,12 +15,14 @@ app = typer.Typer()
 @app.command()
 def resume(
     checkpoint: Path,
+    best_validation_score: Optional[float] = typer.Option(None, "--best_validation_score"),
     dataset: Optional[DatasetChoice] = None,
     impatience: Optional[int] = typer.Option(None, "--impatience"),
-    patience: Optional[int] = typer.Option(None, "--patience"),
-    best_validation_score: Optional[float] = typer.Option(None, "--best_validation_score"),
     max_epochs: Optional[int] = typer.Option(None, "--max_epochs"),
+    patience: Optional[int] = typer.Option(None, "--patience"),
     reset_epoch: Optional[bool] = typer.Option(False, "--reset_epoch"),
+    validate_every_unit: Optional[PeriodUnit] = typer.Option(None, "--validate_every_unit"),
+    validate_every_value: Optional[int] = typer.Option(None, "--validate_every_value"),
 ):
     checkpoint = Checkpoint.load(checkpoint)
 
@@ -51,6 +53,14 @@ def resume(
     if patience is not None:
         checkpoint.patience = patience
         changes["patience"] = patience
+
+    if validate_every_unit is not None:
+        checkpoint.config.validate_every_unit = validate_every_unit
+        changes["validate_every_unit"] = validate_every_unit
+
+    if validate_every_value is not None:
+        checkpoint.config.validate_every_value = validate_every_value
+        changes["validate_every_value"] = validate_every_value
 
     if changes:
         notes = "resumed with changes: " + " ".join([f"{k}: {v}" for k, v in changes.items()])
