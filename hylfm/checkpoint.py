@@ -133,7 +133,9 @@ class TrainRunConfigBase(RunConfigBase):
 
     def as_dict(self, for_logging: bool = False) -> dict:
         dat = super().as_dict(for_logging=for_logging)
-        if not for_logging:
+        if for_logging:
+            dat.update(dat.pop("model"))
+        else:
             dat.pop("model_weights_name")
 
         return dat
