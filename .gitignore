@@ -1,6 +1,7 @@
 cache/
 download/
 logs/
+metrics/
 
 hylfm/_settings/local.py
 hylfm/datasets/local/**
