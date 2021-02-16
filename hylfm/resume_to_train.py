@@ -1,5 +1,6 @@
 import collections
 from pathlib import Path
+from pprint import pprint
 from typing import Optional
 
 import typer
@@ -68,6 +69,7 @@ def resume(
         checkpoint.config.validate_every_value = validate_every_value
 
     if changes:
+        pprint(changes)
         notes = "resumed with changes: " + " ".join([f"{k}: {v}" for k, v in changes.items()])
     else:
         notes = "resumed without changes"
