@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Union
 
 import numpy
+import pandas
 import requests
 import torch
 from tifffile import imwrite
@@ -69,3 +70,20 @@ def download_file(url: str, download_file_path: Path):
         raise RuntimeError(f"downloading {url} to {download_file_path} failed")
 
     shutil.move(download_file_path.with_suffix(".part"), download_file_path)
+
+
+def save_pandas_df(df: pandas.DataFrame, df_path: Path):
+    if not df_path.suffix:
+        df_path = df_path.with_suffix(".h5")
+
+    if ".h5" in df_path.suffix or ".hdf5" in df_path.suffix:
+        df_path, *internal_h5_path = df_path.name.split("/")
+        if not internal_h5_path:
+            internal_h5_path = ["df"]
+
+        store = pandas.HDFStore(str(df_path))
+        store["/".join(internal_h5_path)] = df
+    elif df_path.suffix in (".pkl", ".pickle"):
+        df.to_pickle(str(df_path))
+    else:
+        raise NotImplementedError(df_path)

@@ -14,7 +14,7 @@ from hylfm.get_model import get_model
 from hylfm.hylfm_types import DatasetPart, MetricChoice
 from hylfm.model import HyLFM_Net
 from hylfm.utils.for_log import get_max_projection_img
-from hylfm.utils.io import save_tensor
+from hylfm.utils.io import save_pandas_df, save_tensor
 from .base import Run
 from .run_logger import WandbLogger, WandbValidationLogger
 
@@ -73,8 +73,6 @@ class EvalRun(Run):
             for batch_idx, tensor in enumerate(tensor_batch):
                 file_path = root / f"{sample_idx + batch_idx:05}.tif"
                 save_tensor(file_path, tensor)
-                if "metrics" in self.save_output_to_disk:
-                    tab_data_per_step[root.name].append(str(file_path))
 
         for it, batch in self.progress_tqdm(enumerate(self.dataloader), desc=self.name, total=self.epoch_len):
             assert "epoch" not in batch
@@ -155,20 +153,7 @@ class EvalRun(Run):
         if "metrics" in self.save_output_to_disk:
             df = pandas.DataFrame.from_dict(tab_data_per_step)
             df_path = self.save_output_to_disk["metrics"]
-            if not df_path.suffix:
-                df_path = df_path.with_suffix(".h5")
-
-            if ".h5" in df_path.suffix or ".hdf5" in df_path.suffix:
-                df_path, *internal_h5_path = df_path.name.split("/")
-                if not internal_h5_path:
-                    internal_h5_path = ["df"]
-
-                store = pandas.HDFStore(str(df_path))
-                store["/".join(internal_h5_path)] = df
-            elif df_path.suffix in (".pkl", ".pickle"):
-                df.to_pickle(str(df_path))
-            else:
-                raise NotImplementedError(df_path)
+            save_pandas_df(df, df_path)
 
         self.run_logger.log_summary(
             step=(epoch * self.epoch_len + it + 1) * self.config.batch_size - 1, **summary_metrics
