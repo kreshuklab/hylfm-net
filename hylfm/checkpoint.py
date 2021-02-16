@@ -36,7 +36,17 @@ def conv_to_simple_dtypes(data: dict):
 
 
 @dataclass
-class RunConfig:
+class RunConfigDefaults:
+    """
+    separate run config defaults for dataclass inheritance with default and non-default arguments,
+    see: https://stackoverflow.com/a/53085935
+    """
+
+    hylfm_version: str = __version__
+
+
+@dataclass
+class RunConfigBase:
     batch_size: int
     data_range: float
     dataset: DatasetChoice
@@ -44,7 +54,6 @@ class RunConfig:
     win_sigma: float
     win_size: int
     save_output_to_disk: Optional[Dict[str, Path]]
-    hylfm_version: str
     point_cloud_threshold: float
 
     def __post_init__(self):
@@ -57,7 +66,7 @@ class RunConfig:
     @classmethod
     def add_new_keys_for_0_1_2(cls, dat: dict) -> dict:
         if "hylfm_version" not in dat:
-            dat["hylfm_version"] = "0.0.0"
+            dat["hylfm_version"] = "0.1.2.elevated"
 
         if "save_output_to_disk" not in dat:
             dat["save_output_to_disk"] = None
@@ -85,7 +94,12 @@ class RunConfig:
 
 
 @dataclass
-class TrainRunConfig(RunConfig):
+class TrainRunConfigDefaults(RunConfigDefaults):
+    model_weights_name: Optional[str] = None
+
+
+@dataclass
+class TrainRunConfigBase(RunConfigBase):
     batch_multiplier: int
     crit_apply_weight_above_threshold: bool
     crit_beta: float
@@ -116,8 +130,6 @@ class TrainRunConfig(RunConfig):
     validate_every_unit: PeriodUnit
     validate_every_value: int
     save_after_validation_iterations: Sequence[int] = tuple()
-
-    model_weights_name: Optional[str] = None
 
     def as_dict(self, for_logging: bool = False) -> dict:
         dat = super().as_dict(for_logging=for_logging)
@@ -161,6 +173,11 @@ class TrainRunConfig(RunConfig):
         super().__post_init__()
         if self.model_weights is not None and self.model_weights_name is None:
             self.model_weights_name = self.model_weights.stem
+
+
+@dataclass
+class TrainRunConfig(TrainRunConfigDefaults, TrainRunConfigBase):
+    pass
 
 
 @dataclass
@@ -264,7 +281,12 @@ class Checkpoint:
 
 
 @dataclass
-class TestRunConfig(RunConfig):
+class TestRunConfigDefaults(RunConfigDefaults):
+    pass
+
+
+@dataclass
+class TestRunConfigBase(RunConfigBase):
     checkpoint: Optional[Checkpoint]
 
     def __post_init__(self):
@@ -288,7 +310,24 @@ class TestRunConfig(RunConfig):
         return dat
 
 
+class TestRunConfig(TestRunConfigDefaults, TestRunConfigBase):
+    pass
+
+
 @dataclass
-class PredictRunConfig(TestRunConfig):
+class PredictRunConfigDefaults(TestRunConfigDefaults):
+    pass
+
+
+@dataclass
+class PredictRunConfigBase(TestRunConfigBase):
     path: Path
     glob_expr: str
+
+
+@dataclass
+class PredictRunConfig(PredictRunConfigDefaults, PredictRunConfigBase):
+    pass
+
+
+RunConfig = Union[TrainRunConfig, TestRunConfig, PredictRunConfig]

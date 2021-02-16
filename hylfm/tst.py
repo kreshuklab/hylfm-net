@@ -1,9 +1,8 @@
-from hylfm import __version__, metrics, settings  # noqa: first line to set numpy env vars
-
 import logging
 from pathlib import Path
 from typing import Optional
 
+from hylfm import __version__, settings  # import hylfm before numpy!
 from hylfm.checkpoint import Checkpoint, TestRunConfig
 from hylfm.datasets.named import DatasetChoice
 from hylfm.run.eval_run import TestRun

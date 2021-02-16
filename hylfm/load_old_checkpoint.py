@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from hylfm.checkpoint import RunConfig, TrainRunConfig
+from hylfm.checkpoint import TrainRunConfig
 
 
 def get_config_for_old_checkpoint(checkpoint: Path) -> TrainRunConfig:

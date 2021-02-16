@@ -4,7 +4,7 @@ import logging
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional, Union
 
 import numpy
 import torch.optim
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 @app.command()
 @merge_args(get_model)
-def train(
+def train_cli(
     dataset: DatasetChoice,
     batch_multiplier: int = typer.Option(1, "--batch_multiplier"),
     batch_size: int = typer.Option(1, "--batch_size"),
@@ -71,6 +71,106 @@ def train(
     save_after_validation_iterations: List[int] = typer.Option([], "--save_after_validation_iterations"),
     **model_kwargs,
 ):
+    return train(
+        dataset=dataset,
+        batch_multiplier=batch_multiplier,
+        batch_size=batch_size,
+        crit_apply_weight_above_threshold=crit_apply_weight_above_threshold,
+        crit_beta=crit_beta,
+        crit_decay_weight_by=crit_decay_weight_by,
+        crit_decay_weight_every_unit=crit_decay_weight_every_unit,
+        crit_decay_weight_every_value=crit_decay_weight_every_value,
+        crit_decay_weight_limit=crit_decay_weight_limit,
+        crit_ms_ssim_weight=crit_ms_ssim_weight,
+        crit_threshold=crit_threshold,
+        crit_weight=crit_weight,
+        criterion=criterion,
+        data_range=data_range,
+        eval_batch_size=eval_batch_size,
+        interpolation_order=interpolation_order,
+        lr_sched_factor=lr_sched_factor,
+        lr_sched_patience=lr_sched_patience,
+        lr_sched_thres=lr_sched_thres,
+        lr_sched_thres_mode=lr_sched_thres_mode,
+        lr_scheduler=lr_scheduler,
+        max_epochs=max_epochs,
+        model_weights=model_weights,
+        opt_lr=opt_lr,
+        opt_momentum=opt_momentum,
+        opt_weight_decay=opt_weight_decay,
+        optimizer=optimizer,
+        patience=patience,
+        score_metric=score_metric,
+        seed=seed,
+        validate_every_unit=validate_every_unit,
+        validate_every_value=validate_every_value,
+        win_sigma=win_sigma,
+        win_size=win_size,
+        save_after_validation_iterations=save_after_validation_iterations,
+        **model_kwargs,
+    )
+
+
+def train(
+    *,
+    dataset: DatasetChoice,
+    batch_multiplier: int,
+    batch_size: int,
+    crit_apply_weight_above_threshold: bool,
+    crit_beta: float,
+    crit_decay_weight_by: Optional[float],
+    crit_decay_weight_every_unit: Union[PeriodUnit, str],
+    crit_decay_weight_every_value: int,
+    crit_decay_weight_limit: float,
+    crit_ms_ssim_weight: float,
+    crit_threshold: float,
+    crit_weight: float,
+    criterion: Union[CriterionChoice, str],
+    data_range: float,
+    eval_batch_size: int,
+    interpolation_order: int,
+    lr_sched_factor: float,
+    lr_sched_patience: int,
+    lr_sched_thres: float,
+    lr_sched_thres_mode: Union[LRSchedThresMode, str],
+    lr_scheduler: Optional[LRSchedulerChoice],
+    max_epochs: int,
+    model_weights: Optional[Path],
+    opt_lr: float,
+    opt_momentum: float,
+    opt_weight_decay: float,
+    optimizer: Union[OptimizerChoice, str],
+    patience: int,
+    score_metric: Union[MetricChoice, str],
+    seed: Optional[int],
+    validate_every_unit: Union[PeriodUnit, str],
+    validate_every_value: int,
+    win_sigma: float,
+    win_size: int,
+    save_after_validation_iterations: List[int],
+    point_cloud_threshold: float = 1.0,
+    save_output_to_disk: Optional[Dict[str, Path]] = None,
+    note: str = "",
+    **model_kwargs,
+):
+    if isinstance(crit_decay_weight_every_unit, str):
+        crit_decay_weight_every_unit = PeriodUnit(crit_decay_weight_every_unit)
+
+    if isinstance(criterion, str):
+        criterion = CriterionChoice(criterion)
+
+    if isinstance(lr_sched_thres_mode, str):
+        lr_sched_thres_mode = LRSchedThresMode(lr_sched_thres_mode)
+
+    if isinstance(optimizer, str):
+        optimizer = OptimizerChoice(optimizer)
+
+    if isinstance(score_metric, str):
+        score_metric = MetricChoice(score_metric)
+
+    if isinstance(validate_every_unit, str):
+        validate_every_unit = PeriodUnit(validate_every_unit)
+
     config = TrainRunConfig(
         batch_multiplier=batch_multiplier,
         batch_size=batch_size,
@@ -101,19 +201,20 @@ def train(
         opt_weight_decay=opt_weight_decay,
         optimizer=optimizer,
         patience=patience,
-        save_output_to_disk={},
+        save_output_to_disk=save_output_to_disk or {},
         score_metric=score_metric,
         seed=seed,
         validate_every_unit=validate_every_unit,
         validate_every_value=validate_every_value,
         win_sigma=win_sigma,
         win_size=win_size,
-        hylfm_version=__version__,
-        point_cloud_threshold=1.0,
+        point_cloud_threshold=point_cloud_threshold,
         save_after_validation_iterations=save_after_validation_iterations,
     )
 
-    wandb_run = wandb.init(project="HyLFM-train", dir=str(settings.cache_dir), config=config.as_dict(for_logging=True))
+    wandb_run = wandb.init(
+        project="HyLFM-train", dir=str(settings.cache_dir), config=config.as_dict(for_logging=True), notes=note
+    )
 
     if model_weights is not None:
         model_weights = Checkpoint.load(model_weights).model_weights
