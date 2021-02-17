@@ -186,10 +186,8 @@ def get_dataset_sections(name: DatasetChoice, part: DatasetPart, transforms_pipe
 
         if name.name.endswith("_sliced"):
             filters = [("z_range", {})]
-            idx_first_vol = 209
         else:
             filters = []
-            idx_first_vol = 1
 
         tags = {
             DatasetPart.train: [
@@ -212,7 +210,7 @@ def get_dataset_sections(name: DatasetChoice, part: DatasetPart, transforms_pipe
                 get_dataset_subsection(
                     tensors=get_tensors(tag),
                     filters=filters,
-                    indices=slice(idx_first_vol, None, None),
+                    indices=None,
                     preprocess_sample=transforms_pipeline.sample_precache_trf,
                     augment_sample=transforms_pipeline.sample_preprocessing,
                 )

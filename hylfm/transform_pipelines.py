@@ -43,7 +43,6 @@ def get_transforms_pipeline(
     crop_names = set()
 
     if dataset_name == DatasetChoice.heart_static_mix3_sliced:
-        tgt = "ls_slice"
         crop_names.add("heart_2020_02_fish1_static")
         crop_names.add("Heart_tightCrop")
         crop_names.add("staticHeartFOV")
@@ -57,10 +56,21 @@ def get_transforms_pipeline(
                 apply_to="lf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=True, crop_names=crop_names
             )
         )
-        assert tgt == "ls_slice"
-        sample_preprocessing += CropLSforDynamicTraining(
-            apply_to=tgt, crop_names=crop_names, nnum=nnum, scale=scale, z_ls_rescaled=z_ls_rescaled
-        )
+
+        if sliced or dynamic:
+            tgt = "ls_slice"
+            sample_preprocessing += CropLSforDynamicTraining(
+                apply_to=tgt, crop_names=crop_names, nnum=nnum, scale=scale, z_ls_rescaled=z_ls_rescaled
+            )
+        else:
+            tgt = "ls_trf"
+            sample_preprocessing += CropWhatShrinkDoesNot(
+                apply_to=tgt, nnum=nnum, scale=scale, shrink=shrink, wrt_ref=False, crop_names=crop_names
+            )
+
+            sample_preprocessing += Crop(
+                apply_to=tgt, crop=((0, None), (0, None), (shrink, -shrink), (shrink, -shrink))
+            )
 
         sample_preprocessing += Normalize01Dataset(apply_to="lf", min_percentile=5.0, max_percentile=99.8)
         sample_preprocessing += Normalize01Dataset(apply_to=tgt, min_percentile=5.0, max_percentile=tgt_max_percentile)
@@ -88,7 +98,6 @@ def get_transforms_pipeline(
         )
 
     elif dataset_name in [DatasetChoice.heart_static_mix1_sliced, DatasetChoice.heart_static_mix2_sliced]:
-        tgt = "ls_slice"
         crop_names.add("heart_2020_02_fish1_static")
         crop_names.add("heart_2020_02_fish2_static")
 
