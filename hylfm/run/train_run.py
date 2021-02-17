@@ -229,7 +229,7 @@ class TrainRun(Run):
         self.model.train()
         stop_early = False
         zero_max_threshold = 0.01
-        zero_max_patience = 10
+        zero_max_patience = self.config.zero_max_patience
         zero_max_impatience = 0
 
         if self.iteration + 1 >= self.epoch_len:

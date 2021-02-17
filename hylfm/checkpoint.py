@@ -96,6 +96,7 @@ class RunConfigBase:
 @dataclass
 class TrainRunConfigDefaults(RunConfigDefaults):
     model_weights_name: Optional[str] = None
+    zero_max_patience: int = 10
 
 
 @dataclass

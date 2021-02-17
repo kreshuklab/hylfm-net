@@ -151,6 +151,7 @@ def train(
     point_cloud_threshold: float = 1.0,
     save_output_to_disk: Optional[Dict[str, Path]] = None,
     note: str = "",
+    zero_max_patience: int = 10,
     **model_kwargs,
 ):
     if isinstance(crit_decay_weight_every_unit, str):
@@ -213,6 +214,7 @@ def train(
         win_size=win_size,
         point_cloud_threshold=point_cloud_threshold,
         save_after_validation_iterations=save_after_validation_iterations,
+        zero_max_patience=zero_max_patience,
     )
 
     wandb_run = wandb.init(
