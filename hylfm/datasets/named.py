@@ -69,6 +69,7 @@ def get_dataset(
     shrink: int,
     interpolation_order: int = 2,
     incl_pred_vol: bool = False,
+    load_lfd_and_care: bool = False,
 ):  # todo: move filters to TransformsPipeline, merge get_dataset and get_transforms_pipeline
     # sections will not be sampled across, which allows differentely sized images in the same dataset
     # subsections are grouped together to form mini-batches, thus their size needs to match
@@ -100,12 +101,12 @@ def get_dataset(
             interpolation_order=interpolation_order,
             incl_pred_vol=incl_pred_vol,
         )
-        sections += get_dataset_sections(subname, part, transforms_pipeline)
+        sections += get_dataset_sections(subname, part, transforms_pipeline, load_lfd_and_care=load_lfd_and_care)
 
     return ConcatDataset([torch.utils.data.ConcatDataset(subsections) for subsections in sections])
 
 
-def get_dataset_sections(name: DatasetChoice, part: DatasetPart, transforms_pipeline: TransformsPipeline):
+def get_dataset_sections(name: DatasetChoice, part: DatasetPart, transforms_pipeline: TransformsPipeline, load_lfd_and_care: bool):
     sliced = name.value.endswith("_sliced") and part == DatasetPart.train
 
     # sections will not be sampled across, which allows differentely sized images in the same dataset
@@ -744,11 +745,15 @@ def get_dataset_sections(name: DatasetChoice, part: DatasetPart, transforms_pipe
     ]:
 
         def get_tensors(tag_: str):
-            return {
+            tensors = {
                 "lf_repeat241" if sliced else "lf": f"heart_static.{tag_}",
                 "ls_slice" if sliced else "ls_trf": f"heart_static.{tag_}",
                 "meta": transforms_pipeline.meta,
             }
+            if load_lfd_and_care:
+                tensors["lfd"] = f"heart_static.{tag_}"
+
+            return tensors
 
         if name.name.endswith("_sliced"):
             filters = [("z_range", {})]

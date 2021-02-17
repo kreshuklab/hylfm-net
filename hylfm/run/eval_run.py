@@ -5,18 +5,20 @@ from typing import Any, Dict, Iterable, Optional
 
 import pandas
 import torch
+from hylfm.datasets import ConcatDataset, TensorInfo, get_dataset_from_info
 from torch import no_grad
 from tqdm import tqdm
 
 import hylfm.metrics
 from hylfm.checkpoint import PredictRunConfig, AnyRunConfig, TestRunConfig, ValidationRunConfig
 from hylfm.get_model import get_model
-from hylfm.hylfm_types import DatasetPart, MetricChoice
+from hylfm.hylfm_types import DatasetChoice, DatasetPart, MetricChoice
 from hylfm.model import HyLFM_Net
 from hylfm.utils.for_log import get_max_projection_img
 from hylfm.utils.io import save_pandas_df, save_tensor
 from .base import Run
 from .run_logger import WandbLogger, WandbValidationLogger
+from ..datasets.named import get_dataset
 
 
 @dataclass
@@ -225,6 +227,7 @@ class TestPrecomputedRun(EvalRun):
     def __init__(
         self, *, wandb_run, config: AnyRunConfig, pred_name: str, scale: int, shrink: int, log_level_wandb: int
     ):
+        self.pred_name = pred_name
         super().__init__(
             config=config,
             model=None,
@@ -237,10 +240,22 @@ class TestPrecomputedRun(EvalRun):
             scale=scale,
             shrink=shrink,
         )
-        self.pred_name = pred_name
 
     def get_pred(self, batch):
         return batch[self.pred_name]
+
+    def get_dataset(self):
+        return get_dataset(
+            self.config.dataset,
+            self.dataset_part,
+            nnum=19 if self.model is None else self.model.nnum,
+            z_out=49 if self.model is None else self.model.z_out,
+            scale=self.scale,
+            shrink=self.shrink,
+            interpolation_order=self.config.interpolation_order,
+            incl_pred_vol="pred_vol" in self.save_output_to_disk,
+            load_lfd_and_care=self.pred_name in ["lfd", "care"],
+        )
 
 
 class PredictRun(EvalRun):
@@ -260,3 +275,24 @@ class PredictRun(EvalRun):
             ),
             log_level_wandb=log_level_wandb,
         )
+
+    def get_dataset(self):
+        assert self.config.dataset == DatasetChoice.predict_path
+        assert self.dataset_part == DatasetPart.predict
+
+        tensor_info = TensorInfo(
+            name="lf",
+            root=self.config.path,
+            location=self.config.glob_expr,
+            transforms=self.transforms_pipeline.sample_precache_trf,
+            datasets_per_file=1,
+            samples_per_dataset=1,
+            remove_singleton_axes_at=tuple(),  # (-1,),
+            insert_singleton_axes_at=(0, 0),
+            z_slice=None,
+            skip_indices=tuple(),
+            meta=None,
+        )
+
+        dtst = get_dataset_from_info(tensor_info, cache=True, filters=[], indices=None)
+        return ConcatDataset([dtst], transform=self.transforms_pipeline.sample_preprocessing)

@@ -22,19 +22,22 @@ app = typer.Typer()
 
 @app.command(name="test_precomputed")
 def tst_precomputed(
+    dataset: DatasetChoice,
+    pred: str,
     batch_size: int = typer.Option(1, "--batch_size"),
     data_range: float = typer.Option(1, "--data_range"),
-    dataset: Optional[DatasetChoice] = None,
     interpolation_order: int = typer.Option(2, "--interpolation_order"),
-    pred: str = "lfd",
     scale: int = 4,
     shrink: int = 0,
-    ui_name: str = typer.Option(..., "--ui_name"),
+    ui_name: Optional[str] = typer.Option(None, "--ui_name"),
     win_sigma: float = typer.Option(1.5, "--win_sigma"),
     win_size: int = typer.Option(11, "--win_size"),
     point_cloud_threshold: float = typer.Option(1.0, "--point_cloud_threshold"),
     log_level_disk: int = typer.Option(2, "--log_level_disk"),
 ):
+
+    if ui_name is None:
+        ui_name = pred
 
     config = RunConfig(
         batch_size=batch_size,

@@ -89,38 +89,7 @@ class Run:
             incl_pred_vol="pred_vol" in self.save_output_to_disk,
         )
 
-        if (
-            dataset_part == DatasetPart.predict
-            and cfg.dataset == DatasetChoice.predict_path
-            and isinstance(config, PredictRunConfig)
-        ):
-            tensor_info = TensorInfo(
-                name="lf",
-                root=config.path,
-                location=config.glob_expr,
-                transforms=self.transforms_pipeline.sample_precache_trf,
-                datasets_per_file=1,
-                samples_per_dataset=1,
-                remove_singleton_axes_at=tuple(),  # (-1,),
-                insert_singleton_axes_at=(0, 0),
-                z_slice=None,
-                skip_indices=tuple(),
-                meta=None,
-            )
-
-            dtst = get_dataset_from_info(tensor_info, cache=True, filters=[], indices=None)
-            self.dataset = ConcatDataset([dtst], transform=self.transforms_pipeline.sample_preprocessing)
-        else:
-            self.dataset: ConcatDataset = get_dataset(
-                cfg.dataset,
-                dataset_part,
-                nnum=19 if self.model is None else self.model.nnum,
-                z_out=49 if self.model is None else self.model.z_out,
-                scale=scale,
-                shrink=shrink,
-                interpolation_order=cfg.interpolation_order,
-                incl_pred_vol="pred_vol" in self.save_output_to_disk,
-            )
+        self.dataset = self.get_dataset()
 
         self.dataloader: DataLoader = DataLoader(
             dataset=self.dataset,
@@ -141,6 +110,18 @@ class Run:
 
         self.metric_group: MetricGroup = self.get_metric_group()
         self.run_logger = run_logger
+
+    def get_dataset(self):
+        return get_dataset(
+            self.config.dataset,
+            self.dataset_part,
+            nnum=19 if self.model is None else self.model.nnum,
+            z_out=49 if self.model is None else self.model.z_out,
+            scale=self.scale,
+            shrink=self.shrink,
+            interpolation_order=self.config.interpolation_order,
+            incl_pred_vol="pred_vol" in self.save_output_to_disk,
+        )
 
     def get_metric_group(self) -> MetricGroup:
         cfg = self.config

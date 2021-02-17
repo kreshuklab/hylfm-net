@@ -61,15 +61,16 @@ def tst(
             "ui_name %s overwrites training_run_name %s from checkpoint", ui_name, checkpoint.training_run_name
         )
 
+    dataset = dataset or checkpoint.config.dataset
     config = TestRunConfig(
         batch_size=batch_size or checkpoint.config.eval_batch_size,
         checkpoint=checkpoint,
         data_range=data_range or checkpoint.config.data_range,
-        dataset=dataset or checkpoint.config.dataset,
+        dataset=dataset,
         interpolation_order=interpolation_order or checkpoint.config.interpolation_order,
         win_sigma=win_sigma or checkpoint.config.win_sigma,
         win_size=win_size or checkpoint.config.win_size,
-        save_output_to_disk=get_save_output_to_disk(log_level_disk, checkpoint.config.dataset, ui_name),
+        save_output_to_disk=get_save_output_to_disk(log_level_disk, dataset, ui_name),
         hylfm_version=__version__,
         point_cloud_threshold=point_cloud_threshold,
     )

@@ -157,7 +157,7 @@ def get_transformations(name: str, crop_name: str, meta: dict):
                 }
             },
         ]
-    elif name == "lr":
+    elif name in ("lfd", "lr"):
         return [
             {
                 "Assert": {

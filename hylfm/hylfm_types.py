@@ -137,4 +137,3 @@ class TransformsPipeline:
     meta: Dict[str, Any]
     tgt_name: Optional[str]
     spatial_dims: int
-    load_lfd_and_care: bool = False
