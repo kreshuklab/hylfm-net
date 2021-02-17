@@ -38,4 +38,4 @@ dependencies:
   - pip:
       # - csbdeep
       - merge_args
-      - wandb  # todo: install from conda first, then uninstall --force and install with pip to make cli working
+      - wandb  # todo: install from conda first, then uninstall --force and install with pip to make cli work

@@ -357,4 +357,9 @@ class PredictRunConfig(PredictRunConfigDefaults, PredictRunConfigBase):
     pass
 
 
-RunConfig = Union[PredictRunConfig, TestRunConfig, TrainRunConfig, ValidationRunConfig]
+@dataclass
+class RunConfig(RunConfigDefaults, RunConfigBase):
+    pass
+
+
+AnyRunConfig = Union[RunConfig, PredictRunConfig, TestRunConfig, TrainRunConfig, ValidationRunConfig]

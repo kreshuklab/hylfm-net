@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 
 from hylfm import __version__, metrics, settings
-from hylfm.checkpoint import PredictRunConfig, RunConfig
+from hylfm.checkpoint import PredictRunConfig, AnyRunConfig
 from hylfm.datasets import ConcatDataset, TensorInfo, get_collate, get_dataset_from_info
 from hylfm.datasets.named import get_dataset
 from hylfm.hylfm_types import DatasetChoice, DatasetPart, TransformsPipeline
@@ -25,7 +25,7 @@ class Run:
     def __init__(
         self,
         *,
-        config: RunConfig,
+        config: AnyRunConfig,
         model: Optional[HyLFM_Net],
         dataset_part: DatasetPart,
         name: str,

@@ -9,7 +9,7 @@ from torch import no_grad
 from tqdm import tqdm
 
 import hylfm.metrics
-from hylfm.checkpoint import PredictRunConfig, RunConfig, TestRunConfig, ValidationRunConfig
+from hylfm.checkpoint import PredictRunConfig, AnyRunConfig, TestRunConfig, ValidationRunConfig
 from hylfm.get_model import get_model
 from hylfm.hylfm_types import DatasetPart, MetricChoice
 from hylfm.model import HyLFM_Net
@@ -31,7 +31,7 @@ class EvalRun(Run):
         self,
         *,
         log_level_wandb: int,
-        config: RunConfig,
+        config: AnyRunConfig,
         model: Optional[HyLFM_Net],
         dataset_part: DatasetPart,
         name: str,
@@ -222,7 +222,7 @@ class TestRun(EvalRun):
 
 
 class TestPrecomputedRun(EvalRun):
-    def __init__(self, *, wandb_run, config: RunConfig, pred_name: str, scale: int, shrink: int, log_level_wandb: int):
+    def __init__(self, *, wandb_run, config: AnyRunConfig, pred_name: str, scale: int, shrink: int, log_level_wandb: int):
         super().__init__(
             config=config,
             model=None,
