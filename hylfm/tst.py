@@ -31,7 +31,7 @@ def get_save_output_to_disk(log_level_disk: int, dataset: DatasetChoice, ui_name
             break
 
         on_disk_name = key + ".h5" if key == "metrics" else key
-        save_output_to_disk[key] = settings.log_dir / (dataset.name + "-test") / ui_name / on_disk_name
+        save_output_to_disk[key] = settings.log_dir / "test" / dataset.name / ui_name / on_disk_name
     return save_output_to_disk
 
 
