@@ -4,7 +4,6 @@ from typing import List, Optional
 
 import typer
 
-from hylfm import __version__
 from hylfm.checkpoint import Checkpoint
 from hylfm.hylfm_types import (
     CriterionChoice,
@@ -28,6 +27,10 @@ def train_model_like(
     model_kwargs_from_checkpoint: Path,
     batch_multiplier: Optional[int] = typer.Option(None, "--batch_multiplier"),
     batch_size: Optional[int] = typer.Option(None, "--batch_size"),
+    crit_decay: Optional[float] = typer.Option(None, "--crit_decay"),
+    crit_decay_weight_every_unit: Optional[PeriodUnit] = typer.Option(None, "--crit_decay_weight_every_unit"),
+    crit_decay_weight_every_value: Optional[int] = typer.Option(None, "--crit_decay_weight_every_value"),
+    crit_threshold: Optional[float] = typer.Option(None, "--crit_threshold"),
     crit_weight: Optional[float] = typer.Option(None, "--crit_weight"),
     criterion: Optional[CriterionChoice] = typer.Option(None, "--criterion"),
     dataset: Optional[DatasetChoice] = typer.Option(None, "--dataset"),
@@ -66,6 +69,10 @@ def train_model_like(
         for k, v in {
             "batch_multiplier": batch_multiplier,
             "batch_size": batch_size,
+            "crit_decay": crit_decay,
+            "crit_decay_weight_every_unit": crit_decay_weight_every_unit,
+            "crit_decay_weight_every_value": crit_decay_weight_every_value,
+            "crit_threshold": crit_threshold,
             "crit_weight": crit_weight,
             "criterion": criterion,
             "dataset": dataset,
@@ -99,6 +106,8 @@ def train_model_like(
     note = f"train like {model_kwargs_from_checkpoint.resolve()} {'with changes:' if changes else ''} " + " ".join(
         [f"{k}: {v}" for k, v in changes.items()]
     )
+
+    logger.info(note)
 
     config.update(changes)
     train(**config, note=note)
