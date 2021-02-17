@@ -29,6 +29,9 @@ def resume(
     save_after_validation_iterations: Optional[List[int]] = typer.Option(None, "--save_after_validation_iterations"),
 ):
     checkpoint = Checkpoint.load(checkpoint)
+    assert checkpoint.model_weights is not None, "what to resume from?"
+    assert checkpoint.optimizer_state_dict is not None, "what to resume from?"
+    assert checkpoint.lr_scheduler_state_dict is not None, "what to resume from?"
 
     changes = collections.OrderedDict()
     if dataset is not None and checkpoint.config.dataset != dataset:
