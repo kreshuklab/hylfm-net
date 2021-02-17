@@ -7,7 +7,7 @@ import typer
 
 from hylfm import settings
 from hylfm.checkpoint import Checkpoint
-from hylfm.hylfm_types import DatasetChoice, PeriodUnit
+from hylfm.hylfm_types import CriterionChoice, DatasetChoice, PeriodUnit
 from hylfm.train import train_from_checkpoint
 
 app = typer.Typer()
@@ -25,6 +25,7 @@ def resume(
     validate_every_unit: Optional[PeriodUnit] = typer.Option(None, "--validate_every_unit"),
     validate_every_value: Optional[int] = typer.Option(None, "--validate_every_value"),
     eval_batch_size: Optional[int] = typer.Option(None, "--eval_batch_size"),
+    criterion: Optional[CriterionChoice] = typer.Option(None, "--criterion"),
 ):
     checkpoint = Checkpoint.load(checkpoint)
 
@@ -35,6 +36,10 @@ def resume(
         changes["dataset"] = dataset.value
         if impatience is None:
             impatience = 0
+
+    if criterion is not None:
+        changes["criterion"] = f"{checkpoint.config.criterion}->{criterion}"
+        checkpoint.config.criterion = criterion
 
     if eval_batch_size is not None:
         changes["eval_batch_size"] = f"{checkpoint.config.eval_batch_size}->{eval_batch_size}"
