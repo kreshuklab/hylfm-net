@@ -54,7 +54,8 @@ def tst(
         if lvl >= log_level_disk:
             break
 
-        save_output_to_disk[key] = settings.log_dir / ui_name / "test" / "output_tensors" / key
+        on_disk_name = key + ".h5" if key == "metrics" else key
+        save_output_to_disk[key] = settings.log_dir / (dataset.name + "-test") / ui_name / on_disk_name
 
     config = TestRunConfig(
         batch_size=batch_size or checkpoint.config.eval_batch_size,
