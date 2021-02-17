@@ -26,6 +26,7 @@ def resume(
     validate_every_value: Optional[int] = typer.Option(None, "--validate_every_value"),
     eval_batch_size: Optional[int] = typer.Option(None, "--eval_batch_size"),
     criterion: Optional[CriterionChoice] = typer.Option(None, "--criterion"),
+    save_after_validation_iterations: Optional[List[int]] = typer.Option(None, "--save_after_validation_iterations"),
 ):
     checkpoint = Checkpoint.load(checkpoint)
 
@@ -72,6 +73,12 @@ def resume(
     if validate_every_value is not None:
         changes["validate_every_value"] = f"{checkpoint.config.validate_every_value}->{validate_every_value}"
         checkpoint.config.validate_every_value = validate_every_value
+
+    if save_after_validation_iterations is not None:
+        changes[
+            "save_after_validation_iterations"
+        ] = f"{checkpoint.config.save_after_validation_iterations}->{save_after_validation_iterations}"
+        checkpoint.config.save_after_validation_iterations = save_after_validation_iterations
 
     if changes:
         pprint(changes)
