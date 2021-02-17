@@ -40,7 +40,7 @@ def tst(
     checkpoint: Path,
     batch_size: Optional[int] = typer.Option(None, "--batch_size"),
     data_range: Optional[float] = typer.Option(None, "--data_range"),
-    dataset: Optional[DatasetChoice] = None,
+    dataset: Optional[DatasetChoice] = typer.Option(None, "--dataset"),
     log_level_disk: int = typer.Option(0, "--log_level_disk"),
     interpolation_order: Optional[int] = typer.Option(None, "--interpolation_order"),
     point_cloud_threshold: float = typer.Option(1.0, "--point_cloud_threshold"),
@@ -50,6 +50,7 @@ def tst(
     win_size: Optional[int] = typer.Option(None, "--win_size"),
 ):
     checkpoint = Checkpoint.load(checkpoint)
+
     if ui_name is None:
         if checkpoint.training_run_name is None:
             raise ValueError("couldn't find name from checkpoint, don't you want to specify a ui_name?")
