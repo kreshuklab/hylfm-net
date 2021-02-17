@@ -1,7 +1,7 @@
 import collections
 from pathlib import Path
 from pprint import pprint
-from typing import Optional
+from typing import List, Optional
 
 import typer
 
