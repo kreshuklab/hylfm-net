@@ -5,6 +5,7 @@ from hylfm import __version__, settings  # import hylfm before numpy
 from hylfm.checkpoint import RunConfig
 from hylfm.datasets.named import DatasetChoice
 from hylfm.run.eval_run import TestPrecomputedRun
+from hylfm.tst import get_save_output_to_disk
 
 try:
     from typing import Literal
@@ -32,6 +33,7 @@ def tst_precomputed(
     win_sigma: float = typer.Option(1.5, "--win_sigma"),
     win_size: int = typer.Option(11, "--win_size"),
     point_cloud_threshold: float = typer.Option(1.0, "--point_cloud_threshold"),
+    log_level_disk: int = typer.Option(2, "--log_level_disk"),
 ):
 
     config = RunConfig(
@@ -41,7 +43,7 @@ def tst_precomputed(
         interpolation_order=interpolation_order,
         win_sigma=win_sigma,
         win_size=win_size,
-        save_output_to_disk={},
+        save_output_to_disk=get_save_output_to_disk(log_level_disk, dataset, ui_name),
         hylfm_version=__version__,
         point_cloud_threshold=point_cloud_threshold,
     )

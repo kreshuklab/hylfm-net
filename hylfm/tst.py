@@ -20,6 +20,21 @@ logger = logging.getLogger(__name__)
 app = typer.Typer()
 
 
+def get_save_output_to_disk(log_level_disk: int, dataset: DatasetChoice, ui_name: str):
+    tensors_to_log = ["metrics", "pred", "spim", "lf"]
+    if dataset is not None and "dyn" in dataset.name:
+        tensors_to_log.append("pred_vol")
+
+    save_output_to_disk = {}
+    for lvl, key in enumerate(tensors_to_log):
+        if lvl >= log_level_disk:
+            break
+
+        on_disk_name = key + ".h5" if key == "metrics" else key
+        save_output_to_disk[key] = settings.log_dir / (dataset.name + "-test") / ui_name / on_disk_name
+    return save_output_to_disk
+
+
 @app.command(name="test")
 def tst(
     checkpoint: Path,
@@ -45,18 +60,6 @@ def tst(
             "ui_name %s overwrites training_run_name %s from checkpoint", ui_name, checkpoint.training_run_name
         )
 
-    tensors_to_log = ["metrics", "pred", "spim", "lf"]
-    if checkpoint.config.dataset is not None and "dyn" in checkpoint.config.dataset.name:
-        tensors_to_log.append("pred_vol")
-
-    save_output_to_disk = {}
-    for lvl, key in enumerate(tensors_to_log):
-        if lvl >= log_level_disk:
-            break
-
-        on_disk_name = key + ".h5" if key == "metrics" else key
-        save_output_to_disk[key] = settings.log_dir / (dataset.name + "-test") / ui_name / on_disk_name
-
     config = TestRunConfig(
         batch_size=batch_size or checkpoint.config.eval_batch_size,
         checkpoint=checkpoint,
@@ -65,7 +68,7 @@ def tst(
         interpolation_order=interpolation_order or checkpoint.config.interpolation_order,
         win_sigma=win_sigma or checkpoint.config.win_sigma,
         win_size=win_size or checkpoint.config.win_size,
-        save_output_to_disk=save_output_to_disk,
+        save_output_to_disk=get_save_output_to_disk(log_level_disk, checkpoint.config.dataset, ui_name),
         hylfm_version=__version__,
         point_cloud_threshold=point_cloud_threshold,
     )
