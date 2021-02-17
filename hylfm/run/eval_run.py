@@ -222,7 +222,9 @@ class TestRun(EvalRun):
 
 
 class TestPrecomputedRun(EvalRun):
-    def __init__(self, *, wandb_run, config: AnyRunConfig, pred_name: str, scale: int, shrink: int, log_level_wandb: int, ):
+    def __init__(
+        self, *, wandb_run, config: AnyRunConfig, pred_name: str, scale: int, shrink: int, log_level_wandb: int
+    ):
         super().__init__(
             config=config,
             model=None,
@@ -234,7 +236,6 @@ class TestPrecomputedRun(EvalRun):
             log_level_wandb=log_level_wandb,
             scale=scale,
             shrink=shrink,
-            save_output_to_disk=save_output_to_disk,
         )
         self.pred_name = pred_name
 
