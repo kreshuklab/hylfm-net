@@ -50,7 +50,7 @@ def tst_precomputed(
         log_level_disk = 1
 
         logger.warning("ignoring scale %s and shrink %s for testing precomputed from path %s", scale, shrink, from_path)
-        scale = 0
+        scale = 1
         shrink = 0
         if from_path is None:
             raise ValueError("missing input 'from_path'")
