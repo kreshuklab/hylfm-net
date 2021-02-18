@@ -1,8 +1,9 @@
 import logging
+from pathlib import Path
 from typing import Optional
 
 from hylfm import __version__, settings  # import hylfm before numpy
-from hylfm.checkpoint import RunConfig
+from hylfm.checkpoint import RunConfig, TestPrecomputedRunConfig
 from hylfm.datasets.named import DatasetChoice
 from hylfm.run.eval_run import TestPrecomputedRun
 from hylfm.tst import get_save_output_to_disk
@@ -22,24 +23,69 @@ app = typer.Typer()
 
 @app.command(name="test_precomputed")
 def tst_precomputed(
-    dataset: DatasetChoice,
     pred: str,
     batch_size: int = typer.Option(1, "--batch_size"),
     data_range: float = typer.Option(1, "--data_range"),
+    dataset: Optional[DatasetChoice] = DatasetChoice.from_path,
+    from_path: Optional[Path] = typer.Option(None, "--from_path"),
+    pred_glob: Optional[str] = typer.Option(None, "--pred_glob"),
+    trgt_glob: Optional[str] = typer.Option(None, "--trgt_glob"),
     interpolation_order: int = typer.Option(2, "--interpolation_order"),
+    log_level_disk: Optional[int] = typer.Option(None, "--log_level_disk"),
+    log_level_wandb: int = typer.Option(1, "--log_level_wandb"),
+    point_cloud_threshold: float = typer.Option(1.0, "--point_cloud_threshold"),
     scale: int = 4,
     shrink: int = 8,
+    trgt: Optional[str] = None,
     ui_name: Optional[str] = typer.Option(None, "--ui_name"),
     win_sigma: float = typer.Option(1.5, "--win_sigma"),
     win_size: int = typer.Option(11, "--win_size"),
-    point_cloud_threshold: float = typer.Option(1.0, "--point_cloud_threshold"),
-    log_level_disk: int = typer.Option(2, "--log_level_disk"),
 ):
-    assert shrink
-    if ui_name is None:
-        ui_name = pred
 
-    config = RunConfig(
+    # todo: split if into different functions / run configs / runs??
+    if dataset == DatasetChoice.from_path:
+        if log_level_disk is not None:
+            logger.warning("ignoring log_level_disk %s for data from disk at %s", log_level_disk, from_path)
+
+        log_level_disk = 1
+
+        logger.warning("ignoring scale %s and shrink %s for testing precomputed from path %s", scale, shrink, from_path)
+        scale = 0
+        shrink = 0
+        if from_path is None:
+            raise ValueError("missing input 'from_path'")
+
+        if trgt is None:
+            raise ValueError("missing input 'trgt'")
+
+        if pred_glob is None:
+            raise ValueError("missing input 'pred_glob'")
+
+        if trgt_glob is None:
+            raise ValueError("missing input 'trgt_glob'")
+
+        if ui_name is None:
+            ui_name = f"{pred}_vs_{trgt}"
+    else:
+        if log_level_disk is None:
+            log_level_disk = 2
+
+        assert shrink
+        if from_path is not None:
+            raise ValueError(f"don't specify 'from_path' when testing on defined dataset {dataset}")
+
+        if trgt is not None:
+            raise ValueError(f"don't specify 'trgt' when testing on defined dataset {dataset}")
+
+        if ui_name is None:
+            ui_name = pred
+
+    config = TestPrecomputedRunConfig(
+        path=from_path,
+        pred_name=pred,
+        pred_glob=pred_glob,
+        trgt_name=trgt,
+        trgt_glob=trgt_glob,
         batch_size=batch_size,
         data_range=data_range,
         dataset=dataset,
@@ -58,7 +104,7 @@ def tst_precomputed(
     )
 
     test_run = TestPrecomputedRun(
-        config=config, wandb_run=wandb_run, pred_name=pred, log_level_wandb=1, scale=scale, shrink=shrink
+        config=config, wandb_run=wandb_run, log_level_wandb=log_level_wandb, scale=scale, shrink=shrink
     )
 
     test_run.run()

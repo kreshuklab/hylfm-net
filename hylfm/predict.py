@@ -3,9 +3,9 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from hylfm.checkpoint import Checkpoint, PredictRunConfig
+from hylfm.checkpoint import Checkpoint, PredictPathRunConfig
 from hylfm.hylfm_types import DatasetChoice
-from hylfm.run.eval_run import PredictRun
+from hylfm.run.eval_run import PredictPathRun
 
 try:
     from typing import Literal
@@ -55,9 +55,9 @@ def predict(
 
         save_output_to_disk[key] = path / ui_name / key
 
-    config = PredictRunConfig(
+    config = PredictPathRunConfig(
         path=path,
-        glob_expr=glob_expr,
+        glob_lf=glob_expr,
         batch_size=batch_size or checkpoint.config.eval_batch_size,
         checkpoint=checkpoint,
         data_range=data_range or checkpoint.config.data_range,
@@ -74,7 +74,7 @@ def predict(
 
     wandb_run = wandb.init(project=f"HyLFM-predict", dir=str(settings.cache_dir), config=config.as_dict(), name=ui_name)
 
-    test_run = PredictRun(config=config, wandb_run=wandb_run, log_level_wandb=log_level_wandb)
+    test_run = PredictPathRun(config=config, wandb_run=wandb_run, log_level_wandb=log_level_wandb)
 
     test_run.run()
 

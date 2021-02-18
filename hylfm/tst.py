@@ -3,9 +3,9 @@ from pathlib import Path
 from typing import Optional
 
 from hylfm import __version__, settings  # import hylfm before numpy!
-from hylfm.checkpoint import Checkpoint, TestRunConfig
+from hylfm.checkpoint import Checkpoint, TestCheckpointRunConfig
 from hylfm.datasets.named import DatasetChoice
-from hylfm.run.eval_run import TestRun
+from hylfm.run.eval_run import TestCheckpointRun
 
 try:
     from typing import Literal
@@ -63,7 +63,7 @@ def tst(
         )
 
     dataset = dataset or checkpoint.config.dataset
-    config = TestRunConfig(
+    config = TestCheckpointRunConfig(
         batch_size=batch_size or checkpoint.config.eval_batch_size,
         checkpoint=checkpoint,
         data_range=data_range or checkpoint.config.data_range,
@@ -80,7 +80,7 @@ def tst(
 
     wandb_run = wandb.init(project=f"HyLFM-test", dir=str(settings.cache_dir), config=config.as_dict(), name=ui_name)
 
-    test_run = TestRun(config=config, wandb_run=wandb_run, log_level_wandb=log_level_wandb)
+    test_run = TestCheckpointRun(config=config, wandb_run=wandb_run, log_level_wandb=log_level_wandb)
 
     test_run.run()
 

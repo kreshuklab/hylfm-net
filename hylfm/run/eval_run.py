@@ -5,12 +5,18 @@ from typing import Any, Dict, Iterable, Optional
 
 import pandas
 import torch
-from hylfm.datasets import ConcatDataset, TensorInfo, get_dataset_from_info
 from torch import no_grad
 from tqdm import tqdm
 
 import hylfm.metrics
-from hylfm.checkpoint import PredictRunConfig, AnyRunConfig, TestRunConfig, ValidationRunConfig
+from hylfm.checkpoint import (
+    PredictPathRunConfig,
+    RunConfig,
+    TestCheckpointRunConfig,
+    TestPrecomputedRunConfig,
+    ValidationRunConfig,
+)
+from hylfm.datasets import ConcatDataset, TensorInfo, ZipDataset, get_dataset_from_info
 from hylfm.get_model import get_model
 from hylfm.hylfm_types import DatasetChoice, DatasetPart, MetricChoice
 from hylfm.model import HyLFM_Net
@@ -33,7 +39,7 @@ class EvalRun(Run):
         self,
         *,
         log_level_wandb: int,
-        config: AnyRunConfig,
+        config: RunConfig,
         model: Optional[HyLFM_Net],
         dataset_part: DatasetPart,
         name: str,
@@ -204,8 +210,8 @@ class ValidationRun(EvalRun):
         return score
 
 
-class TestRun(EvalRun):
-    def __init__(self, wandb_run, config: TestRunConfig, log_level_wandb: int):
+class TestCheckpointRun(EvalRun):
+    def __init__(self, wandb_run, config: TestCheckpointRunConfig, log_level_wandb: int):
         model: HyLFM_Net = get_model(**config.checkpoint.config.model)
         model.load_state_dict(config.checkpoint.model_weights, strict=True)
 
@@ -224,12 +230,10 @@ class TestRun(EvalRun):
 
 
 class TestPrecomputedRun(EvalRun):
-    load_lfd_and_care = True
+    config: TestPrecomputedRunConfig
 
-    def __init__(
-        self, *, wandb_run, config: AnyRunConfig, pred_name: str, scale: int, shrink: int, log_level_wandb: int
-    ):
-        self.pred_name = pred_name
+    def __init__(self, *, wandb_run, config: TestPrecomputedRunConfig, scale: int, shrink: int, log_level_wandb: int):
+        self.load_lfd_and_care = config.pred_name in ["lfd", "care"] or config.trgt_name in ["lfd", "care"]
         super().__init__(
             config=config,
             model=None,
@@ -244,25 +248,68 @@ class TestPrecomputedRun(EvalRun):
         )
 
     def get_pred(self, batch):
-        assert self.shrink
-        return batch[self.pred_name][..., self.shrink : -self.shrink, self.shrink : -self.shrink]
+        assert self.config.pred_name is not None
+        if self.shrink:
+            return batch[self.config.pred_name][..., self.shrink : -self.shrink, self.shrink : -self.shrink]
 
     def get_dataset(self):
-        return get_dataset(
-            self.config.dataset,
-            self.dataset_part,
-            nnum=19 if self.model is None else self.model.nnum,
-            z_out=49 if self.model is None else self.model.z_out,
-            scale=self.scale,
-            shrink=self.shrink,
-            interpolation_order=self.config.interpolation_order,
-            incl_pred_vol="pred_vol" in self.save_output_to_disk,
-            load_lfd_and_care=self.pred_name in ["lfd", "care"],
-        )
+        if self.config.dataset == DatasetChoice.from_path:
+            assert self.dataset_part == DatasetPart.test
+
+            tensor_infos = {
+                self.config.pred_name: TensorInfo(
+                    name=self.config.pred_name,
+                    root=self.config.path,
+                    location=self.config.pred_glob,
+                    transforms=self.transforms_pipeline.sample_precache_trf,
+                    datasets_per_file=1,
+                    samples_per_dataset=1,
+                    remove_singleton_axes_at=tuple(),  # (-1,),
+                    insert_singleton_axes_at=(0, 0),
+                    z_slice=None,
+                    skip_indices=tuple(),
+                    meta=None,
+                ),
+                self.config.trgt_name: TensorInfo(
+                    name=self.config.pred_name,
+                    root=self.config.path,
+                    location=self.config.trgt_glob,
+                    transforms=self.transforms_pipeline.sample_precache_trf,
+                    datasets_per_file=1,
+                    samples_per_dataset=1,
+                    remove_singleton_axes_at=tuple(),  # (-1,),
+                    insert_singleton_axes_at=(0, 0),
+                    z_slice=None,
+                    skip_indices=tuple(),
+                    meta=None,
+                ),
+            }
+            dtst = ZipDataset(
+                **{
+                    name: get_dataset_from_info(ti, cache=True, filters=[], indices=None)
+                    for name, ti in tensor_infos.items()
+                }
+            )
+            return ConcatDataset([dtst], transform=self.transforms_pipeline.sample_preprocessing)
+
+        else:
+            return get_dataset(
+                self.config.dataset,
+                self.dataset_part,
+                nnum=19,
+                z_out=49,
+                scale=self.scale,
+                shrink=self.shrink,
+                interpolation_order=self.config.interpolation_order,
+                incl_pred_vol="pred_vol" in self.save_output_to_disk,
+                load_lfd_and_care=self.load_lfd_and_care,
+            )
 
 
-class PredictRun(EvalRun):
-    def __init__(self, wandb_run, config: PredictRunConfig, log_level_wandb: int):
+class PredictPathRun(EvalRun):
+    config: PredictPathRunConfig
+
+    def __init__(self, wandb_run, config: PredictPathRunConfig, log_level_wandb: int):
         model: HyLFM_Net = get_model(**config.checkpoint.config.model)
         model.load_state_dict(config.checkpoint.model_weights, strict=True)
 
@@ -286,7 +333,7 @@ class PredictRun(EvalRun):
         tensor_info = TensorInfo(
             name="lf",
             root=self.config.path,
-            location=self.config.glob_expr,
+            location=self.config.glob_lf,
             transforms=self.transforms_pipeline.sample_precache_trf,
             datasets_per_file=1,
             samples_per_dataset=1,

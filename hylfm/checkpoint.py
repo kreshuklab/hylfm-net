@@ -22,13 +22,13 @@ from hylfm.hylfm_types import (
 )
 
 
-def conv_to_simple_dtypes(data: dict):
+def _conv_to_simple_dtypes(data: dict):
     return {
         k: v.value
         if isinstance(v, Enum)
         else str(v)
         if isinstance(v, Path)
-        else conv_to_simple_dtypes(v)
+        else _conv_to_simple_dtypes(v)
         if isinstance(v, dict)
         else v
         for k, v in data.items()
@@ -36,17 +36,7 @@ def conv_to_simple_dtypes(data: dict):
 
 
 @dataclass
-class RunConfigDefaults:
-    """
-    separate run config defaults for dataclass inheritance with default and non-default arguments,
-    see: https://stackoverflow.com/a/53085935
-    """
-
-    hylfm_version: str = __version__
-
-
-@dataclass
-class RunConfigBase:
+class RunConfig:
     batch_size: int
     data_range: float
     dataset: DatasetChoice
@@ -55,12 +45,13 @@ class RunConfigBase:
     win_size: int
     save_output_to_disk: Optional[Dict[str, Path]]
     point_cloud_threshold: float
+    hylfm_version: str
 
     def __post_init__(self):
         pass
 
     def as_dict(self, for_logging: bool = False) -> dict:
-        dat = conv_to_simple_dtypes(asdict(self))
+        dat = _conv_to_simple_dtypes(asdict(self))
         return dat
 
     @classmethod
@@ -94,13 +85,7 @@ class RunConfigBase:
 
 
 @dataclass
-class TrainRunConfigDefaults(RunConfigDefaults):
-    model_weights_name: Optional[str] = None
-    zero_max_patience: int = 10
-
-
-@dataclass
-class TrainRunConfigBase(RunConfigBase):
+class TrainRunConfig(RunConfig):
     batch_multiplier: int
     crit_apply_weight_above_threshold: bool
     crit_beta: float
@@ -131,6 +116,9 @@ class TrainRunConfigBase(RunConfigBase):
     validate_every_unit: PeriodUnit
     validate_every_value: int
     save_after_validation_iterations: Sequence[int] = tuple()
+
+    model_weights_name: Optional[str] = None
+    zero_max_patience: int = 10
 
     def as_dict(self, for_logging: bool = False) -> dict:
         dat = super().as_dict(for_logging=for_logging)
@@ -176,11 +164,6 @@ class TrainRunConfigBase(RunConfigBase):
         super().__post_init__()
         if self.model_weights is not None and self.model_weights_name is None:
             self.model_weights_name = self.model_weights.stem
-
-
-@dataclass
-class TrainRunConfig(TrainRunConfigDefaults, TrainRunConfigBase):
-    pass
 
 
 @dataclass
@@ -287,34 +270,21 @@ class Checkpoint:
                 if not f.init:
                     dat.pop(f.name)
 
-        dat = conv_to_simple_dtypes(dat)
+        dat = _conv_to_simple_dtypes(dat)
         dat[config_key] = self.config.as_dict(for_logging=for_logging)
         return dat
 
 
 @dataclass
-class ValidationRunConfigDefaults(RunConfigDefaults):
+class ValidationRunConfig(RunConfig):
+    """validate a model on a defined dataset"""
+
     pass
 
 
 @dataclass
-class ValidationRunConfigBase(RunConfigBase):
-    pass
-
-
-@dataclass
-class ValidationRunConfig(ValidationRunConfigDefaults, ValidationRunConfigBase):
-    pass
-
-
-@dataclass
-class TestRunConfigDefaults(RunConfigDefaults):
-    pass
-
-
-@dataclass
-class TestRunConfigBase(RunConfigBase):
-    checkpoint: Optional[Checkpoint]
+class TestCheckpointRunConfig(RunConfig):
+    checkpoint: Checkpoint
 
     def __post_init__(self):
         super().__post_init__()
@@ -338,29 +308,27 @@ class TestRunConfigBase(RunConfigBase):
 
 
 @dataclass
-class TestRunConfig(TestRunConfigDefaults, TestRunConfigBase):
-    pass
-
-
-@dataclass
-class PredictRunConfigDefaults(TestRunConfigDefaults):
-    pass
-
-
-@dataclass
-class PredictRunConfigBase(TestRunConfigBase):
+class PredictPathRunConfig(TestCheckpointRunConfig):
     path: Path
-    glob_expr: str
+    glob_lf: str
 
 
 @dataclass
-class PredictRunConfig(PredictRunConfigDefaults, PredictRunConfigBase):
-    pass
+class TestPrecomputedRunConfig(RunConfig):
+    pred_name: str
+    path: Optional[Path] = None
+    pred_glob: Optional[str] = None
+    trgt_name: Optional[str] = None
+    trgt_glob: Optional[str] = None
 
+    def __post_init__(self):
+        inputs_only_for_path = {ipt: getattr(self, ipt) for ipt in ["path", "pred_glob", "trgt_glob"]}
+        if self.dataset == DatasetChoice.from_path:
+            invalid_inputs = {ipt: value for ipt, value in inputs_only_for_path.items() if value is None}
+            if self.trgt_name is None:
+                invalid_inputs["target_name"] = None
+        else:
+            invalid_inputs = {ipt for ipt, value in inputs_only_for_path.items() if value is not None}
 
-@dataclass
-class RunConfig(RunConfigDefaults, RunConfigBase):
-    pass
-
-
-AnyRunConfig = Union[RunConfig, PredictRunConfig, TestRunConfig, TrainRunConfig, ValidationRunConfig]
+        if invalid_inputs:
+            raise ValueError(f"invalid inputs for {self.dataset}: {inputs_only_for_path}")

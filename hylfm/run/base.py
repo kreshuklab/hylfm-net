@@ -6,10 +6,10 @@ import torch
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 
 from hylfm import __version__, metrics, settings
-from hylfm.checkpoint import PredictRunConfig, AnyRunConfig
-from hylfm.datasets import ConcatDataset, TensorInfo, get_collate, get_dataset_from_info
+from hylfm.checkpoint import RunConfig
+from hylfm.datasets import get_collate
 from hylfm.datasets.named import get_dataset
-from hylfm.hylfm_types import DatasetChoice, DatasetPart, TransformsPipeline
+from hylfm.hylfm_types import DatasetPart, TransformsPipeline
 from hylfm.metrics.base import MetricGroup
 from hylfm.model import HyLFM_Net
 from hylfm.run.run_logger import WandbLogger
@@ -27,7 +27,7 @@ class Run:
     def __init__(
         self,
         *,
-        config: AnyRunConfig,
+        config: RunConfig,
         model: Optional[HyLFM_Net],
         dataset_part: DatasetPart,
         name: str,
@@ -60,7 +60,7 @@ class Run:
             if not path.suffix:
                 path.mkdir(parents=True, exist_ok=True)
 
-        self.model = model
+        self.model = model  # todo: get model out of here as some runners don't have it
         if model is None:
             assert scale is not None
             assert shrink is not None
@@ -80,20 +80,7 @@ class Run:
         wandb.summary.update(dict(scale=scale, shrink=shrink))
 
         self.dataset_part = dataset_part
-        self.transforms_pipeline: TransformsPipeline = get_transforms_pipeline(
-            dataset_name=cfg.dataset,
-            dataset_part=dataset_part,
-            nnum=19 if self.model is None else self.model.nnum,
-            z_out=49 if self.model is None else self.model.z_out,
-            scale=scale,
-            shrink=shrink,
-            interpolation_order=cfg.interpolation_order,
-            incl_pred_vol="pred_vol" in self.save_output_to_disk,
-            load_lfd_and_care=self.load_lfd_and_care
-            or "lfd" in self.save_output_to_disk
-            or "care" in self.save_output_to_disk,
-        )
-
+        self.transforms_pipeline: TransformsPipeline = self.get_transforms_pipeline()
         self.dataset = self.get_dataset()
 
         self.dataloader: DataLoader = DataLoader(
@@ -126,6 +113,21 @@ class Run:
             shrink=self.shrink,
             interpolation_order=self.config.interpolation_order,
             incl_pred_vol="pred_vol" in self.save_output_to_disk,
+        )
+
+    def get_transforms_pipeline(self):
+        return get_transforms_pipeline(
+            dataset_name=self.config.dataset,
+            dataset_part=self.dataset_part,
+            nnum=19 if self.model is None else self.model.nnum,
+            z_out=49 if self.model is None else self.model.z_out,
+            scale=self.scale,
+            shrink=self.shrink,
+            interpolation_order=self.config.interpolation_order,
+            incl_pred_vol="pred_vol" in self.save_output_to_disk,
+            load_lfd_and_care=self.load_lfd_and_care
+            or "lfd" in self.save_output_to_disk
+            or "care" in self.save_output_to_disk,
         )
 
     def get_metric_group(self) -> MetricGroup:
