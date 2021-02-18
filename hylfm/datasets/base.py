@@ -224,6 +224,12 @@ class TiffDataset(DatasetFromInfo):
         for axis in self.insert_singleton_axes_at:
             img = numpy.expand_dims(img, axis=axis)
 
+        while len(img.shape) > 5 and img.shape[0] == 1:
+            logger.warning("squeeze(0) %s", img.shape)
+            img = img.squeeze(0)
+
+        assert len(img.shape) == 5, (self.info.name, idx, img.shape)
+
         sample[self.tensor_name] = img
         sample["batch_len"] = img.shape[0]
         return self.transform(sample)
