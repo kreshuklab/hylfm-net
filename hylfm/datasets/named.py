@@ -107,7 +107,9 @@ def get_dataset(
     return ConcatDataset([torch.utils.data.ConcatDataset(subsections) for subsections in sections])
 
 
-def get_dataset_sections(name: DatasetChoice, part: DatasetPart, transforms_pipeline: TransformsPipeline, load_lfd_and_care: bool):
+def get_dataset_sections(
+    name: DatasetChoice, part: DatasetPart, transforms_pipeline: TransformsPipeline, load_lfd_and_care: bool
+):
     sliced = name.value.endswith("_sliced") and part == DatasetPart.train
 
     # sections will not be sampled across, which allows differentely sized images in the same dataset
@@ -648,7 +650,7 @@ def get_dataset_sections(name: DatasetChoice, part: DatasetPart, transforms_pipe
 
         heart_static_fish2_dataset = ZipDataset(datasets, transform=transforms_pipeline.sample_preprocessing)
         sections.append([heart_static_fish2_dataset])
-    elif name in [DatasetChoice.heart_dyn_refine, DatasetChoice.heart_dyn_refine_lfd]:
+    elif name in [DatasetChoice.heart_dyn_refine, DatasetChoice.heart_dyn_refine_lfd, DatasetChoice.heart_dyn_test]:
         filters = [
             # ("z_range", {"z_min": 29, "z_max": 218}),
             ("z_range", {}),
@@ -663,13 +665,15 @@ def get_dataset_sections(name: DatasetChoice, part: DatasetPart, transforms_pipe
             indices = slice(split_at, None, None)
         elif part == DatasetPart.validate:
             indices = slice(0, split_at, 4)
-        elif part == DatasetPart.test:
+        elif part == DatasetPart.test and name != DatasetChoice.heart_dyn_test:
             indices = slice(0, split_at)
+        elif name == DatasetChoice.heart_dyn_test:
+            indices = None
         else:
             raise NotImplementedError(part)
 
         tag = "2019-12-09_04.54.38"
-        if name == DatasetChoice.heart_dyn_refine:
+        if name in [DatasetChoice.heart_dyn_refine, DatasetChoice.heart_dyn_test]:
             sections.append(
                 [
                     get_dataset_subsection(

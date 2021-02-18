@@ -12,8 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 class Identity(Transform):
-    def __call__(self, tensors: Dict[str, Any]) -> Dict[str, Any]:
-        return tensors
+    def __call__(self, batch: Dict[str, Any]) -> Dict[str, Any]:
+        renamed = {self.output_mapping.get(med, med): batch[ipt] for ipt, med in self.input_mapping.items()}
+        batch.update(renamed)
+        return batch
 
 
 class AddConstant(Transform):

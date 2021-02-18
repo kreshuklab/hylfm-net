@@ -347,7 +347,7 @@ def get_transforms_pipeline(
         #     Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         # )
 
-    elif dataset_name == DatasetChoice.heart_dyn_refine:
+    elif dataset_name in [DatasetChoice.heart_dyn_refine, DatasetChoice.heart_dyn_test]:
         # pred_z_min = 83.8
         # pred_z_max = 754.2
         crop_names.add("Heart_tightCrop")
