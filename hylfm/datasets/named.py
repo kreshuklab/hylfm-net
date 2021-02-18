@@ -100,6 +100,7 @@ def get_dataset(
             shrink=shrink,
             interpolation_order=interpolation_order,
             incl_pred_vol=incl_pred_vol,
+            load_lfd_and_care=load_lfd_and_care,
         )
         sections += get_dataset_sections(subname, part, transforms_pipeline, load_lfd_and_care=load_lfd_and_care)
 

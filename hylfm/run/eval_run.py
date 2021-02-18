@@ -224,6 +224,8 @@ class TestRun(EvalRun):
 
 
 class TestPrecomputedRun(EvalRun):
+    load_lfd_and_care = True
+
     def __init__(
         self, *, wandb_run, config: AnyRunConfig, pred_name: str, scale: int, shrink: int, log_level_wandb: int
     ):
@@ -242,7 +244,8 @@ class TestPrecomputedRun(EvalRun):
         )
 
     def get_pred(self, batch):
-        return batch[self.pred_name]
+        assert self.shrink
+        return batch[self.pred_name][..., self.shrink : -self.shrink, self.shrink : -self.shrink]
 
     def get_dataset(self):
         return get_dataset(

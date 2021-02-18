@@ -28,14 +28,14 @@ def tst_precomputed(
     data_range: float = typer.Option(1, "--data_range"),
     interpolation_order: int = typer.Option(2, "--interpolation_order"),
     scale: int = 4,
-    shrink: int = 0,
+    shrink: int = 8,
     ui_name: Optional[str] = typer.Option(None, "--ui_name"),
     win_sigma: float = typer.Option(1.5, "--win_sigma"),
     win_size: int = typer.Option(11, "--win_size"),
     point_cloud_threshold: float = typer.Option(1.0, "--point_cloud_threshold"),
     log_level_disk: int = typer.Option(2, "--log_level_disk"),
 ):
-
+    assert shrink
     if ui_name is None:
         ui_name = pred
 

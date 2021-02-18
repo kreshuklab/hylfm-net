@@ -31,6 +31,7 @@ def get_transforms_pipeline(
     shrink: int,
     interpolation_order: int = 2,
     incl_pred_vol: bool = False,
+    load_lfd_and_care: bool = False,
 ):
     sliced = dataset_name.value.endswith("_sliced") and dataset_part == DatasetPart.train
     dynamic = "dyn" in dataset_name.value
@@ -110,6 +111,11 @@ def get_transforms_pipeline(
                 apply_to="lf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=True, crop_names=crop_names
             )
         )
+        if load_lfd_and_care:
+            sample_preprocessing += CropWhatShrinkDoesNot(
+                apply_to="lfd", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=False, crop_names=crop_names
+            )
+
         if sliced or dynamic:
             tgt = "ls_slice"
             sample_preprocessing += CropLSforDynamicTraining(
@@ -145,7 +151,12 @@ def get_transforms_pipeline(
             sample_preprocessing += ComposedTransform(ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum))
             batch_preprocessing = ComposedTransform()
 
-        batch_preprocessing_in_step = Cast(apply_to=["lfc", tgt], dtype="float32", device="cuda", non_blocking=True)
+        batch_preprocessing_in_step = ComposedTransform(
+            Cast(apply_to=["lfc", tgt], dtype="float32", device="cuda", non_blocking=True)
+        )
+        if load_lfd_and_care:
+            batch_preprocessing_in_step += Cast(apply_to=["lfd"], dtype="float32", device="cuda", non_blocking=True)
+
         batch_postprocessing = ComposedTransform(
             Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )
@@ -263,6 +274,11 @@ def get_transforms_pipeline(
                 apply_to="lf", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=True, crop_names=crop_names
             )
         )
+        if load_lfd_and_care:
+            sample_preprocessing += CropWhatShrinkDoesNot(
+                apply_to="lfd", nnum=nnum, scale=scale, shrink=shrink, wrt_ref=False, crop_names=crop_names
+            )
+
         if sliced or dynamic:
             tgt = "ls_slice"
             sample_preprocessing += CropLSforDynamicTraining(
@@ -298,7 +314,12 @@ def get_transforms_pipeline(
             sample_preprocessing += ComposedTransform(ChannelFromLightField(apply_to={"lf": "lfc"}, nnum=nnum))
             batch_preprocessing = ComposedTransform()
 
-        batch_preprocessing_in_step = Cast(apply_to=["lfc", tgt], dtype="float32", device="cuda", non_blocking=True)
+        batch_preprocessing_in_step = ComposedTransform(
+            Cast(apply_to=["lfc", tgt], dtype="float32", device="cuda", non_blocking=True)
+        )
+        if load_lfd_and_care:
+            batch_preprocessing_in_step += Cast(apply_to=["lfd"], dtype="float32", device="cuda", non_blocking=True)
+
         batch_postprocessing = ComposedTransform(
             Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )

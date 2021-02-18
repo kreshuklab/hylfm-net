@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 class Run:
     name: str
 
+    load_lfd_and_care: bool = False
+
     def __init__(
         self,
         *,
@@ -87,6 +89,9 @@ class Run:
             shrink=shrink,
             interpolation_order=cfg.interpolation_order,
             incl_pred_vol="pred_vol" in self.save_output_to_disk,
+            load_lfd_and_care=self.load_lfd_and_care
+            or "lfd" in self.save_output_to_disk
+            or "care" in self.save_output_to_disk,
         )
 
         self.dataset = self.get_dataset()
