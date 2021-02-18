@@ -650,7 +650,12 @@ def get_dataset_sections(
 
         heart_static_fish2_dataset = ZipDataset(datasets, transform=transforms_pipeline.sample_preprocessing)
         sections.append([heart_static_fish2_dataset])
-    elif name in [DatasetChoice.heart_dyn_refine, DatasetChoice.heart_dyn_refine_lfd, DatasetChoice.heart_dyn_test]:
+    elif name in [
+        DatasetChoice.heart_dyn_refine,
+        DatasetChoice.heart_dyn_refine_lfd,
+        DatasetChoice.heart_dyn_test,
+        DatasetChoice.heart_dyn_test_lfd,
+    ]:
         filters = [
             # ("z_range", {"z_min": 29, "z_max": 218}),
             ("z_range", {}),
@@ -673,15 +678,16 @@ def get_dataset_sections(
             raise NotImplementedError(part)
 
         tag = "2019-12-09_04.54.38"
+        tensors = {"lf": f"heart_dynamic.{tag}", "ls_slice": f"heart_dynamic.{tag}", "meta": transforms_pipeline.meta}
+
+        if load_lfd_and_care:
+            tensors["lfd"] = f"heart_dynamic.{tag}"
+
         if name in [DatasetChoice.heart_dyn_refine, DatasetChoice.heart_dyn_test]:
             sections.append(
                 [
                     get_dataset_subsection(
-                        tensors={
-                            "lf": f"heart_dynamic.{tag}",
-                            "ls_slice": f"heart_dynamic.{tag}",
-                            "meta": transforms_pipeline.meta,
-                        },
+                        tensors=tensors,
                         filters=filters,
                         indices=indices,
                         preprocess_sample=transforms_pipeline.sample_precache_trf,
@@ -689,7 +695,19 @@ def get_dataset_sections(
                     )
                 ]
             )
-        elif name == DatasetChoice.heart_dyn_refine_lfd:
+        elif name in [DatasetChoice.heart_dyn_refine_lfd, DatasetChoice.heart_dyn_test_lfd]:
+            split_at = 964
+            if part == DatasetPart.train:
+                indices = slice(split_at, None, None)
+            elif part == DatasetPart.validate:
+                indices = slice(0, split_at, 4)
+            elif part == DatasetPart.test and name != DatasetChoice.heart_dyn_test_lfd:
+                indices = slice(0, split_at)
+            elif name == DatasetChoice.heart_dyn_test_lfd:
+                indices = None
+            else:
+                raise NotImplementedError(part)
+
             # ls_slice_pre_cache_trf = [
             #     trf
             #     for trf in transforms_pipeline.sample_precache_trf
@@ -712,11 +730,11 @@ def get_dataset_sections(
                     remove_singleton_axes_at=(-1,) if tensor_name in ("lf", "spim") else tuple(),
                     insert_singleton_axes_at=(0, 0),
                     z_slice=None,
-                    skip_indices=skip_indices,
+                    skip_indices=tuple(),
                     meta=None,
                 )
                 return get_dataset_from_info(
-                    tensor_info, transforms=pre_cache_trf, cache=True, filters=[], indices=slice(4 * 209, None, None)
+                    tensor_info, transforms=pre_cache_trf, cache=True, filters=[], indices=indices
                 )
 
             zipped_ds = ZipDataset(

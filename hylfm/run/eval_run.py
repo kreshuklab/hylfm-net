@@ -321,7 +321,9 @@ class TestPrecomputedRun(EvalRun):
             incl_pred_vol="pred_vol" in self.save_output_to_disk,
             load_lfd_and_care=self.load_lfd_and_care
             or "lfd" in self.save_output_to_disk
-            or "care" in self.save_output_to_disk,
+            or "care" in self.save_output_to_disk
+            or self.config.pred_name in ("lfd", "care")
+            or self.config.trgt_name in ("lfd", "care"),
             pred_name_for_from_path=self.config.pred_name,
             trgt_name_for_from_path=self.config.trgt_name,
         )

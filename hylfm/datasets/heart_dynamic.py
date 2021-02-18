@@ -139,7 +139,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
         location = f"LF_partially_restored/LenseLeNet_Microscope/20191208_dynamic_static_heart/fish2/dynamic/Heart_tightCrop/{tag}/stack_1_channel_3/"
         if name == "lf":
             location += "TP_*/RC_rectified/Cam_Right_*_rectified.tif"
-        elif name == "lr":
+        elif name in ["lr", "lfd"]:
             if tag == "2019-12-09_04.54.38":
                 location = "/scratch/Nils/LF_computed/TP*/RCout/Cam_Right_*.tif"
             else:

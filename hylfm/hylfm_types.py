@@ -80,6 +80,7 @@ class DatasetChoice(str, Enum):
     heart_static_fish2_f4_sliced = "heart_static_fish2_f4_sliced"
     heart_dyn_refine = "heart_dyn_refine"
     heart_dyn_refine_lfd = "heart_dyn_refine_lfd"
+    heart_dyn_test_lfd = "heart_dyn_test_lfd"
     heart_dyn_test = "heart_dyn_test"  # full data of heart_dyn_refine
     predict_path = "predict_path"
     from_path = "from_path"

@@ -38,7 +38,7 @@ def get_transforms_pipeline(
     sliced = dataset_name.value.endswith("_sliced") and dataset_part == DatasetPart.train
     dynamic = "dyn" in dataset_name.value
     spatial_dims = 2 if sliced or dynamic else 3
-    dyn_precomputed = dataset_name in [DatasetChoice.heart_dyn_refine_lfd]
+    dyn_precomputed = dataset_name in [DatasetChoice.heart_dyn_refine_lfd, DatasetChoice.heart_dyn_test_lfd]
 
     pred_z_min = 0
     pred_z_max = 838
@@ -510,7 +510,7 @@ def get_transforms_pipeline(
             Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )
 
-    elif dataset_name == DatasetChoice.heart_dyn_refine_lfd and dataset_part == DatasetPart.test:  # todo: test
+    elif dataset_name in [DatasetChoice.heart_dyn_refine_lfd, DatasetChoice.heart_dyn_test_lfd] and dataset_part == DatasetPart.test:  # todo: test
         tgt = "ls_slice"
         sample_precache_trf = []
 
@@ -636,8 +636,11 @@ def get_transforms_pipeline(
         )  # transform pred and sample only the z_slice of ls_slice
 
     if tgt is not None:
-        batch_postprocessing += Assert(apply_to="pred", expected_shape_like_tensor=tgt)
-        batch_premetric_trf = ComposedTransform(NormalizeMSE(apply_to="pred", target_name=tgt, return_alpha_beta=True))
+        pred_name = pred_name_for_from_path or "pred"
+        batch_postprocessing += Assert(apply_to=pred_name, expected_shape_like_tensor=tgt)
+        batch_premetric_trf = ComposedTransform(
+            NormalizeMSE(apply_to=pred_name, target_name=tgt, return_alpha_beta=True)
+        )
     else:
         batch_premetric_trf = ComposedTransform()
 

@@ -208,11 +208,12 @@ class TiffDataset(DatasetFromInfo):
         img_path = self.paths[path_idx]
 
         try:
-            img: numpy.ndarray = numpy.asarray(imageio.volread(img_path))
-        except Exception:
-            logger.error("Cannot load %s", img_path)
-            raise
+            img: numpy.ndarray = imageio.volread(img_path)
+        except Exception as e:
+            logger.error("Cannot load %s due to %s", img_path, e)
+            raise e
 
+        img = numpy.asarray(img)
         if self.info.datasets_per_file > 1:
             img = img[idx : idx + 1]
 
