@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+from typing import Optional
 
 from tifffile import imread
 from tqdm import tqdm
@@ -7,7 +8,7 @@ from tqdm import tqdm
 from hylfm.utils.io import save_tensor
 
 try:
-    from typing import Literal, Optional
+    from typing import Litera
 except ImportError:
     from typing_extensions import Literal
 
@@ -23,7 +24,6 @@ app = typer.Typer()
 def tst_care(care_model_path: Path, lfd_path: Path, overwrite: Optional[bool] = False):
     assert lfd_path.name == "pred"
     assert lfd_path.parent.name == "lfd"
-    from csbdeep.io import save_tiff_imagej_compatible
     from csbdeep.models import CARE
 
     axes = "ZYX"
