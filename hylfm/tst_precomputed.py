@@ -21,6 +21,24 @@ logger = logging.getLogger(__name__)
 app = typer.Typer()
 
 
+def get_save_output_to_disk_from_path(log_level_disk: int, source_path: Path, ui_name: str):
+    tensors_to_log = ["metrics", "pred", "spim", "lf"]
+
+    save_output_to_disk = {}
+    for lvl, key in enumerate(tensors_to_log):
+        if lvl >= log_level_disk:
+            break
+
+        on_disk_name = key + ".h5" if key == "metrics" else key
+        save_to = source_path.parent.parent / ui_name / on_disk_name
+        if save_to.exists():
+            raise FileExistsError(save_to)
+
+        save_output_to_disk[key] = save_to
+
+    return save_output_to_disk
+
+
 @app.command(name="test_precomputed")
 def tst_precomputed(
     pred: str,
@@ -66,6 +84,8 @@ def tst_precomputed(
 
         if ui_name is None:
             ui_name = f"{pred}_vs_{trgt}"
+
+        save_output_to_disk = get_save_output_to_disk_from_path(log_level_disk, from_path, ui_name)
     else:
         if log_level_disk is None:
             log_level_disk = 2
@@ -80,6 +100,8 @@ def tst_precomputed(
         if ui_name is None:
             ui_name = pred
 
+        save_output_to_disk = get_save_output_to_disk(log_level_disk, dataset, ui_name)
+
     config = TestPrecomputedRunConfig(
         path=from_path,
         pred_name=pred,
@@ -92,7 +114,7 @@ def tst_precomputed(
         interpolation_order=interpolation_order,
         win_sigma=win_sigma,
         win_size=win_size,
-        save_output_to_disk=get_save_output_to_disk(log_level_disk, dataset, ui_name),
+        save_output_to_disk=save_output_to_disk,
         hylfm_version=__version__,
         point_cloud_threshold=point_cloud_threshold,
     )

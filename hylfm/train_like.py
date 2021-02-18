@@ -106,8 +106,10 @@ def train_model_like(
     note = f"train like {model_kwargs_from_checkpoint.resolve()} {'with changes:' if changes else ''} " + " ".join(
         [f"{k}: {v}" for k, v in changes.items()]
     )
-
     logger.info(note)
+    if len(note) > 500:
+        note = note[:499] + "…"
+
 
     config.update(changes)
     train(**config, note=note)
