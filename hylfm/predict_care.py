@@ -4,6 +4,8 @@ from pathlib import Path
 from tifffile import imread
 from tqdm import tqdm
 
+from hylfm.utils.io import save_tensor
+
 try:
     from typing import Literal
 except ImportError:
@@ -37,7 +39,9 @@ def tst_care(care_model_path: Path, lfd_path: Path):
 
         x = imread(str(file_path)).squeeze()
         restored = model.predict(x, axes)
-        save_tiff_imagej_compatible(str(result_path), restored, axes)
+        restored = restored.squeeze()[None, ...]
+        save_tensor(result_path, restored)
+        # save_tiff_imagej_compatible(str(result_path), restored, axes)
 
 
 if __name__ == "__main__":

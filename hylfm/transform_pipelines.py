@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 from hylfm.datasets.named import DatasetPart
 from hylfm.hylfm_types import DatasetChoice, TransformsPipeline
@@ -32,6 +32,7 @@ def get_transforms_pipeline(
     interpolation_order: int = 2,
     incl_pred_vol: bool = False,
     load_lfd_and_care: bool = False,
+    tgt_name_for_from_path: Optional[str] = None,
 ):
     sliced = dataset_name.value.endswith("_sliced") and dataset_part == DatasetPart.train
     dynamic = "dyn" in dataset_name.value
@@ -581,7 +582,13 @@ def get_transforms_pipeline(
         batch_postprocessing = ComposedTransform(
             Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )
-
+    elif dataset_name == DatasetChoice.from_path:
+        tgt = tgt_name_for_from_path
+        sample_precache_trf = []
+        sample_preprocessing = ComposedTransform()
+        batch_preprocessing = ComposedTransform()
+        batch_preprocessing_in_step = ComposedTransform()
+        batch_postprocessing = ComposedTransform()
     else:
         raise NotImplementedError(dataset_name, dataset_part)
 

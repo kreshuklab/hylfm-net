@@ -25,6 +25,7 @@ from hylfm.utils.io import save_pandas_df, save_tensor
 from .base import Run
 from .run_logger import WandbLogger, WandbValidationLogger
 from ..datasets.named import get_dataset
+from ..transform_pipelines import get_transforms_pipeline
 
 
 @dataclass
@@ -285,7 +286,7 @@ class TestPrecomputedRun(EvalRun):
                 ),
             }
             dtst = ZipDataset(
-                **{
+                {
                     name: get_dataset_from_info(ti, cache=True, filters=[], indices=None)
                     for name, ti in tensor_infos.items()
                 }
@@ -304,6 +305,22 @@ class TestPrecomputedRun(EvalRun):
                 incl_pred_vol="pred_vol" in self.save_output_to_disk,
                 load_lfd_and_care=self.load_lfd_and_care,
             )
+
+    def get_transforms_pipeline(self):
+        return get_transforms_pipeline(
+            dataset_name=self.config.dataset,
+            dataset_part=self.dataset_part,
+            nnum=19 if self.model is None else self.model.nnum,
+            z_out=49 if self.model is None else self.model.z_out,
+            scale=self.scale,
+            shrink=self.shrink,
+            interpolation_order=self.config.interpolation_order,
+            incl_pred_vol="pred_vol" in self.save_output_to_disk,
+            load_lfd_and_care=self.load_lfd_and_care
+            or "lfd" in self.save_output_to_disk
+            or "care" in self.save_output_to_disk,
+            tgt_name_for_from_path="spim",
+        )
 
 
 class PredictPathRun(EvalRun):
