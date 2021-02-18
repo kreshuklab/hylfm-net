@@ -127,6 +127,8 @@ def resume(
 
     note = f"resume to train {checkpoint} {'with changes: ' + pformat(changes) if changes else ''}"
     logger.info(note)
+    if len(note) > 500:
+        note = note[:499] + "…"
 
     config = checkpoint.config.as_dict(for_logging=False)
     config["resumed_from"] = checkpoint.training_run_name
