@@ -670,9 +670,9 @@ def get_dataset_sections(
             indices = slice(split_at, None, None)
         elif part == DatasetPart.validate:
             indices = slice(0, split_at, 4)
-        elif part == DatasetPart.test and name != DatasetChoice.heart_dyn_test:
+        elif part == DatasetPart.test and name not in [DatasetChoice.heart_dyn_test, DatasetChoice.heart_dyn_test_lfd]:
             indices = slice(0, split_at)
-        elif name == DatasetChoice.heart_dyn_test:
+        elif name in [DatasetChoice.heart_dyn_test, DatasetChoice.heart_dyn_test_lfd]:
             indices = None
         else:
             raise NotImplementedError(part)
@@ -696,25 +696,13 @@ def get_dataset_sections(
                 ]
             )
         elif name in [DatasetChoice.heart_dyn_refine_lfd, DatasetChoice.heart_dyn_test_lfd]:
-            split_at = 964
-            if part == DatasetPart.train:
-                indices = slice(split_at, None, None)
-            elif part == DatasetPart.validate:
-                indices = slice(0, split_at, 4)
-            elif part == DatasetPart.test and name != DatasetChoice.heart_dyn_test_lfd:
-                indices = slice(0, split_at)
-            elif name == DatasetChoice.heart_dyn_test_lfd:
-                indices = None
-            else:
-                raise NotImplementedError(part)
-
             # ls_slice_pre_cache_trf = [
             #     trf
             #     for trf in transforms_pipeline.sample_precache_trf
             #     if any([kwargs["apply_to"] == "ls_slice" for kwargs in trf.values()])
             # ]
 
-            def ds_from_path(tensor_name: str, path: Path):
+            def ds_from_path(tensor_name: str, path: Path, insert_singleton_axes_at):
                 pre_cache_trf = [
                     trf
                     for trf in transforms_pipeline.sample_precache_trf
@@ -727,8 +715,8 @@ def get_dataset_sections(
                     transforms=pre_cache_trf,
                     datasets_per_file=1,
                     samples_per_dataset=1,
-                    remove_singleton_axes_at=(-1,) if tensor_name in ("lf", "spim") else tuple(),
-                    insert_singleton_axes_at=(0, 0),
+                    remove_singleton_axes_at=(-1,),
+                    insert_singleton_axes_at=insert_singleton_axes_at,
                     z_slice=None,
                     skip_indices=tuple(),
                     meta=None,
@@ -749,11 +737,11 @@ def get_dataset_sections(
                     #     indices=indices,
                     # ),
                     ls_slice=ds_from_path(
-                        "ls_slice", Path("/g/kreshuk/LF_computed/lnet/plain/heart/dynamic1/test/ls_slice")
+                        "ls_slice", Path("/g/kreshuk/LF_computed/lnet/plain/heart/dynamic1/test/ls_slice"), (0, 0)
                     ),
-                    lfd=ds_from_path("lfd", Path("/g/kreshuk/LF_computed/lnet/plain/heart/dynamic1/test/lr")),
+                    lfd=ds_from_path("lfd", Path("/g/kreshuk/LF_computed/lnet/plain/heart/dynamic1/test/lr"), (0,0)),
                     care=ds_from_path(
-                        "care", Path("/g/kreshuk/LF_computed/lnet/plain/heart/dynamic1/test/v0_on_48x88x88/")
+                        "care", Path("/g/kreshuk/LF_computed/lnet/plain/heart/dynamic1/test/v0_on_48x88x88/"), (0,)
                     ),
                 ),
                 transform=transforms_pipeline.sample_preprocessing,

@@ -90,7 +90,6 @@ def tst_precomputed(
         if log_level_disk is None:
             log_level_disk = 2
 
-        assert shrink
         if from_path is not None:
             raise ValueError(f"don't specify 'from_path' when testing on defined dataset {dataset}")
 

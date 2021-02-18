@@ -510,14 +510,17 @@ def get_transforms_pipeline(
             Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )
 
-    elif dataset_name in [DatasetChoice.heart_dyn_refine_lfd, DatasetChoice.heart_dyn_test_lfd] and dataset_part == DatasetPart.test:  # todo: test
+    elif (
+        dataset_name in [DatasetChoice.heart_dyn_refine_lfd, DatasetChoice.heart_dyn_test_lfd]
+        and dataset_part == DatasetPart.test
+    ):  # todo: test
         tgt = "ls_slice"
         sample_precache_trf = []
 
         sample_preprocessing = ComposedTransform(
-            Assert(apply_to="lfd", expected_tensor_shape=(None, 1, z_out, None, None)),
-            Assert(apply_to="care", expected_tensor_shape=(None, 1, z_out, None, None)),
-            Assert(apply_to=tgt, expected_tensor_shape=(None, 1, z_out, None, None)),
+            Assert(apply_to="lfd", expected_tensor_shape=(None, 1, 1, None, None)),
+            Assert(apply_to="care", expected_tensor_shape=(None, 1, 1, None, None)),
+            Assert(apply_to=tgt, expected_tensor_shape=(None, 1, 1, None, None)),
             Assert(apply_to="lfd", expected_shape_like_tensor=tgt),
             Assert(apply_to="care", expected_shape_like_tensor=tgt),
         )
@@ -527,7 +530,7 @@ def get_transforms_pipeline(
             Cast(apply_to=["lfd", "care", tgt], dtype="float32", device="cuda", non_blocking=True)
         )
         batch_postprocessing = ComposedTransform(
-            Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
+            Assert(apply_to="pred", expected_tensor_shape=(None, 1, 1, None, None))
         )
 
     elif dataset_name == DatasetChoice.train_on_lfd:
