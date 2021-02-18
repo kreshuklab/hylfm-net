@@ -57,8 +57,10 @@ class Run:
             logger.warning("saving output to disk: %s", self.save_output_to_disk)
 
         for path in self.save_output_to_disk.values():
-            if not path.suffix:
-                path.mkdir(parents=True, exist_ok=True)
+            if path.suffix:
+                path = path.parent
+
+            path.mkdir(parents=True, exist_ok=True)
 
         self.model = model  # todo: get model out of here as some runners don't have it
         if model is None:
