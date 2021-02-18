@@ -217,7 +217,8 @@ class TiffDataset(DatasetFromInfo):
             img = img[idx : idx + 1]
 
         for axis in self.remove_singleton_axes_at:
-            img = numpy.squeeze(img, axis=axis)
+            if img.shape[axis] == 1:
+                img = numpy.squeeze(img, axis=axis)
 
         for axis in self.insert_singleton_axes_at:
             img = numpy.expand_dims(img, axis=axis)
