@@ -268,7 +268,7 @@ class TestPrecomputedRun(EvalRun):
                     transforms=self.transforms_pipeline.sample_precache_trf,
                     datasets_per_file=1,  # todo: remove hard coded
                     samples_per_dataset=1,
-                    remove_singleton_axes_at=tuple(),  # (-1,),  # todo: remove hard coded
+                    remove_singleton_axes_at=(-1,),
                     insert_singleton_axes_at=(0, 0),  # todo: remove hard coded
                     z_slice=None,
                     skip_indices=tuple(),
