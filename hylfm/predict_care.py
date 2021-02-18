@@ -7,7 +7,7 @@ from tqdm import tqdm
 from hylfm.utils.io import save_tensor
 
 try:
-    from typing import Literal
+    from typing import Literal, Optional
 except ImportError:
     from typing_extensions import Literal
 
@@ -20,7 +20,7 @@ app = typer.Typer()
 
 
 @app.command(name="test_care")
-def tst_care(care_model_path: Path, lfd_path: Path):
+def tst_care(care_model_path: Path, lfd_path: Path, overwrite: Optional[bool] = False):
     assert lfd_path.name == "pred"
     assert lfd_path.parent.name == "lfd"
     from csbdeep.io import save_tiff_imagej_compatible
@@ -34,7 +34,7 @@ def tst_care(care_model_path: Path, lfd_path: Path):
 
     for file_path in tqdm(list(lfd_path.glob("*tif"))):
         result_path = care_result_root / file_path.name
-        if result_path.exists():
+        if result_path.exists() and not overwrite:
             continue
 
         x = imread(str(file_path)).squeeze()
