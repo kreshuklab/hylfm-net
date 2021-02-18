@@ -64,7 +64,7 @@ class EvalRun(Run):
         return tqdm(iterable, desc=desc, total=total)
 
     @no_grad()
-    def get_pred(self, batch):
+    def get_pred(self, batch) -> dict:
         return self.model(batch["lfc"])
 
     @no_grad()
@@ -248,10 +248,13 @@ class TestPrecomputedRun(EvalRun):
             shrink=shrink,
         )
 
-    def get_pred(self, batch):
+    def get_pred(self, batch) -> dict:
         assert self.config.pred_name is not None
+        batch = batch[self.config.pred_name]
         if self.shrink:
-            return batch[self.config.pred_name][..., self.shrink : -self.shrink, self.shrink : -self.shrink]
+            batch = batch[..., self.shrink : -self.shrink, self.shrink : -self.shrink]
+
+        return batch
 
     def get_dataset(self):
         if self.config.dataset == DatasetChoice.from_path:
@@ -263,23 +266,23 @@ class TestPrecomputedRun(EvalRun):
                     root=self.config.path,
                     location=self.config.pred_glob,
                     transforms=self.transforms_pipeline.sample_precache_trf,
-                    datasets_per_file=1,
+                    datasets_per_file=1,  # todo: remove hard coded
                     samples_per_dataset=1,
-                    remove_singleton_axes_at=tuple(),  # (-1,),
-                    insert_singleton_axes_at=(0, 0),
+                    remove_singleton_axes_at=tuple(),  # (-1,),  # todo: remove hard coded
+                    insert_singleton_axes_at=(0, 0),  # todo: remove hard coded
                     z_slice=None,
                     skip_indices=tuple(),
                     meta=None,
                 ),
                 self.config.trgt_name: TensorInfo(
-                    name=self.config.pred_name,
+                    name=self.config.trgt_name,
                     root=self.config.path,
                     location=self.config.trgt_glob,
                     transforms=self.transforms_pipeline.sample_precache_trf,
                     datasets_per_file=1,
                     samples_per_dataset=1,
-                    remove_singleton_axes_at=tuple(),  # (-1,),
-                    insert_singleton_axes_at=(0, 0),
+                    remove_singleton_axes_at=(-1,),  # todo: remove hard coded
+                    insert_singleton_axes_at=(0, 0),  # todo: remove hard coded
                     z_slice=None,
                     skip_indices=tuple(),
                     meta=None,
@@ -319,7 +322,8 @@ class TestPrecomputedRun(EvalRun):
             load_lfd_and_care=self.load_lfd_and_care
             or "lfd" in self.save_output_to_disk
             or "care" in self.save_output_to_disk,
-            tgt_name_for_from_path="spim",
+            pred_name_for_from_path=self.config.pred_name,
+            trgt_name_for_from_path=self.config.trgt_name,
         )
 
 

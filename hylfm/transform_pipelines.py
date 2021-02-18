@@ -32,7 +32,8 @@ def get_transforms_pipeline(
     interpolation_order: int = 2,
     incl_pred_vol: bool = False,
     load_lfd_and_care: bool = False,
-    tgt_name_for_from_path: Optional[str] = None,
+    trgt_name_for_from_path: Optional[str] = None,  # todo: get rid of these horrible monkey patched kwargs
+    pred_name_for_from_path: Optional[str] = None,
 ):
     sliced = dataset_name.value.endswith("_sliced") and dataset_part == DatasetPart.train
     dynamic = "dyn" in dataset_name.value
@@ -583,11 +584,14 @@ def get_transforms_pipeline(
             Assert(apply_to="pred", expected_tensor_shape=(None, 1, z_out, None, None))
         )
     elif dataset_name == DatasetChoice.from_path:
-        tgt = tgt_name_for_from_path
+        tgt = trgt_name_for_from_path
         sample_precache_trf = []
         sample_preprocessing = ComposedTransform()
         batch_preprocessing = ComposedTransform()
-        batch_preprocessing_in_step = ComposedTransform()
+        batch_preprocessing_in_step = ComposedTransform(
+            Cast(apply_to=trgt_name_for_from_path, dtype="float32", device="cuda", non_blocking=True),
+            Cast(apply_to=pred_name_for_from_path, dtype="float32", device="cuda", non_blocking=True),
+        )
         batch_postprocessing = ComposedTransform()
     else:
         raise NotImplementedError(dataset_name, dataset_part)
@@ -633,7 +637,6 @@ def get_transforms_pipeline(
 
     if tgt is not None:
         batch_postprocessing += Assert(apply_to="pred", expected_shape_like_tensor=tgt)
-
         batch_premetric_trf = ComposedTransform(NormalizeMSE(apply_to="pred", target_name=tgt, return_alpha_beta=True))
     else:
         batch_premetric_trf = ComposedTransform()
