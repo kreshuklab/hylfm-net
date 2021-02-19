@@ -525,6 +525,8 @@ def get_transforms_pipeline(
             Assert(apply_to="care", expected_shape_like_tensor=tgt),
         )
 
+        sample_preprocessing += Normalize01Dataset(apply_to=tgt, min_percentile=5.0, max_percentile=99.8)
+
         batch_preprocessing = ComposedTransform()
         batch_preprocessing_in_step = ComposedTransform(
             Cast(apply_to=["lfd", "care", tgt], dtype="float32", device="cuda", non_blocking=True)
