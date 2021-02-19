@@ -59,6 +59,7 @@ def tst_precomputed(
     win_sigma: float = typer.Option(1.5, "--win_sigma"),
     win_size: int = typer.Option(11, "--win_size"),
 ):
+    assert pred != "stat", "name clash with 'stat' for statistics"
 
     # todo: split if into different functions / run configs / runs??
     if dataset == DatasetChoice.from_path:

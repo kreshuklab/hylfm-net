@@ -659,10 +659,10 @@ def get_dataset_sections(
         filters = [
             # ("z_range", {"z_min": 29, "z_max": 218}),
             ("z_range", {}),
-            (
-                "signal2noise",
-                {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 1.3},
-            ),
+            # (
+            #     "signal2noise",
+            #     {"apply_to": "ls_slice", "signal_percentile": 99.9, "noise_percentile": 5.0, "ratio": 1.3},
+            # ),
         ]
         # filters = [("z_range", {})]
         split_at = 964
