@@ -515,17 +515,20 @@ def get_transforms_pipeline(
         and dataset_part == DatasetPart.test
     ):  # todo: test
         tgt = "ls_slice"
+        crop_names.add("Heart_tightCrop")
         sample_precache_trf = []
 
         sample_preprocessing = ComposedTransform(
+            CropLSforDynamicTraining(
+                apply_to=tgt, crop_names=crop_names, nnum=nnum, scale=scale, z_ls_rescaled=z_ls_rescaled
+            ),
             Assert(apply_to="lfd", expected_tensor_shape=(None, 1, 1, None, None)),
             Assert(apply_to="care", expected_tensor_shape=(None, 1, 1, None, None)),
             Assert(apply_to=tgt, expected_tensor_shape=(None, 1, 1, None, None)),
             Assert(apply_to="lfd", expected_shape_like_tensor=tgt),
             Assert(apply_to="care", expected_shape_like_tensor=tgt),
+            Normalize01Dataset(apply_to=tgt, min_percentile=5.0, max_percentile=99.8),
         )
-
-        sample_preprocessing += Normalize01Dataset(apply_to=tgt, min_percentile=5.0, max_percentile=99.8)
 
         batch_preprocessing = ComposedTransform()
         batch_preprocessing_in_step = ComposedTransform(
@@ -642,9 +645,7 @@ def get_transforms_pipeline(
 
     if tgt is not None:
         batch_postprocessing += Assert(apply_to="pred", expected_shape_like_tensor=tgt)
-        batch_premetric_trf = ComposedTransform(
-            NormalizeMSE(apply_to="pred", target_name=tgt, return_alpha_beta=True)
-        )
+        batch_premetric_trf = ComposedTransform(NormalizeMSE(apply_to="pred", target_name=tgt, return_alpha_beta=True))
     else:
         batch_premetric_trf = ComposedTransform()
 

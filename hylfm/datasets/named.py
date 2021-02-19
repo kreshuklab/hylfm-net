@@ -736,15 +736,24 @@ def get_dataset_sections(
                     #     filters=filters,
                     #     indices=indices,
                     # ),
-                    ls_slice=ds_from_path(
-                        "ls_slice", Path("/g/kreshuk/LF_computed/lnet/plain/heart/dynamic1/test/ls_slice"), (0, 0)
+                    ls_slice=get_dataset_from_info(
+                        get_tensor_info(
+                            info_name=f"heart_dynamic.{tag}", name="ls_slice", meta=transforms_pipeline.meta,
+                        ),
+                        cache=True,
+                        filters=[("z_range", {})],
+                        indices=None,
                     ),
-                    lfd=ds_from_path("lfd", Path("/g/kreshuk/LF_computed/lnet/plain/heart/dynamic1/test/lr"), (0,0)),
+                    # ds_from_path(
+                    #     "ls_slice", Path("/g/kreshuk/LF_computed/lnet/plain/heart/dynamic1/test/ls_slice"), (0, 0)
+                    # ),  # this is saved normalized with 99.9 percentile, calculating stat on it fails (silently!) as stat expects uint16
+                    lfd=ds_from_path("lfd", Path("/g/kreshuk/LF_computed/lnet/plain/heart/dynamic1/test/lr"), (0, 0)),
                     care=ds_from_path(
                         "care", Path("/g/kreshuk/LF_computed/lnet/plain/heart/dynamic1/test/v0_on_48x88x88/"), (0,)
                     ),
                 ),
                 transform=transforms_pipeline.sample_preprocessing,
+                join_dataset_masks=False,
             )
             sections.append([zipped_ds])
 

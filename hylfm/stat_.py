@@ -61,7 +61,7 @@ class DatasetStat:
     def compute_hist(self):
         nbins = numpy.iinfo(numpy.uint16).max // 5
         hist_min = 0.0
-        hist_max = numpy.iinfo(numpy.uint16).max
+        hist_max = numpy.iinfo(numpy.uint16).max  # todo: hist for float data
         self.bin_width = (hist_max - hist_min) / nbins
 
         hist_path = self.path.with_suffix(".hist.npz").absolute()

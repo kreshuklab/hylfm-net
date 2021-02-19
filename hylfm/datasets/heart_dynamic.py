@@ -393,7 +393,7 @@ def get_tensor_info(tag: str, name: str, meta: dict):
     assert tag.replace("_short", "") in location or tag == "2019-12-09_04.54.38", (tag, name, location)
     tag = tag.replace("/", "_")
     if "crop_names" in meta:
-        assert crop_name in meta["crop_names"]
+        assert crop_name in meta["crop_names"], (crop_name, meta["crop_names"])
 
     if "crop_name" in meta:
         assert meta["crop_name"] == crop_name, (meta["crop_name"], crop_name)

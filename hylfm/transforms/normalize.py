@@ -53,7 +53,7 @@ class Normalize01Dataset(Transform):
         max_ = self.max or min_max.pop()
         min_ = self.min or min_max.pop()
         assert not min_max, min_max
-        assert min_ < max_
+        assert min_ < max_, (min_, max_)
         tensor = (tensor - min_) / (max_ - min_)
         if self.clip:
             tensor = numpy.clip(tensor, 0.0, 1.0)
