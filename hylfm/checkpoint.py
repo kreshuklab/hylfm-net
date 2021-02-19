@@ -142,8 +142,6 @@ class TrainRunConfig(RunConfig):
         dat["optimizer"] = OptimizerChoice(dat.pop("optimizer"))
         dat["score_metric"] = MetricChoice(dat.pop("score_metric"))
         dat["validate_every_unit"] = PeriodUnit(dat.pop("validate_every_unit"))
-        if "criterion_apply_below_threshold" in dat:
-            dat["crit_apply_weight_above_threshold"] = not dat.pop("criterion_apply_below_threshold")
 
         return dat
 
@@ -159,6 +157,25 @@ class TrainRunConfig(RunConfig):
 
         if "score_metric" not in dat:
             dat["score_metric"] = MetricChoice.MS_SSIM.value
+
+        if "criterion_apply_below_threshold" in dat:
+            dat["crit_apply_weight_above_threshold"] = not dat.pop("criterion_apply_below_threshold")
+
+        for criterion_kwarg in [
+            "criterion_decay_weight_by",
+            "criterion_beta",
+            "criterion_decay_weight_every_unit",
+            "criterion_decay_weight_every_value",
+            "criterion_decay_weight_limit",
+            "criterion_threshold",
+            "criterion_weight",
+            "criterion_ms_ssim_weight",
+        ]:
+            if criterion_kwarg in dat:
+                dat[criterion_kwarg.replace("criterion_", "crit")] = dat.pop(criterion_kwarg)
+
+        if "lr" in dat:
+            dat["opt_lr"] = dat.pop("lr")
 
         return dat
 

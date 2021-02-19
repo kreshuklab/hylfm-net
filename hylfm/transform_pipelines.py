@@ -639,10 +639,9 @@ def get_transforms_pipeline(
         )  # transform pred and sample only the z_slice of ls_slice
 
     if tgt is not None:
-        pred_name = pred_name_for_from_path or "pred"
-        batch_postprocessing += Assert(apply_to=pred_name, expected_shape_like_tensor=tgt)
+        batch_postprocessing += Assert(apply_to="pred", expected_shape_like_tensor=tgt)
         batch_premetric_trf = ComposedTransform(
-            NormalizeMSE(apply_to=pred_name, target_name=tgt, return_alpha_beta=True)
+            NormalizeMSE(apply_to="pred", target_name=tgt, return_alpha_beta=True)
         )
     else:
         batch_premetric_trf = ComposedTransform()

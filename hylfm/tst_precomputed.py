@@ -31,8 +31,13 @@ def get_save_output_to_disk_from_path(log_level_disk: int, source_path: Path, ui
 
         on_disk_name = key + ".h5" if key == "metrics" else key
         save_to = source_path / ui_name / on_disk_name
-        if save_to.exists():
-            raise FileExistsError(save_to)
+        while save_to.exists():
+            if ".h5" in save_to.name:
+                save_to = save_to.with_name(save_to.name.replace(".h5", "_.h5"))
+            else:
+                save_to = save_to.with_name(save_to.name + "_")
+
+            # raise FileExistsError(save_to)
 
         save_output_to_disk[key] = save_to
 
