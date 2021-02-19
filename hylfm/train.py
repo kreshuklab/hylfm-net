@@ -215,6 +215,7 @@ def train(
         point_cloud_threshold=point_cloud_threshold,
         save_after_validation_iterations=save_after_validation_iterations,
         zero_max_patience=zero_max_patience,
+        hylfm_version=__version__,
     )
 
     wandb_run = wandb.init(
