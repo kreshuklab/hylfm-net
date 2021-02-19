@@ -142,6 +142,8 @@ class TrainRunConfig(RunConfig):
         dat["optimizer"] = OptimizerChoice(dat.pop("optimizer"))
         dat["score_metric"] = MetricChoice(dat.pop("score_metric"))
         dat["validate_every_unit"] = PeriodUnit(dat.pop("validate_every_unit"))
+        if "criterion_apply_below_threshold" in dat:
+            dat["crit_apply_weight_above_threshold"] = not dat.pop("criterion_apply_below_threshold")
 
         return dat
 
