@@ -132,7 +132,7 @@ class TrainRunConfig(RunConfig):
     @classmethod
     def convert_dict(cls, dat: dict):
         dat = super().convert_dict(dat)
-        dat["crit_decay_weight_every_unit"] = PeriodUnit(dat.pop("crit_decay_weight_every_unit"))
+        dat["crit_decay_weight_every_unit"] = PeriodUnit(dat.pop("crit_decay_weight_every_unit", "epoch"))
         dat["criterion"] = CriterionChoice(dat.pop("criterion"))
         dat["lr_sched_thres_mode"] = LRSchedThresMode(dat.pop("lr_sched_thres_mode"))
         lrs = dat.pop("lr_scheduler")
