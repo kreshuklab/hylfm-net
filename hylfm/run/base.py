@@ -1,4 +1,5 @@
 import logging
+import os
 import warnings
 from typing import Any, Dict, Iterable, Optional
 
@@ -83,6 +84,10 @@ class Run:
 
         self.dataset_part = dataset_part
         self.transforms_pipeline: TransformsPipeline = self.get_transforms_pipeline()
+        spatial_dims_overwrite = os.envirion.get("spatialdims")
+        if spatial_dims_overwrite is not None:
+            self.transforms_pipeline.spatial_dims = int(spatial_dims_overwrite)  # todo: remove gorilla patch
+
         self.dataset = self.get_dataset()
 
         self.dataloader: DataLoader = DataLoader(
