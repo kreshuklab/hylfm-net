@@ -13,6 +13,7 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> TrainRunConfig:
         "v1_checkpoint_37500_ms_ssim-scaled=0.8358002250844782.pth",
         "v1_checkpoint_0_ms_ssim-scaled=0.8727825609120455.pth",
         "v1_checkpoint_9900_ms_ssim-scaled=0.8582265810533003.pth",
+        "v1_checkpoint_6600_ms_ssim-scaled=0.9658018271759073.pth", # refined old stat on fish2 dyn refine
     ]:
         model_config = {
             "nnum": 19,
