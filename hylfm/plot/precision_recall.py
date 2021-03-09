@@ -202,7 +202,7 @@ def add_plot(plot_name, axes, out_dir):
 
     scalar_columns = ["network", "hyperparameter_name", "key"]
 
-    plot_name += "overview"
+    # plot_name += "overview"
     # metrics = ["PSNR", "MSE", "NRMSE", "SSIM", "MS-SSIM", None]
     # metrics = [
     #     "MS-SSIM",
@@ -433,6 +433,9 @@ def add_plot(plot_name, axes, out_dir):
 
     z_mean_df = df.groupby(["network", "hyperparameter_name"], as_index=False).mean()
 
+    txt_out_path = out_dir / f"{plot_name}z_mean.txt"
+    z_mean_df.loc[:, ["Recall", "Precision", "network"]].dropna(thresh=2).to_csv(txt_out_path, sep="\t", index=False)
+
     # z mean
     g = seaborn.relplot(
         x="Recall",
@@ -456,7 +459,7 @@ def add_plot(plot_name, axes, out_dir):
     g.fig.axes[0].set_ylim(0, 1)
 
     plt.savefig(out_dir / f"{plot_name}z_mean.png")
-    plt.savefig(out_dir / "svgs" / f"{plot_name}z_mean.svg")
+    plt.savefig(out_dir / f"{plot_name}z_mean.svg")
 
     for selected_threshold in [0.1, 0.05, 0.01, 0.005]:
         z_rolling_df = (
@@ -466,6 +469,9 @@ def add_plot(plot_name, axes, out_dir):
             .mean()
             .reset_index()
         )
+        txt_out_path = out_dir / f"{plot_name}_threshold={selected_threshold}.txt"
+        z_rolling_df.loc[:, ["Recall", "Precision", "network"]].dropna(thresh=2).to_csv(txt_out_path, sep="\t", index=False)
+
         g = seaborn.relplot(
             x="Recall",
             y="Precision",
@@ -491,7 +497,7 @@ def add_plot(plot_name, axes, out_dir):
 
         plt.tight_layout()
         plt.savefig(out_dir / f"{plot_name}_threshold={selected_threshold}.png")
-        plt.savefig(out_dir / "svgs" / f"{plot_name}_threshold={selected_threshold}.svg")
+        plt.savefig(out_dir / f"{plot_name}_threshold={selected_threshold}.svg")
 
     # for ax in g.axes:
     #     print(ax)
