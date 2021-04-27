@@ -228,7 +228,7 @@ class TiffDataset(DatasetFromInfo):
             logger.warning("squeeze(0) %s", img.shape)
             img = img.squeeze(0)
 
-        assert len(img.shape) == 5, (self.info.name, idx, img.shape)
+        # assert len(img.shape) == 5, (self.info.name, idx, img.shape)
 
         sample[self.tensor_name] = img
         sample["batch_len"] = img.shape[0]

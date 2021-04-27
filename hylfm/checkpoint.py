@@ -20,6 +20,7 @@ from hylfm.hylfm_types import (
     OptimizerChoice,
     PeriodUnit,
 )
+from hylfm.utils.io import download_file_from_zenodo
 
 
 def _conv_to_simple_dtypes(data: dict):
@@ -210,6 +211,14 @@ class Checkpoint:
 
     @classmethod
     def load(cls, path: Path):
+        if not path.exists():
+            if path.name == "small_beads_demo":
+                doi = "10.5281/zenodo.4036556"
+                file_name = "small_beads_v1_weights_SmoothL1Loss%3D-0.00012947025970788673.pth"
+                path = settings.download_dir / doi / file_name
+                if not path.exists():
+                    download_file_from_zenodo(doi, file_name, path)
+
         device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         checkpoint_data = torch.load(str(path), map_location=device)
         if "model" in checkpoint_data:

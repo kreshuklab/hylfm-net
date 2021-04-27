@@ -1,9 +1,11 @@
 from pathlib import Path
 
 from hylfm.checkpoint import TrainRunConfig
+from hylfm.hylfm_types import DatasetChoice
 
 
 def get_config_for_old_checkpoint(checkpoint: Path) -> TrainRunConfig:
+    dataset = None
     if checkpoint.name in [
         "v1_checkpoint_498_MS_SSIM=0.9710696664723483.pth",  # heart stat
         "v1_checkpoint_MSSSIM=0.6722144321961836.pth",
@@ -13,7 +15,7 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> TrainRunConfig:
         "v1_checkpoint_37500_ms_ssim-scaled=0.8358002250844782.pth",
         "v1_checkpoint_0_ms_ssim-scaled=0.8727825609120455.pth",
         "v1_checkpoint_9900_ms_ssim-scaled=0.8582265810533003.pth",
-        "v1_checkpoint_6600_ms_ssim-scaled=0.9658018271759073.pth", # refined old stat on fish2 dyn refine
+        "v1_checkpoint_6600_ms_ssim-scaled=0.9658018271759073.pth",  # refined old stat on fish2 dyn refine
     ]:
         model_config = {
             "nnum": 19,
@@ -71,7 +73,11 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> TrainRunConfig:
             "init_fn": "xavier_uniform",
             "final_activation": None,
         }
-    elif checkpoint.name == "v1_checkpoint_SmoothL1Loss=-0.00012947025970788673.pth":  # beads f8
+    elif checkpoint.name in [
+        "v1_checkpoint_SmoothL1Loss=-0.00012947025970788673.pth",
+        "small_beads_v1_weights_SmoothL1Loss%3D-0.00012947025970788673.pth",
+    ]:  # beads f8
+        dataset = DatasetChoice.beads_highc_a
         model_config = {
             "nnum": 19,
             "z_out": 51,
@@ -203,7 +209,7 @@ def get_config_for_old_checkpoint(checkpoint: Path) -> TrainRunConfig:
         crit_weight=None,
         criterion=None,
         data_range=1.0,
-        dataset=None,
+        dataset=dataset,
         eval_batch_size=1,
         interpolation_order=2,
         lr_sched_factor=None,

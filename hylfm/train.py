@@ -31,7 +31,7 @@ app = typer.Typer()
 logger = logging.getLogger(__name__)
 
 
-@app.command()
+@app.command("train")
 @merge_args(get_model)
 def train_cli(
     dataset: DatasetChoice,
@@ -147,7 +147,7 @@ def train(
     validate_every_value: int,
     win_sigma: float,
     win_size: int,
-    save_after_validation_iterations: List[int],
+    save_after_validation_iterations: List[int] = tuple(),
     point_cloud_threshold: float = 1.0,
     save_output_to_disk: Optional[Dict[str, Path]] = None,
     note: str = "",
@@ -225,6 +225,7 @@ def train(
     if model_weights is not None:
         model_weights = Checkpoint.load(model_weights).model_weights
 
+    # create initial checkpoint
     checkpoint = Checkpoint(
         model_weights=model_weights, config=config, training_run_name=wandb_run.name, training_run_id=wandb_run.id
     )
