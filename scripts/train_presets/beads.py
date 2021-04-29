@@ -15,8 +15,8 @@ from hylfm.train import train
 
 if __name__ == "__main__":
     train(
-        dataset=DatasetChoice.beads_highc_a,
-        batch_multiplier=1,
+        dataset=DatasetChoice.beads_highc_b,
+        batch_multiplier=2,
         batch_size=1,
         crit_apply_weight_above_threshold=False,
         crit_beta=1.0,
@@ -26,7 +26,7 @@ if __name__ == "__main__":
         crit_decay_weight_limit=1.0,
         crit_ms_ssim_weight=0.01,
         crit_threshold=0.5,
-        crit_weight=0.05,
+        crit_weight=0.001,
         criterion=CriterionChoice.WeightedSmoothL1,
         data_range=1.0,
         eval_batch_size=1,
@@ -38,7 +38,7 @@ if __name__ == "__main__":
         lr_scheduler=LRSchedulerChoice.ReduceLROnPlateau,
         max_epochs=10,
         model_weights=None,  # Path()
-        opt_lr=2e-4,
+        opt_lr=3e-4,
         opt_momentum=0.0,
         opt_weight_decay=0.0,
         optimizer=OptimizerChoice.Adam,

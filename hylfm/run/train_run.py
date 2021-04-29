@@ -228,7 +228,7 @@ class TrainRun(Run):
     def _run(self) -> Iterable[Dict[str, Any]]:
         self.model.train()
         stop_early = False
-        zero_max_threshold = 0.01
+        zero_max_threshold = 0.001
         zero_max_patience = self.config.zero_max_patience
         zero_max_impatience = 0
 
