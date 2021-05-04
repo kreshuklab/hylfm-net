@@ -44,7 +44,7 @@ export CUDA_VISIBLE_DEVICES=3
 ```
 python scripts/train_presets/beads.py
 ```
-🕐 Excluding download time, this training configuration runs for approximately **7 hours** (on a GTX 2080 Ti).
+🕐 Excluding download time, this training configuration runs for approximately **6 hours** (on a GTX 2080 Ti). Note that the network will likely not have fully converged; increase `max_epochs` to allow for longer training (HyLFM-Net beads used in the paper was trained for 26.5 hours).
 
 
 #### Test HyLFM-Net on beads (no previous training required)
