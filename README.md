@@ -50,7 +50,7 @@ python scripts/train_presets/beads.py
 #### Test HyLFM-Net on beads (no previous training required)
 To download and test HyLFM-net beads run
 ```
-python hylfm/tst.py --checkpoint small_beads_demo
+python hylfm/tst.py small_beads_demo
 ```
 🕐 Excluding download time, this test configuration runs for approximately **6,5 min** in total with 12 s per sample (on a GTX 2080 Ti). Most time is spend on computing metrics.
 
