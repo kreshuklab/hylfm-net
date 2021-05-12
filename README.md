@@ -55,6 +55,20 @@ python hylfm/tst.py small_beads_demo
 🕐 Excluding download time, this test configuration runs for approximately **6,5 min** in total with 12 s per sample (on a GTX 2080 Ti). Most time is spend on computing metrics.
 
 
+## Data used in [paper](https://rdcu.be/cktHs)
+Wagner, N., Beuttenmueller, F., _et al_. Deep learning-enhanced light-field imaging with continuous validation. _Nat Methods_ __18__, 557–563 (2021).
+
+https://doi.org/10.1038/s41592-021-01136-0
+
+beads:
+https://www.ebi.ac.uk/biostudies/studies/S-BSST622
+
+Medaka heart: 
+https://www.ebi.ac.uk/biostudies/studies/S-BSST604
+
+zebrafish neural activity:
+https://www.ebi.ac.uk/biostudies/studies/S-BSST633
+
 ## On Your Data
 - Implement a `get_tensor_info` function in `hylfm/datasets/local/<your dataset group>.py` analogously to `hylfm/datasets/local/example.py`.
 - Add your `DatasetChoice` (defined in hylfm_types.py) and extent `get_dataset_sections` (in datasets/named.py) and `get_transforms_pipeline` (in datasets/transform_pipelines.py) analogously to `DatasetChoice.beads_highc_a`
