@@ -71,7 +71,7 @@ https://www.ebi.ac.uk/biostudies/studies/S-BSST633
 
 ## On Your Data
 - Implement a `get_tensor_info` function in `hylfm/datasets/local/<your dataset group>.py` analogously to `hylfm/datasets/local/example.py`.
-- Add your `DatasetChoice` (defined in hylfm_types.py) and extent `get_dataset_sections` (in datasets/named.py) and `get_transforms_pipeline` (in datasets/transform_pipelines.py) analogously to `DatasetChoice.beads_highc_a`
+- Add your `DatasetChoice` (defined in hylfm_types.py) and extent `get_dataset_sections` (in hylfm/datasets/named.py) and `get_transforms_pipeline` (in hylfm/datasets/transform_pipelines.py) analogously to `DatasetChoice.beads_highc_a`
 - Train or test HyLFM-Net as described in [Demo](#demo).
 
 
